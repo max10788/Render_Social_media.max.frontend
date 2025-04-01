@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS sentiment_analysis (
+    id SERIAL PRIMARY KEY,
+    query VARCHAR(255) NOT NULL,
+    sentiment_score FLOAT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
