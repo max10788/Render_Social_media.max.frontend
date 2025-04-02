@@ -15,7 +15,8 @@ document.getElementById("sentimentForm").addEventListener("submit", async functi
             <p><strong>Sentiment-Wert:</strong> ${data.sentiment_score.toFixed(2)}</p>
             <p>
                 Dieser Wert basiert auf einer On-Chain-Analyse von Social-Media-Daten 
-                auf der Plattform X (früher Twitter).
+                auf der Plattform X (früher Twitter). Die Analyse berücksichtigt öffentlich 
+                verfügbare Tweets und wertet deren Stimmung in Echtzeit aus.
             </p>
         `;
     } catch (error) {
