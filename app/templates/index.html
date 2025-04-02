@@ -7,13 +7,31 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Willkommen bei der Social Sentiment Analysis</h1>
-    <form id="sentimentForm">
-        <label for="query">Suchbegriff:</label>
-        <input type="text" id="query" name="query" required>
-        <button type="submit">Analyse starten</button>
-    </form>
-    <div id="result"></div>
+    <header>
+        <h1>On-Chain Social Sentiment Analysis</h1>
+        <p>
+            Diese Anwendung analysiert On-Chain-Sentimente aus Social-Media-Daten auf der Plattform X (früher Twitter). 
+            Geben Sie einen Suchbegriff ein, um die Stimmung (Sentiment) in Bezug auf diesen Begriff zu analysieren.
+        </p>
+    </header>
+
+    <main>
+        <form id="sentimentForm">
+            <label for="query">
+                Suchbegriff eingeben (z. B. "Bitcoin", "Ethereum"):
+            </label>
+            <input type="text" id="query" name="query" required placeholder="Suchbegriff hier eingeben">
+            <button type="submit">Analyse starten</button>
+        </form>
+        <div id="result"></div>
+    </main>
+
+    <footer>
+        <p>
+            Diese Analyse basiert auf öffentlich verfügbaren Daten von X (früher Twitter) und verwendet On-Chain-Metriken, 
+            um die Stimmung in Echtzeit zu bewerten.
+        </p>
+    </footer>
 
     <script src="/static/script.js"></script>
 </body>
