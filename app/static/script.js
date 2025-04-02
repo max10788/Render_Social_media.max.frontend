@@ -9,12 +9,19 @@ document.getElementById("sentimentForm").addEventListener("submit", async functi
             body: JSON.stringify({ query }),
         });
         const data = await response.json();
+
         document.getElementById("result").innerHTML = `
-            <p>Suchbegriff: ${data.query}</p>
-            <p>Sentiment-Wert: ${data.sentiment_score}</p>
+            <p><strong>Analyse für Suchbegriff:</strong> ${data.query}</p>
+            <p><strong>Sentiment-Wert:</strong> ${data.sentiment_score.toFixed(2)}</p>
+            <p>
+                Dieser Wert basiert auf einer On-Chain-Analyse von Social-Media-Daten 
+                auf der Plattform X (früher Twitter).
+            </p>
         `;
     } catch (error) {
         console.error("Fehler bei der API-Anfrage:", error);
-        document.getElementById("result").innerHTML = "<p>Fehler bei der Analyse.</p>";
+        document.getElementById("result").innerHTML = `
+            <p>Fehler bei der Analyse. Bitte versuchen Sie es erneut.</p>
+        `;
     }
 });
