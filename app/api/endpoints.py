@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from core.twitter_api import TwitterClient
+from app.core.twitter_api import TwitterClient
 from core.redis_cache import get_cached_result, cache_result
 from core.database import SessionLocal
 from models.schemas import SentimentResponse
