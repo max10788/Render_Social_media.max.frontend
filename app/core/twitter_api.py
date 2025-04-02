@@ -1,6 +1,6 @@
 import tweepy
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from core.config import settings
+from app.core.config import settings
 
 class TwitterClient:
     def __init__(self):
