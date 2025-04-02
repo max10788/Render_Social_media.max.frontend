@@ -1,20 +1,25 @@
-import sys
-import os
-
-# Fügen Sie den Pfad zum Projektverzeichnis hinzu
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(BASE_DIR)
-
-from fastapi import FastAPI
-from api.endpoints import router
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 # Initialisieren der FastAPI-Anwendung
 app = FastAPI()
 
-# Optionale Wurzelroute für eine Willkommensnachricht
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to the Social Sentiment Analysis API!"}
+# Mounten der statischen Dateien (CSS, JS, Bilder)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Registrieren der API-Routen
-app.include_router(router)
+# Laden der HTML-Templates
+templates = Jinja2Templates(directory="app/templates")
+
+# Route für die Startseite
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+# Beispiel für einen API-Endpunkt
+@app.post("/analyze")
+async def analyze_sentiment(query: dict):
+    # Beispiel: Sentiment-Analyse durchführen
+    sentiment_score = 0.85  # Ersetzen Sie dies durch Ihre Logik
+    return {"query": query.get("query"), "sentiment_score": sentiment_score}
