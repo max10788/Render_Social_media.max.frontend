@@ -10,7 +10,7 @@ document.getElementById("sentimentForm").addEventListener("submit", async functi
         });
         const data = await response.json();
 
-        document.getElementById("result").innerHTML = `
+        let resultHtml = `
             <p><strong>Analyse für Suchbegriff:</strong> ${data.query}</p>
             <p><strong>Sentiment-Wert:</strong> ${data.sentiment_score.toFixed(2)}</p>
             <p>
@@ -19,6 +19,18 @@ document.getElementById("sentimentForm").addEventListener("submit", async functi
                 verfügbare Tweets und wertet deren Stimmung in Echtzeit aus.
             </p>
         `;
+
+        if (data.on_chain_data && data.on_chain_data.length > 0) {
+            resultHtml += "<h3>On-Chain-Daten:</h3><ul>";
+            data.on_chain_data.forEach(tx => {
+                resultHtml += `<li>${tx.type}: ${tx.amount} SOL (Zeitpunkt: ${new Date(tx.blockTime * 1000).toLocaleString()})</li>`;
+            });
+            resultHtml += "</ul>";
+        } else {
+            resultHtml += "<p>Keine On-Chain-Daten gefunden.</p>";
+        }
+
+        document.getElementById("result").innerHTML = resultHtml;
     } catch (error) {
         console.error("Fehler bei der API-Anfrage:", error);
         document.getElementById("result").innerHTML = `
