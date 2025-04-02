@@ -7,3 +7,4 @@ redis==4.6.0
 vaderSentiment==3.3.2
 pytest==7.4.0
 pydantic==1.10.12
+python-dotenv==1.0.0
