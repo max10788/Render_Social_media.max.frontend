@@ -8,3 +8,4 @@ vaderSentiment==3.3.2
 pytest==7.4.0
 pydantic==1.10.12
 python-dotenv==1.0.0
+jinja2==3.1.2
