@@ -15,6 +15,9 @@ def fetch_on_chain_data(query: str, blockchain: str):
         raise ValueError(f"Unsupported blockchain: {blockchain}")
 
 def fetch_solana_data(query: str):
+    """
+    Abrufen von On-Chain-Daten von Solana.
+    """
     url = "https://api.mainnet-beta.solana.com"
     headers = {"Content-Type": "application/json"}
 
@@ -34,6 +37,9 @@ def fetch_solana_data(query: str):
         return []
 
 def fetch_ethereum_data(query: str):
+    """
+    Abrufen von On-Chain-Daten von Ethereum.
+    """
     url = f"https://api.etherscan.io/api?module=account&action=txlist&address={query}&apikey=YOUR_ETHERSCAN_API_KEY"
     try:
         response = requests.get(url)
@@ -44,6 +50,9 @@ def fetch_ethereum_data(query: str):
         return []
 
 def fetch_moralis_data(query: str):
+    """
+    Abrufen von On-Chain-Daten von Moralis.
+    """
     url = "https://deep-index.moralis.io/api/v2/transactions"
     headers = {
         "Content-Type": "application/json",
