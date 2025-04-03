@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import List, Dict
 from app.core.twitter_api import TwitterClient
@@ -16,51 +16,82 @@ def get_db():
     finally:
         db.close()
 
-class QueryRequest(BaseModel):
-    query: str  # Der Suchbegriff, der analysiert werden soll (z. B. "Bitcoin", "Solana")
+class AnalyzeRequest(BaseModel):
+    username: str  # Twitter-Benutzername (@)
+    post_count: int  # Anzahl der Posts/Retweets
+    crypto: str  # Kryptowährung (z. B. "Solana")
 
-@router.post("/analyze", response_model=Dict[str, float])
-def analyze_sentiment(request: QueryRequest, db=Depends(get_db)):
+@router.post("/analyze")
+def analyze_sentiment(request: AnalyzeRequest, db=Depends(get_db)):
     """
-    Führt eine Sentiment-Analyse für den angegebenen Suchbegriff durch.
+    Führt eine On-Chain-Sentiment-Analyse für den angegebenen Twitter-Benutzer durch.
     
-    - **query**: Der Suchbegriff, der analysiert werden soll (z. B. "Bitcoin", "Ethereum").
-    
-    Die Analyse basiert auf öffentlich verfügbaren Tweets und wertet deren Stimmung in Echtzeit aus.
+    - **username**: Der Twitter-Benutzername (@), dessen Posts analysiert werden sollen.
+    - **post_count**: Die Anzahl der neuesten Posts/Retweets, die analysiert werden sollen.
+    - **crypto**: Die Kryptowährung, die in den Tweets erwähnt wird.
     """
     # Überprüfen, ob das Ergebnis im Cache vorhanden ist
-    cached_result = get_cached_result(request.query)
+    cached_result = get_cached_result(f"{request.username}_{request.crypto}")
     if cached_result:
         return cached_result
 
+    # Abrufen von Tweets
+    twitter_client = TwitterClient()
+    tweets = twitter_client.fetch_user_tweets(request.username, request.post_count)
+
+    if not tweets:
+        return {"username": request.username, "post_count": request.post_count, "crypto": request.crypto, "sentiment_score": 0.0, "on_chain_data": []}
+
+    # Sentiment-Analyse durchführen
+    sentiment_scores = [twitter_client.analyze_sentiment(tweet) for tweet in tweets]
+    avg_score = (
+        sum(score['compound'] for score in sentiment_scores) / len(sentiment_scores)
+        if sentiment_scores else 0.0
+    )
+
+    # On-Chain-Daten abrufen
+    on_chain_data = fetch_on_chain_data(request.crypto)
+
+    # Speichern in der Datenbank
+    db_analysis = SentimentAnalysis(
+        username=request.username,
+        post_count=request.post_count,
+        crypto=request.crypto,
+        sentiment_score=avg_score
+    )
+    db.add(db_analysis)
+    db.commit()
+
+    # Caching des Ergebnisses
+    result = {
+        "username": request.username,
+        "post_count": request.post_count,
+        "crypto": request.crypto,
+        "sentiment_score": avg_score,
+        "on_chain_data": on_chain_data
+    }
+    cache_result(f"{request.username}_{request.crypto}", result)
+
+    return result
+
+def fetch_on_chain_data(crypto: str):
+    """
+    Abrufen von On-Chain-Daten basierend auf der Kryptowährung.
+    """
+    url = "https://api.mainnet-beta.solana.com"
+    headers = {"Content-Type": "application/json"}
+
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getSignaturesForAddress",
+        "params": [crypto]  # Hier könnte die Wallet-Adresse oder der Token stehen
+    }
+
     try:
-        # Abrufen von Tweets und Durchführen der Sentiment-Analyse
-        twitter_client = TwitterClient()
-        tweets = twitter_client.fetch_tweets(request.query)
-
-        if not tweets:
-            raise HTTPException(status_code=404, detail="Keine Tweets gefunden.")
-
-        sentiment_scores = [twitter_client.analyze_sentiment(tweet) for tweet in tweets]
-        avg_score = (
-            sum(score['compound'] for score in sentiment_scores) / len(sentiment_scores)
-            if sentiment_scores else 0.0
-        )
-
-        # Speichern in der Datenbank
-        db_analysis = SentimentAnalysis(query=request.query, sentiment_score=avg_score)
-        db.add(db_analysis)
-        db.commit()
-
-        # Caching des Ergebnisses
-        result = {
-            "query": request.query,
-            "sentiment_score": avg_score
-        }
-        cache_result(request.query, result)
-
-        return result
-
+        response = requests.post(url, json=payload, headers=headers)
+        data = response.json()
+        return data.get("result", [])
     except Exception as e:
-        # Fehlerbehandlung für unerwartete Ausnahmen
-        raise HTTPException(status_code=500, detail=f"Fehler bei der Analyse: {str(e)}")
+        print(f"Fehler beim Abrufen von On-Chain-Daten: {e}")
+        return []
