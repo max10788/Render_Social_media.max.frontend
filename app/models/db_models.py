@@ -2,16 +2,26 @@ from sqlalchemy import Column, Integer, String, Float, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
-# Basis für die Datenbankmodelle
 Base = declarative_base()
 
 class SentimentAnalysis(Base):
-    """
-    Datenbankmodell für die Speicherung von Sentiment-Analysen.
-    """
     __tablename__ = "sentiment_analysis"
 
-    id = Column(Integer, primary_key=True, index=True)  # Primärschlüssel
-    query = Column(String, index=True)  # Der Suchbegriff (z. B. "Solana")
-    sentiment_score = Column(Float, nullable=False)  # Der berechnete Sentiment-Wert
-    created_at = Column(DateTime, default=datetime.utcnow)  # Zeitstempel der Erstellung
+    id = Column(Integer, primary_key=True, index=True)
+    query = Column(String, index=True)
+    sentiment_score = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class OnChainTransaction(Base):
+    __tablename__ = "on_chain_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    query = Column(String, index=True)
+    transaction_id = Column(String, unique=True, index=True)
+    from_address = Column(String)  # Neue Spalte für die Absenderadresse
+    to_address = Column(String)    # Neue Spalte für die Empfängeradresse
+    amount = Column(Float, nullable=False)
+    transaction_type = Column(String)
+    block_time = Column(DateTime)
+    blockchain = Column(String, nullable=False)  # Blockchain-Herkunft
+    created_at = Column(DateTime, default=datetime.utcnow)
