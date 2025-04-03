@@ -1,27 +1,33 @@
 document.getElementById("sentimentForm").addEventListener("submit", async function (e) {
     e.preventDefault();
-    const username = document.getElementById("username").value;
-    const postCount = parseInt(document.getElementById("post_count").value);
-    const crypto = document.getElementById("crypto").value;
+    const query = document.getElementById("query").value;
+    const blockchain = document.getElementById("blockchain").value;
 
     try {
         const response = await fetch("/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, post_count: postCount, crypto }),
+            body: JSON.stringify({ query, blockchain }),
         });
         const data = await response.json();
 
-        document.getElementById("result").innerHTML = `
-            <p><strong>Analyse für Benutzer:</strong> ${data.username}</p>
-            <p><strong>Anzahl der analysierten Posts:</strong> ${data.post_count}</p>
-            <p><strong>Kryptowährung:</strong> ${data.crypto}</p>
+        let resultHtml = `
+            <p><strong>Analyse für Suchbegriff:</strong> ${data.query}</p>
             <p><strong>Sentiment-Wert:</strong> ${data.sentiment_score.toFixed(2)}</p>
-            <p><strong>On-Chain-Daten:</strong></p>
-            <ul>
-                ${data.on_chain_data.map(tx => `<li>${tx.type}: ${tx.amount} ${data.crypto} (${new Date(tx.block_time * 1000).toLocaleString()})</li>`).join("")}
-            </ul>
+            <p><strong>Blockchain:</strong> ${data.on_chain_data.length > 0 ? data.on_chain_data[0].blockchain : "Keine Daten"}</p>
         `;
+
+        if (data.on_chain_data && data.on_chain_data.length > 0) {
+            resultHtml += "<h3>On-Chain-Daten:</h3><ul>";
+            data.on_chain_data.forEach(tx => {
+                resultHtml += `<li>${tx.type}: ${tx.amount} (${tx.blockchain})</li>`;
+            });
+            resultHtml += "</ul>";
+        } else {
+            resultHtml += "<p>Keine On-Chain-Daten gefunden.</p>";
+        }
+
+        document.getElementById("result").innerHTML = resultHtml;
     } catch (error) {
         console.error("Fehler bei der API-Anfrage:", error);
         document.getElementById("result").innerHTML = `
