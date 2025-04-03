@@ -13,8 +13,10 @@ class TwitterClient:
         )
         self.sentiment_analyzer = SentimentIntensityAnalyzer()
 
-    def fetch_tweets(self, query: str, max_results: int = 10):
-        response = self.client.search_recent_tweets(query=query, max_results=max_results)
+    def fetch_user_tweets(self, username: str, max_results: int):
+        user = self.client.get_user(username=username)
+        user_id = user.data.id
+        response = self.client.get_users_tweets(id=user_id, max_results=max_results)
         tweets = [tweet.text for tweet in response.data] if response.data else []
         return tweets
 
