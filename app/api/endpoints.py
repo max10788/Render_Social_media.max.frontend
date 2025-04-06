@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import List
@@ -7,6 +8,10 @@ from app.core.database import SessionLocal
 from app.models.db_models import SentimentAnalysis, OnChainTransaction
 from app.core.blockchain_api import fetch_on_chain_data
 from datetime import datetime
+
+# Logging konfigurieren
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -33,9 +38,12 @@ def analyze_sentiment(request: QueryRequest, db=Depends(get_db)):
     Die Analyse basiert auf öffentlich verfügbaren Daten von X (früher Twitter) 
     und verwendet On-Chain-Metriken, um die Stimmung in Echtzeit zu bewerten.
     """
+    logger.debug(f"Analyse gestartet für Query: {request.query}, Blockchain: {request.blockchain}")
+
     # Überprüfen, ob das Ergebnis im Cache vorhanden ist
     cached_result = get_cached_result(request.query)
     if cached_result:
+        logger.info(f"Gecachte Daten gefunden für Query: {request.query}")
         return cached_result
 
     # Abrufen von Tweets und Durchführen der Sentiment-Analyse
@@ -43,21 +51,26 @@ def analyze_sentiment(request: QueryRequest, db=Depends(get_db)):
     tweets = twitter_client.fetch_tweets(request.query)
 
     if not tweets:
+        logger.warning(f"Keine Tweets gefunden für Query: {request.query}")
         return {"query": request.query, "sentiment_score": 0.0, "on_chain_data": []}
 
+    logger.info(f"{len(tweets)} Tweets gefunden für Query: {request.query}")
     sentiment_scores = [twitter_client.analyze_sentiment(tweet) for tweet in tweets]
     avg_score = (
         sum(score['compound'] for score in sentiment_scores) / len(sentiment_scores)
         if sentiment_scores else 0.0
     )
+    logger.debug(f"Durchschnittlicher Sentiment-Score berechnet: {avg_score}")
 
     # Abrufen von On-Chain-Daten basierend auf der ausgewählten Blockchain
     on_chain_data = fetch_on_chain_data(request.query, request.blockchain)
+    logger.debug(f"On-Chain-Daten abgerufen: {on_chain_data}")
 
     # Speichern in der Datenbank
     db_analysis = SentimentAnalysis(query=request.query, sentiment_score=avg_score)
     db.add(db_analysis)
     db.commit()
+    logger.info(f"Sentiment-Analyse gespeichert in der Datenbank für Query: {request.query}")
 
     for tx in on_chain_data:
         db_tx = OnChainTransaction(
@@ -70,6 +83,7 @@ def analyze_sentiment(request: QueryRequest, db=Depends(get_db)):
         )
         db.add(db_tx)
     db.commit()
+    logger.info(f"On-Chain-Daten gespeichert in der Datenbank für Query: {request.query}")
 
     # Caching des Ergebnisses
     result = {
@@ -78,5 +92,6 @@ def analyze_sentiment(request: QueryRequest, db=Depends(get_db)):
         "on_chain_data": on_chain_data
     }
     cache_result(request.query, result)
+    logger.info(f"Ergebnisse gecached für Query: {request.query}")
 
     return result
