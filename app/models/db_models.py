@@ -18,10 +18,8 @@ class OnChainTransaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     query = Column(String, index=True)
     transaction_id = Column(String, unique=True, index=True)
-    from_address = Column(String)  # Neue Spalte für die Absenderadresse
-    to_address = Column(String)    # Neue Spalte für die Empfängeradresse
     amount = Column(Float, nullable=False)
     transaction_type = Column(String)
     block_time = Column(DateTime)
-    blockchain = Column(String, nullable=False)  # Blockchain-Herkunft
+    blockchain = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
