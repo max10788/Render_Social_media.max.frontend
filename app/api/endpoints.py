@@ -5,7 +5,8 @@ from app.core.twitter_api import TwitterClient
 from app.core.redis_cache import get_cached_result, cache_result
 from app.core.database import SessionLocal
 from app.models.db_models import SentimentAnalysis, OnChainTransaction
-import requests
+from app.core.blockchain_api import fetch_on_chain_data
+from datetime import datetime
 
 router = APIRouter()
 
