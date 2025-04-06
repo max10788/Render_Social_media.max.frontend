@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime
+from app.core.config import settings
 
 def fetch_on_chain_data(query: str, blockchain: str):
     """
@@ -15,10 +16,7 @@ def fetch_on_chain_data(query: str, blockchain: str):
         raise ValueError(f"Unsupported blockchain: {blockchain}")
 
 def fetch_solana_data(query: str):
-    """
-    Abrufen von On-Chain-Daten von Solana.
-    """
-    url = "https://api.mainnet-beta.solana.com"
+    url = settings.SOLANA_RPC_URL
     headers = {"Content-Type": "application/json"}
 
     payload = {
@@ -37,10 +35,7 @@ def fetch_solana_data(query: str):
         return []
 
 def fetch_ethereum_data(query: str):
-    """
-    Abrufen von On-Chain-Daten von Ethereum.
-    """
-    url = f"https://api.etherscan.io/api?module=account&action=txlist&address={query}&apikey=YOUR_ETHERSCAN_API_KEY"
+    url = f"{settings.ETHEREUM_RPC_URL}?module=account&action=txlist&address={query}&apikey=YOUR_ETHERSCAN_API_KEY"
     try:
         response = requests.get(url)
         data = response.json()
@@ -50,17 +45,14 @@ def fetch_ethereum_data(query: str):
         return []
 
 def fetch_moralis_data(query: str):
-    """
-    Abrufen von On-Chain-Daten von Moralis.
-    """
-    url = "https://deep-index.moralis.io/api/v2/transactions"
+    url = f"{settings.MORALIS_BASE_URL}/{query}/transactions"
     headers = {
         "Content-Type": "application/json",
-        "X-API-Key": "YOUR_MORALIS_API_KEY"
+        "X-API-Key": settings.MORALIS_API_KEY
     }
 
     params = {
-        "chain": "eth",  # Oder andere unterstützte Chains
+        "chain": "eth",  # Unterstützte Chains: "eth", "polygon", "bsc", etc.
         "address": query
     }
 
