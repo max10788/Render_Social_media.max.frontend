@@ -3,8 +3,11 @@ document.getElementById("sentimentForm").addEventListener("submit", async functi
     const query = document.getElementById("query").value;
     const blockchain = document.getElementById("blockchain").value;
 
+    // Zeige Ladeanzeige
+    document.getElementById("result").innerHTML = "<p>Die Analyse wird durchgeführt...</p>";
+
     try {
-        const response = await fetch("/analyze", {
+        const response = await fetch("/api/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ query, blockchain }),
