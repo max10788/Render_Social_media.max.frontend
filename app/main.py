@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router  # Importieren Sie den API-Router
 
 # Initialisieren der FastAPI-Anwendung
@@ -9,6 +10,15 @@ app = FastAPI(
     title="Social Sentiment Analysis",
     description="Eine Anwendung zur Analyse von On-Chain-Sentimenten aus Social Media.",
     version="1.0.0"
+)
+
+# CORS konfigurieren (optional, falls benötigt)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Erlaubt alle Ursprünge
+    allow_credentials=True,
+    allow_methods=["*"],  # Erlaubt alle HTTP-Methoden
+    allow_headers=["*"],  # Erlaubt alle Header
 )
 
 # Mounten der statischen Dateien (CSS, JS, Bilder)
