@@ -7,37 +7,21 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <header>
-        <h1>On-Chain Social Sentiment Analysis</h1>
-        <p>
-            Diese Anwendung analysiert On-Chain-Sentimente aus Social-Media-Daten auf der Plattform X (früher Twitter). 
-            Geben Sie einen Twitter-Benutzernamen, die Anzahl der Posts und die Kryptowährung ein, um die Stimmung (Sentiment) zu analysieren.
-        </p>
-    </header>
-
-    <main>
+    <div class="container">
+        <h1>Social Sentiment Analysis</h1>
         <form id="sentimentForm">
-            <label for="username">Twitter-Benutzername (@):</label>
-            <input type="text" id="username" name="username" required placeholder="@username">
-
-            <label for="post_count">Anzahl der Posts/Retweets:</label>
-            <input type="number" id="post_count" name="post_count" required min="1" max="100" placeholder="10">
-
-            <label for="crypto">Kryptowährung:</label>
-            <input type="text" id="crypto" name="crypto" required placeholder="z.B. Solana, Bitcoin">
-
+            <label for="query">Suchbegriff:</label>
+            <input type="text" id="query" name="query" required>
+            <label for="blockchain">Blockchain:</label>
+            <select id="blockchain" name="blockchain" required>
+                <option value="solana">Solana</option>
+                <option value="ethereum">Ethereum</option>
+                <option value="moralis">Moralis</option>
+            </select>
             <button type="submit">Analyse starten</button>
         </form>
         <div id="result"></div>
-    </main>
-
-    <footer>
-        <p>
-            Diese Analyse basiert auf öffentlich verfügbaren Daten von X (früher Twitter) und verwendet On-Chain-Metriken, 
-            um die Stimmung in Echtzeit zu bewerten.
-        </p>
-    </footer>
-
+    </div>
     <script src="/static/script.js"></script>
 </body>
 </html>
