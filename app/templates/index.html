@@ -8,16 +8,21 @@
 </head>
 <body>
     <div class="container">
-        <h1>Social Sentiment Analysis</h1>
+        <h1>Wallet-Identifier</h1>
         <form id="sentimentForm">
-            <label for="query">Suchbegriff:</label>
-            <input type="text" id="query" name="query" required>
+            <label for="username">Twitter-Benutzername:</label>
+            <input type="text" id="username" name="username" placeholder="z.B. elonmusk" required>
+
+            <label for="post_count">Anzahl der Posts (max. 50):</label>
+            <input type="number" id="post_count" name="post_count" min="1" max="50" value="10" required>
+
             <label for="blockchain">Blockchain:</label>
             <select id="blockchain" name="blockchain" required>
                 <option value="solana">Solana</option>
                 <option value="ethereum">Ethereum</option>
                 <option value="moralis">Moralis</option>
             </select>
+
             <button type="submit">Analyse starten</button>
         </form>
         <div id="result"></div>
