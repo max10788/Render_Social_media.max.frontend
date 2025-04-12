@@ -3,7 +3,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 class TwitterClient:
     def __init__(self):
-        self.client = tweepy.Client(bearer_token=settings.TWITTER_BEARER_TOKEN)
+        self.client = tweepy.Client(bearer_token="YOUR_TWITTER_BEARER_TOKEN")
         self.analyzer = SentimentIntensityAnalyzer()
 
     def fetch_tweets_by_user(self, username, count):
