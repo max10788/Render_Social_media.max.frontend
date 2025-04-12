@@ -22,6 +22,12 @@ def get_db():
     finally:
         db.close()
 
+def validate_temporal_correlation(tweet_time, tx_time, tolerance_minutes=60):
+    return abs((tx_time - tweet_time).total_seconds()) < tolerance_minutes * 60
+
+def validate_amount_correlation(tweet_amount, tx_amount, tolerance=0.01):
+    return abs(tweet_amount - tx_amount) <= tolerance
+
 @router.post("/analyze", response_model=dict)
 def analyze_sentiment(request: QueryRequest, db: Session = Depends(get_db)):
     # Abrufen von Tweets basierend auf dem Benutzernamen
