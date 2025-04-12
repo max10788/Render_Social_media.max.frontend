@@ -1,19 +1,28 @@
 import re
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
 
 class TwitterClient:
     def __init__(self):
         self.client = tweepy.Client(bearer_token="YOUR_TWITTER_BEARER_TOKEN")
         self.analyzer = SentimentIntensityAnalyzer()
 
+    stop_words = set(stopwords.words("english"))
+
+    def tokenize_and_remove_stopwords(text):
+        tokens = word_tokenize(text)
+        filtered_tokens = [word for word in tokens if word not in stop_words]
+        return " ".join(filtered_tokens)
+    
     def normalize_text(text):
-    # Entfernen von URLs
-    text = re.sub(r"http\S+|www\S+", "", text)
-    # Entfernen von Sonderzeichen und Emojis
-    text = re.sub(r"[^\w\s]", "", text)
-    # Konvertieren in Kleinbuchstaben
-    text = text.lower()
-    return text
+        # Entfernen von URLs
+        text = re.sub(r"http\S+|www\S+", "", text)
+        # Entfernen von Sonderzeichen und Emojis
+        text = re.sub(r"[^\w\s]", "", text)
+        # Konvertieren in Kleinbuchstaben
+        text = text.lower()
+        return text
     
     def fetch_tweets_by_user(self, username, count):
         try:
