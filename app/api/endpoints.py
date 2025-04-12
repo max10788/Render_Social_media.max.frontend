@@ -1,17 +1,17 @@
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, constr, conint
 from app.core.twitter_api import TwitterClient
 from app.core.blockchain_api import fetch_on_chain_data
 from app.models.db_models import SentimentAnalysis, OnChainTransaction
-from datetime import datetime
 from sqlalchemy.orm import Session
+from datetime import datetime
 from typing import List
 
 router = APIRouter()
 
 class QueryRequest(BaseModel):
-    username: str  # Der Twitter-Benutzername
-    post_count: int  # Anzahl der Posts (zwischen 1 und 50)
+    username: constr(min_length=1)  # Der Twitter-Benutzername
+    post_count: conint(gt=0, le=50)  # Anzahl der Posts (zwischen 1 und 50)
     blockchain: str  # Die ausgewählte Blockchain
 
 def get_db():
@@ -25,8 +25,7 @@ def get_db():
 @router.post("/analyze", response_model=dict)
 def analyze_sentiment(request: QueryRequest, db: Session = Depends(get_db)):
     """
-    Führt eine Korrelation zwischen Tweets und On-Chain-Daten durch,
-    um ein potenzielles Wallet zu identifizieren.
+    Führt eine Korrelation zwischen Tweets und On-Chain-Daten durch.
     """
     # Abrufen von Tweets basierend auf dem Benutzernamen
     twitter_client = TwitterClient()
