@@ -16,24 +16,31 @@ def fetch_on_chain_data(query: str, blockchain: str):
         }
         response = requests.post(url, json=payload)
         data = response.json()
-        return data.get("result", [])
+        transactions = data.get("result", [])
+        return [
+            {
+                "transaction_id": tx["signature"],
+                "amount": tx.get("meta", {}).get("postBalances", [0])[0],
+                "block_time": tx["blockTime"],
+                "wallet_address": query,
+                "description": tx.get("memo", "")
+            }
+            for tx in transactions
+        ]
     elif blockchain == "ethereum":
         url = f"{settings.ETHEREUM_RPC_URL}?module=account&action=txlist&address={query}&apikey=YOUR_ETHERSCAN_API_KEY"
         response = requests.get(url)
         data = response.json()
-        return data.get("result", [])
-    elif blockchain == "moralis":
-        url = f"{settings.MORALIS_BASE_URL}/{query}/transactions"
-        headers = {
-            "Content-Type": "application/json",
-            "X-API-Key": settings.MORALIS_API_KEY
-        }
-        params = {
-            "chain": "eth",
-            "address": query
-        }
-        response = requests.get(url, headers=headers, params=params)
-        data = response.json()
-        return data.get("result", [])
+        transactions = data.get("result", [])
+        return [
+            {
+                "transaction_id": tx["hash"],
+                "amount": float(tx["value"]) / 1e18,  # Konvertieren von Wei zu ETH
+                "block_time": int(tx["timeStamp"]),
+                "wallet_address": query,
+                "description": tx.get("input", "")
+            }
+            for tx in transactions
+        ]
     else:
         raise ValueError(f"Unsupported blockchain: {blockchain}")
