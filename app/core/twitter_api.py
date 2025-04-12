@@ -6,6 +6,15 @@ class TwitterClient:
         self.client = tweepy.Client(bearer_token="YOUR_TWITTER_BEARER_TOKEN")
         self.analyzer = SentimentIntensityAnalyzer()
 
+    def normalize_text(text):
+    # Entfernen von URLs
+    text = re.sub(r"http\S+|www\S+", "", text)
+    # Entfernen von Sonderzeichen und Emojis
+    text = re.sub(r"[^\w\s]", "", text)
+    # Konvertieren in Kleinbuchstaben
+    text = text.lower()
+    return text
+    
     def fetch_tweets_by_user(self, username, count):
         try:
             user = self.client.get_user(username=username)
