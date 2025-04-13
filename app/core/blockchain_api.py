@@ -1,3 +1,5 @@
+import json
+import os
 import re
 import requests
 import logging
@@ -89,3 +91,24 @@ def fetch_on_chain_data(query: str, blockchain: str):
     except ValueError as ve:
         logging.error(f"Datenfehler: {ve}")
         return []
+
+
+def fetch_and_save_on_chain_data(query, blockchain, save_path="data/on_chain_data.json"):
+    """
+    Ruft On-Chain-Daten ab und speichert sie im JSON-Format.
+    
+    Args:
+        query: Der Suchbegriff (z. B. Wallet-Adresse oder Benutzername).
+        blockchain: Die ausgewählte Blockchain (z. B. "solana", "ethereum").
+        save_path: Der Pfad zur Speicherdatei (Standard: data/on_chain_data.json).
+    """
+    # Erstellen Sie den /data-Ordner, falls er nicht existiert
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    # Abrufen der On-Chain-Daten
+    on_chain_data = fetch_on_chain_data(query, blockchain)
+
+    # Speichern der On-Chain-Daten als JSON
+    with open(save_path, "w", encoding="utf-8") as f:
+        json.dump(on_chain_data, f, ensure_ascii=False, indent=4)
+    print(f"{len(on_chain_data)} Transaktionen wurden gespeichert in {save_path}")
