@@ -45,32 +45,73 @@ def analyze_sentiment(request: QueryRequest, db: Session = Depends(get_db)):
     for tweet in tweets:
         for tx in on_chain_data:
             # Zeitliche Korrelation
-            if abs(tx["block_time"] - tweet["created_at"]) < 3600:  # Innerhalb einer Stunde
+            if validate_temporal_correlation(tweet.get("created_at"), tx.get("block_time")):
                 # Betragskorrelation
-                if tweet["amount"] and tweet["amount"] == tx["amount"]:
+                if tweet.get("amount") and validate_amount_correlation(tweet["amount"], tx["amount"]):
                     potential_wallet = tx["wallet_address"]
                     break
             # Schlüsselwortkorrelation
-            if any(keyword in tx["description"] for keyword in tweet["keywords"]):
+            if any(keyword in tx.get("description", "") for keyword in tweet.get("keywords", [])):
                 potential_wallet = tx["wallet_address"]
                 break
             # Adressenkorrelation
-            if any(address in tx["wallet_address"] for address in tweet["addresses"]):
+            if any(address in tx.get("wallet_address", "") for address in tweet.get("addresses", [])):
                 potential_wallet = tx["wallet_address"]
                 break
             # Hashtagkorrelation
-            if any(hashtag in tx["description"] for hashtag in tweet["hashtags"]):
+            if any(hashtag in tx.get("description", "") for hashtag in tweet.get("hashtags", [])):
                 potential_wallet = tx["wallet_address"]
                 break
             # Linkkorrelation
-            if any(link in tx["description"] for link in tweet["links"]):
+            if any(link in tx.get("description", "") for link in tweet.get("links", [])):
                 potential_wallet = tx["wallet_address"]
                 break
 
-    # Speichern in der Datenbank und Rückgabe der Ergebnisse
+    # Speichern in der Datenbank
+    db_analysis = SentimentAnalysis(
+        query=request.username,
+        sentiment_score=avg_score,  # Fügen Sie die Berechnung des Sentiment-Scores hinzu
+        post_count=request.post_count
+    )
+    db.add(db_analysis)
+    db.commit()
+
+    for tx in on_chain_data:
+        db_tx = OnChainTransaction(
+            query=request.username,
+            transaction_id=tx.get("signature", tx.get("hash")),
+            amount=tx.get("amount", 0),
+            transaction_type=tx.get("type", "unknown"),
+            block_time=datetime.fromtimestamp(tx.get("blockTime", tx.get("timestamp"))),
+            blockchain=request.blockchain
+        )
+        db.add(db_tx)
+    db.commit()
+
+    # Rückgabe der Ergebnisse
     return {
         "username": request.username,
         "potential_wallet": potential_wallet,
-        "tweets": tweets,
-        "on_chain_data": on_chain_data
+        "tweets": [
+            {
+                "text": tweet["text"],
+                "amount": tweet.get("amount"),
+                "keywords": tweet.get("keywords"),
+                "addresses": tweet.get("addresses"),
+                "hashtags": tweet.get("hashtags"),
+                "links": tweet.get("links")
+            }
+            for tweet in tweets
+        ],
+        "on_chain_data": [
+            {
+                "transaction_id": tx.get("signature", tx.get("hash")),
+                "amount": tx.get("amount"),
+                "transaction_type": tx.get("type"),
+                "block_time": tx.get("blockTime", tx.get("timestamp")),
+                "wallet_address": tx.get("wallet_address"),
+                "description": tx.get("description")
+            }
+            for tx in on_chain_data
+        ]
     }
