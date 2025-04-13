@@ -1,3 +1,5 @@
+import json
+import os
 import re
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from nltk.corpus import stopwords
@@ -95,3 +97,25 @@ class TwitterClient:
 
     def analyze_sentiment(self, text):
         return self.analyzer.polarity_scores(text)
+
+
+def fetch_and_save_tweets(username, count, save_path="data/tweets.json"):
+    """
+    Ruft Tweets ab und speichert sie im JSON-Format.
+    
+    Args:
+        username: Der Twitter-Benutzername.
+        count: Die Anzahl der Tweets, die abgerufen werden sollen.
+        save_path: Der Pfad zur Speicherdatei (Standard: data/tweets.json).
+    """
+    # Erstellen Sie den /data-Ordner, falls er nicht existiert
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    # Abrufen der Tweets
+    twitter_client = TwitterClient()
+    tweets = twitter_client.fetch_tweets_by_user(username, count)
+
+    # Speichern der Tweets als JSON
+    with open(save_path, "w", encoding="utf-8") as f:
+        json.dump(tweets, f, ensure_ascii=False, indent=4)
+    print(f"{len(tweets)} Tweets wurden gespeichert in {save_path}")
