@@ -1,5 +1,8 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import MinMaxScaler
+from scipy.sparse import hstack
 import json
+import numpy as np
 
 def vectorize_tweets(input_path="data/cleaned_tweets.json", max_features=500):
     """
@@ -24,3 +27,34 @@ def vectorize_tweets(input_path="data/cleaned_tweets.json", max_features=500):
     tweet_vectors = vectorizer.fit_transform(tweet_texts)
 
     return tweet_vectors, vectorizer
+
+
+def normalize_numerical_features(features):
+    """
+    Normalisiert numerische Features.
+    
+    Args:
+        features: Eine Liste oder ein Array mit numerischen Features.
+    
+    Returns:
+        np.ndarray: Normalisierte Features.
+    """
+    scaler = MinMaxScaler()
+    normalized_features = scaler.fit_transform(np.array(features).reshape(-1, 1))
+    return normalized_features.flatten()
+
+
+def combine_features(tweet_vectors, numerical_features):
+    """
+    Kombiniert textuelle und numerische Features.
+    
+    Args:
+        tweet_vectors: Die TF-IDF-Vektoren der Tweets.
+        numerical_features: Die normalisierten numerischen Features.
+    
+    Returns:
+        scipy.sparse.csr_matrix: Kombinierte Features.
+    """
+    # Kombinieren der Features
+    combined_features = hstack([tweet_vectors, numerical_features.reshape(-1, 1)])
+    return combined_features
