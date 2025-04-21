@@ -1,17 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, constr, conint
-from typing import List
 from sqlalchemy.orm import Session
 from datetime import datetime
 import logging
 import os
-from textblob import TextBlob
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+import joblib
 
 # Interne Module importieren
 from app.core.twitter_api import TwitterClient
 from app.core.blockchain_api import fetch_on_chain_data
-from app.models.db_models import SentimentAnalysis, OnChainTransaction
-from app.core.database import get_db  # Korrekter Importpfad
+from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback
+from app.core.database import get_db
+from app.core.feature_engineering import extract_features, generate_labels
+from textblob import TextBlob
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
@@ -25,14 +28,20 @@ class QueryRequest(BaseModel):
     post_count: conint(gt=0, le=50)  # Anzahl der Posts (zwischen 1 und 50)
     blockchain: constr(regex="^(ethereum|solana|bitcoin)$")  # Unterstützte Blockchains
 
+# Pydantic-Model für Feedback
+class FeedbackRequest(BaseModel):
+    tweet_id: str
+    transaction_id: str
+    label: bool  # True = korreliert, False = nicht korreliert
+
 # Pydantic-Model für die Antwort
 class TweetResponse(BaseModel):
     text: str
     amount: float = None
-    keywords: List[str] = []
-    addresses: List[str] = []
-    hashtags: List[str] = []
-    links: List[str] = []
+    keywords: list = []
+    addresses: list = []
+    hashtags: list = []
+    links: list = []
 
 class OnChainResponse(BaseModel):
     transaction_id: str
@@ -45,12 +54,12 @@ class OnChainResponse(BaseModel):
 class AnalyzeResponse(BaseModel):
     username: str
     potential_wallet: str = None
-    tweets: List[TweetResponse]
-    on_chain_data: List[OnChainResponse]
+    tweets: list[TweetResponse]
+    on_chain_data: list[OnChainResponse]
 
 # Hilfsfunktionen für Korrelationen
 def validate_temporal_correlation(tweet_time, tx_time, tolerance_minutes=60):
-    return abs((datetime.fromisoformat(tx_time) - datetime.fromisoformat(tweet_time)).total_seconds()) < tolerance_minutes * 60
+    return abs((datetime.fromisoformat(tx_time) - datetime.fromtimestamp(tx_time)).total_seconds()) < tolerance_minutes * 60
 
 def validate_amount_correlation(tweet_amount, tx_amount, tolerance=0.01):
     return abs(tweet_amount - tx_amount) <= tolerance
@@ -72,22 +81,28 @@ def calculate_sentiment_score(texts):
     scores = [TextBlob(text).sentiment.polarity for text in texts]
     return sum(scores) / len(scores) if scores else 0
 
-# Hauptendpunkt
-@router.post("/analyze", response_model=AnalyzeResponse)
-def analyze_sentiment(request: QueryRequest, db: Session = Depends(get_db)):
+# Laden oder Initialisieren des ML-Modells
+try:
+    model = joblib.load("model.pkl")
+except FileNotFoundError:
+    model = RandomForestClassifier()
+    joblib.dump(model, "model.pkl")
+
+# Regelbasierte Analyse
+@router.post("/analyze/rule-based", response_model=AnalyzeResponse)
+def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
     try:
-        # Tweets abrufen
+        # Tweets und Transaktionen abrufen
         twitter_client = TwitterClient()
         tweets = twitter_client.fetch_tweets_by_user(request.username, request.post_count)
         if not tweets:
             logger.warning(f"No tweets found for username: {request.username}")
             return {"username": request.username, "potential_wallet": None, "message": "Keine Tweets gefunden."}
 
-        # On-Chain-Daten abrufen
         blockchain_endpoint = {
             "solana": os.getenv("SOLANA_RPC_URL"),
             "ethereum": os.getenv("ETHEREUM_RPC_URL"),
-            "bitcoin": os.getenv("BITCOIN_RPC_URL"),  # Fügen Sie dies zu Ihrer .env hinzu, falls benötigt
+            "bitcoin": os.getenv("BITCOIN_RPC_URL"),
         }.get(request.blockchain)
 
         if not blockchain_endpoint:
@@ -154,4 +169,117 @@ def analyze_sentiment(request: QueryRequest, db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"Error during analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ML-basierte Analyse
+@router.post("/analyze/ml", response_model=AnalyzeResponse)
+def analyze_ml(request: QueryRequest, db: Session = Depends(get_db)):
+    try:
+        # 1. Tweets und On-Chain-Daten abrufen
+        twitter_client = TwitterClient()
+        tweets = twitter_client.fetch_tweets_by_user(request.username, request.post_count)
+        if not tweets:
+            logger.warning(f"No tweets found for username: {request.username}")
+            return {"username": request.username, "potential_wallet": None, "message": "Keine Tweets gefunden."}
+
+        blockchain_endpoint = {
+            "solana": os.getenv("SOLANA_RPC_URL"),
+            "ethereum": os.getenv("ETHEREUM_RPC_URL"),
+            "bitcoin": os.getenv("BITCOIN_RPC_URL"),
+        }.get(request.blockchain)
+
+        if not blockchain_endpoint:
+            raise HTTPException(status_code=400, detail=f"Unsupported blockchain: {request.blockchain}")
+
+        on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
+        if not on_chain_data:
+            logger.warning(f"No on-chain data found for username: {request.username} and blockchain: {request.blockchain}")
+            return {"username": request.username, "potential_wallet": None, "message": "Keine On-Chain-Daten gefunden."}
+
+        # 2. Features extrahieren
+        features = extract_features(tweets, on_chain_data)
+
+        # 3. Labels generieren (automatisch oder basierend auf Feedback)
+        labels = generate_labels(tweets, on_chain_data)
+
+        # 4. Modell trainieren (oder weitertrainieren)
+        model.fit(features, labels)
+        joblib.dump(model, "model.pkl")  # Aktualisiertes Modell speichern
+
+        # 5. Vorhersagen treffen
+        predictions = model.predict(features)
+        potential_wallet = None
+        for i, prediction in enumerate(predictions):
+            if prediction == 1:
+                potential_wallet = on_chain_data[i % len(on_chain_data)]["wallet_address"]
+                break
+
+        # 6. Sentiment-Score berechnen
+        sentiment_score = calculate_sentiment_score([tweet["text"] for tweet in tweets])
+
+        # 7. Daten in der Datenbank speichern
+        db_analysis = SentimentAnalysis(
+            query=request.username,
+            sentiment_score=sentiment_score,
+            post_count=request.post_count
+        )
+        db.add(db_analysis)
+
+        db_transactions = [
+            OnChainTransaction(
+                query=request.username,
+                transaction_id=tx.get("signature", tx.get("hash")),
+                amount=tx.get("amount", 0),
+                transaction_type=tx.get("type", "unknown"),
+                block_time=datetime.fromtimestamp(tx.get("blockTime", tx.get("timestamp"))),
+                blockchain=request.blockchain
+            )
+            for tx in on_chain_data
+        ]
+        db.add_all(db_transactions)
+        db.commit()
+
+        # 8. Rückgabe der Ergebnisse
+        return AnalyzeResponse(
+            username=request.username,
+            potential_wallet=potential_wallet,
+            tweets=[TweetResponse(**tweet) for tweet in tweets],
+            on_chain_data=[OnChainResponse(**tx) for tx in on_chain_data]
+        )
+
+    except Exception as e:
+        logger.error(f"Error during ML analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Feedback-Endpunkt
+@router.post("/feedback")
+def submit_feedback(feedback: FeedbackRequest, db: Session = Depends(get_db)):
+    try:
+        feedback_entry = Feedback(
+            tweet_id=feedback.tweet_id,
+            transaction_id=feedback.transaction_id,
+            label=feedback.label
+        )
+        db.add(feedback_entry)
+        db.commit()
+        return {"message": "Feedback received and saved!"}
+    except Exception as e:
+        logger.error(f"Error submitting feedback: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Trainingsfortschritt anzeigen
+@router.get("/training-progress")
+def get_training_progress(db: Session = Depends(get_db)):
+    try:
+        total_feedback = db.query(Feedback).count()
+        positive_feedback = db.query(Feedback).filter(Feedback.label == True).count()
+        negative_feedback = db.query(Feedback).filter(Feedback.label == False).count()
+
+        return {
+            "total_feedback": total_feedback,
+            "positive_feedback": positive_feedback,
+            "negative_feedback": negative_feedback
+        }
+    except Exception as e:
+        logger.error(f"Error fetching training progress: {e}")
         raise HTTPException(status_code=500, detail=str(e))
