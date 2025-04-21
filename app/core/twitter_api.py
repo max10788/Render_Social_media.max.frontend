@@ -1,74 +1,84 @@
 import json
 import os
 import re
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+import asyncio
+import aiohttp
+import logging
+from langdetect import detect
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-import tweepy
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from app.core.config import settings
+import redis
+
+# Logger konfigurieren
+logger = logging.getLogger(__name__)
+
+# Redis-Client initialisieren
+redis_client = redis.from_url(settings.REDIS_URL)
 
 class TwitterClient:
     def __init__(self):
-        self.client = tweepy.Client(bearer_token="YOUR_TWITTER_BEARER_TOKEN")
+        self.client = None  # Wird bei Bedarf initialisiert
         self.analyzer = SentimentIntensityAnalyzer()
-        self.stop_words = set(stopwords.words("english"))
 
     @staticmethod
     def normalize_text(text):
-        # Entfernen von URLs
-        text = re.sub(r"http\S+|www\S+", "", text)
-        # Entfernen von Sonderzeichen und Emojis
-        text = re.sub(r"[^\w\s]", "", text)
-        # Konvertieren in Kleinbuchstaben
-        text = text.lower()
+        """Entfernt URLs, Sonderzeichen, Emojis und konvertiert in Kleinbuchstaben."""
+        text = re.sub(r"http\S+|www\S+", "", text)  # URLs entfernen
+        text = re.sub(r"[^\w\s]", "", text)  # Sonderzeichen entfernen
+        text = text.lower()  # Kleinbuchstaben
         return text
 
-    @staticmethod
-    def tokenize_and_remove_stopwords(text, stop_words):
+    def tokenize_and_remove_stopwords(self, text, language="en"):
+        """Tokenisiert den Text und entfernt Stop-Wörter basierend auf der Sprache."""
+        try:
+            stop_words = set(stopwords.words(language))
+        except Exception:
+            logger.warning(f"Sprache '{language}' nicht unterstützt. Fallback auf Englisch.")
+            stop_words = set(stopwords.words("english"))
+
         tokens = word_tokenize(text)
         filtered_tokens = [word for word in tokens if word not in stop_words]
         return " ".join(filtered_tokens)
 
-    def fetch_tweets_by_user(self, username, count):
+    async def fetch_tweets_async(self, username, count):
+        """Ruft Tweets asynchron ab."""
+        url = f"https://api.twitter.com/2/users/by/username/{username}/tweets"
+        headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
+        params = {"max_results": count}
+
         try:
-            user = self.client.get_user(username=username)
-            user_id = user.data.id
-            tweets = self.client.get_users_tweets(id=user_id, max_results=count)
-            # Entfernen von leeren Tweets
-            return [
-                self.extract_tweet_attributes(tweet.text.strip())
-                for tweet in tweets.data
-                if tweet.text.strip()
-            ] if tweets.data else []
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return data.get("data", [])
+                    else:
+                        logger.error(f"Fehler beim Abrufen von Tweets: Status {response.status}")
+                        return []
         except Exception as e:
-            print(f"Fehler beim Abrufen von Tweets: {e}")
+            logger.error(f"Fehler beim Abrufen von Tweets: {e}")
             return []
 
     def extract_tweet_attributes(self, tweet_text):
-        # Normalisieren des Textes
+        """Extrahiert relevante Attribute aus einem Tweet."""
         normalized_text = self.normalize_text(tweet_text)
-
-        # Tokenisieren und Entfernen von Stop-Wörtern
-        processed_text = self.tokenize_and_remove_stopwords(normalized_text, self.stop_words)
-
-        # Extrahieren von Schlüsselwörtern, Beträgen, Adressen, Hashtags und Links
-        keywords = self.extract_keywords(processed_text)
-        amount = self.extract_amount(tweet_text)
-        addresses = self.extract_addresses(tweet_text)
-        hashtags = self.extract_hashtags(tweet_text)
-        links = self.extract_links(tweet_text)
+        language = self.detect_language(normalized_text)
+        processed_text = self.tokenize_and_remove_stopwords(normalized_text, language)
 
         return {
             "text": tweet_text,
             "processed_text": processed_text,
-            "keywords": keywords,
-            "amount": amount,
-            "addresses": addresses,
-            "hashtags": hashtags,
-            "links": links
+            "keywords": self.extract_keywords(processed_text),
+            "amount": self.extract_amount(tweet_text),
+            "addresses": self.extract_addresses(tweet_text),
+            "hashtags": self.extract_hashtags(tweet_text),
+            "links": self.extract_links(tweet_text)
         }
 
     def extract_keywords(self, text):
-        # Extrahieren von relevanten Schlüsselwörtern
+        """Extrahiert relevante Schlüsselwörter."""
         relevant_keywords = [
             "solana", "ethereum", "btc", "transfer", "send", "receive",
             "wallet", "transaction", "mint", "burn", "staking", "nft"
@@ -76,46 +86,59 @@ class TwitterClient:
         return [word for word in text.split() if word.lower() in relevant_keywords]
 
     def extract_amount(self, text):
+        """Extrahiert Beträge mit Einheiten (z. B. SOL, ETH, BTC)."""
         try:
-            match = re.search(r"(\d+\.?\d*)\s?(SOL|ETH|BTC)", text.upper())
+            match = re.search(r"(\d+\.?\d*)\s?(SOL|ETH|BTC|USDT|USDC)", text.upper())
             return float(match.group(1)) if match else None
         except Exception as e:
-            print(f"Fehler beim Extrahieren des Betrags: {e}")
+            logger.error(f"Fehler beim Extrahieren des Betrags: {e}")
             return None
 
     def extract_addresses(self, text):
-        # Extrahieren von Wallet-Adressen (vereinfacht)
-        return re.findall(r"0x[a-fA-F0-9]{40}", text)
+        """Extrahiert Ethereum- und Solana-Wallet-Adressen."""
+        ethereum_addresses = re.findall(r"0x[a-fA-F0-9]{40}", text)
+        solana_addresses = re.findall(r"[1-9A-HJ-NP-Za-km-z]{32,44}", text)
+        return ethereum_addresses + solana_addresses
 
     def extract_hashtags(self, text):
-        # Extrahieren von Hashtags
+        """Extrahiert Hashtags."""
         return re.findall(r"#\w+", text)
 
     def extract_links(self, text):
-        # Extrahieren von URLs
+        """Extrahiert URLs."""
         return re.findall(r"https?://[^\s]+", text)
 
     def analyze_sentiment(self, text):
+        """Führt eine Sentiment-Analyse durch."""
         return self.analyzer.polarity_scores(text)
 
+    def detect_language(self, text):
+        """Erkennt die Sprache eines Textes."""
+        try:
+            return detect(text)
+        except Exception:
+            logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
+            return "en"
 
-def fetch_and_save_tweets(username, count, save_path="data/tweets.json"):
-    """
-    Ruft Tweets ab und speichert sie im JSON-Format.
-    
-    Args:
-        username: Der Twitter-Benutzername.
-        count: Die Anzahl der Tweets, die abgerufen werden sollen.
-        save_path: Der Pfad zur Speicherdatei (Standard: data/tweets.json).
-    """
-    # Erstellen Sie den /data-Ordner, falls er nicht existiert
+    async def fetch_and_cache_tweets(self, username, count):
+        """Ruft Tweets ab und speichert sie im Cache."""
+        cache_key = f"tweets:{username}:{count}"
+        cached_tweets = redis_client.get(cache_key)
+        if cached_tweets:
+            logger.info(f"Tweets für '{username}' aus dem Cache geladen.")
+            return json.loads(cached_tweets)
+
+        tweets = await self.fetch_tweets_async(username, count)
+        processed_tweets = [self.extract_tweet_attributes(tweet["text"]) for tweet in tweets]
+
+        redis_client.set(cache_key, json.dumps(processed_tweets), ex=3600)  # Cache für 1 Stunde
+        logger.info(f"{len(processed_tweets)} Tweets für '{username}' gespeichert.")
+        return processed_tweets
+
+
+def save_tweets_to_file(tweets, save_path="data/tweets.json"):
+    """Speichert Tweets im JSON-Format."""
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-    # Abrufen der Tweets
-    twitter_client = TwitterClient()
-    tweets = twitter_client.fetch_tweets_by_user(username, count)
-
-    # Speichern der Tweets als JSON
     with open(save_path, "w", encoding="utf-8") as f:
         json.dump(tweets, f, ensure_ascii=False, indent=4)
-    print(f"{len(tweets)} Tweets wurden gespeichert in {save_path}")
+    logger.info(f"{len(tweets)} Tweets wurden gespeichert in {save_path}")
