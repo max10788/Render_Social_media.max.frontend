@@ -11,7 +11,7 @@ from textblob import TextBlob
 from app.core.twitter_api import TwitterClient
 from app.core.blockchain_api import fetch_on_chain_data
 from app.models.db_models import SentimentAnalysis, OnChainTransaction
-from app.core.database import get_db
+from app.core.database import get_db  # Korrekter Importpfad
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
