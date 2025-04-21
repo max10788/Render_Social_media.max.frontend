@@ -12,7 +12,7 @@ import joblib
 from app.core.twitter_api import TwitterClient
 from app.core.blockchain_api import fetch_on_chain_data
 from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback
-from app.core.database import get_db
+from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
 from textblob import TextBlob
 
