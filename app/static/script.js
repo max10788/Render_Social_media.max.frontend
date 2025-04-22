@@ -1,40 +1,50 @@
-document.getElementById("sentimentForm").addEventListener("submit", async function (e) {
-    e.preventDefault();
-    const query = document.getElementById("query").value;
-    const blockchain = document.getElementById("blockchain").value;
+document.getElementById('analysis-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
 
-    // Zeige Ladeanzeige
-    document.getElementById("result").innerHTML = "<p>Die Analyse wird durchgeführt...</p>";
+  // Formulardaten sammeln
+  const username = document.getElementById('username').value.trim();
+  const postCount = parseInt(document.getElementById('post_count').value, 10);
+  const blockchain = document.getElementById('blockchain').value;
 
-    try {
-        const response = await fetch("/api/analyze", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query, blockchain }),
-        });
-        const data = await response.json();
+  if (!username || !postCount || !blockchain) {
+    alert('Please fill in all fields.');
+    return;
+  }
 
-        let resultHtml = `
-            <p><strong>Analyse für Suchbegriff:</strong> ${data.query}</p>
-            <p><strong>Sentiment-Wert:</strong> ${data.sentiment_score.toFixed(2)}</p>
-            <p><strong>Blockchain:</strong> ${data.on_chain_data.length > 0 ? data.on_chain_data[0].blockchain : "Keine Daten"}</p>
-        `;
+  // Ergebnisse anzeigen
+  const resultsDiv = document.getElementById('results');
+  const potentialWalletDiv = document.getElementById('potential-wallet');
+  const tweetsDiv = document.getElementById('tweets');
+  const onChainDataDiv = document.getElementById('on-chain-data');
 
-        if (data.on_chain_data && data.on_chain_data.length > 0) {
-            resultHtml += "<h3>On-Chain-Daten:</h3><ul>";
-            data.on_chain_data.forEach(tx => {
-                resultHtml += `<li>${tx.type}: ${tx.amount} (${tx.blockchain})</li>`;
-            });
-            resultHtml += "</ul>";
-        } else {
-            resultHtml += "<p>Keine On-Chain-Daten gefunden.</p>";
-        }
+  // Alte Ergebnisse löschen
+  potentialWalletDiv.innerHTML = '';
+  tweetsDiv.innerHTML = '';
+  onChainDataDiv.innerHTML = '';
 
-        document.getElementById("result").innerHTML = resultHtml;
-    } catch (error) {
-        console.error("Fehler bei der API-Anfrage:", error);
-        document.getElementById("result").innerHTML = `
-            <p>Fehler bei der Analyse. Bitte versuchen Sie es erneut.</p>
-        `;
+  try {
+    // API-Anfrage senden
+    const response = await fetch('/api/analyze/rule-based', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, post_count: postCount, blockchain }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
     }
+
+    const data = await response.json();
+
+    // Ergebnisse anzeigen
+    potentialWalletDiv.innerHTML = `<strong>Potential Wallet:</strong> ${data.potential_wallet || 'None'}`;
+    tweetsDiv.innerHTML = `<strong>Tweets:</strong><ul>${data.tweets.map(tweet => `<li>${tweet.text}</li>`).join('')}</ul>`;
+    onChainDataDiv.innerHTML = `<strong>On-Chain Data:</strong><ul>${data.on_chain_data.map(tx => `<li>${tx.transaction_id} - ${tx.amount} (${tx.block_time})</li>`).join('')}</ul>`;
+
+    resultsDiv.classList.remove('hidden');
+  } catch (error) {
+    alert(`Error during analysis: ${error.message}`);
+  }
 });
