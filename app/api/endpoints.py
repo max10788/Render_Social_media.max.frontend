@@ -68,9 +68,8 @@ def validate_amount_correlation(tweet_amount, tx_amount, tolerance=0.01):
 def validate_keyword_correlation(tweet_keywords, tx_description):
     keyword_set = set(tweet_keywords)
     description_set = set(tx_description.split())
-    logger.debug(f"Validating keyword correlation: {tweet_keywords} vs {tx_description}")
     return not keyword_set.isdisjoint(description_set)
-
+    
 def validate_address_correlation(tweet_addresses, tx_wallet_address):
     address_set = set(tweet_addresses)
     wallet_set = set(tx_wallet_address.split())
