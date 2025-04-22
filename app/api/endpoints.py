@@ -114,13 +114,11 @@ def train_model(db: Session):
 
 # Regelbasierte Analyse
 @router.post("/analyze/rule-based", response_model=AnalyzeResponse)
-def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
+async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
     try:
-        logger.info(f"Received request: username={request.username}, post_count={request.post_count}, blockchain={request.blockchain}")
-        
         # Tweets und Transaktionen abrufen
         twitter_client = TwitterClient()
-        tweets = twitter_client.fetch_tweets_by_user(request.username, request.post_count)
+        tweets = await twitter_client.fetch_tweets_by_user(request.username, request.post_count)  # Hinzufügen von `await`
         if not tweets:
             logger.warning(f"No tweets found for username: {request.username}")
             return {"username": request.username, "potential_wallet": None, "message": "Keine Tweets gefunden."}
