@@ -15,6 +15,7 @@ from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback
 from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
 from textblob import TextBlob
+from app.schemas import QueryRequest, AnalyzeResponse
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
@@ -172,56 +173,57 @@ def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ML-basierte Analyse
-@router.post("/analyze/ml", response_model=AnalyzeResponse)
+@@router.post("/analyze/ml", response_model=AnalyzeResponse)
 def analyze_ml(request: QueryRequest, db: Session = Depends(get_db)):
+    """
+    Analysiert Tweets und Blockchain-Transaktionen mithilfe von Machine Learning.
+    
+    Args:
+        request (QueryRequest): Die Anfrage mit Benutzername, Blockchain und Postanzahl.
+        db (Session): Datenbanksession für die Speicherung der Ergebnisse.
+    
+    Returns:
+        AnalyzeResponse: Die Antwort mit potenzieller Wallet-Adresse und analysierten Daten.
+    """
     try:
-        # 1. Tweets und On-Chain-Daten abrufen
-        twitter_client = TwitterClient()
-        tweets = twitter_client.fetch_tweets_by_user(request.username, request.post_count)
-        if not tweets:
-            logger.warning(f"No tweets found for username: {request.username}")
-            return {"username": request.username, "potential_wallet": None, "message": "Keine Tweets gefunden."}
+        # Tweets abrufen (Beispiel-Daten)
+        tweets = [
+            {"text": "Just sent 1.5 SOL to my friend!", "created_at": datetime.now()},
+            {"text": "Bought some ETH today.", "created_at": datetime.now()}
+        ]
 
-        blockchain_endpoint = {
-            "solana": os.getenv("SOLANA_RPC_URL"),
-            "ethereum": os.getenv("ETHEREUM_RPC_URL"),
-            "bitcoin": os.getenv("BITCOIN_RPC_URL"),
-        }.get(request.blockchain)
+        # Transaktionen abrufen (Beispiel-Daten)
+        transactions = [
+            {"amount": 1.5, "block_time": datetime.now().timestamp()},
+            {"amount": 0.3, "block_time": datetime.now().timestamp()}
+        ]
 
-        if not blockchain_endpoint:
-            raise HTTPException(status_code=400, detail=f"Unsupported blockchain: {request.blockchain}")
+        # Features extrahieren
+        features = extract_features(tweets, transactions)
 
-        on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
-        if not on_chain_data:
-            logger.warning(f"No on-chain data found for username: {request.username} and blockchain: {request.blockchain}")
-            return {"username": request.username, "potential_wallet": None, "message": "Keine On-Chain-Daten gefunden."}
+        # Labels generieren
+        labels = generate_labels(tweets, transactions)
 
-        # 2. Features extrahieren
-        features = extract_features(tweets, on_chain_data)
+        # Debugging-Ausgaben (optional)
+        print("Features:", features)
+        print("Labels:", labels)
 
-        # 3. Labels generieren (automatisch oder basierend auf Feedback)
-        labels = generate_labels(tweets, on_chain_data)
+        # TODO: Modell laden und Vorhersagen treffen
+        # Beispiel: model.predict(features)
 
-        # 4. Modell trainieren (oder weitertrainieren)
-        model.fit(features, labels)
-        joblib.dump(model, "model.pkl")  # Aktualisiertes Modell speichern
-
-        # 5. Vorhersagen treffen
-        predictions = model.predict(features)
+        # Dummy-Ergebnis für die Rückgabe
         potential_wallet = None
-        for i, prediction in enumerate(predictions):
-            if prediction == 1:
-                potential_wallet = on_chain_data[i % len(on_chain_data)]["wallet_address"]
+        for i, label in enumerate(labels):
+            if label == 1:
+                potential_wallet = transactions[i]["wallet_address"]
                 break
 
-        # 6. Sentiment-Score berechnen
-        sentiment_score = calculate_sentiment_score([tweet["text"] for tweet in tweets])
-
-        # 7. Daten in der Datenbank speichern
+        # Daten in der Datenbank speichern
+        sentiment_score = sum(TextBlob(tweet["text"]).sentiment.polarity for tweet in tweets) / len(tweets)
         db_analysis = SentimentAnalysis(
             query=request.username,
             sentiment_score=sentiment_score,
-            post_count=request.post_count
+            post_count=len(tweets)
         )
         db.add(db_analysis)
 
@@ -229,28 +231,27 @@ def analyze_ml(request: QueryRequest, db: Session = Depends(get_db)):
             OnChainTransaction(
                 query=request.username,
                 transaction_id=tx.get("signature", tx.get("hash")),
-                amount=tx.get("amount", 0),
-                transaction_type=tx.get("type", "unknown"),
-                block_time=datetime.fromtimestamp(tx.get("blockTime", tx.get("timestamp"))),
+                amount=tx["amount"],
+                transaction_type="unknown",
+                block_time=datetime.fromtimestamp(tx["block_time"]),
                 blockchain=request.blockchain
             )
-            for tx in on_chain_data
+            for tx in transactions
         ]
         db.add_all(db_transactions)
         db.commit()
 
-        # 8. Rückgabe der Ergebnisse
+        # Rückgabe der Ergebnisse
         return AnalyzeResponse(
             username=request.username,
             potential_wallet=potential_wallet,
-            tweets=[TweetResponse(**tweet) for tweet in tweets],
-            on_chain_data=[OnChainResponse(**tx) for tx in on_chain_data]
+            tweets=[{"text": tweet["text"], "created_at": tweet["created_at"]} for tweet in tweets],
+            on_chain_data=[{"amount": tx["amount"], "block_time": tx["block_time"]} for tx in transactions]
         )
 
     except Exception as e:
-        logger.error(f"Error during ML analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+        
 # Feedback-Endpunkt
 @router.post("/feedback")
 def submit_feedback(feedback: FeedbackRequest, db: Session = Depends(get_db)):
