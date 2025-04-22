@@ -120,8 +120,15 @@ class TwitterClient:
             logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
             return "en"
 
-    async def fetch_and_cache_tweets(self, username, count):
-        """Ruft Tweets ab und speichert sie im Cache."""
+   async def fetch_and_cache_tweets(self, username, count):
+        """
+        Ruft Tweets ab und speichert sie im Cache.
+        Args:
+            username (str): Der Twitter-Benutzername.
+            count (int): Die Anzahl der abzurufenden Tweets.
+        Returns:
+            list: Eine Liste verarbeiteter Tweets.
+        """
         cache_key = f"tweets:{username}:{count}"
         cached_tweets = redis_client.get(cache_key)
         if cached_tweets:
@@ -135,6 +142,18 @@ class TwitterClient:
         logger.info(f"{len(processed_tweets)} Tweets für '{username}' gespeichert.")
         return processed_tweets
 
+    async def fetch_tweets_by_user(self, username, count):
+        """
+        Ruft Tweets für einen Benutzer ab, ohne Caching.
+        Args:
+            username (str): Der Twitter-Benutzername.
+            count (int): Die Anzahl der abzurufenden Tweets.
+        Returns:
+            list: Eine Liste verarbeiteter Tweets.
+        """
+        tweets = await self.fetch_tweets_async(username, count)
+        processed_tweets = [self.extract_tweet_attributes(tweet["text"]) for tweet in tweets]
+        return processed_tweets
 
 def save_tweets_to_file(tweets, save_path="data/tweets.json"):
     """Speichert Tweets im JSON-Format."""
