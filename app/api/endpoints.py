@@ -173,7 +173,7 @@ def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ML-basierte Analyse
-@@router.post("/analyze/ml", response_model=AnalyzeResponse)
+@router.post("/analyze/ml", response_model=AnalyzeResponse)
 def analyze_ml(request: QueryRequest, db: Session = Depends(get_db)):
     """
     Analysiert Tweets und Blockchain-Transaktionen mithilfe von Machine Learning.
