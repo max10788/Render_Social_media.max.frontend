@@ -11,24 +11,29 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from app.core.config import settings
 import redis
 
-# Logger konfigurieren
+# ==============================
+# Logger und Redis-Initialisierung
+# ==============================
 logger = logging.getLogger(__name__)
-
-# Redis-Client initialisieren
 redis_client = redis.from_url(settings.REDIS_URL)
 
+# ==============================
+# TwitterClient-Klasse
+# ==============================
 class TwitterClient:
     def __init__(self):
         self.client = None  # Wird bei Bedarf initialisiert
         self.analyzer = SentimentIntensityAnalyzer()
 
+    # ==============================
+    # Textverarbeitung
+    # ==============================
     @staticmethod
     def normalize_text(text):
         """Entfernt URLs, Sonderzeichen, Emojis und konvertiert in Kleinbuchstaben."""
         text = re.sub(r"http\S+|www\S+", "", text)  # URLs entfernen
         text = re.sub(r"[^\w\s]", "", text)  # Sonderzeichen entfernen
-        text = text.lower()  # Kleinbuchstaben
-        return text
+        return text.lower()  # Kleinbuchstaben
 
     def tokenize_and_remove_stopwords(self, text, language="en"):
         """Tokenisiert den Text und entfernt Stop-Wörter basierend auf der Sprache."""
@@ -42,6 +47,9 @@ class TwitterClient:
         filtered_tokens = [word for word in tokens if word not in stop_words]
         return " ".join(filtered_tokens)
 
+    # ==============================
+    # Tweets abrufen
+    # ==============================
     async def fetch_tweets_async(self, username, count):
         """Ruft Tweets asynchron ab."""
         url = f"https://api.twitter.com/2/users/by/username/{username}/tweets"
@@ -61,6 +69,9 @@ class TwitterClient:
             logger.error(f"Fehler beim Abrufen von Tweets: {e}")
             return []
 
+    # ==============================
+    # Tweet-Attribute extrahieren
+    # ==============================
     def extract_tweet_attributes(self, tweet_text):
         """Extrahiert relevante Attribute aus einem Tweet."""
         normalized_text = self.normalize_text(tweet_text)
@@ -108,6 +119,9 @@ class TwitterClient:
         """Extrahiert URLs."""
         return re.findall(r"https?://[^\s]+", text)
 
+    # ==============================
+    # Analysefunktionen
+    # ==============================
     def analyze_sentiment(self, text):
         """Führt eine Sentiment-Analyse durch."""
         return self.analyzer.polarity_scores(text)
@@ -120,7 +134,10 @@ class TwitterClient:
             logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
             return "en"
 
-   async def fetch_and_cache_tweets(self, username, count):
+    # ==============================
+    # Tweets mit Caching
+    # ==============================
+    async def fetch_and_cache_tweets(self, username, count):
         """
         Ruft Tweets ab und speichert sie im Cache.
         Args:
@@ -142,6 +159,9 @@ class TwitterClient:
         logger.info(f"{len(processed_tweets)} Tweets für '{username}' gespeichert.")
         return processed_tweets
 
+    # ==============================
+    # Tweets ohne Caching
+    # ==============================
     async def fetch_tweets_by_user(self, username, count):
         """
         Ruft Tweets für einen Benutzer ab, ohne Caching.
@@ -155,6 +175,10 @@ class TwitterClient:
         processed_tweets = [self.extract_tweet_attributes(tweet["text"]) for tweet in tweets]
         return processed_tweets
 
+
+# ==============================
+# Hilfsfunktion: Tweets in Datei speichern
+# ==============================
 def save_tweets_to_file(tweets, save_path="data/tweets.json"):
     """Speichert Tweets im JSON-Format."""
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
