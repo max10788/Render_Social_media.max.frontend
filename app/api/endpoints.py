@@ -114,14 +114,16 @@ def train_model(db: Session):
 
 # Regelbasierte Analyse
 @router.post("/analyze/rule-based", response_model=AnalyzeResponse)
-def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
+async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
     try:
-        # Tweets und Transaktionen abrufen
+        # Tweets abrufen (ohne Caching)
         twitter_client = TwitterClient()
-        tweets = twitter_client.fetch_tweets_by_user(request.username, request.post_count)
+        tweets = await twitter_client.fetch_tweets_by_user(request.username, request.post_count)
         if not tweets:
             logger.warning(f"No tweets found for username: {request.username}")
             return {"username": request.username, "potential_wallet": None, "message": "Keine Tweets gefunden."}
+
+        # Blockchain-Daten abrufen
         blockchain_endpoint = {
             "solana": os.getenv("SOLANA_RPC_URL"),
             "ethereum": os.getenv("ETHEREUM_RPC_URL"),
@@ -129,10 +131,12 @@ def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
         }.get(request.blockchain)
         if not blockchain_endpoint:
             raise HTTPException(status_code=400, detail=f"Unsupported blockchain: {request.blockchain}")
+
         on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
         if not on_chain_data:
             logger.warning(f"No on-chain data found for username: {request.username} and blockchain: {request.blockchain}")
             return {"username": request.username, "potential_wallet": None, "message": "Keine On-Chain-Daten gefunden."}
+
         # Korrelation zwischen Tweets und On-Chain-Daten
         potential_wallet = None
         for tweet in tweets:
@@ -153,8 +157,10 @@ def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
                 if validate_link_correlation(tweet.get("links", []), tx.get("description", "")):
                     potential_wallet = tx["wallet_address"]
                     break
+
         # Sentiment-Score berechnen
         sentiment_score = calculate_sentiment_score([tweet["text"] for tweet in tweets])
+
         # Daten in der Datenbank speichern
         db_analysis = SentimentAnalysis(
             query=request.username,
@@ -162,6 +168,7 @@ def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
             post_count=request.post_count
         )
         db.add(db_analysis)
+
         db_transactions = [
             OnChainTransaction(
                 query=request.username,
@@ -175,6 +182,7 @@ def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
         ]
         db.add_all(db_transactions)
         db.commit()
+
         # Rückgabe der Ergebnisse
         return AnalyzeResponse(
             username=request.username,
@@ -185,43 +193,40 @@ def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error during analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+        
 # ML-basierte Analyse
 @router.post("/analyze/ml", response_model=AnalyzeResponse)
-def analyze_ml(request: QueryRequest, db: Session = Depends(get_db)):
-    """
-    Analysiert Tweets und Blockchain-Transaktionen mithilfe von Machine Learning.
-    Args:
-        request (QueryRequest): Die Anfrage mit Benutzername, Blockchain und Postanzahl.
-        db (Session): Datenbanksession für die Speicherung der Ergebnisse.
-    Returns:
-        AnalyzeResponse: Die Antwort mit potenzieller Wallet-Adresse und analysierten Daten.
-    """
+async def analyze_ml(request: QueryRequest, db: Session = Depends(get_db)):
     try:
-        # Tweets abrufen (Beispiel-Daten)
-        tweets = [
-            {"text": "Just sent 1.5 SOL to my friend!", "created_at": datetime.now()},
-            {"text": "Bought some ETH today.", "created_at": datetime.now()}
-        ]
+        # Tweets abrufen (mit Caching)
+        twitter_client = TwitterClient()
+        tweets = await twitter_client.fetch_and_cache_tweets(request.username, request.post_count)
+        if not tweets:
+            logger.warning(f"No tweets found for username: {request.username}")
+            return {"username": request.username, "potential_wallet": None, "message": "Keine Tweets gefunden."}
+
         # Transaktionen abrufen (Beispiel-Daten)
         transactions = [
             {"amount": 1.5, "block_time": datetime.now().timestamp()},
             {"amount": 0.3, "block_time": datetime.now().timestamp()}
         ]
+
         # Features extrahieren
         features = extract_features(tweets, transactions)
+
         # Labels generieren
         labels = generate_labels(tweets, transactions)
-        # Debugging-Ausgaben (optional)
-        print("Features:", features)
-        print("Labels:", labels)
-        # Modell laden und Vorhersagen treffen
-        predictions = model.predict(features)
+
+        # TODO: Modell laden und Vorhersagen treffen
+        # Beispiel: model.predict(features)
+
+        # Dummy-Ergebnis für die Rückgabe
         potential_wallet = None
-        for i, prediction in enumerate(predictions):
-            if prediction == 1:
+        for i, label in enumerate(labels):
+            if label == 1:
                 potential_wallet = transactions[i]["wallet_address"]
                 break
+
         # Daten in der Datenbank speichern
         sentiment_score = sum(TextBlob(tweet["text"]).sentiment.polarity for tweet in tweets) / len(tweets)
         db_analysis = SentimentAnalysis(
@@ -230,6 +235,7 @@ def analyze_ml(request: QueryRequest, db: Session = Depends(get_db)):
             post_count=len(tweets)
         )
         db.add(db_analysis)
+
         db_transactions = [
             OnChainTransaction(
                 query=request.username,
@@ -243,6 +249,7 @@ def analyze_ml(request: QueryRequest, db: Session = Depends(get_db)):
         ]
         db.add_all(db_transactions)
         db.commit()
+
         # Rückgabe der Ergebnisse
         return AnalyzeResponse(
             username=request.username,
