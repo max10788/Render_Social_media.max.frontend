@@ -52,19 +52,29 @@ class TwitterClient:
     # ==============================
     async def fetch_tweets_async(self, username, count):
         """Ruft Tweets asynchron ab."""
-        url = f"https://api.twitter.com/2/users/by/username/{username}/tweets"
+        url = f"https://api.twitter.com/2/users/by/username/{username}"
         headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-        params = {"max_results": count}
+        params = {"user.fields": "id"}
 
         try:
             async with aiohttp.ClientSession() as session:
+                # Step 1: Get User ID
                 async with session.get(url, headers=headers, params=params) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return data.get("data", [])
-                    else:
-                        logger.error(f"Fehler beim Abrufen von Tweets: Status {response.status}")
+                    if response.status != 200:
+                        logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
                         return []
+                    user_data = await response.json()
+                    user_id = user_data["data"]["id"]
+
+                # Step 2: Get Tweets by User ID
+                tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
+                tweets_params = {"max_results": count, "tweet.fields": "created_at"}
+                async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
+                    if tweets_response.status != 200:
+                        logger.error(f"Fehler beim Abrufen von Tweets: Status {tweets_response.status}")
+                        return []
+                    tweets_data = await tweets_response.json()
+                    return tweets_data.get("data", [])
         except Exception as e:
             logger.error(f"Fehler beim Abrufen von Tweets: {e}")
             return []
