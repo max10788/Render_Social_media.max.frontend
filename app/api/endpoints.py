@@ -114,16 +114,15 @@ def train_model(db: Session):
 
 # Regelbasierte Analyse
 @router.post("/analyze/rule-based", response_model=AnalyzeResponse)
-async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
+def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
     try:
-        # Tweets abrufen (ohne Caching)
+        # Tweets und Transaktionen abrufen
         twitter_client = TwitterClient()
-        tweets = await twitter_client.fetch_tweets_by_user(request.username, request.post_count)
+        tweets = twitter_client.fetch_tweets_by_user(request.username, request.post_count)
         if not tweets:
             logger.warning(f"No tweets found for username: {request.username}")
-            return {"username": request.username, "potential_wallet": None, "message": "Keine Tweets gefunden."}
+            tweets = []  # Leere Liste zurückgeben
 
-        # Blockchain-Daten abrufen
         blockchain_endpoint = {
             "solana": os.getenv("SOLANA_RPC_URL"),
             "ethereum": os.getenv("ETHEREUM_RPC_URL"),
@@ -135,7 +134,7 @@ async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db
         on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
         if not on_chain_data:
             logger.warning(f"No on-chain data found for username: {request.username} and blockchain: {request.blockchain}")
-            return {"username": request.username, "potential_wallet": None, "message": "Keine On-Chain-Daten gefunden."}
+            on_chain_data = []  # Leere Liste zurückgeben
 
         # Korrelation zwischen Tweets und On-Chain-Daten
         potential_wallet = None
