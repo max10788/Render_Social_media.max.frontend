@@ -1,6 +1,7 @@
 from pydantic import BaseModel, constr, conint
-from typing import List
+from typing import List, Optional
 
+# Pydantic-Model für die Anfrage
 class QueryRequest(BaseModel):
     username: constr(min_length=1)  # Der Twitter-Benutzername
     post_count: conint(gt=0, le=50)  # Anzahl der Posts (zwischen 1 und 50)
@@ -15,11 +16,11 @@ class FeedbackRequest(BaseModel):
 # Pydantic-Model für die Antwort (Tweets)
 class TweetResponse(BaseModel):
     text: str
-    amount: float = None
-    keywords: list = []
-    addresses: list = []
-    hashtags: list = []
-    links: list = []
+    amount: Optional[float] = None
+    keywords: List[str] = []
+    addresses: List[str] = []
+    hashtags: List[str] = []
+    links: List[str] = []
 
 # Pydantic-Model für die Antwort (On-Chain-Daten)
 class OnChainResponse(BaseModel):
@@ -28,11 +29,11 @@ class OnChainResponse(BaseModel):
     transaction_type: str
     block_time: int
     wallet_address: str
-    description: str = None
+    description: Optional[str] = None
 
 # Pydantic-Model für die Gesamtantwort
 class AnalyzeResponse(BaseModel):
     username: str
-    potential_wallet: str = None
+    potential_wallet: Optional[str] = None
     tweets: List[TweetResponse]
     on_chain_data: List[OnChainResponse]
