@@ -1,56 +1,38 @@
-from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
+from pydantic import BaseModel, constr, conint
+from typing import List
 
 class QueryRequest(BaseModel):
-    """
-    Schema für die Anfrage zur Analyse von Tweets und Blockchain-Transaktionen.
-    
-    Attributes:
-        username (str): Der Benutzername des Twitter-Nutzers.
-        blockchain (str): Die Blockchain, die analysiert werden soll (z. B. "solana", "ethereum").
-        post_count (int): Die Anzahl der zu analysierenden Tweets.
-    """
-    username: str
-    blockchain: str
-    post_count: int
+    username: constr(min_length=1)  # Der Twitter-Benutzername
+    post_count: conint(gt=0, le=50)  # Anzahl der Posts (zwischen 1 und 50)
+    blockchain: constr(regex="^(ethereum|solana|bitcoin)$")  # Unterstützte Blockchains
 
+# Pydantic-Model für Feedback
+class FeedbackRequest(BaseModel):
+    tweet_id: str
+    transaction_id: str
+    label: bool  # True = korreliert, False = nicht korreliert
 
-class Tweet(BaseModel):
-    """
-    Schema für einen Tweet.
-    
-    Attributes:
-        text (str): Der Text des Tweets.
-        created_at (datetime): Der Zeitpunkt, zu dem der Tweet erstellt wurde.
-    """
+# Pydantic-Model für die Antwort (Tweets)
+class TweetResponse(BaseModel):
     text: str
-    created_at: datetime
+    amount: float = None
+    keywords: list = []
+    addresses: list = []
+    hashtags: list = []
+    links: list = []
 
-
-class OnChainData(BaseModel):
-    """
-    Schema für Blockchain-Transaktionsdaten.
-    
-    Attributes:
-        amount (float): Der Betrag der Transaktion.
-        block_time (float): Der Zeitpunkt der Transaktion als Unix-Timestamp.
-    """
+# Pydantic-Model für die Antwort (On-Chain-Daten)
+class OnChainResponse(BaseModel):
+    transaction_id: str
     amount: float
-    block_time: float  # Unix-Timestamp
+    transaction_type: str
+    block_time: int
+    wallet_address: str
+    description: str = None
 
-
+# Pydantic-Model für die Gesamtantwort
 class AnalyzeResponse(BaseModel):
-    """
-    Schema für die Antwort auf eine Analyseanfrage.
-    
-    Attributes:
-        username (str): Der Benutzername des Twitter-Nutzers.
-        potential_wallet (Optional[str]): Eine potenzielle Wallet-Adresse, falls gefunden.
-        tweets (List[Tweet]): Eine Liste von Tweets.
-        on_chain_data (List[OnChainData]): Eine Liste von Blockchain-Transaktionen.
-    """
     username: str
-    potential_wallet: Optional[str] = None
-    tweets: List[Tweet]
-    on_chain_data: List[OnChainData]
+    potential_wallet: str = None
+    tweets: List[TweetResponse]
+    on_chain_data: List[OnChainResponse]
