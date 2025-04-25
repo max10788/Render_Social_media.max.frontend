@@ -181,14 +181,15 @@ class TwitterClient:
         Returns:
             list: Eine Liste verarbeiteter Tweets.
         """
-        url = f"https://api.twitter.com/2/users/by/username/{username}"
+        # URL für den Abruf der Benutzer-ID
+        user_url = f"https://api.twitter.com/2/users/by/username/{username}"
         headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
         params = {"user.fields": "id"}
 
         try:
             async with aiohttp.ClientSession() as session:
                 # Step 1: Get User ID
-                async with session.get(url, headers=headers, params=params) as response:
+                async with session.get(user_url, headers=headers, params=params) as response:
                     if response.status != 200:
                         logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
                         return []
