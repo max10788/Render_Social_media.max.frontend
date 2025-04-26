@@ -172,7 +172,7 @@ class TwitterClient:
     # ==============================
     # Tweets ohne Caching
     # ==============================
-    async def fetch_tweets_by_user(self, username, count):
+async def fetch_tweets_by_user(self, username, count):
         """
         Ruft Tweets für einen Benutzer ab, ohne Caching.
         Args:
