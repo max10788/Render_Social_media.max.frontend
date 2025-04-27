@@ -80,6 +80,33 @@ class TwitterClient:
             return []
 
     # ==============================
+    # Tweets ohne Caching
+    # ==============================
+    async def fetch_tweets_by_user(self, username, count):
+        """
+        Ruft Tweets für einen Benutzer ab, ohne Caching.
+        Args:
+            username (str): Der Twitter-Benutzername.
+            count (int): Die Anzahl der abzurufenden Tweets.
+        Returns:
+            list: Eine Liste verarbeiteter Tweets.
+        """
+        tweets = await self.fetch_tweets_async(username, count)
+        processed_tweets = [
+            {
+                "text": tweet.get("text"),
+                "created_at": tweet.get("created_at"),
+                "amount": self.extract_amount(tweet.get("text")),
+                "keywords": self.extract_keywords(tweet.get("text")),
+                "addresses": self.extract_addresses(tweet.get("text")),
+                "hashtags": self.extract_hashtags(tweet.get("text")),
+                "links": self.extract_links(tweet.get("text")),
+            }
+            for tweet in tweets
+        ]
+        return processed_tweets
+
+    # ==============================
     # Tweet-Attribute extrahieren
     # ==============================
     def extract_tweet_attributes(self, tweet_text):
@@ -95,7 +122,7 @@ class TwitterClient:
             "amount": self.extract_amount(tweet_text),
             "addresses": self.extract_addresses(tweet_text),
             "hashtags": self.extract_hashtags(tweet_text),
-            "links": self.extract_links(tweet_text)
+            "links": self.extract_links(tweet_text),
         }
 
     def extract_keywords(self, text):
@@ -168,46 +195,6 @@ class TwitterClient:
         redis_client.set(cache_key, json.dumps(processed_tweets), ex=3600)  # Cache für 1 Stunde
         logger.info(f"{len(processed_tweets)} Tweets für '{username}' gespeichert.")
         return processed_tweets
-
-    # ==============================
-    # Tweets ohne Caching
-    # ==============================
-async def fetch_tweets_by_user(self, username, count):
-        """
-        Ruft Tweets für einen Benutzer ab, ohne Caching.
-        Args:
-            username (str): Der Twitter-Benutzername.
-            count (int): Die Anzahl der abzurufenden Tweets.
-        Returns:
-            list: Eine Liste verarbeiteter Tweets.
-        """
-        # URL für den Abruf der Benutzer-ID
-        user_url = f"https://api.twitter.com/2/users/by/username/{username}"
-        headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-        params = {"user.fields": "id"}
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                # Step 1: Get User ID
-                async with session.get(user_url, headers=headers, params=params) as response:
-                    if response.status != 200:
-                        logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
-                        return []
-                    user_data = await response.json()
-                    user_id = user_data["data"]["id"]
-
-                # Step 2: Get Tweets by User ID
-                tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
-                tweets_params = {"max_results": count, "tweet.fields": "created_at"}
-                async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
-                    if tweets_response.status != 200:
-                        logger.error(f"Fehler beim Abrufen von Tweets: Status {tweets_response.status}")
-                        return []
-                    tweets_data = await tweets_response.json()
-                    return tweets_data.get("data", [])
-        except Exception as e:
-            logger.error(f"Fehler beim Abrufen von Tweets: {e}")
-            return []
 
 # ==============================
 # Hilfsfunktion: Tweets in Datei speichern
