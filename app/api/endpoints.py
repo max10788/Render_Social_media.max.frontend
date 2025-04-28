@@ -79,11 +79,8 @@ def train_model(db: Session):
 
 # Regelbasierte Analyse
 @router.post("/analyze/rule-based", response_model=AnalyzeResponse)
-async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
+def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
     try:
-        # Protokollieren des blockchain-Parameters
-        logger.info(f"Received blockchain parameter: {request.blockchain}")
-
         # Validierung des blockchain-Parameters
         if request.blockchain not in ["ethereum", "solana", "bitcoin"]:
             raise HTTPException(
@@ -91,18 +88,16 @@ async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db
                 detail="Unsupported blockchain. Please choose from 'ethereum', 'solana', or 'bitcoin'."
             )
 
-        # Tweets abrufen (mit await für die Coroutine)
+        # Tweets abrufen
         twitter_client = TwitterClient()
-        tweets = await twitter_client.fetch_tweets_by_user(request.username, request.post_count)
-
-        # Überprüfen, ob Tweets gefunden wurden
+        tweets = twitter_client.fetch_tweets_by_user(request.username, request.post_count)
         if not tweets:
             logger.warning(f"No tweets found for username: {request.username}")
             return AnalyzeResponse(
                 username=request.username,
                 potential_wallet=None,
-                tweets=[],  # Leere Liste zurückgeben
-                on_chain_data=[]  # Leere Liste zurückgeben
+                tweets=[],
+                on_chain_data=[]
             )
 
         # Blockchain-Endpunkt abrufen
@@ -111,22 +106,17 @@ async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db
             "ethereum": os.getenv("ETHEREUM_RPC_URL"),
             "bitcoin": os.getenv("BITCOIN_RPC_URL"),
         }.get(request.blockchain)
-
-        # Überprüfen, ob der Blockchain-Endpunkt unterstützt wird
         if not blockchain_endpoint:
             raise HTTPException(status_code=400, detail=f"Unsupported blockchain: {request.blockchain}")
 
-        # On-Chain-Daten abrufen
         on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
-
-        # Überprüfen, ob On-Chain-Daten gefunden wurden
         if not on_chain_data:
             logger.warning(f"No on-chain data found for username: {request.username} and blockchain: {request.blockchain}")
             return AnalyzeResponse(
                 username=request.username,
                 potential_wallet=None,
-                tweets=[TweetResponse(**tweet) for tweet in tweets],
-                on_chain_data=[]  # Leere Liste zurückgeben
+                tweets=[],
+                on_chain_data=[]
             )
 
         # Korrelation zwischen Tweets und On-Chain-Daten
@@ -182,7 +172,6 @@ async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db
             tweets=[TweetResponse(**tweet) for tweet in tweets],
             on_chain_data=[OnChainResponse(**tx) for tx in on_chain_data]
         )
-
     except Exception as e:
         logger.error(f"Error during analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
