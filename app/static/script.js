@@ -15,40 +15,45 @@ document.getElementById('analysis-form').addEventListener('submit', async (event
     return;
   }
 
-  // Ergebnisse anzeigen
-  const resultsDiv = document.getElementById('results');
-  const potentialWalletDiv = document.getElementById('potential-wallet');
-  const tweetsDiv = document.getElementById('tweets');
-  const onChainDataDiv = document.getElementById('on-chain-data');
-
-  // Alte Ergebnisse löschen
-  potentialWalletDiv.innerHTML = '';
-  tweetsDiv.innerHTML = '';
-  onChainDataDiv.innerHTML = '';
+  // Ladeanzeige starten
+  const statusDiv = document.getElementById('status');
+  statusDiv.innerHTML = "Starting analysis...";
+  statusDiv.classList.remove('hidden');
 
   try {
     // API-Anfrage senden
     const response = await fetch('/api/analyze/rule-based', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, post_count: postCount, blockchain }),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+    const { job_id } = await response.json();
 
-    const data = await response.json();
+    // Überprüfe den Status der Analyse
+    const interval = setInterval(async () => {
+      const statusResponse = await fetch(`/api/analysis/status/${job_id}`);
+      const statusData = await statusResponse.json();
+      statusDiv.innerHTML = `Status: ${statusData.status}`;
 
-    // Ergebnisse anzeigen
-    potentialWalletDiv.innerHTML = `<strong>Potential Wallet:</strong> ${data.potential_wallet || 'None'}`;
-    tweetsDiv.innerHTML = `<strong>Tweets:</strong><ul>${data.tweets.map(tweet => `<li>${tweet.text}</li>`).join('')}</ul>`;
-    onChainDataDiv.innerHTML = `<strong>On-Chain Data:</strong><ul>${data.on_chain_data.map(tx => `<li>${tx.transaction_id} - ${tx.amount} (${tx.block_time})</li>`).join('')}</ul>`;
-
-    resultsDiv.classList.remove('hidden');
+      if (statusData.status === "Completed" || statusData.status.startsWith("Failed")) {
+        clearInterval(interval); // Stoppe die Statusüberprüfung
+        if (statusData.status === "Completed") {
+          // Ergebnisse abrufen
+          fetchResults();
+        }
+      }
+    }, 2000); // Überprüfe den Status alle 2 Sekunden
   } catch (error) {
-    alert(`Error during analysis: ${error.message}`);
+    alert(`Error starting analysis: ${error.message}`);
+    statusDiv.innerHTML = "Analysis failed to start.";
   }
 });
+
+async function fetchResults() {
+  // Implementiere die Logik, um die Analyseergebnisse anzuzeigen
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = "Analysis completed. Displaying results...";
+  resultsDiv.classList.remove('hidden');
+}
