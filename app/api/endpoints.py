@@ -78,14 +78,14 @@ def train_model(db: Session):
     joblib.dump(model, "model.pkl")
 
 # Regelbasierte Analyse
-@router.post("/analyze/rule-based", response_model=AnalyzeResponse)
+@router@router.post("/analyze/rule-based", response_model=AnalyzeResponse)
 async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
     try:
         # Validierung des blockchain-Parameters
-        if request.blockchain not in ["ethereum", "solana", "bitcoin"]:
+        if request.blockchain.lower() not in ["ethereum", "solana", "bitcoin", "hoss_crypto"]:  # Füge hoss_crypto hinzu
             raise HTTPException(
                 status_code=400,
-                detail="Unsupported blockchain. Please choose from 'ethereum', 'solana', or 'bitcoin'."
+                detail=f"Unsupported blockchain. Please choose from 'ethereum', 'solana', 'bitcoin', or 'hoss_crypto'."
             )
 
         # Tweets abrufen (mit await)
@@ -105,9 +105,24 @@ async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db
             "solana": os.getenv("SOLANA_RPC_URL"),
             "ethereum": os.getenv("ETHEREUM_RPC_URL"),
             "bitcoin": os.getenv("BITCOIN_RPC_URL"),
-        }.get(request.blockchain)
+            "hoss_crypto": os.getenv("HOSS_CRYPTO_RPC_URL"),  # Füge entsprechende Umgebungsvariable hinzu
+        }.get(request.blockchain.lower())  # Füge .lower() hinzu für case-insensitive Vergleiche
+        
         if not blockchain_endpoint:
             raise HTTPException(status_code=400, detail=f"Unsupported blockchain: {request.blockchain}")
+
+        on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
+        if not on_chain_data:
+            logger.warning(f"No on-chain data found for username: {request.username} and blockchain: {request.blockchain}")
+            return AnalyzeResponse(
+                username=request.username,
+                potential_wallet=None,
+                tweets=[],
+                on_chain_data=[]
+            )
+            
+        # Rest der Funktion bleibt unverändert
+        # ...
 
         on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
         if not on_chain_data:
