@@ -118,7 +118,6 @@ async def run_analysis(request: QueryRequest, job_id: str):
             "solana": os.getenv("SOLANA_RPC_URL"),
             "ethereum": os.getenv("ETHEREUM_RPC_URL"),
             "bitcoin": os.getenv("BITCOIN_RPC_URL"),
-            "hoss_crypto": os.getenv("HOSS_CRYPTO_RPC_URL"),
         }.get(request.blockchain.lower())
 
         if not blockchain_endpoint:
