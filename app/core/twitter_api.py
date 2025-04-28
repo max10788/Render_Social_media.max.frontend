@@ -50,8 +50,11 @@ class TwitterClient:
     # ==============================
     # Tweets abrufen
     # ==============================
-    async def fetch_tweets_async(self, username, count):
-        """Ruft Tweets asynchron ab."""
+async def fetch_tweets_async(self, username, count):
+    # Entferne das '@'-Zeichen, falls vorhanden
+    if username.startswith("@"):
+        username = username[1:]
+        
         url = f"https://api.twitter.com/2/users/by/username/{username}"
         headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
         params = {"user.fields": "id"}
