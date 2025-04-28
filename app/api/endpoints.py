@@ -78,7 +78,7 @@ def train_model(db: Session):
     joblib.dump(model, "model.pkl")
 
 # Regelbasierte Analyse
-@router@router.post("/analyze/rule-based", response_model=AnalyzeResponse)
+@router.post("/analyze/rule-based", response_model=AnalyzeResponse)
 async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
     try:
         # Validierung des blockchain-Parameters
