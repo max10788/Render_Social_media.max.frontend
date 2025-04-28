@@ -9,6 +9,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import joblib
+import uuid
+
 # Interne Module importieren
 from app.core.twitter_api import TwitterClient
 from app.core.blockchain_api import fetch_on_chain_data
@@ -17,6 +19,9 @@ from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
 from textblob import TextBlob
 from app.models.schemas import QueryRequest, AnalyzeResponse, FeedbackRequest
+
+# Globale Variable für Status-Tracking
+ANALYSIS_STATUS = {}
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
@@ -78,64 +83,52 @@ def train_model(db: Session):
     joblib.dump(model, "model.pkl")
 
 # Regelbasierte Analyse
-@router.post("/analyze/rule-based", response_model=AnalyzeResponse)
-async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
-    # Entferne das '@'-Zeichen aus dem Benutzernamen, falls vorhanden
-    if request.username.startswith("@"):
-        request.username = request.username[1:]
+@router.post("/analyze/rule-based", response_model=dict)
+async def start_analysis(request: QueryRequest, background_tasks: BackgroundTasks):
+    """Startet die Analyse und gibt eine Job-ID zurück."""
+    job_id = str(uuid.uuid4())  # Generiere eine eindeutige Job-ID
+    ANALYSIS_STATUS[job_id] = "In Progress"
+
+    # Starte die Analyse im Hintergrund
+    background_tasks.add_task(run_analysis, request, job_id)
+
+    return {"job_id": job_id, "status": "Analysis started"}
+
+async def run_analysis(request: QueryRequest, job_id: str):
+    """Führt die Analyse im Hintergrund durch."""
     try:
+        # Entferne das '@'-Zeichen aus dem Benutzernamen, falls vorhanden
+        if request.username.startswith("@"):
+            request.username = request.username[1:]
+
         # Validierung des blockchain-Parameters
-        if request.blockchain.lower() not in ["ethereum", "solana", "bitcoin", "hoss_crypto"]:  # Füge hoss_crypto hinzu
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported blockchain. Please choose from 'ethereum', 'solana', 'bitcoin', or 'hoss_crypto'."
-            )
+        if request.blockchain.lower() not in ["ethereum", "solana", "bitcoin", "hoss_crypto"]:
+            ANALYSIS_STATUS[job_id] = "Failed: Unsupported blockchain"
+            return
 
         # Tweets abrufen (mit await)
         twitter_client = TwitterClient()
         tweets = await twitter_client.fetch_tweets_by_user(request.username, request.post_count)
         if not tweets:
-            logger.warning(f"No tweets found for username: {request.username}")
-            return AnalyzeResponse(
-                username=request.username,
-                potential_wallet=None,
-                tweets=[],
-                on_chain_data=[]
-            )
+            ANALYSIS_STATUS[job_id] = "Failed: No tweets found"
+            return
 
         # Blockchain-Endpunkt abrufen
         blockchain_endpoint = {
             "solana": os.getenv("SOLANA_RPC_URL"),
             "ethereum": os.getenv("ETHEREUM_RPC_URL"),
             "bitcoin": os.getenv("BITCOIN_RPC_URL"),
-            "hoss_crypto": os.getenv("HOSS_CRYPTO_RPC_URL"),  # Füge entsprechende Umgebungsvariable hinzu
-        }.get(request.blockchain.lower())  # Füge .lower() hinzu für case-insensitive Vergleiche
-        
+            "hoss_crypto": os.getenv("HOSS_CRYPTO_RPC_URL"),
+        }.get(request.blockchain.lower())
+
         if not blockchain_endpoint:
-            raise HTTPException(status_code=400, detail=f"Unsupported blockchain: {request.blockchain}")
+            ANALYSIS_STATUS[job_id] = "Failed: Unsupported blockchain endpoint"
+            return
 
         on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
         if not on_chain_data:
-            logger.warning(f"No on-chain data found for username: {request.username} and blockchain: {request.blockchain}")
-            return AnalyzeResponse(
-                username=request.username,
-                potential_wallet=None,
-                tweets=[],
-                on_chain_data=[]
-            )
-            
-        # Rest der Funktion bleibt unverändert
-        # ...
-
-        on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
-        if not on_chain_data:
-            logger.warning(f"No on-chain data found for username: {request.username} and blockchain: {request.blockchain}")
-            return AnalyzeResponse(
-                username=request.username,
-                potential_wallet=None,
-                tweets=[],
-                on_chain_data=[]
-            )
+            ANALYSIS_STATUS[job_id] = "Failed: No on-chain data found"
+            return
 
         # Korrelation zwischen Tweets und On-Chain-Daten
         potential_wallet = None
@@ -161,7 +154,7 @@ async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db
         # Sentiment-Score berechnen
         sentiment_score = calculate_sentiment_score([tweet["text"] for tweet in tweets])
 
-        # Daten in der Datenbank speichern
+        # Datenbank speichern, wenn nötig
         db_analysis = SentimentAnalysis(
             query=request.username,
             sentiment_score=sentiment_score,
@@ -183,16 +176,17 @@ async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db
         db.add_all(db_transactions)
         db.commit()
 
-        # Rückgabe der Ergebnisse
-        return AnalyzeResponse(
-            username=request.username,
-            potential_wallet=potential_wallet,
-            tweets=[TweetResponse(**tweet) for tweet in tweets],
-            on_chain_data=[OnChainResponse(**tx) for tx in on_chain_data]
-        )
+        # Status aktualisieren
+        ANALYSIS_STATUS[job_id] = "Completed"
     except Exception as e:
-        logger.error(f"Error during analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        ANALYSIS_STATUS[job_id] = f"Failed: {str(e)}"
+        logger.error(f"Analysis failed for job {job_id}: {e}")
+
+@router.get("/analysis/status/{job_id}")
+async def get_analysis_status(job_id: str):
+    """Gibt den Status der Analyse zurück."""
+    status = ANALYSIS_STATUS.get(job_id, "Job ID not found")
+    return {"job_id": job_id, "status": status}
         
 # ML-basierte Analyse
 @router.post("/analyze/ml", response_model=AnalyzeResponse)
