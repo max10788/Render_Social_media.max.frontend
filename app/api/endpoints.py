@@ -79,7 +79,7 @@ def train_model(db: Session):
 
 # Regelbasierte Analyse
 @router.post("/analyze/rule-based", response_model=AnalyzeResponse)
-def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
+async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
     try:
         # Validierung des blockchain-Parameters
         if request.blockchain not in ["ethereum", "solana", "bitcoin"]:
@@ -88,9 +88,9 @@ def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
                 detail="Unsupported blockchain. Please choose from 'ethereum', 'solana', or 'bitcoin'."
             )
 
-        # Tweets abrufen
+        # Tweets abrufen (mit await)
         twitter_client = TwitterClient()
-        tweets = twitter_client.fetch_tweets_by_user(request.username, request.post_count)
+        tweets = await twitter_client.fetch_tweets_by_user(request.username, request.post_count)
         if not tweets:
             logger.warning(f"No tweets found for username: {request.username}")
             return AnalyzeResponse(
