@@ -80,6 +80,9 @@ def train_model(db: Session):
 # Regelbasierte Analyse
 @router.post("/analyze/rule-based", response_model=AnalyzeResponse)
 async def analyze_rule_based(request: QueryRequest, db: Session = Depends(get_db)):
+    # Entferne das '@'-Zeichen aus dem Benutzernamen, falls vorhanden
+    if request.username.startswith("@"):
+        request.username = request.username[1:]
     try:
         # Validierung des blockchain-Parameters
         if request.blockchain.lower() not in ["ethereum", "solana", "bitcoin", "hoss_crypto"]:  # Füge hoss_crypto hinzu
