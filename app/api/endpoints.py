@@ -189,7 +189,7 @@ async def get_analysis_status(job_id: str):
         
 # ML-basierte Analyse
 @router.post("/analyze/ml", response_model=AnalyzeResponse)
-async def analyze_ml(request: QueryRequest, db: Session = Depends(get_db)):
+async def analyze_ml(request:  AnalyzeRequest, db: Session = Depends(get_db)):
     try:
         # Tweets abrufen (mit Caching)
         twitter_client = TwitterClient()
