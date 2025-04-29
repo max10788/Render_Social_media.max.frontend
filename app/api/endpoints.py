@@ -84,7 +84,7 @@ def train_model(db: Session):
 
 # Regelbasierte Analyse
 @router.post("/analyze/rule-based", response_model=dict)
-async def start_analysis(request: QueryRequest, background_tasks: BackgroundTasks):
+async def start_analysis(request:  AnalyzeRequest, background_tasks: BackgroundTasks):
     """Startet die Analyse und gibt eine Job-ID zurück."""
     job_id = str(uuid.uuid4())  # Generiere eine eindeutige Job-ID
     ANALYSIS_STATUS[job_id] = "In Progress"
@@ -94,7 +94,7 @@ async def start_analysis(request: QueryRequest, background_tasks: BackgroundTask
 
     return {"job_id": job_id, "status": "Analysis started"}
 
-async def run_analysis(request: QueryRequest, job_id: str):
+async def run_analysis(request:  AnalyzeRequest, job_id: str):
     """Führt die Analyse im Hintergrund durch."""
     try:
         # Entferne das '@'-Zeichen aus dem Benutzernamen, falls vorhanden
