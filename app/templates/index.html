@@ -2,6 +2,62 @@
 <html>
 <head>
     <title>Blockchain-Twitter-Analyse</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        div {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #e9ffe9;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+        }
+        small {
+            display: block;
+            margin-top: 5px;
+            color: #777;
+        }
+    </style>
     <script>
         async function submitAnalysis() {
             // Form-Daten sammeln
@@ -30,11 +86,11 @@
                     const result = await response.json();
                     document.getElementById('result').innerHTML = `
                         <h3>Analyse erfolgreich!</h3>
-                        <p>Analyse-ID: ${result.analysis_id}</p>
-                        <p>Sentiment-Score: ${result.sentiment_score}</p>
-                        <p>Korrelations-Score: ${result.correlation_results.correlation_score}</p>
-                        <p>Analysierte Tweets: ${result.tweets_analyzed}</p>
-                        <p>Blockchain-Datenpunkte: ${result.blockchain_data_points}</p>
+                        <p><strong>Analyse-ID:</strong> ${result.analysis_id}</p>
+                        <p><strong>Sentiment-Score:</strong> ${result.sentiment_score}</p>
+                        <p><strong>Korrelations-Score:</strong> ${result.correlation_results.correlation_score}</p>
+                        <p><strong>Analysierte Tweets:</strong> ${result.tweets_analyzed}</p>
+                        <p><strong>Blockchain-Datenpunkte:</strong> ${result.blockchain_data_points}</p>
                     `;
                 } else {
                     const error = await response.json();
@@ -54,6 +110,10 @@
 </head>
 <body>
     <h1>Blockchain-Twitter-Analyse</h1>
+    <p style="text-align: center; max-width: 600px; margin: 0 auto;">
+        Dieses Tool analysiert die Aktivitäten eines Blockchain-Projekts sowie dessen Wahrnehmung in sozialen Medien. 
+        Geben Sie die relevanten Informationen ein, um eine detaillierte Analyse zu starten!
+    </p>
     <form id="analysisForm" onsubmit="event.preventDefault(); submitAnalysis();">
         <div>
             <label for="blockchain">Blockchain:</label>
@@ -63,26 +123,32 @@
                 <option value="polygon">Polygon</option>
                 <option value="solana">Solana</option>
             </select>
+            <small>Wählen Sie die Blockchain aus, z. B. Ethereum oder Solana.</small>
         </div>
         <div>
             <label for="contract_address">Contract-Adresse:</label>
             <input type="text" id="contract_address" required placeholder="z.B. 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984">
+            <small>Geben Sie die eindeutige Adresse des Smart Contracts ein, der analysiert werden soll.</small>
         </div>
         <div>
             <label for="keywords">Keywords (durch Komma getrennt):</label>
             <input type="text" id="keywords" required placeholder="z.B. Uniswap, UNI, DEX">
+            <small>Geben Sie Schlüsselwörter ein, um relevante Tweets zu finden, z. B. Projektnamen oder Token.</small>
         </div>
         <div>
             <label for="start_date">Startdatum:</label>
             <input type="date" id="start_date" required>
+            <small>Wählen Sie das Startdatum der Analyse aus.</small>
         </div>
         <div>
             <label for="end_date">Enddatum:</label>
             <input type="date" id="end_date" required>
+            <small>Wählen Sie das Enddatum der Analyse aus.</small>
         </div>
         <div>
             <label for="tweet_limit">Tweet-Limit:</label>
             <input type="number" id="tweet_limit" min="100" max="5000" value="1000">
+            <small>Die maximale Anzahl an Tweets, die analysiert werden sollen (100 bis 5000).</small>
         </div>
         <button type="submit">Analyse starten</button>
     </form>
