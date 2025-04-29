@@ -61,9 +61,11 @@
     <script>
         async function submitAnalysis() {
             // Form-Daten sammeln
+            const contractAddress = document.getElementById('contract_address').value.trim();
+
             const formData = {
                 blockchain: document.getElementById('blockchain').value,
-                contract_address: document.getElementById('contract_address').value,
+                contract_address: contractAddress || null, // Optional: Nutze null, wenn keine Contract-Adresse angegeben wurde
                 keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()),
                 start_date: document.getElementById('start_date').value,
                 end_date: document.getElementById('end_date').value,
@@ -126,9 +128,9 @@
             <small>Wählen Sie die Blockchain aus, z. B. Ethereum oder Solana.</small>
         </div>
         <div>
-            <label for="contract_address">Contract-Adresse:</label>
-            <input type="text" id="contract_address" required placeholder="z.B. 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984">
-            <small>Geben Sie die eindeutige Adresse des Smart Contracts ein, der analysiert werden soll.</small>
+            <label for="contract_address">Contract-Adresse (optional):</label>
+            <input type="text" id="contract_address" placeholder="z.B. 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984">
+            <small>Geben Sie die eindeutige Adresse des Smart Contracts ein, wenn Sie einen spezifischen Coin analysieren möchten. Andernfalls wird die gesamte Blockchain analysiert.</small>
         </div>
         <div>
             <label for="keywords">Keywords (durch Komma getrennt):</label>
