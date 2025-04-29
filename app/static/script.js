@@ -3,10 +3,6 @@ document.getElementById('analysis-form').addEventListener('submit', async (event
 
   // Formulardaten sammeln
   const username = document.getElementById('username').value.trim();
-  // Entferne '@', falls vorhanden
-  if (username.startsWith('@')) {
-    username = username.substring(1);
-  }
   const postCount = parseInt(document.getElementById('post_count').value, 10);
   const blockchain = document.getElementById('blockchain').value;
 
