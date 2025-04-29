@@ -1,3 +1,4 @@
+from datetime import date, datetime, timedelta
 import json
 import os
 import re
@@ -92,23 +93,49 @@ def fetch_on_chain_data(query: str, blockchain: str):
         logging.error(f"Datenfehler: {ve}")
         return []
 
-
-def fetch_and_save_on_chain_data(query, blockchain, save_path="data/on_chain_data.json"):
+def validate_blockchain_params(blockchain: str, contract_address: str, start_date: date, end_date: date) -> str:
     """
-    Ruft On-Chain-Daten ab und speichert sie im JSON-Format.
+    Validiert die Blockchain-Parameter für die Analyse.
     
     Args:
-        query: Der Suchbegriff (z. B. Wallet-Adresse oder Benutzername).
-        blockchain: Die ausgewählte Blockchain (z. B. "solana", "ethereum").
-        save_path: Der Pfad zur Speicherdatei (Standard: data/on_chain_data.json).
+        blockchain: Name der Blockchain (ethereum, binance, polygon, solana)
+        contract_address: Adresse des Smart Contracts
+        start_date: Startdatum für die Analyse
+        end_date: Enddatum für die Analyse
+        
+    Returns:
+        Fehlermeldung als String falls Validierungsfehler, None wenn alles valide ist
     """
-    # Erstellen Sie den /data-Ordner, falls er nicht existiert
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-    # Abrufen der On-Chain-Daten
-    on_chain_data = fetch_on_chain_data(query, blockchain)
-
-    # Speichern der On-Chain-Daten als JSON
-    with open(save_path, "w", encoding="utf-8") as f:
-        json.dump(on_chain_data, f, ensure_ascii=False, indent=4)
-    print(f"{len(on_chain_data)} Transaktionen wurden gespeichert in {save_path}")
+    # Prüfe, ob die Blockchain unterstützt wird
+    supported_blockchains = ["ethereum", "binance", "polygon", "solana"]
+    if blockchain not in supported_blockchains:
+        return f"Blockchain {blockchain} wird nicht unterstützt. Unterstützte Blockchains: {', '.join(supported_blockchains)}"
+    
+    # Validiere das Contract-Format
+    if blockchain in ["ethereum", "binance", "polygon"]:
+        if not contract_address.startswith("0x") or len(contract_address) != 42:
+            return f"{blockchain}-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein"
+    elif blockchain == "solana":
+        if len(contract_address) != 44:
+            return "Solana-Adressen müssen 44 Zeichen lang sein"
+    
+    # Prüfe, ob das Enddatum nach dem Startdatum liegt
+    if end_date < start_date:
+        return "Das Enddatum muss nach dem Startdatum liegen"
+    
+    # Prüfe, ob der Zeitraum nicht zu groß ist (z.B. max. 90 Tage)
+    max_days = 90
+    if (end_date - start_date).days > max_days:
+        return f"Der Analysezeitraum darf maximal {max_days} Tage betragen"
+    
+    # Prüfe, ob das Startdatum nicht zu weit in der Vergangenheit liegt
+    max_history_days = 365 * 5  # 5 Jahre
+    if (datetime.now().date() - start_date).days > max_history_days:
+        return f"Das Startdatum darf nicht mehr als {max_history_days} Tage in der Vergangenheit liegen"
+    
+    # Prüfe, ob das Enddatum nicht in der Zukunft liegt
+    if end_date > datetime.now().date():
+        return "Das Enddatum darf nicht in der Zukunft liegen"
+    
+    # Alle Validierungen bestanden
+    return None
