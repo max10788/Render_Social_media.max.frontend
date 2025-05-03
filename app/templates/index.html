@@ -62,10 +62,12 @@
         async function submitAnalysis() {
             // Form-Daten sammeln
             const contractAddress = document.getElementById('contract_address').value.trim();
+            const twitterUsername = document.getElementById('twitter_username').value.trim();
 
             const formData = {
                 blockchain: document.getElementById('blockchain').value,
                 contract_address: contractAddress || null, // Optional: Nutze null, wenn keine Contract-Adresse angegeben wurde
+                twitter_username: twitterUsername, // Twitter-Benutzername ist jetzt erforderlich
                 keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()),
                 start_date: document.getElementById('start_date').value,
                 end_date: document.getElementById('end_date').value,
@@ -133,6 +135,11 @@
             <small>Geben Sie die eindeutige Adresse des Smart Contracts ein, wenn Sie einen spezifischen Coin analysieren möchten. Andernfalls wird die gesamte Blockchain analysiert.</small>
         </div>
         <div>
+            <label for="twitter_username">Twitter-Benutzername:</label>
+            <input type="text" id="twitter_username" required placeholder="z.B. @example">
+            <small>Geben Sie den Twitter-Benutzernamen der Person oder des Projekts ein, das analysiert werden soll.</small>
+        </div>
+        <div>
             <label for="keywords">Keywords (durch Komma getrennt):</label>
             <input type="text" id="keywords" required placeholder="z.B. Uniswap, UNI, DEX">
             <small>Geben Sie Schlüsselwörter ein, um relevante Tweets zu finden, z. B. Projektnamen oder Token.</small>
@@ -149,8 +156,8 @@
         </div>
         <div>
             <label for="tweet_limit">Tweet-Limit:</label>
-            <input type="number" id="tweet_limit" min="100" max="5000" value="1000">
-            <small>Die maximale Anzahl an Tweets, die analysiert werden sollen (100 bis 5000).</small>
+            <input type="number" id="tweet_limit" min="10" max="50" value="10">
+            <small>Die maximale Anzahl an Tweets, die analysiert werden sollen (10 bis 50).</small>
         </div>
         <button type="submit">Analyse starten</button>
     </form>
