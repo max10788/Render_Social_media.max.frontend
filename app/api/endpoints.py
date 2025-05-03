@@ -20,6 +20,9 @@ from app.core.feature_engineering import extract_features, generate_labels
 from textblob import TextBlob
 from app.models.schemas import AnalyzeRequest, AnalyzeResponse, FeedbackRequest
 
+from flask_cors import CORS
+CORS(app)
+
 # Globale Variable für Status-Tracking
 ANALYSIS_STATUS = {}
 
