@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, validator
 from typing import List, Dict, Any, Optional
 from datetime import date
 from enum import Enum
+from datetime import date, datetime
 
 class BlockchainEnum(str, Enum):
     ethereum = "ethereum"
