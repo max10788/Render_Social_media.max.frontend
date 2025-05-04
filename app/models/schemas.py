@@ -66,8 +66,8 @@ class CorrelationResult(BaseModel):
     correlation_score: float = Field(..., description="Gesamtkorrelationswert zwischen -1 und 1")
     price_sentiment_correlation: float = Field(..., description="Korrelation zwischen Preis und Sentiment")
     volume_mentions_correlation: float = Field(..., description="Korrelation zwischen Handelsvolumen und Erwähnungen")
-    daily_correlations: Dict[str, Dict[str, float]] = Field(..., description="Tägliche Korrelationswerte")
-    correlation_details: Dict[str, Any] = Field(..., description="Detaillierte Korrelationsinformationen")
+    daily_correlations: dict[str, dict[str, float]] = Field(..., description="Tägliche Korrelationswerte")
+    correlation_details: dict[str, Any] = Field(..., description="Detaillierte Korrelationsinformationen")
 
 class AnalyzeResponse(BaseModel):
     """Schema für die Antwort der Analyse."""
