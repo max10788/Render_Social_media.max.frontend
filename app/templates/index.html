@@ -66,12 +66,11 @@
 
             const formData = {
                 blockchain: document.getElementById('blockchain').value,
-                contract_address: contractAddress || null, // Optional: Nutze null, wenn keine Contract-Adresse angegeben wurde
-                twitter_username: twitterUsername, // Twitter-Benutzername ist jetzt erforderlich
-                keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()),
+                contract_address: document.getElementById('contract_address').value.trim(),
+                keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
                 start_date: document.getElementById('start_date').value,
                 end_date: document.getElementById('end_date').value,
-                tweet_limit: parseInt(document.getElementById('tweet_limit').value)
+                tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
             };
             
             try {
