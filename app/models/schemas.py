@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field, validator, constr, conint
-from typing import List, Dict, Any, Optional
-from datetime import date, datetime
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional
+from datetime import date
 from enum import Enum
 
 class BlockchainEnum(str, Enum):
@@ -10,43 +10,54 @@ class BlockchainEnum(str, Enum):
     solana = "solana"
 
 class AnalyzeRequest(BaseModel):
-    """Schema für die Anfrage zur Analyse von Blockchain- und Twitter-Daten."""
+    """
+    Anfrage-Schema für Blockchain- und Social-Media-Analyse.
+    """
     blockchain: BlockchainEnum = Field(..., description="Die zu analysierende Blockchain")
-    contract_address: str = Field(..., description="Die Adresse des Smart Contracts")
-    keywords: List[str] = Field(..., min_items=1, description="Keywords für die Twitter-Suche")
-    start_date: date = Field(..., description="Startdatum für die Analyse")
-    end_date: date = Field(..., description="Enddatum für die Analyse")
-    tweet_limit: Optional[int] = Field(1000, ge=100, le=5000, description="Maximale Anzahl der zu analysierenden Tweets")
-    
+    contract_address: Optional[str] = Field(
+        None, description="Adresse des Smart Contracts (optional, je nach Analyse-Typ)"
+    )
+    twitter_username: Optional[str] = Field(
+        None, description="Twitter-Username (optional, für Social-Media-Analysen)"
+    )
+    keywords: List[str] = Field(
+        ..., min_items=1, description="Liste von Such-Keywords für Tweets"
+    )
+    start_date: date = Field(..., description="Startdatum für die Analyse (YYYY-MM-DD)")
+    end_date: date = Field(..., description="Enddatum für die Analyse (YYYY-MM-DD, >= start_date)")
+    tweet_limit: Optional[int] = Field(
+        1000, ge=10, le=5000, description="Maximale Anzahl der zu analysierenden Tweets (10-5000, Standard: 1000)"
+    )
+
     @validator('end_date')
     def end_date_must_be_after_start_date(cls, v, values):
         if 'start_date' in values and v < values['start_date']:
             raise ValueError('end_date muss nach start_date liegen')
         return v
-    
+
     @validator('contract_address')
     def validate_contract_address(cls, v, values):
-        # Einfache Validierung der Länge der Contract-Adresse
-        if 'blockchain' in values:
-            if values['blockchain'] == BlockchainEnum.ethereum and not (v.startswith('0x') and len(v) == 42):
-                raise ValueError('Ethereum-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein')
-            elif values['blockchain'] == BlockchainEnum.binance and not (v.startswith('0x') and len(v) == 42):
-                raise ValueError('Binance-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein')
-            elif values['blockchain'] == BlockchainEnum.polygon and not (v.startswith('0x') and len(v) == 42):
-                raise ValueError('Polygon-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein')
-            elif values['blockchain'] == BlockchainEnum.solana and len(v) != 44:
+        if v is None:
+            return v
+        blockchain = values.get('blockchain')
+        if blockchain in [BlockchainEnum.ethereum, BlockchainEnum.binance, BlockchainEnum.polygon]:
+            if not (v.startswith('0x') and len(v) == 42):
+                raise ValueError(f'{blockchain}-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein')
+        elif blockchain == BlockchainEnum.solana:
+            if len(v) != 44:
                 raise ValueError('Solana-Adressen müssen 44 Zeichen lang sein')
         return v
-    
+
     class Config:
         schema_extra = {
             "example": {
                 "blockchain": "ethereum",
                 "contract_address": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+                "twitter_username": "uniswap",  # ohne @
                 "keywords": ["Uniswap", "UNI", "DEX"],
                 "start_date": "2023-01-01",
                 "end_date": "2023-01-31",
-                "tweet_limit": 2000
+                "tweet_limit": 200
             }
         }
 
