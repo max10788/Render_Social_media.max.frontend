@@ -89,7 +89,7 @@ def train_model(db: Session):
 
 # Regelbasierte Analyse
 @router.post("/analyze/rule-based", response_model=dict)
-async def start_analysis(request:  AnalyzeRequest, background_tasks: BackgroundTasks):
+async def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks):
     """Startet die Analyse und gibt eine Job-ID zurück."""
     job_id = str(uuid.uuid4())  # Generiere eine eindeutige Job-ID
     ANALYSIS_STATUS[job_id] = "In Progress"
@@ -99,21 +99,23 @@ async def start_analysis(request:  AnalyzeRequest, background_tasks: BackgroundT
 
     return {"job_id": job_id, "status": "Analysis started"}
 
-async def run_analysis(request:  AnalyzeRequest, job_id: str):
+
+async def run_analysis(request: AnalyzeRequest, job_id: str):
     """Führt die Analyse im Hintergrund durch."""
     try:
-        # Entferne das '@'-Zeichen aus dem Benutzernamen, falls vorhanden
-        if request.username.startswith("@"):
-            request.username = request.username[1:]
-
-        # Validierung des blockchain-Parameters
-        if request.blockchain.lower() not in ["ethereum", "solana", "bitcoin", "hoss_crypto"]:
+        # Blockchain-Parameter validieren
+        if request.blockchain.value.lower() not in ["ethereum", "solana", "binance", "polygon"]:
             ANALYSIS_STATUS[job_id] = "Failed: Unsupported blockchain"
             return
 
-        # Tweets abrufen (mit await)
+        # Tweets abrufen (hier: Suche nach Keywords, nicht nach User)
         twitter_client = TwitterClient()
-        tweets = await twitter_client.fetch_tweets_by_user(request.username, request.post_count)
+        tweets = await twitter_client.fetch_tweets_by_keywords(
+            keywords=request.keywords,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            tweet_limit=request.tweet_limit
+        )
         if not tweets:
             ANALYSIS_STATUS[job_id] = "Failed: No tweets found"
             return
@@ -122,19 +124,21 @@ async def run_analysis(request:  AnalyzeRequest, job_id: str):
         blockchain_endpoint = {
             "solana": os.getenv("SOLANA_RPC_URL"),
             "ethereum": os.getenv("ETHEREUM_RPC_URL"),
-            "bitcoin": os.getenv("BITCOIN_RPC_URL"),
-        }.get(request.blockchain.lower())
+            "binance": os.getenv("BINANCE_RPC_URL"),
+            "polygon": os.getenv("POLYGON_RPC_URL"),
+        }.get(request.blockchain.value.lower())
 
         if not blockchain_endpoint:
             ANALYSIS_STATUS[job_id] = "Failed: Unsupported blockchain endpoint"
             return
 
-        on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.username)
+        # On-Chain-Daten abrufen (mit Contract-Adresse als Query)
+        on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.contract_address)
         if not on_chain_data:
             ANALYSIS_STATUS[job_id] = "Failed: No on-chain data found"
             return
 
-        # Korrelation zwischen Tweets und On-Chain-Daten
+        # Korrelation zwischen Tweets und On-Chain-Daten (Logik ggf. anpassen)
         potential_wallet = None
         for tweet in tweets:
             for tx in on_chain_data:
@@ -158,22 +162,22 @@ async def run_analysis(request:  AnalyzeRequest, job_id: str):
         # Sentiment-Score berechnen
         sentiment_score = calculate_sentiment_score([tweet["text"] for tweet in tweets])
 
-        # Datenbank speichern, wenn nötig
+        # In DB speichern (achte auf db-Session im Scope!)
         db_analysis = SentimentAnalysis(
-            query=request.username,
+            query=request.contract_address,
             sentiment_score=sentiment_score,
-            post_count=request.post_count
+            post_count=request.tweet_limit
         )
         db.add(db_analysis)
 
         db_transactions = [
             OnChainTransaction(
-                query=request.username,
+                query=request.contract_address,
                 transaction_id=tx.get("signature", tx.get("hash")),
                 amount=tx.get("amount", 0),
                 transaction_type=tx.get("type", "unknown"),
                 block_time=datetime.fromtimestamp(tx.get("blockTime", tx.get("timestamp"))),
-                blockchain=request.blockchain
+                blockchain=request.blockchain.value
             )
             for tx in on_chain_data
         ]
