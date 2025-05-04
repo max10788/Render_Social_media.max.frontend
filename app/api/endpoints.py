@@ -10,6 +10,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import joblib
 import uuid
+from flask import Flask
+from flask_cors import CORS
 
 # Interne Module importieren
 from app.core.twitter_api import TwitterClient
@@ -20,8 +22,8 @@ from app.core.feature_engineering import extract_features, generate_labels
 from textblob import TextBlob
 from app.models.schemas import AnalyzeRequest, AnalyzeResponse, FeedbackRequest
 
-from flask_cors import CORS
-CORS(app)
+app = Flask(__name__)    # <-- define app first
+CORS(app)                # <-- then apply CORS
 
 # Globale Variable für Status-Tracking
 ANALYSIS_STATUS = {}
