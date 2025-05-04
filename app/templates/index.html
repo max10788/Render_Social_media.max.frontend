@@ -76,7 +76,7 @@
             
             try {
                 // POST-Anfrage senden
-                const response = await fetch('http://localhost:8000/analyze/rule-based', {
+                const response = await fetch('/api/analyze/rule-based', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
