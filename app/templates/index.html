@@ -60,55 +60,105 @@
     </style>
     <script>
         async function submitAnalysis() {
-            // Form-Daten sammeln
-            const contractAddress = document.getElementById('contract_address').value.trim();
-            const twitterUsername = document.getElementById('twitter_username').value.trim();
-
-            const formData = {
-                blockchain: document.getElementById('blockchain').value,
-                contract_address: document.getElementById('contract_address').value.trim(),
-                keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
-                start_date: document.getElementById('start_date').value,
-                end_date: document.getElementById('end_date').value,
-                tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
-            };
+                try {
+                    // Form-Daten sammeln
+                    const formData = {
+                        blockchain: document.getElementById('blockchain').value,
+                        contract_address: document.getElementById('contract_address').value.trim() || null,
+                        twitter_username: document.getElementById('twitter_username').value.trim(),
+                        keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
+                        start_date: document.getElementById('start_date').value,
+                        end_date: document.getElementById('end_date').value,
+                        tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
+                    };
             
-            try {
-                // POST-Anfrage senden
-                const response = await fetch('/api/analyze/rule-based', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                // Antwort verarbeiten
-                if (response.ok) {
-                    const result = await response.json();
-                    document.getElementById('result').innerHTML = `
-                        <h3>Analyse erfolgreich!</h3>
-                        <p><strong>Analyse-ID:</strong> ${result.analysis_id}</p>
-                        <p><strong>Sentiment-Score:</strong> ${result.sentiment_score}</p>
-                        <p><strong>Korrelations-Score:</strong> ${result.correlation_results.correlation_score}</p>
-                        <p><strong>Analysierte Tweets:</strong> ${result.tweets_analyzed}</p>
-                        <p><strong>Blockchain-Datenpunkte:</strong> ${result.blockchain_data_points}</p>
-                    `;
-                } else {
-                    const error = await response.json();
+                    // Validierungen
+                    if (!formData.keywords || formData.keywords.length === 0) {
+                        throw new Error('Bitte geben Sie mindestens ein Keyword ein');
+                    }
+            
+                    if (!formData.start_date || !formData.end_date) {
+                        throw new Error('Start- und Enddatum sind erforderlich');
+                    }
+            
+                    if (formData.end_date < formData.start_date) {
+                        throw new Error('Das Enddatum muss nach dem Startdatum liegen');
+                    }
+            
+                    // API-Anfrage senden
+                    const response = await fetch('/api/analyze/rule-based', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+            
+                    // Antwort verarbeiten
+                    if (response.ok) {
+                        const result = await response.json();
+                        document.getElementById('result').innerHTML = `
+                            <h3>Analyse erfolgreich gestartet!</h3>
+                            <p><strong>Job-ID:</strong> ${result.job_id}</p>
+                            <p><strong>Status:</strong> ${result.status}</p>
+                        `;
+            
+                        // Status-Polling starten
+                        if (result.job_id) {
+                            pollAnalysisStatus(result.job_id);
+                        }
+                    } else {
+                        const error = await response.json();
+                        document.getElementById('result').innerHTML = `
+                            <h3>Fehler!</h3>
+                            <p>${error.detail || 'Ein unerwarteter Fehler ist aufgetreten'}</p>
+                        `;
+                    }
+                } catch (error) {
                     document.getElementById('result').innerHTML = `
                         <h3>Fehler!</h3>
-                        <p>${error.detail}</p>
+                        <p>${error.message}</p>
                     `;
                 }
-            } catch (error) {
-                document.getElementById('result').innerHTML = `
-                    <h3>Fehler!</h3>
-                    <p>${error.message}</p>
-                `;
             }
-        }
+            
+            // Funktion zum Abfragen des Analyse-Status
+            async function pollAnalysisStatus(jobId) {
+                try {
+                    const statusResponse = await fetch(`/api/analysis/status/${jobId}`);
+                    const statusData = await statusResponse.json();
+                    
+                    document.getElementById('result').innerHTML = `
+                        <h3>Analyse läuft...</h3>
+                        <p><strong>Job-ID:</strong> ${jobId}</p>
+                        <p><strong>Status:</strong> ${statusData.status}</p>
+                    `;
+            
+                    if (statusData.status === "Completed") {
+                        // Hier können Sie weitere Aktionen nach Abschluss der Analyse hinzufügen
+                        document.getElementById('result').innerHTML = `
+                            <h3>Analyse abgeschlossen!</h3>
+                            <p><strong>Job-ID:</strong> ${jobId}</p>
+                            <p><strong>Status:</strong> ${statusData.status}</p>
+                        `;
+                    } else if (statusData.status.startsWith("Failed")) {
+                        document.getElementById('result').innerHTML = `
+                            <h3>Analyse fehlgeschlagen!</h3>
+                            <p><strong>Job-ID:</strong> ${jobId}</p>
+                            <p><strong>Status:</strong> ${statusData.status}</p>
+                        `;
+                    } else {
+                        // Wenn die Analyse noch läuft, in 2 Sekunden erneut abfragen
+                        setTimeout(() => pollAnalysisStatus(jobId), 2000);
+                    }
+                } catch (error) {
+                    document.getElementById('result').innerHTML = `
+                        <h3>Fehler beim Abrufen des Status!</h3>
+                        <p>${error.message}</p>
+                    `;
+                }
+            }
     </script>
 </head>
 <body>
