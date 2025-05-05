@@ -177,6 +177,101 @@ async def fetch_tweets_by_user(self, username, count):
             return "en"
 
     # ==============================
+    # fetch_keywords
+    # ==============================
+
+    async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
+    """
+    Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum.
+    
+    Args:
+        keywords (List[str]): Liste von Suchbegriffen
+        start_date (date): Startdatum für die Suche
+        end_date (date): Enddatum für die Suche
+        tweet_limit (int): Maximale Anzahl der abzurufenden Tweets
+    
+    Returns:
+        list: Liste der gefundenen und verarbeiteten Tweets
+    """
+    # Erstelle den Suchquery aus den Keywords
+    search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
+    
+    # Twitter API v2 Search-Endpunkt
+    url = "https://api.twitter.com/2/tweets/search/recent"
+    headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
+    
+    # Formatiere die Daten für die Twitter API
+    start_time = f"{start_date.isoformat()}T00:00:00Z"
+    end_time = f"{end_date.isoformat()}T23:59:59Z"
+    
+    params = {
+        "query": search_query,
+        "start_time": start_time,
+        "end_time": end_time,
+        "max_results": min(100, tweet_limit),  # Twitter API Limit pro Request
+        "tweet.fields": "created_at,text,author_id"
+    }
+    
+    try:
+        processed_tweets = []
+        async with aiohttp.ClientSession() as session:
+            while len(processed_tweets) < tweet_limit:
+                try:
+                    async with session.get(url, headers=headers, params=params) as response:
+                        if response.status != 200:
+                            logger.error(f"Twitter API Fehler: Status {response.status}")
+                            error_data = await response.json()
+                            logger.error(f"API Fehlermeldung: {error_data}")
+                            break
+                        
+                        data = await response.json()
+                        
+                        # Prüfe ob Tweets gefunden wurden
+                        if not data.get("data"):
+                            logger.info("Keine weiteren Tweets gefunden")
+                            break
+                        
+                        # Verarbeite jeden Tweet
+                        for tweet in data["data"]:
+                            # Extrahiere und verarbeite Tweet-Attribute
+                            processed_tweet = self.extract_tweet_attributes(tweet["text"])
+                            processed_tweet.update({
+                                "id": tweet["id"],
+                                "created_at": tweet["created_at"],
+                                "author_id": tweet["author_id"]
+                            })
+                            processed_tweets.append(processed_tweet)
+                            
+                            # Prüfe ob wir genug Tweets haben
+                            if len(processed_tweets) >= tweet_limit:
+                                break
+                        
+                        # Prüfe auf Pagination Token
+                        if "next_token" not in data.get("meta", {}):
+                            logger.info("Keine weiteren Seiten verfügbar")
+                            break
+                            
+                        # Setze Token für nächste Seite
+                        params["pagination_token"] = data["meta"]["next_token"]
+                        
+                except Exception as e:
+                    logger.error(f"Fehler während der Tweet-Verarbeitung: {e}")
+                    break
+                    
+                # Kleine Pause zwischen Requests um Rate Limits zu respektieren
+                await asyncio.sleep(1)
+            
+            # Logging der Ergebnisse
+            logger.info(f"{len(processed_tweets)} Tweets erfolgreich verarbeitet")
+            
+            # Rückgabe der verarbeiteten Tweets (maximal tweet_limit)
+            return processed_tweets[:tweet_limit]
+            
+    except Exception as e:
+        logger.error(f"Kritischer Fehler beim Abrufen von Tweets: {e}")
+        return []
+        
+    # ==============================
     # Tweets mit Caching
     # ==============================
     async def fetch_and_cache_tweets(self, username, count):
