@@ -46,3 +46,9 @@ document.getElementById('analysis-form').addEventListener('submit', async (event
     statusDiv.innerHTML = "Analysis failed to start.";
   }
 });
+
+async function fetchResults() {
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = "Analyse abgeschlossen. Zeige Ergebnisse...";
+  resultsDiv.classList.remove('hidden');
+}
