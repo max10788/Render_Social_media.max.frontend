@@ -16,18 +16,35 @@ import redis
 logger = logging.getLogger(__name__)
 redis_client = redis.from_url(settings.REDIS_URL)
 
+climport json
+import os
+import re
+import asyncio
+import aiohttp
+import logging
+import datetime
+import nltk
+from langdetect import detect
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from app.core.config import settings
+import redis
+
+logger = logging.getLogger(__name__)
+redis_client = redis.from_url(settings.REDIS_URL)
+
 class TwitterClient:
     def __init__(self):
         self.client = None
         self.analyzer = SentimentIntensityAnalyzer()
         
-        # NLTK-Daten herunterladen, falls noch nicht vorhanden
+        # NLTK-Daten herunterladen
         try:
             nltk.data.find('corpora/stopwords')
         except LookupError:
             logger.info("Downloading NLTK stopwords...")
             nltk.download('stopwords', quiet=True)
-        
         try:
             nltk.data.find('tokenizers/punkt')
         except LookupError:
@@ -38,9 +55,9 @@ class TwitterClient:
         """Entfernt URLs, Sonderzeichen, Emojis und konvertiert in Kleinbuchstaben."""
         if text is None:
             return ""
-        text = re.sub(r"http\S+|www\S+", "", text)  # URLs entfernen
-        text = re.sub(r"[^\w\s]", "", text)  # Sonderzeichen entfernen
-        return text.lower()  # Kleinbuchstaben
+        text = re.sub(r"http\S+|www\S+", "", text)
+        text = re.sub(r"[^\w\s]", "", text)
+        return text.lower()
 
     def tokenize_and_remove_stopwords(self, text, language="en"):
         """Tokenisiert den Text und entfernt Stop-Wörter basierend auf der Sprache."""
@@ -53,13 +70,39 @@ class TwitterClient:
         filtered_tokens = [word for word in tokens if word not in stop_words]
         return " ".join(filtered_tokens)
 
+    async def fetch_tweets_async(self, username, count):
+        """Ruft Tweets für einen bestimmten Benutzer ab."""
+        if username.startswith("@"):
+            username = username[1:]
+        url = f"https://api.twitter.com/2/users/by/username/{username}"
+        headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
+        params = {"user.fields": "id"}
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, params=params) as response:
+                    if response.status != 200:
+                        logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
+                        return []
+                    user_data = await response.json()
+                    user_id = user_data["data"]["id"]
+
+                tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
+                tweets_params = {"max_results": count, "tweet.fields": "created_at"}
+                async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
+                    if tweets_response.status != 200:
+                        logger.error(f"Fehler beim Abrufen von Tweets: Status {tweets_response.status}")
+                        return []
+                    tweets_data = await tweets_response.json()
+                    return tweets_data.get("data", [])
+        except Exception as e:
+            logger.error(f"Fehler beim Abrufen von Tweets: {e}")
+            return []
 
     async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
+        """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
         try:
-            # Aktuelle Zeit für Validierung
             current_time = datetime.datetime.utcnow()
-            
-            # Keywords formatieren
             search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
             
             # Validiere und korrigiere Daten
@@ -68,21 +111,16 @@ class TwitterClient:
             if isinstance(start_date, datetime.date):
                 start_date = datetime.datetime.combine(start_date, datetime.time.min)
             
-            # Stelle sicher, dass end_date nicht in der Zukunft liegt
             if end_date > current_time:
                 logger.warning(f"End date {end_date} ist in der Zukunft. Setze auf aktuelle Zeit.")
                 end_date = current_time - datetime.timedelta(seconds=10)
-            
-            # Formatiere die Zeiten für die API
-            start_time = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-            end_time = end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
             
             url = "https://api.twitter.com/2/tweets/search/recent"
             headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
             params = {
                 "query": search_query,
-                "start_time": start_time,
-                "end_time": end_time,
+                "start_time": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "end_time": end_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "max_results": min(100, tweet_limit),
                 "tweet.fields": "created_at,text,author_id"
             }
@@ -135,7 +173,9 @@ class TwitterClient:
             "processed_text": processed_text,
             "keywords": self.extract_keywords(processed_text),
             "amount": self.extract_amount(tweet_text),
-            "addresses": self.extract_addresses(tweet_text)
+            "addresses": self.extract_addresses(tweet_text),
+            "hashtags": self.extract_hashtags(tweet_text),
+            "links": self.extract_links(tweet_text)
         }
 
     def extract_keywords(self, text):
@@ -161,6 +201,14 @@ class TwitterClient:
         solana_addresses = re.findall(r"[1-9A-HJ-NP-Za-km-z]{32,44}", text)
         return ethereum_addresses + solana_addresses
 
+    def extract_hashtags(self, text):
+        """Extrahiert Hashtags."""
+        return re.findall(r"#\w+", text)
+
+    def extract_links(self, text):
+        """Extrahiert URLs."""
+        return re.findall(r"https?://[^\s]+", text)
+
     def detect_language(self, text):
         """Erkennt die Sprache eines Textes."""
         try:
@@ -168,7 +216,6 @@ class TwitterClient:
         except Exception:
             logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
             return "en"
-
         async def fetch_tweets_async(self, username, count):
         if username.startswith("@"):
             username = username[1:]
