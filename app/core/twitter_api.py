@@ -1,5 +1,6 @@
-import json
+import nltk
 import os
+import json
 import re
 import asyncio
 import aiohttp
@@ -19,22 +20,19 @@ class TwitterClient:
     def __init__(self):
         self.client = None
         self.analyzer = SentimentIntensityAnalyzer()
-
-    @staticmethod
-    def normalize_text(text):
-        text = re.sub(r"http\S+|www\S+", "", text)
-        text = re.sub(r"[^\w\s]", "", text)
-        return text.lower()
-
-    def tokenize_and_remove_stopwords(self, text, language="en"):
+        
+        # NLTK-Daten herunterladen, falls noch nicht vorhanden
         try:
-            stop_words = set(stopwords.words(language))
-        except Exception:
-            logger.warning(f"Sprache '{language}' nicht unterstützt. Fallback auf Englisch.")
-            stop_words = set(stopwords.words("english"))
-        tokens = word_tokenize(text)
-        filtered_tokens = [word for word in tokens if word not in stop_words]
-        return " ".join(filtered_tokens)
+            nltk.data.find('corpora/stopwords')
+        except LookupError:
+            logger.info("Downloading NLTK stopwords...")
+            nltk.download('stopwords', quiet=True)
+        
+        try:
+            nltk.data.find('tokenizers/punkt')
+        except LookupError:
+            logger.info("Downloading NLTK punkt tokenizer...")
+            nltk.download('punkt', quiet=True)
 
     async def fetch_tweets_async(self, username, count):
         if username.startswith("@"):
