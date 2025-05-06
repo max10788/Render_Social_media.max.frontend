@@ -79,6 +79,68 @@ class TwitterClient:
             return []
 
     # ==============================
+    # fetch_keywords
+    # ==============================
+    async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
+        """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
+        try:
+            # Keywords formatieren
+            search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
+            
+            # Datum formatieren (ISO 8601)
+            start_time = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+            end_time = end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+            
+            url = "https://api.twitter.com/2/tweets/search/recent"
+            headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
+            
+            params = {
+                "query": search_query,
+                "start_time": start_time,
+                "end_time": end_time,
+                "max_results": min(100, tweet_limit),
+                "tweet.fields": "created_at,text,author_id"
+            }
+            
+            processed_tweets = []
+            async with aiohttp.ClientSession() as session:
+                while len(processed_tweets) < tweet_limit:
+                    async with session.get(url, headers=headers, params=params) as response:
+                        if response.status != 200:
+                            logger.error(f"Twitter API Fehler: Status {response.status}")
+                            error_data = await response.json()
+                            logger.error(f"Twitter API Error Details: {error_data}")
+                            break
+                        
+                        data = await response.json()
+                        if not data.get("data"):
+                            break
+                        
+                        for tweet in data["data"]:
+                            processed_tweet = self.extract_tweet_attributes(tweet["text"])
+                            processed_tweet.update({
+                                "id": tweet["id"],
+                                "created_at": tweet["created_at"],
+                                "author_id": tweet["author_id"]
+                            })
+                            processed_tweets.append(processed_tweet)
+                            
+                            if len(processed_tweets) >= tweet_limit:
+                                break
+                        
+                        if "next_token" not in data.get("meta", {}):
+                            break
+                        
+                        params["pagination_token"] = data["meta"]["next_token"]
+                        await asyncio.sleep(1)
+                
+            return processed_tweets[:tweet_limit]
+            
+        except Exception as e:
+            logger.error(f"Fehler beim Abrufen von Tweets: {e}")
+            return []
+
+    # ==============================
     # Tweets ohne Caching
     # ==============================
     async def fetch_tweets_by_user(self, username, count):
@@ -173,10 +235,6 @@ class TwitterClient:
     # fetch_keywords
     # ==============================
     async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
-    """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
-    try:
-        # Keywords formatieren
-        search_quer    async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
         """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
         try:
             # Keywords formatieren
@@ -233,8 +291,7 @@ class TwitterClient:
             
         except Exception as e:
             logger.error(f"Fehler beim Abrufen von Tweets: {e}")
-            return []
-            
+            return []            
             
     # ==============================
     # Tweets mit Caching
