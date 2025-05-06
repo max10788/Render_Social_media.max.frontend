@@ -1,10 +1,10 @@
-import datetime
 import json
 import os
 import re
 import asyncio
 import aiohttp
 import logging
+import datetime
 from langdetect import detect
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -12,32 +12,21 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from app.core.config import settings
 import redis
 
-# ==============================
-# Logger und Redis-Initialisierung
-# ==============================
 logger = logging.getLogger(__name__)
 redis_client = redis.from_url(settings.REDIS_URL)
 
-# ==============================
-# TwitterClient-Klasse
-# ==============================
 class TwitterClient:
     def __init__(self):
-        self.client = None  # Wird bei Bedarf initialisiert
+        self.client = None
         self.analyzer = SentimentIntensityAnalyzer()
 
-    # ==============================
-    # Textverarbeitung
-    # ==============================
     @staticmethod
     def normalize_text(text):
-        """Entfernt URLs, Sonderzeichen, Emojis und konvertiert in Kleinbuchstaben."""
-        text = re.sub(r"http\S+|www\S+", "", text)  # URLs entfernen
-        text = re.sub(r"[^\w\s]", "", text)  # Sonderzeichen entfernen
-        return text.lower()  # Kleinbuchstaben
+        text = re.sub(r"http\S+|www\S+", "", text)
+        text = re.sub(r"[^\w\s]", "", text)
+        return text.lower()
 
     def tokenize_and_remove_stopwords(self, text, language="en"):
-        """Tokenisiert den Text und entfernt Stop-Wörter basierend auf der Sprache."""
         try:
             stop_words = set(stopwords.words(language))
         except Exception:
@@ -47,11 +36,7 @@ class TwitterClient:
         filtered_tokens = [word for word in tokens if word not in stop_words]
         return " ".join(filtered_tokens)
 
-    # ==============================
-    # Tweets abrufen
-    # ==============================
     async def fetch_tweets_async(self, username, count):
-        # Entferne das '@'-Zeichen, falls vorhanden
         if username.startswith("@"):
             username = username[1:]
         url = f"https://api.twitter.com/2/users/by/username/{username}"
@@ -59,14 +44,13 @@ class TwitterClient:
         params = {"user.fields": "id"}
         try:
             async with aiohttp.ClientSession() as session:
-                # Step 1: Get User ID
                 async with session.get(url, headers=headers, params=params) as response:
                     if response.status != 200:
                         logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
                         return []
                     user_data = await response.json()
                     user_id = user_data["data"]["id"]
-                # Step 2: Get Tweets by User ID
+
                 tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
                 tweets_params = {"max_results": count, "tweet.fields": "created_at"}
                 async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
@@ -79,22 +63,18 @@ class TwitterClient:
             logger.error(f"Fehler beim Abrufen von Tweets: {e}")
             return []
 
-    # ==============================
-    # fetch_keywords
-    # ==============================
     async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
-        """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
         try:
-            # Keywords formatieren
+            current_time = datetime.datetime.utcnow()
             search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
             
-            # Aktuelle Zeit für Validierung
-            current_time = datetime.datetime.utcnow()
-            
-            # Validiere und korrigiere end_date falls nötig
+            # Validiere und korrigiere Daten
             if isinstance(end_date, datetime.date):
                 end_date = datetime.datetime.combine(end_date, datetime.time.max)
+            if isinstance(start_date, datetime.date):
+                start_date = datetime.datetime.combine(start_date, datetime.time.min)
             
+            # Stelle sicher, dass end_date nicht in der Zukunft liegt
             if end_date > current_time:
                 logger.warning(f"End date {end_date} ist in der Zukunft. Setze auf aktuelle Zeit.")
                 end_date = current_time - datetime.timedelta(seconds=10)
@@ -105,7 +85,6 @@ class TwitterClient:
             
             url = "https://api.twitter.com/2/tweets/search/recent"
             headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-            
             params = {
                 "query": search_query,
                 "start_time": start_time,
@@ -145,7 +124,7 @@ class TwitterClient:
                         
                         params["pagination_token"] = data["meta"]["next_token"]
                         await asyncio.sleep(1)
-                
+            
             return processed_tweets[:tweet_limit]
             
         except Exception as e:
@@ -153,7 +132,6 @@ class TwitterClient:
             return []
 
     def extract_tweet_attributes(self, tweet_text):
-        """Extrahiert relevante Attribute aus einem Tweet."""
         normalized_text = self.normalize_text(tweet_text)
         language = self.detect_language(normalized_text)
         processed_text = self.tokenize_and_remove_stopwords(normalized_text, language)
@@ -166,7 +144,6 @@ class TwitterClient:
         }
 
     def extract_keywords(self, text):
-        """Extrahiert relevante Schlüsselwörter."""
         relevant_keywords = [
             "solana", "ethereum", "btc", "transfer", "send", "receive",
             "wallet", "transaction", "mint", "burn", "staking", "nft"
@@ -174,7 +151,6 @@ class TwitterClient:
         return [word for word in text.split() if word.lower() in relevant_keywords]
 
     def extract_amount(self, text):
-        """Extrahiert Beträge mit Einheiten."""
         try:
             match = re.search(r"(\d+\.?\d*)\s?(SOL|ETH|BTC|USDT|USDC)", text.upper())
             return float(match.group(1)) if match else None
@@ -183,93 +159,16 @@ class TwitterClient:
             return None
 
     def extract_addresses(self, text):
-        """Extrahiert Ethereum- und Solana-Wallet-Adressen."""
         ethereum_addresses = re.findall(r"0x[a-fA-F0-9]{40}", text)
         solana_addresses = re.findall(r"[1-9A-HJ-NP-Za-km-z]{32,44}", text)
         return ethereum_addresses + solana_addresses
 
     def detect_language(self, text):
-        """Erkennt die Sprache eines Textes."""
         try:
             return detect(text)
         except Exception:
             logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
             return "en"
-    # ==============================
-    # Tweets ohne Caching
-    # ==============================
-    async def fetch_tweets_by_user(self, username, count):
-        """
-        Ruft Tweets für einen Benutzer ab, ohne Caching.
-        Args:
-            username (str): Der Twitter-Benutzername.
-            count (int): Die Anzahl der abzurufenden Tweets.
-        Returns:
-            list: Eine Liste verarbeiteter Tweets.
-        """
-        tweets = await self.fetch_tweets_async(username, count)
-        processed_tweets = [
-            {
-                "text": tweet.get("text"),
-                "created_at": tweet.get("created_at"),
-                "amount": self.extract_amount(tweet.get("text")),
-                "keywords": self.extract_keywords(tweet.get("text")),
-                "addresses": self.extract_addresses(tweet.get("text")),
-                "hashtags": self.extract_hashtags(tweet.get("text")),
-                "links": self.extract_links(tweet.get("text")),
-            }
-            for tweet in tweets
-        ]
-        return processed_tweets
-
-    # ==============================
-    # Tweet-Attribute extrahieren
-    # ==============================
-    def extract_tweet_attributes(self, tweet_text):
-        """Extrahiert relevante Attribute aus einem Tweet."""
-        normalized_text = self.normalize_text(tweet_text)
-        language = self.detect_language(normalized_text)
-        processed_text = self.tokenize_and_remove_stopwords(normalized_text, language)
-        return {
-            "text": tweet_text,
-            "processed_text": processed_text,
-            "keywords": self.extract_keywords(processed_text),
-            "amount": self.extract_amount(tweet_text),
-            "addresses": self.extract_addresses(tweet_text),
-            "hashtags": self.extract_hashtags(tweet_text),
-            "links": self.extract_links(tweet_text),
-        }
-
-    def extract_keywords(self, text):
-        """Extrahiert relevante Schlüsselwörter."""
-        relevant_keywords = [
-            "solana", "ethereum", "btc", "transfer", "send", "receive",
-            "wallet", "transaction", "mint", "burn", "staking", "nft"
-        ]
-        return [word for word in text.split() if word.lower() in relevant_keywords]
-
-    def extract_amount(self, text):
-        """Extrahiert Beträge mit Einheiten (z. B. SOL, ETH, BTC)."""
-        try:
-            match = re.search(r"(\d+\.?\d*)\s?(SOL|ETH|BTC|USDT|USDC)", text.upper())
-            return float(match.group(1)) if match else None
-        except Exception as e:
-            logger.error(f"Fehler beim Extrahieren des Betrags: {e}")
-            return None
-
-    def extract_addresses(self, text):
-        """Extrahiert Ethereum- und Solana-Wallet-Adressen."""
-        ethereum_addresses = re.findall(r"0x[a-fA-F0-9]{40}", text)
-        solana_addresses = re.findall(r"[1-9A-HJ-NP-Za-km-z]{32,44}", text)
-        return ethereum_addresses + solana_addresses
-
-    def extract_hashtags(self, text):
-        """Extrahiert Hashtags."""
-        return re.findall(r"#\w+", text)
-
-    def extract_links(self, text):
-        """Extrahiert URLs."""
-        return re.findall(r"https?://[^\s]+", text)
 
     # ==============================
     # Analysefunktionen
