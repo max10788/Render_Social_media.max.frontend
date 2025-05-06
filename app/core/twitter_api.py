@@ -16,24 +16,6 @@ import redis
 logger = logging.getLogger(__name__)
 redis_client = redis.from_url(settings.REDIS_URL)
 
-climport json
-import os
-import re
-import asyncio
-import aiohttp
-import logging
-import datetime
-import nltk
-from langdetect import detect
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from app.core.config import settings
-import redis
-
-logger = logging.getLogger(__name__)
-redis_client = redis.from_url(settings.REDIS_URL)
-
 class TwitterClient:
     def __init__(self):
         self.client = None
