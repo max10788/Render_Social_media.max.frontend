@@ -233,7 +233,7 @@ async def fetch_tweets_by_user(self, username, count):
         except Exception as e:
             logger.error(f"Fehler beim Abrufen von Tweets: {e}")
             return []
-        
+                                
     # ==============================
     # Tweets mit Caching
     # ==============================
