@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import re
@@ -83,24 +84,36 @@ class TwitterClient:
     # ==============================
     async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
         """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
-        try:
-            # Keywords formatieren
-            search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
-            
-            # Datum formatieren (ISO 8601)
-            start_time = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-            end_time = end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-            
-            url = "https://api.twitter.com/2/tweets/search/recent"
-            headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-            
-            params = {
-                "query": search_query,
-                "start_time": start_time,
-                "end_time": end_time,
-                "max_results": min(100, tweet_limit),
-                "tweet.fields": "created_at,text,author_id"
-            }
+        search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
+        url = "https://api.twitter.com/2/tweets/search/recent"
+        headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
+        
+        # Aktuelle Zeit für Validierung
+        current_time = datetime.datetime.utcnow()
+        
+        # Validiere und korrigiere end_date falls nötig
+        if end_date > current_time.date():
+            logger.warning(f"End date {end_date} ist in der Zukunft. Setze auf aktuelle Zeit.")
+            end_date = current_time.date()
+        
+        # Erstelle Zeitstempel mit 10 Sekunden Puffer
+        end_time = min(
+            datetime.datetime.combine(end_date, datetime.time.max),
+            current_time - datetime.timedelta(seconds=10)
+        )
+        start_time = datetime.datetime.combine(start_date, datetime.time.min)
+        
+        # Formatiere die Zeiten für die API
+        start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_time_str = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    
+    params = {
+        "query": search_query,
+        "start_time": start_time_str,
+        "end_time": end_time_str,
+        "max_results": min(100, tweet_limit),
+        "tweet.fields": "created_at,text,author_id"
+    }
             
             processed_tweets = []
             async with aiohttp.ClientSession() as session:
