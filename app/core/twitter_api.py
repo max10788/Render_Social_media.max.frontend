@@ -34,36 +34,32 @@ class TwitterClient:
             logger.info("Downloading NLTK punkt tokenizer...")
             nltk.download('punkt', quiet=True)
 
-    async def fetch_tweets_async(self, username, count):
-        if username.startswith("@"):
-            username = username[1:]
-        url = f"https://api.twitter.com/2/users/by/username/{username}"
-        headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-        params = {"user.fields": "id"}
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, params=params) as response:
-                    if response.status != 200:
-                        logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
-                        return []
-                    user_data = await response.json()
-                    user_id = user_data["data"]["id"]
+    def normalize_text(self, text):
+        """Entfernt URLs, Sonderzeichen, Emojis und konvertiert in Kleinbuchstaben."""
+        if text is None:
+            return ""
+        text = re.sub(r"http\S+|www\S+", "", text)  # URLs entfernen
+        text = re.sub(r"[^\w\s]", "", text)  # Sonderzeichen entfernen
+        return text.lower()  # Kleinbuchstaben
 
-                tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
-                tweets_params = {"max_results": count, "tweet.fields": "created_at"}
-                async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
-                    if tweets_response.status != 200:
-                        logger.error(f"Fehler beim Abrufen von Tweets: Status {tweets_response.status}")
-                        return []
-                    tweets_data = await tweets_response.json()
-                    return tweets_data.get("data", [])
-        except Exception as e:
-            logger.error(f"Fehler beim Abrufen von Tweets: {e}")
-            return []
+    def tokenize_and_remove_stopwords(self, text, language="en"):
+        """Tokenisiert den Text und entfernt Stop-Wörter basierend auf der Sprache."""
+        try:
+            stop_words = set(stopwords.words(language))
+        except Exception:
+            logger.warning(f"Sprache '{language}' nicht unterstützt. Fallback auf Englisch.")
+            stop_words = set(stopwords.words("english"))
+        tokens = word_tokenize(text)
+        filtered_tokens = [word for word in tokens if word not in stop_words]
+        return " ".join(filtered_tokens)
+
 
     async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
         try:
+            # Aktuelle Zeit für Validierung
             current_time = datetime.datetime.utcnow()
+            
+            # Keywords formatieren
             search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
             
             # Validiere und korrigiere Daten
@@ -130,6 +126,7 @@ class TwitterClient:
             return []
 
     def extract_tweet_attributes(self, tweet_text):
+        """Extrahiert relevante Attribute aus einem Tweet."""
         normalized_text = self.normalize_text(tweet_text)
         language = self.detect_language(normalized_text)
         processed_text = self.tokenize_and_remove_stopwords(normalized_text, language)
@@ -142,6 +139,7 @@ class TwitterClient:
         }
 
     def extract_keywords(self, text):
+        """Extrahiert relevante Schlüsselwörter."""
         relevant_keywords = [
             "solana", "ethereum", "btc", "transfer", "send", "receive",
             "wallet", "transaction", "mint", "burn", "staking", "nft"
@@ -149,6 +147,7 @@ class TwitterClient:
         return [word for word in text.split() if word.lower() in relevant_keywords]
 
     def extract_amount(self, text):
+        """Extrahiert Beträge mit Einheiten."""
         try:
             match = re.search(r"(\d+\.?\d*)\s?(SOL|ETH|BTC|USDT|USDC)", text.upper())
             return float(match.group(1)) if match else None
@@ -157,16 +156,45 @@ class TwitterClient:
             return None
 
     def extract_addresses(self, text):
+        """Extrahiert Ethereum- und Solana-Wallet-Adressen."""
         ethereum_addresses = re.findall(r"0x[a-fA-F0-9]{40}", text)
         solana_addresses = re.findall(r"[1-9A-HJ-NP-Za-km-z]{32,44}", text)
         return ethereum_addresses + solana_addresses
 
     def detect_language(self, text):
+        """Erkennt die Sprache eines Textes."""
         try:
             return detect(text)
         except Exception:
             logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
             return "en"
+
+        async def fetch_tweets_async(self, username, count):
+        if username.startswith("@"):
+            username = username[1:]
+        url = f"https://api.twitter.com/2/users/by/username/{username}"
+        headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
+        params = {"user.fields": "id"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, params=params) as response:
+                    if response.status != 200:
+                        logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
+                        return []
+                    user_data = await response.json()
+                    user_id = user_data["data"]["id"]
+
+                tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
+                tweets_params = {"max_results": count, "tweet.fields": "created_at"}
+                async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
+                    if tweets_response.status != 200:
+                        logger.error(f"Fehler beim Abrufen von Tweets: Status {tweets_response.status}")
+                        return []
+                    tweets_data = await tweets_response.json()
+                    return tweets_data.get("data", [])
+        except Exception as e:
+            logger.error(f"Fehler beim Abrufen von Tweets: {e}")
+            return []
 
     # ==============================
     # Analysefunktionen
