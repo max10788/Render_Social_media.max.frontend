@@ -84,36 +84,35 @@ class TwitterClient:
     # ==============================
     async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
         """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
-        search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
-        url = "https://api.twitter.com/2/tweets/search/recent"
-        headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-        
-        # Aktuelle Zeit für Validierung
-        current_time = datetime.datetime.utcnow()
-        
-        # Validiere und korrigiere end_date falls nötig
-        if end_date > current_time.date():
-            logger.warning(f"End date {end_date} ist in der Zukunft. Setze auf aktuelle Zeit.")
-            end_date = current_time.date()
-        
-        # Erstelle Zeitstempel mit 10 Sekunden Puffer
-        end_time = min(
-            datetime.datetime.combine(end_date, datetime.time.max),
-            current_time - datetime.timedelta(seconds=10)
-        )
-        start_time = datetime.datetime.combine(start_date, datetime.time.min)
-        
-        # Formatiere die Zeiten für die API
-        start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-        end_time_str = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    
-    params = {
-        "query": search_query,
-        "start_time": start_time_str,
-        "end_time": end_time_str,
-        "max_results": min(100, tweet_limit),
-        "tweet.fields": "created_at,text,author_id"
-    }
+        try:
+            # Keywords formatieren
+            search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
+            
+            # Aktuelle Zeit für Validierung
+            current_time = datetime.datetime.utcnow()
+            
+            # Validiere und korrigiere end_date falls nötig
+            if isinstance(end_date, datetime.date):
+                end_date = datetime.datetime.combine(end_date, datetime.time.max)
+            
+            if end_date > current_time:
+                logger.warning(f"End date {end_date} ist in der Zukunft. Setze auf aktuelle Zeit.")
+                end_date = current_time - datetime.timedelta(seconds=10)
+            
+            # Formatiere die Zeiten für die API
+            start_time = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+            end_time = end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+            
+            url = "https://api.twitter.com/2/tweets/search/recent"
+            headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
+            
+            params = {
+                "query": search_query,
+                "start_time": start_time,
+                "end_time": end_time,
+                "max_results": min(100, tweet_limit),
+                "tweet.fields": "created_at,text,author_id"
+            }
             
             processed_tweets = []
             async with aiohttp.ClientSession() as session:
@@ -153,6 +152,49 @@ class TwitterClient:
             logger.error(f"Fehler beim Abrufen von Tweets: {e}")
             return []
 
+    def extract_tweet_attributes(self, tweet_text):
+        """Extrahiert relevante Attribute aus einem Tweet."""
+        normalized_text = self.normalize_text(tweet_text)
+        language = self.detect_language(normalized_text)
+        processed_text = self.tokenize_and_remove_stopwords(normalized_text, language)
+        return {
+            "text": tweet_text,
+            "processed_text": processed_text,
+            "keywords": self.extract_keywords(processed_text),
+            "amount": self.extract_amount(tweet_text),
+            "addresses": self.extract_addresses(tweet_text)
+        }
+
+    def extract_keywords(self, text):
+        """Extrahiert relevante Schlüsselwörter."""
+        relevant_keywords = [
+            "solana", "ethereum", "btc", "transfer", "send", "receive",
+            "wallet", "transaction", "mint", "burn", "staking", "nft"
+        ]
+        return [word for word in text.split() if word.lower() in relevant_keywords]
+
+    def extract_amount(self, text):
+        """Extrahiert Beträge mit Einheiten."""
+        try:
+            match = re.search(r"(\d+\.?\d*)\s?(SOL|ETH|BTC|USDT|USDC)", text.upper())
+            return float(match.group(1)) if match else None
+        except Exception as e:
+            logger.error(f"Fehler beim Extrahieren des Betrags: {e}")
+            return None
+
+    def extract_addresses(self, text):
+        """Extrahiert Ethereum- und Solana-Wallet-Adressen."""
+        ethereum_addresses = re.findall(r"0x[a-fA-F0-9]{40}", text)
+        solana_addresses = re.findall(r"[1-9A-HJ-NP-Za-km-z]{32,44}", text)
+        return ethereum_addresses + solana_addresses
+
+    def detect_language(self, text):
+        """Erkennt die Sprache eines Textes."""
+        try:
+            return detect(text)
+        except Exception:
+            logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
+            return "en"
     # ==============================
     # Tweets ohne Caching
     # ==============================
@@ -244,68 +286,6 @@ class TwitterClient:
             logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
             return "en"
 
-    # ==============================
-    # fetch_keywords
-    # ==============================
-    async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
-        """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
-        try:
-            # Keywords formatieren
-            search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
-            
-            # Datum formatieren (ISO 8601)
-            start_time = start_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-            end_time = end_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-            
-            url = "https://api.twitter.com/2/tweets/search/recent"
-            headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-            
-            params = {
-                "query": search_query,
-                "start_time": start_time,
-                "end_time": end_time,
-                "max_results": min(100, tweet_limit),
-                "tweet.fields": "created_at,text,author_id"
-            }
-            
-            processed_tweets = []
-            async with aiohttp.ClientSession() as session:
-                while len(processed_tweets) < tweet_limit:
-                    async with session.get(url, headers=headers, params=params) as response:
-                        if response.status != 200:
-                            logger.error(f"Twitter API Fehler: Status {response.status}")
-                            error_data = await response.json()
-                            logger.error(f"Twitter API Error Details: {error_data}")
-                            break
-                        
-                        data = await response.json()
-                        if not data.get("data"):
-                            break
-                        
-                        for tweet in data["data"]:
-                            processed_tweet = self.extract_tweet_attributes(tweet["text"])
-                            processed_tweet.update({
-                                "id": tweet["id"],
-                                "created_at": tweet["created_at"],
-                                "author_id": tweet["author_id"]
-                            })
-                            processed_tweets.append(processed_tweet)
-                            
-                            if len(processed_tweets) >= tweet_limit:
-                                break
-                        
-                        if "next_token" not in data.get("meta", {}):
-                            break
-                        
-                        params["pagination_token"] = data["meta"]["next_token"]
-                        await asyncio.sleep(1)
-                
-            return processed_tweets[:tweet_limit]
-            
-        except Exception as e:
-            logger.error(f"Fehler beim Abrufen von Tweets: {e}")
-            return []            
-            
     # ==============================
     # Tweets mit Caching
     # ==============================
