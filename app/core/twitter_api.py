@@ -42,7 +42,6 @@ class TwitterClient:
         except Exception:
             logger.warning(f"Sprache '{language}' nicht unterstützt. Fallback auf Englisch.")
             stop_words = set(stopwords.words("english"))
-
         tokens = word_tokenize(text)
         filtered_tokens = [word for word in tokens if word not in stop_words]
         return " ".join(filtered_tokens)
@@ -50,66 +49,61 @@ class TwitterClient:
     # ==============================
     # Tweets abrufen
     # ==============================
-async def fetch_tweets_async(self, username, count):
-    # Entferne das '@'-Zeichen, falls vorhanden
-    if username.startswith("@"):
-        username = username[1:]
-        
-    url = f"https://api.twitter.com/2/users/by/username/{username}"
-    headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-    params = {"user.fields": "id"}
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            # Step 1: Get User ID
-            async with session.get(url, headers=headers, params=params) as response:
-                if response.status != 200:
-                    logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
-                    return []
-                user_data = await response.json()
-                user_id = user_data["data"]["id"]
-
-            # Step 2: Get Tweets by User ID
-            tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
-            tweets_params = {"max_results": count, "tweet.fields": "created_at"}
-            async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
-                if tweets_response.status != 200:
-                    logger.error(f"Fehler beim Abrufen von Tweets: Status {tweets_response.status}")
-                    return []
-                tweets_data = await tweets_response.json()
-                return tweets_data.get("data", [])
-    except Exception as e:
-        logger.error(f"Fehler beim Abrufen von Tweets: {e}")
-        return []
+    async def fetch_tweets_async(self, username, count):
+        # Entferne das '@'-Zeichen, falls vorhanden
+        if username.startswith("@"):
+            username = username[1:]
+        url = f"https://api.twitter.com/2/users/by/username/{username}"
+        headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
+        params = {"user.fields": "id"}
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Step 1: Get User ID
+                async with session.get(url, headers=headers, params=params) as response:
+                    if response.status != 200:
+                        logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
+                        return []
+                    user_data = await response.json()
+                    user_id = user_data["data"]["id"]
+                # Step 2: Get Tweets by User ID
+                tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
+                tweets_params = {"max_results": count, "tweet.fields": "created_at"}
+                async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
+                    if tweets_response.status != 200:
+                        logger.error(f"Fehler beim Abrufen von Tweets: Status {tweets_response.status}")
+                        return []
+                    tweets_data = await tweets_response.json()
+                    return tweets_data.get("data", [])
+        except Exception as e:
+            logger.error(f"Fehler beim Abrufen von Tweets: {e}")
+            return []
 
     # ==============================
     # Tweets ohne Caching
     # ==============================
-    
-async def fetch_tweets_by_user(self, username, count):
-    """
-    Ruft Tweets für einen Benutzer ab, ohne Caching.
-    Args:
-        username (str): Der Twitter-Benutzername.
-        count (int): Die Anzahl der abzurufenden Tweets.
-    Returns:
-        list: Eine Liste verarbeiteter Tweets.
-    """
-    tweets = await self.fetch_tweets_async(username, count)
-    processed_tweets = [
-        {
-            "text": tweet.get("text"),
-            "created_at": tweet.get("created_at"),
-            "amount": self.extract_amount(tweet.get("text")),
-            "keywords": self.extract_keywords(tweet.get("text")),
-            "addresses": self.extract_addresses(tweet.get("text")),
-            "hashtags": self.extract_hashtags(tweet.get("text")),
-            "links": self.extract_links(tweet.get("text")),
-        }
-        for tweet in tweets
-    ]
-    return processed_tweets
-
+    async def fetch_tweets_by_user(self, username, count):
+        """
+        Ruft Tweets für einen Benutzer ab, ohne Caching.
+        Args:
+            username (str): Der Twitter-Benutzername.
+            count (int): Die Anzahl der abzurufenden Tweets.
+        Returns:
+            list: Eine Liste verarbeiteter Tweets.
+        """
+        tweets = await self.fetch_tweets_async(username, count)
+        processed_tweets = [
+            {
+                "text": tweet.get("text"),
+                "created_at": tweet.get("created_at"),
+                "amount": self.extract_amount(tweet.get("text")),
+                "keywords": self.extract_keywords(tweet.get("text")),
+                "addresses": self.extract_addresses(tweet.get("text")),
+                "hashtags": self.extract_hashtags(tweet.get("text")),
+                "links": self.extract_links(tweet.get("text")),
+            }
+            for tweet in tweets
+        ]
+        return processed_tweets
 
     # ==============================
     # Tweet-Attribute extrahieren
@@ -119,7 +113,6 @@ async def fetch_tweets_by_user(self, username, count):
         normalized_text = self.normalize_text(tweet_text)
         language = self.detect_language(normalized_text)
         processed_text = self.tokenize_and_remove_stopwords(normalized_text, language)
-
         return {
             "text": tweet_text,
             "processed_text": processed_text,
@@ -179,16 +172,13 @@ async def fetch_tweets_by_user(self, username, count):
     # ==============================
     # fetch_keywords
     # ==============================
-
     async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
         """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
         search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
         url = "https://api.twitter.com/2/tweets/search/recent"
         headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-        
         start_time = f"{start_date.isoformat()}T00:00:00Z"
         end_time = f"{end_date.isoformat()}T23:59:59Z"
-        
         params = {
             "query": search_query,
             "start_time": start_time,
@@ -196,7 +186,6 @@ async def fetch_tweets_by_user(self, username, count):
             "max_results": min(100, tweet_limit),
             "tweet.fields": "created_at,text,author_id"
         }
-        
         try:
             processed_tweets = []
             async with aiohttp.ClientSession() as session:
@@ -205,11 +194,9 @@ async def fetch_tweets_by_user(self, username, count):
                         if response.status != 200:
                             logger.error(f"Twitter API Fehler: Status {response.status}")
                             break
-                            
                         data = await response.json()
                         if not data.get("data"):
                             break
-                            
                         for tweet in data["data"]:
                             processed_tweet = self.extract_tweet_attributes(tweet["text"])
                             processed_tweet.update({
@@ -218,22 +205,17 @@ async def fetch_tweets_by_user(self, username, count):
                                 "author_id": tweet["author_id"]
                             })
                             processed_tweets.append(processed_tweet)
-                            
                             if len(processed_tweets) >= tweet_limit:
                                 break
-                                
                         if "next_token" not in data.get("meta", {}):
                             break
-                            
                         params["pagination_token"] = data["meta"]["next_token"]
                         await asyncio.sleep(1)
-                        
             return processed_tweets[:tweet_limit]
-            
         except Exception as e:
             logger.error(f"Fehler beim Abrufen von Tweets: {e}")
             return []
-                                
+
     # ==============================
     # Tweets mit Caching
     # ==============================
@@ -251,13 +233,12 @@ async def fetch_tweets_by_user(self, username, count):
         if cached_tweets:
             logger.info(f"Tweets für '{username}' aus dem Cache geladen.")
             return json.loads(cached_tweets)
-
         tweets = await self.fetch_tweets_async(username, count)
         processed_tweets = [self.extract_tweet_attributes(tweet["text"]) for tweet in tweets]
-
         redis_client.set(cache_key, json.dumps(processed_tweets), ex=3600)  # Cache für 1 Stunde
         logger.info(f"{len(processed_tweets)} Tweets für '{username}' gespeichert.")
         return processed_tweets
+
 
 # ==============================
 # Hilfsfunktion: Tweets in Datei speichern
