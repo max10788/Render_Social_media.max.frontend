@@ -199,6 +199,44 @@ class TwitterClient:
             logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
             return "en"
 
+    def __init__(self):
+        # Bestehender Code...
+        self.user_request_limits = {}  # Speichert die Anfragen pro Benutzer
+        self.app_request_count = 0
+        self.app_request_reset_time = datetime.datetime.utcnow() + datetime.timedelta(days=1)
+
+    def is_request_allowed(self, user_id):
+        """
+        Überprüft, ob eine Anfrage für einen Benutzer oder die App erlaubt ist.
+        """
+        current_time = datetime.datetime.utcnow()
+
+        # Benutzerlimit überprüfen
+        if user_id in self.user_request_limits:
+            user_data = self.user_request_limits[user_id]
+            if user_data["count"] >= 17 and current_time < user_data["reset_time"]:
+                retry_after = (user_data["reset_time"] - current_time).total_seconds()
+                return False, f"Benutzerlimit erreicht. Versuchen Sie es in {int(retry_after // 3600)} Stunden erneut."
+            elif current_time >= user_data["reset_time"]:
+                # Benutzerlimit zurücksetzen
+                self.user_request_limits[user_id] = {"count": 0, "reset_time": current_time + datetime.timedelta(days=1)}
+        else:
+            self.user_request_limits[user_id] = {"count": 0, "reset_time": current_time + datetime.timedelta(days=1)}
+
+        # Applimit überprüfen
+        if self.app_request_count >= 17 and current_time < self.app_request_reset_time:
+            retry_after = (self.app_request_reset_time - current_time).total_seconds()
+            return False, f"App-Limit erreicht. Versuchen Sie es in {int(retry_after // 3600)} Stunden erneut."
+        elif current_time >= self.app_request_reset_time:
+            # Applimit zurücksetzen
+            self.app_request_count = 0
+            self.app_request_reset_time = current_time + datetime.timedelta(days=1)
+
+        # Anfrage erlauben
+        self.user_request_limits[user_id]["count"] += 1
+        self.app_request_count += 1
+        return True, None
+
     # ==============================
     # Tweets mit Caching
     # ==============================
