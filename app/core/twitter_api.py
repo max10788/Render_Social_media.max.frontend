@@ -22,16 +22,17 @@ class TwitterClient:
         self.analyzer = SentimentIntensityAnalyzer()
         
         # NLTK-Daten herunterladen
-        try:
-            nltk.data.find('corpora/stopwords')
-        except LookupError:
-            logger.info("Downloading NLTK stopwords...")
-            nltk.download('stopwords', quiet=True)
-        try:
-            nltk.data.find('tokenizers/punkt')
-        except LookupError:
-            logger.info("Downloading NLTK punkt tokenizer...")
-            nltk.download('punkt', quiet=True)
+    try:
+        nltk.data.find('corpora/stopwords')
+    except LookupError:
+        logger.info("Downloading NLTK stopwords...")
+        nltk.download('stopwords', quiet=True)
+
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        logger.info("Downloading NLTK punkt tokenizer...")
+        nltk.download('punkt', quiet=True)
 
     def normalize_text(self, text):
         """Entfernt URLs, Sonderzeichen, Emojis und konvertiert in Kleinbuchstaben."""
@@ -92,16 +93,18 @@ class TwitterClient:
         try:
             current_time = datetime.datetime.utcnow()
             search_query = " OR ".join(f'"{keyword}"' for keyword in keywords)
-            
+    
             # Validiere und korrigiere Daten
             if isinstance(end_date, datetime.date):
                 end_date = datetime.datetime.combine(end_date, datetime.time.max)
             if isinstance(start_date, datetime.date):
                 start_date = datetime.datetime.combine(start_date, datetime.time.min)
-            
+    
+            logger.info(f"Original end_date: {end_date}")
             if end_date > current_time:
                 logger.warning(f"End date {end_date} ist in der Zukunft. Setze auf aktuelle Zeit.")
                 end_date = current_time - datetime.timedelta(seconds=10)
+            logger.info(f"Adjusted end_date: {end_date}")
             
             url = "https://api.twitter.com/2/tweets/search/recent"
             headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
@@ -200,7 +203,9 @@ class TwitterClient:
     def detect_language(self, text):
         """Erkennt die Sprache eines Textes."""
         try:
-            return detect(text)
+            language = detect(text)
+            logger.info(f"Detected language: {language}")
+            return language
         except Exception:
             logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
             return "en"
