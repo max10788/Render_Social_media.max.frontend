@@ -53,33 +53,39 @@ class TwitterClient:
         return " ".join(filtered_tokens)
 
     async def fetch_tweets_async(self, username, count):
-        """Ruft Tweets für einen bestimmten Benutzer ab."""
-        if username.startswith("@"):
-            username = username[1:]
-        url = f"https://api.twitter.com/2/users/by/username/{username}"
-        headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
-        params = {"user.fields": "id"}
-        
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, params=params) as response:
-                    if response.status != 200:
-                        logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
-                        return []
-                    user_data = await response.json()
-                    user_id = user_data["data"]["id"]
+    """Ruft Tweets für einen bestimmten Benutzer ab."""
+    user_id = f"user:{username}"  # Benutzer-ID kann auch anders definiert werden
+    allowed, message = self.is_request_allowed(user_id)
+    if not allowed:
+        logger.error(message)
+        return {"error": message}
 
-                tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
-                tweets_params = {"max_results": count, "tweet.fields": "created_at"}
-                async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
-                    if tweets_response.status != 200:
-                        logger.error(f"Fehler beim Abrufen von Tweets: Status {tweets_response.status}")
-                        return []
-                    tweets_data = await tweets_response.json()
-                    return tweets_data.get("data", [])
-        except Exception as e:
-            logger.error(f"Fehler beim Abrufen von Tweets: {e}")
-            return []
+    if username.startswith("@"):
+        username = username[1:]
+    url = f"https://api.twitter.com/2/users/by/username/{username}"
+    headers = {"Authorization": f"Bearer {settings.TWITTER_BEARER_TOKEN}"}
+    params = {"user.fields": "id"}
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                if response.status != 200:
+                    logger.error(f"Fehler beim Abrufen der Benutzer-ID: Status {response.status}")
+                    return []
+                user_data = await response.json()
+                user_id = user_data["data"]["id"]
+
+            tweets_url = f"https://api.twitter.com/2/users/{user_id}/tweets"
+            tweets_params = {"max_results": count, "tweet.fields": "created_at"}
+            async with session.get(tweets_url, headers=headers, params=tweets_params) as tweets_response:
+                if tweets_response.status != 200:
+                    logger.error(f"Fehler beim Abrufen von Tweets: Status {tweets_response.status}")
+                    return []
+                tweets_data = await tweets_response.json()
+                return tweets_data.get("data", [])
+    except Exception as e:
+        logger.error(f"Fehler beim Abrufen von Tweets: {e}")
+        return []
 
     async def fetch_tweets_by_keywords(self, keywords, start_date, end_date, tweet_limit):
         """Sucht und verarbeitet Tweets basierend auf Keywords und Zeitraum."""
