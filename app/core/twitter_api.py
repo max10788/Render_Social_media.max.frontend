@@ -190,6 +190,14 @@ class TwitterClient:
     def extract_links(self, text):
         """Extrahiert URLs."""
         return re.findall(r"https?://[^\s]+", text)
+        
+    def detect_language(self, text):
+        """Erkennt die Sprache eines Textes."""
+        try:
+            return detect(text)
+        except Exception:
+            logger.warning("Spracherkennung fehlgeschlagen. Fallback auf Englisch.")
+            return "en"
 
     # ==============================
     # Tweets mit Caching
