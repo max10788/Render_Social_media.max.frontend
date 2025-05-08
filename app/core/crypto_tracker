@@ -1,0 +1,36 @@
+from typing import Dict, List, Optional
+import logging
+from datetime import datetime
+from ..crypto_tracker_backend import CryptoTracker
+
+logger = logging.getLogger(__name__)
+
+class CryptoTrackingService:
+    def __init__(self, api_keys: Optional[Dict[str, str]] = None):
+        self.tracker = CryptoTracker(api_keys)
+        
+    async def track_transaction_chain(self, 
+        start_tx_hash: str,
+        target_currency: str,
+        num_transactions: int = 10
+    ) -> Dict:
+        """
+        Verfolgt eine Transaktionskette ausgehend von einer Start-Transaktion.
+        
+        Args:
+            start_tx_hash: Hash der Ausgangstransaktion
+            target_currency: Zielwährung für die Konversion (BTC, ETH, SOL)
+            num_transactions: Anzahl der zu verfolgenden Transaktionen
+            
+        Returns:
+            Dict mit strukturierten Transaktionsdaten und Konvertierungen
+        """
+        try:
+            return self.tracker.track_transactions(
+                start_tx_hash=start_tx_hash,
+                target_currency=target_currency,
+                num_transactions=num_transactions
+            )
+        except Exception as e:
+            logger.error(f"Fehler beim Tracking der Transaktion {start_tx_hash}: {e}")
+            raise
