@@ -3,9 +3,9 @@ import logging
 from datetime import datetime
 from functools import lru_cache
 import json
-from ..crypto_tracker_backend import CryptoTracker
-from .config import settings
-from .exceptions import CryptoTrackerError, APIError, TransactionNotFoundError
+from api.core.crypto_tracker_backend import CryptoTracker
+from app.core.config import settings
+from app.core.exceptions import CryptoTrackerError, APIError, TransactionNotFoundError
 
 logger = logging.getLogger(__name__)
 
