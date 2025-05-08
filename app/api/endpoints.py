@@ -20,9 +20,9 @@ from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback
 from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
 from textblob import TextBlob
-from app.models.schemas import AnalyzeRequest, AnalyzeResponse, FeedbackRequest
+from app.models.schemas import AnalyzeRequest, AnalyzeResponse, FeedbackRequest, TransactionTrackRequest, TransactionTrackResponse
 from app.core.crypto_tracker import CryptoTrackingService
-from app.models.schemas import TransactionTrackRequest, TransactionTrackResponse
+from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
 
 app = Flask(__name__)    # <-- define app first
 CORS(app)                # <-- then apply CORS
@@ -199,38 +199,58 @@ async def get_analysis_status(job_id: str):
     return {"job_id": job_id, "status": status}
 
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
-async def track_transactions(request: TransactionTrackRequest):
+async def track_transactions(
+    request: TransactionTrackRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     """
-    Verfolgt eine Kette von Kryptowährungs-Transaktionen ausgehend von einer Start-Transaktion.
-    
-    - **start_tx_hash**: Hash der Ausgangstransaktion
-    - **target_currency**: Zielwährung für die Konversion (BTC, ETH, SOL)
-    - **num_transactions**: Anzahl der zu verfolgenden Transaktionen (optional, Standard: 10)
+    Verfolgt eine Kette von Kryptowährungs-Transaktionen.
     """
     try:
-        # API Keys aus der Umgebung oder Konfiguration laden
-        api_keys = {
-            "infura": os.getenv("INFURA_API_KEY"),
-            "etherscan": os.getenv("ETHERSCAN_API_KEY")
-            # Weitere API-Keys nach Bedarf
-        }
-        
-        tracking_service = CryptoTrackingService(api_keys)
-        
+        tracking_service = CryptoTrackingService()
+       
         result = await tracking_service.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
             target_currency=request.target_currency,
             num_transactions=request.num_transactions
         )
-        
+       
+        # Speichere Transaktionen in der DB im Hintergrund
+        background_tasks.add_task(
+            save_transactions_to_db,
+            db=db,
+            transactions=result["transactions"]
+        )
+       
         return TransactionTrackResponse(**result)
-        
+       
+    except TransactionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except CryptoTrackerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Fehler beim Tracking der Transaktionen: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Fehler beim Tracking der Transaktionen: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def save_transactions_to_db(db: Session, transactions: List[Dict]):
+    """Speichert Transaktionen in der Datenbank"""
+    try:
+        for tx_data in transactions:
+            db_tx = CryptoTransaction(
+                transaction_hash=tx_data["hash"],
+                currency=tx_data["currency"],
+                timestamp=datetime.fromtimestamp(tx_data["timestamp"]),
+                amount=tx_data.get("value", 0),
+                fee=tx_data.get("fee", 0),
+                direction=tx_data["direction"]
+            )
+            db.add(db_tx)
+        db.commit()
+    except Exception as e:
+        logger.error(f"Fehler beim Speichern der Transaktionen: {e}")
+        db.rollback()
+
         
 # ML-basierte Analyse
 @router.post("/analyze/ml", response_model=AnalyzeResponse)
