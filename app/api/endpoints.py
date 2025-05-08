@@ -21,6 +21,8 @@ from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
 from textblob import TextBlob
 from app.models.schemas import AnalyzeRequest, AnalyzeResponse, FeedbackRequest
+from app.core.crypto_tracker import CryptoTrackingService
+from app.models.schemas import TransactionTrackRequest, TransactionTrackResponse
 
 app = Flask(__name__)    # <-- define app first
 CORS(app)                # <-- then apply CORS
@@ -195,6 +197,40 @@ async def get_analysis_status(job_id: str):
     """Gibt den Status der Analyse zurück."""
     status = ANALYSIS_STATUS.get(job_id, "Job ID not found")
     return {"job_id": job_id, "status": status}
+
+@router.post("/track-transactions", response_model=TransactionTrackResponse)
+async def track_transactions(request: TransactionTrackRequest):
+    """
+    Verfolgt eine Kette von Kryptowährungs-Transaktionen ausgehend von einer Start-Transaktion.
+    
+    - **start_tx_hash**: Hash der Ausgangstransaktion
+    - **target_currency**: Zielwährung für die Konversion (BTC, ETH, SOL)
+    - **num_transactions**: Anzahl der zu verfolgenden Transaktionen (optional, Standard: 10)
+    """
+    try:
+        # API Keys aus der Umgebung oder Konfiguration laden
+        api_keys = {
+            "infura": os.getenv("INFURA_API_KEY"),
+            "etherscan": os.getenv("ETHERSCAN_API_KEY")
+            # Weitere API-Keys nach Bedarf
+        }
+        
+        tracking_service = CryptoTrackingService(api_keys)
+        
+        result = await tracking_service.track_transaction_chain(
+            start_tx_hash=request.start_tx_hash,
+            target_currency=request.target_currency,
+            num_transactions=request.num_transactions
+        )
+        
+        return TransactionTrackResponse(**result)
+        
+    except Exception as e:
+        logger.error(f"Fehler beim Tracking der Transaktionen: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Fehler beim Tracking der Transaktionen: {str(e)}"
+        )
         
 # ML-basierte Analyse
 @router.post("/analyze/ml", response_model=AnalyzeResponse)
