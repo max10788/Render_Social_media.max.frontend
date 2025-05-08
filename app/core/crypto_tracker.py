@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from functools import lru_cache
 import json
-from api.core.crypto_tracker_backend import CryptoTracker
+from app.core.crypto_tracker_backend import CryptoTracker
 from app.core.config import settings
 from app.core.exceptions import CryptoTrackerError, APIError, TransactionNotFoundError
 
