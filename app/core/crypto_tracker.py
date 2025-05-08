@@ -51,3 +51,6 @@ class CryptoTrackingService:
                 return self.tracker.track_ethereum_transactions(tx_hash, 1)[0]
             elif source_currency == "SOL":
                 return self.tracker.track_solana_transactions(tx_hash, 1)[0]
+        except Exception as e:
+            logger.error(f"Error caching transaction {tx_hash}: {e}")
+            raise APIError(f"API-Fehler beim Abrufen der gecachten Transaktion: {str(e)}")
