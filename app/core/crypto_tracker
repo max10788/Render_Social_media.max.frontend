@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional 
 import logging
 from datetime import datetime
 from ..crypto_tracker_backend import CryptoTracker
