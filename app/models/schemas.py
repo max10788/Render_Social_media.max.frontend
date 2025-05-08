@@ -122,3 +122,39 @@ class FeedbackRequest(BaseModel):
     transaction_id: str
     label: bool  # True = korreliert, False = nicht korreliert
 
+# Füge diese neue Klasse zu schemas.py hinzu:
+
+class TransactionTrackRequest(BaseModel):
+    """Schema für Transaktions-Tracking Anfragen"""
+    start_tx_hash: str = Field(..., description="Hash der Ausgangstransaktion")
+    target_currency: str = Field(
+        ..., 
+        description="Zielwährung für die Konversion (BTC, ETH, SOL)"
+    )
+    num_transactions: Optional[int] = Field(
+        10, 
+        ge=1, 
+        le=100, 
+        description="Anzahl der zu verfolgenden Transaktionen (1-100, Standard: 10)"
+    )
+
+class TransactionInfo(BaseModel):
+    """Schema für einzelne Transaktionsinformationen"""
+    hash: str
+    currency: str
+    timestamp: int
+    direction: str
+    fee: Optional[float]
+    fee_converted: Optional[float]
+    value: Optional[float]
+    value_converted: Optional[float]
+
+class TransactionTrackResponse(BaseModel):
+    """Schema für die Antwort des Transaktions-Trackings"""
+    start_transaction: str
+    source_currency: str
+    target_currency: str
+    transactions_count: int
+    transactions: List[TransactionInfo]
+    tracking_timestamp: int
+
