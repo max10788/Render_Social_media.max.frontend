@@ -233,7 +233,7 @@ async def track_transactions(
         logger.error(f"Fehler beim Tracking der Transaktionen: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-async def save_transactions_to_db(db: Session, transactions: List[Dict]):
+async def save_transactions_to_db(db: Session, transactions: list[Dict]):
     """Speichert Transaktionen in der Datenbank"""
     try:
         for tx_data in transactions:
