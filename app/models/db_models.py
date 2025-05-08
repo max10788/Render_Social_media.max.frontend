@@ -24,6 +24,22 @@ class OnChainTransaction(Base):
     blockchain = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class CryptoTransaction(Base):
+    __tablename__ = "crypto_transactions"
+   
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_hash = Column(String, unique=True, index=True)
+    currency = Column(String)
+    timestamp = Column(DateTime)
+    amount = Column(Float)
+    fee = Column(Float)
+    direction = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+   
+    # Beziehungen zu anderen Transaktionen
+    parent_id = Column(Integer, ForeignKey("crypto_transactions.id"))
+    children = relationship("CryptoTransaction")
+
 class Feedback(Base):
     __tablename__ = "feedback"
     id = Column(Integer, primary_key=True, index=True)
