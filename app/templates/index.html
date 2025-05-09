@@ -156,6 +156,36 @@
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-tab');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+    
+    // Initialisiere beide Module
+    initTransactionTracker();
+    initSocialAnalysis();
+    
+    // Setze das Startdatum auf heute und Enddatum auf morgen für Social Analysis
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('start_date').value = today;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('end_date').value = tomorrow.toISOString().split('T')[0];
+
+    // Initialisiere TransactionVisualizer mit benutzerdefinierten Farben
+    TransactionVisualizer.setCurrencyColors({
+        btc: '#f2a900',
+        eth: '#627eea',
+        sol: '#00ffbd'
+    });
+});
         // Tab-Funktionalität
         document.addEventListener('DOMContentLoaded', function() {
             const tabs = document.querySelectorAll('.tab');
@@ -213,202 +243,17 @@
             }
         }
 
-        function generateSampleData(startTx, targetCurrency, numTransactions) {
-            const transactions = [];
-            const startTimestamp = Math.floor(Date.now() / 1000) - 86400; // 1 Tag zurück
-            
-            const mainTx = {
-                hash: startTx,
-                currency: "BTC",
-                timestamp: startTimestamp,
-                fee: 0.0005,
-                direction: "out",
-                inputs: [
-                    {
-                        address: "bc1q..." + Math.random().toString(36).substring(2, 8),
-                        value: 1.0,
-                        value_converted: targetCurrency === "SOL" ? 500.0 : (targetCurrency === "ETH" ? 15.5 : 1.0)
-                    }
-                ],
-                outputs: []
-            };
-            
-            for (let i = 0; i < 10; i++) {
-                mainTx.outputs.push({
-                    address: "bc1q..." + Math.random().toString(36).substring(2, 8),
-                    value: 0.1,
-                    value_converted: targetCurrency === "SOL" ? 50.0 : (targetCurrency === "ETH" ? 1.55 : 0.1)
-                });
-            }
-            
-            transactions.push(mainTx);
-            
-            return {
-                start_transaction: startTx,
-                source_currency: "BTC",
-                target_currency: targetCurrency,
-                transactions_count: transactions.length,
-                transactions: transactions,
-                tracking_timestamp: Math.floor(Date.now() / 1000)
-            };
-        }
-
         function visualizeTransactions(data) {
-            if (!data || !data.transactions || data.transactions.length === 0) {
-                showError('Keine Transaktionsdaten verfügbar.');
-                return;
-            }
-            
-            updateInfoPanels(data);
-            createTransactionTree(data);
-        }
+    TransactionVisualizer.visualizeTransactions(data, 'transactionTree');
+}
 
-        function updateInfoPanels(data) {
-            document.getElementById('sourceCurrency').textContent = data.source_currency || '-';
-            document.getElementById('sourceCurrency').className = 'transaction-value value-' + (data.source_currency || '').toLowerCase();
-            document.getElementById('startHash').textContent = data.start_transaction || '-';
-            
-            const startTime = data.transactions && data.transactions[0] ? 
-                new Date(data.transactions[0].timestamp * 1000).toLocaleString() : '-';
-            document.getElementById('startTime').textContent = startTime;
-            
-            document.getElementById('txCount').textContent = data.transactions_count || 0;
-            
-            let totalValue = 0;
-            let totalFees = 0;
-            
-            if (data.transactions && data.transactions.length > 0) {
-                if (data.transactions[0].currency === 'BTC') {
-                    totalValue = data.transactions[0].inputs.reduce((sum, input) => sum + input.value, 0);
-                }
-                totalFees = data.transactions.reduce((sum, tx) => sum + (tx.fee || 0), 0);
-            }
-            
-            document.getElementById('totalValue').textContent = 
-                `${totalValue.toFixed(8)} ${data.source_currency}`;
-            document.getElementById('totalValue').className = 
-                `transaction-value value-${(data.source_currency || '').toLowerCase()}`;
-                
-            document.getElementById('totalFees').textContent = 
-                `${totalFees.toFixed(8)} ${data.source_currency}`;
-            document.getElementById('totalFees').className = 
-                `transaction-value value-${(data.source_currency || '').toLowerCase()}`;
-                
-            document.getElementById('targetCurrencyDisplay').textContent = data.target_currency || '-';
-            document.getElementById('targetCurrencyDisplay').className = 
-                `transaction-value value-${(data.target_currency || '').toLowerCase()}`;
-                
-            let exchangeRate = 1.0;
-            if (data.transactions && data.transactions[0] && data.transactions[0].inputs[0]) {
-                const input = data.transactions[0].inputs[0];
-                if (input.value > 0 && input.value_converted) {
-                    exchangeRate = input.value_converted / input.value;
-                }
-            }
-            
-            document.getElementById('exchangeRate').textContent = 
-                `1 ${data.source_currency} = ${exchangeRate.toFixed(4)} ${data.target_currency}`;
-                
-            const convertedValue = totalValue * exchangeRate;
-            document.getElementById('convertedValue').textContent = 
-                `${convertedValue.toFixed(4)} ${data.target_currency}`;
-            document.getElementById('convertedValue').className = 
-                `transaction-value value-${(data.target_currency || '').toLowerCase()}`;
-        }
+function showLoading() {
+    TransactionVisualizer.showLoading('transactionTree');
+}
 
-        function createTransactionTree(data) {
-            const container = document.getElementById('transactionTree');
-            container.innerHTML = ''; 
-            container.classList.remove('loading');
-            
-            if (!data.transactions || data.transactions.length === 0) {
-                return;
-            }
-            
-            const mainTx = data.transactions[0];
-            if (mainTx.currency === 'BTC' && mainTx.outputs && mainTx.outputs.length > 0) {
-                const svgContent = createSVGTreeFromBTCTransaction(mainTx, data.target_currency);
-                container.innerHTML = svgContent;
-            }
-        }
-
-        function createSVGTreeFromBTCTransaction(tx, targetCurrency) {
-            const svgWidth = 800;
-            const svgHeight = 500;
-            const marginLeft = 100;
-            const marginRight = 100;
-            
-            let svg = `<svg width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">`;
-            
-            svg += `
-                <defs>
-                    <linearGradient id="btcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#f2a900;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#f2a900;stop-opacity:0.7" />
-                    </linearGradient>
-                </defs>
-            `;
-            
-            const inputValue = tx.inputs[0]?.value || 1.0;
-            const centerY = svgHeight / 2;
-            const startX = marginLeft;
-            const endX = svgWidth - marginRight;
-            
-            svg += `
-                <g class="node">
-                    <circle cx="${startX}" cy="${centerY}" r="40" fill="url(#btcGradient)" />
-                    <text x="${startX}" y="${centerY - 5}" text-anchor="middle" fill="white" style="font-weight: bold;">1 BTC</text>
-                    <text x="${startX}" y="${centerY + 15}" text-anchor="middle" fill="white" style="font-size: 10px;">Start</text>
-                </g>
-            `;
-            
-            const outputs = tx.outputs || [];
-            const outputCount = outputs.length || 10;
-            const verticalSpacing = svgHeight / (outputCount + 1);
-            
-            for (let i = 0; i < outputCount; i++) {
-                const output = outputs[i] || { value: 0.1 };
-                const yPos = (i + 1) * verticalSpacing;
-                
-                svg += `
-                    <path d="M ${startX + 40} ${centerY} C ${(startX + endX) / 2} ${centerY}, ${(startX + endX) / 2} ${yPos}, ${endX - 30} ${yPos}" 
-                          stroke="#ccc" stroke-width="2" fill="none" />
-                `;
-                
-                svg += `
-                    <g class="node">
-                        <circle cx="${endX}" cy="${yPos}" r="25" fill="#f2a900" />
-                        <text x="${endX}" y="${yPos - 5}" text-anchor="middle" fill="white" style="font-size: 12px;">0.1</text>
-                        <text x="${endX}" y="${yPos + 10}" text-anchor="middle" fill="white" style="font-size: 9px;">BTC</text>
-                    </g>
-                `;
-                
-                if (i === 0) {
-                    svg += `
-                        <text x="${endX + 40}" y="${yPos}" text-anchor="start" fill="#333" style="font-size: 14px;">${targetCurrency}</text>
-                    `;
-                } else if (i === 1) {
-                    svg += `
-                        <text x="${endX + 40}" y="${yPos}" text-anchor="start" fill="#333" style="font-size: 14px;">etc.</text>
-                    `;
-                }
-            }
-            
-            svg += '</svg>';
-            return svg;
-        }
-
-        function showLoading() {
-            const container = document.getElementById('transactionTree');
-            container.innerHTML = '';
-            container.className = 'loading';
-        }
-
-        function showError(message) {
-            const container = document.getElementById('transactionTree');
-            container.classList.remove('loading');
-            container.innerHTML = `<div class="error-message">${message}</div>`;
-        }
+function showError(message) {
+    TransactionVisualizer.showError('transactionTree', message);
+}
 
         // ---- SOCIAL ANALYSIS FEATURES ----
         function initSocialAnalysis() {
