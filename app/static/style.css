@@ -1,70 +1,205 @@
+/* Root-Variablen */
+:root {
+    --primary-color: #3b82f6;
+    --secondary-color: #00ffbd;
+    --background-color: #1f2937;
+    --card-bg: #374151;
+    --text-color: #f3f4f6;
+    --text-muted: #9ca3af;
+    --border-color: #4b5563;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --btc-color: #f2a900;
+    --eth-color: #627eea;
+    --sol-color: #00ffbd;
+}
+
+/* Basis-Stilregeln */
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 body {
-  font-family: Arial, sans-serif;
-  background-color: #f4f4f9;
-  color: #333;
-  padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    padding: 20px;
 }
 
+/* Container und Layout */
 .container {
-  max-width: 600px;
-  margin: 0 auto;
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
 }
 
-h1 {
-  text-align: center;
-  margin-bottom: 20px;
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
 }
 
+.title {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    margin-bottom: 1.5rem;
+    background-color: var(--card-bg);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.tab {
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    text-align: center;
+    flex: 1;
+    transition: background-color 0.2s;
+    border-bottom: 3px solid transparent;
+}
+
+.tab.active {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-bottom: 3px solid var(--primary-color);
+    font-weight: 600;
+}
+
+/* Karten und Panels */
+.info-card, .control-item, .metrics-card, .flow-section {
+    background-color: var(--card-bg);
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+.info-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+/* Formulare und Eingabefelder */
 form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+    background-color: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+form div {
+    margin-bottom: 1rem;
 }
 
 label {
-  font-weight: bold;
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-muted);
 }
 
-input, select, button {
-  padding: 10px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+select, input {
+    width: 100%;
+    padding: 0.5rem;
+    background-color: #4b5563;
+    color: var(--text-color);
+    border: none;
+    border-radius: 0.25rem;
 }
 
 button {
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-weight: 600;
 }
 
 button:hover {
-  background-color: #0056b3;
+    background-color: #2563eb;
 }
 
-.hidden {
-  display: none;
+/* Tabellen */
+table {
+    width: 100%;
+    border-collapse: collapse;
 }
 
-#results {
-  margin-top: 20px;
+th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
 }
 
-#results h2 {
-  margin-bottom: 10px;
+th {
+    font-weight: 600;
+    color: var(--text-muted);
 }
 
-#potential-wallet, #tweets, #on-chain-data {
-  margin-bottom: 15px;
+/* Farbklassen für Kryptowährungen */
+.value-btc {
+    color: var(--btc-color);
+}
+
+.value-eth {
+    color: var(--eth-color);
+}
+
+.value-sol {
+    color: var(--sol-color);
+}
+
+/* Hilfeklassen */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+.error-message {
+    color: var(--danger-color);
+    text-align: center;
+    padding: 20px;
+}
+
+/* Animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top: 4px solid var(--primary-color);
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .info-panel {
+        grid-template-columns: 1fr;
+    }
+    
+    .controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-container {
+        height: 300px;
+    }
 }
