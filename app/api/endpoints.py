@@ -194,10 +194,16 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
         logger.error(f"Analysis failed for job {job_id}: {e}")
 
 @router.get("/analysis/status/{job_id}")
+async@router.get("/analysis/status/{job_id}")
 async def get_analysis_status(job_id: str):
     """Gibt den Status der Analyse zurück."""
     status = ANALYSIS_STATUS.get(job_id, "Job ID not found")
-    return {"job_id": job_id, "status": status}
+    # Fügen Sie hier die Wallet-Informationen hinzu
+    return {
+        "job_id": job_id, 
+        "status": status,
+        "potential_wallets": potential_wallet if status == "Completed" else None
+    }
 
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(
