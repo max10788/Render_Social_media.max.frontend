@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, constr, conint
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -10,12 +11,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import joblib
 import uuid
-from fastapi.middleware.cors import CORSMiddleware
 
 # Interne Module importieren
 from app.core.twitter_api import TwitterClient
 from app.core.blockchain_api import fetch_on_chain_data
-from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback
+from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback, CryptoTransaction
 from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
 from textblob import TextBlob
@@ -24,7 +24,7 @@ from app.core.crypto_tracker import CryptoTrackingService
 from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
 
 # FastAPI App erstellen
-app = FastAPI()
+app = FastAPI(title="Crypto Social Analysis API")
 
 # CORS Middleware hinzufügen
 app.add_middleware(
@@ -388,7 +388,12 @@ def get_training_progress(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # Router zur App hinzufügen
-app.include_router(router)
+app.include_router(router, prefix="/api/v1")
+
+# Wenn die Datei direkt ausgeführt wird
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # Server starten wenn direkt ausgeführt
 if __name__ == "__main__":
