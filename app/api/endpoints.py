@@ -188,7 +188,13 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
         db.commit()
 
         # Status aktualisieren
-        ANALYSIS_STATUS[job_id] = "Completed"
+        # In der run_analysis Funktion (um Zeile 190):
+    ANALYSIS_STATUS[job_id] = {
+        "status": "Completed",
+        "potential_wallets": potential_wallet if potential_wallet else [],
+        "analyzed_tweets": len(tweets),
+        "analyzed_transactions": len(on_chain_data)
+    }
     except Exception as e:
         ANALYSIS_STATUS[job_id] = f"Failed: {str(e)}"
         logger.error(f"Analysis failed for job {job_id}: {e}")
