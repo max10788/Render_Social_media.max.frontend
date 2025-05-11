@@ -147,6 +147,7 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
                 if validate_temporal_correlation(tweet.get("created_at"), tx.get("block_time")):
                     if tweet.get("amount") and validate_amount_correlation(tweet["amount"], tx["amount"]):
                         potential_wallet = tx["wallet_address"]
+                        logger.info(f"Found potential wallet: {potential_wallet} through amount correlation")
                         break
                 if validate_keyword_correlation(tweet.get("keywords", []), tx.get("description", "")):
                     potential_wallet = tx["wallet_address"]
