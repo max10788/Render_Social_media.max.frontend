@@ -24,14 +24,24 @@ from app.models.schemas import AnalyzeRequest, AnalyzeResponse, FeedbackRequest,
 from app.core.crypto_tracker import CryptoTrackingService
 from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
 
-app = Flask(__name__)    # <-- define app first
-CORS(app)                # <-- then apply CORS
+# FastAPI App erstellen
+app = FastAPI()
+
+# CORS Middleware hinzufügen
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Globale Variable für Status-Tracking
 ANALYSIS_STATUS = {}
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
+
 # Router initialisieren
 router = APIRouter()
 
@@ -377,3 +387,11 @@ def get_training_progress(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error fetching training progress: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Router zur App hinzufügen
+app.include_router(router)
+
+# Server starten wenn direkt ausgeführt
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
