@@ -326,32 +326,17 @@
             }
         }
 
-        function simulatePolling(jobId) {
-            const resultDiv = document.getElementById('result');
-            const statusMessages = ['In Bearbeitung', 'Daten werden gesammelt', 'Analyse läuft', 'Ergebnisse werden vorbereitet'];
-            let progress = 0;
-            
-            const interval = setInterval(() => {
-                progress += Math.random() * 20;
-                
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    resultDiv.innerHTML = `
-                        <h3>Analyse abgeschlossen!</h3>
-                        <p><strong>Job-ID:</strong> ${jobId}</p>
-                        <p><strong>Status:</strong> Erfolgreich abgeschlossen</p>
-                        <p><strong>Ergebnisse:</strong> Die Analyse hat relevante Tweets und Muster identifiziert.</p>
-                    `;
-                } else {
-                    const randomIndex = Math.floor(Math.random() * statusMessages.length);
-                    resultDiv.innerHTML = `
-                        <h3>Analyse läuft...</h3>
-                        <p><strong>Job-ID:</strong> ${jobId}</p>
-                        <p><strong>Status:</strong> ${statusMessages[randomIndex]}</p>
-                        <p><strong>Fortschritt:</strong> ${Math.min(progress, 95).toFixed(0)}%</p>
-                    `;
-                }
-            }, 1500);
+        async function getAnalysisStatus(jobId) {
+            try {
+                // Sendet eine GET-Anfrage an den Backend-Endpunkt
+                const response = await fetch(`/analysis/status/${jobId}`);
+                // Konvertiert die Antwort in JSON
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Fehler beim Abrufen des Status:', error);
+                throw error;
+            }
         }
     </script>
 </body>
