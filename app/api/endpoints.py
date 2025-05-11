@@ -10,8 +10,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import joblib
 import uuid
-from flask import Flask
-from flask_cors import CORS
+from fastapi.middleware.cors import CORSMiddleware
 
 # Interne Module importieren
 from app.core.twitter_api import TwitterClient
