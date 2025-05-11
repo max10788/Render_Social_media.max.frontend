@@ -313,18 +313,53 @@
                 `;
                 
                 // Simuliere Status-Polling
-                simulatePolling(jobId);
-                
-            } catch (error) {
-                const resultDiv = document.getElementById('result');
-                resultDiv.className = 'error';
-                resultDiv.style.display = 'block';
-                resultDiv.innerHTML = `
-                    <h3>Fehler!</h3>
-                    <p>${error.message}</p>
-                `;
-            }
-        }
+                async function simulatePolling(jobId) {
+                    const resultDiv = document.getElementById('result');
+                    
+                    // Erstellt ein Intervall, das alle 2 Sekunden ausgeführt wird
+                    const interval = setInterval(async () => {
+                        try {
+                            // Ruft den aktuellen Status vom Backend ab
+                            const status = await getAnalysisStatus(jobId);
+                            
+                            // Wenn die Analyse abgeschlossen ist
+                            if (status.status === "Completed") {
+                                // Stoppt das Polling
+                                clearInterval(interval);
+                                
+                                // Zeigt die Ergebnisse an
+                                resultDiv.innerHTML = `
+                                    <h3>Analyse abgeschlossen!</h3>
+                                    <p><strong>Job-ID:</strong> ${jobId}</p>
+                                    <p><strong>Status:</strong> ${status.status}</p>
+                                    <div class="analysis-results">
+                                        <h4>Gefundene Wallet-Adressen:</h4>
+                                        ${status.potential_wallets && status.potential_wallets.length > 0 
+                                            ? `<ul>${status.potential_wallets.map(wallet => `<li>${wallet}</li>`).join('')}</ul>`
+                                            : '<p>Keine Wallet-Adressen gefunden.</p>'
+                                        }
+                                        <p><strong>Analysierte Tweets:</strong> ${status.analyzed_tweets}</p>
+                                        <p><strong>Analysierte Transaktionen:</strong> ${status.analyzed_transactions}</p>
+                                    </div>
+                                `;
+                            } else {
+                                // Zeigt den Status während der Analyse an
+                                resultDiv.innerHTML = `
+                                    <h3>Analyse läuft...</h3>
+                                    <p><strong>Job-ID:</strong> ${jobId}</p>
+                                    <p><strong>Status:</strong> ${status.status}</p>
+                                `;
+                            }
+                        } catch (error) {
+                            // Bei einem Fehler: Stoppt das Polling und zeigt eine Fehlermeldung
+                            clearInterval(interval);
+                            resultDiv.innerHTML = `
+                                <h3>Fehler!</h3>
+                                <p>Fehler beim Abrufen des Analyse-Status: ${error.message}</p>
+                            `;
+                        }
+                    }, 2000); // Polling-Intervall: 2 Sekunden
+                }
 
         async function getAnalysisStatus(jobId) {
             try {
