@@ -13,7 +13,6 @@ class CryptoTrackingService:
     def __init__(self, api_keys: Optional[Dict[str, str]] = None):
         if api_keys is None:
             api_keys = {
-                "infura": settings.INFURA_API_KEY,
                 "etherscan": settings.ETHERSCAN_API_KEY,
                 "coingecko": settings.COINGECKO_API_KEY,
             }
