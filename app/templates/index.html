@@ -271,46 +271,44 @@
                     end_date: document.getElementById('end_date').value,
                     tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
                 };
-                
-                const errors = [];
-                if (!formData.blockchain) {
-                    errors.push('Bitte wählen Sie eine Blockchain aus');
-                }
-                if (!formData.keywords || formData.keywords.length === 0) {
-                    errors.push('Bitte geben Sie mindestens ein Keyword ein');
-                }
-                if (!formData.start_date) {
-                    errors.push('Bitte wählen Sie ein Startdatum');
-                }
-                if (!formData.end_date) {
-                    errors.push('Bitte wählen Sie ein Enddatum');
-                }
-                if (formData.end_date < formData.start_date) {
-                    errors.push('Das Enddatum muss nach dem Startdatum liegen');
-                }
-                if (formData.tweet_limit < 10 || formData.tweet_limit > 5000) {
-                    errors.push('Das Tweet-Limit muss zwischen 10 und 5000 liegen');
-                }
-                
-                if (errors.length > 0) {
-                    throw new Error(errors.join('<br>'));
-                }
-                
+        
                 const resultDiv = document.getElementById('result');
-                resultDiv.className = '';
-                resultDiv.style.display = 'block';
                 resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
+        
+                // Actually call the backend endpoint
+                const response = await fetch('/analyze/rule-based', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+        
+                const data = await response.json();
                 
-                // Simuliere API-Aufruf
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                const jobId = 'JOB-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Fehler beim Starten der Analyse');
+                }
+        
+                const jobId = data.job_id;
                 
                 resultDiv.innerHTML = `
                     <h3>Analyse erfolgreich gestartet!</h3>
                     <p><strong>Job-ID:</strong> ${jobId}</p>
-                    <p><strong>Status:</strong> Wird ausgeführt</p>
+                    <p><strong>Status:</strong> ${data.status}</p>
                 `;
+        
+                // Start polling for status updates
+                simulatePolling(jobId);
+        
+            } catch (error) {
+                console.error('Error submitting analysis:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>Fehler!</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
                 
                 // Simuliere Status-Polling
                 async function simulatePolling(jobId) {
