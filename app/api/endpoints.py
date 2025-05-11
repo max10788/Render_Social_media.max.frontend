@@ -26,15 +26,6 @@ from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
 # FastAPI App erstellen
 app = FastAPI(title="Crypto Social Analysis API")
 
-# CORS Middleware hinzufügen
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Globale Variable für Status-Tracking
 ANALYSIS_STATUS = {}
 
