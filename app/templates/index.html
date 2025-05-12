@@ -9,9 +9,333 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js "></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css " rel="stylesheet"/>
     <link rel="stylesheet" href="/static/style.css">
-    <!-- Neue Script-Referenz -->
-    <script src="/static/js/transactionVisualizer.js"></script>
-    <script src="/static/js/app.js"></script>
+
+    <!-- TransactionVisualizer Code -->
+    <script>
+        const TransactionVisualizer = (function() {
+            // Private Variablen und Hilfsfunktionen
+            const currencyColors = {
+                btc: '#f2a900',
+                eth: '#627eea',
+                sol: '#00ffbd'
+            };
+
+            function showLoading(container) {
+                container.innerHTML = '';
+                container.className = 'loading';
+            }
+
+            function showError(container, message) {
+                container.classList.remove('loading');
+                container.innerHTML = `<div class="error-message">${message}</div>`;
+            }
+
+            function updateInfoPanels(data) {
+                // Start-Informationen
+                document.getElementById('sourceCurrency').textContent = data.source_currency || '-';
+                document.getElementById('sourceCurrency').className = 'transaction-value value-' + (data.source_currency || '').toLowerCase();
+                document.getElementById('startHash').textContent = data.start_transaction || '-';
+                
+                const startTime = data.transactions && data.transactions[0] ? 
+                    new Date(data.transactions[0].timestamp * 1000).toLocaleString() : '-';
+                document.getElementById('startTime').textContent = startTime;
+                
+                // Transaktionsstatistik aktualisieren
+                document.getElementById('txCount').textContent = data.transactions_count || 0;
+                
+                let totalValue = 0;
+                let totalFees = 0;
+                
+                if (data.transactions && data.transactions.length > 0) {
+                    if (data.transactions[0].currency === 'BTC') {
+                        totalValue = data.transactions[0].inputs.reduce((sum, input) => sum + input.value, 0);
+                    }
+                    totalFees = data.transactions.reduce((sum, tx) => sum + (tx.fee || 0), 0);
+                }
+                
+                document.getElementById('totalValue').textContent = 
+                    `${totalValue.toFixed(8)} ${data.source_currency}`;
+                document.getElementById('totalValue').className = 
+                    `transaction-value value-${(data.source_currency || '').toLowerCase()}`;
+                    
+                document.getElementById('totalFees').textContent = 
+                    `${totalFees.toFixed(8)} ${data.source_currency}`;
+                document.getElementById('totalFees').className = 
+                    `transaction-value value-${(data.source_currency || '').toLowerCase()}`;
+                
+                // Konvertierungsinformationen
+                document.getElementById('targetCurrencyDisplay').textContent = data.target_currency || '-';
+                document.getElementById('targetCurrencyDisplay').className = 
+                    `transaction-value value-${(data.target_currency || '').toLowerCase()}`;
+                
+                let exchangeRate = 1.0;
+                if (data.transactions && data.transactions[0] && data.transactions[0].inputs && data.transactions[0].inputs[0]) {
+                    const input = data.transactions[0].inputs[0];
+                    if (input.value > 0 && input.value_converted) {
+                        exchangeRate = input.value_converted / input.value;
+                    }
+                }
+                
+                document.getElementById('exchangeRate').textContent = 
+                    `1 ${data.source_currency} = ${exchangeRate.toFixed(4)} ${data.target_currency}`;
+                    
+                const convertedValue = totalValue * exchangeRate;
+                document.getElementById('convertedValue').textContent = 
+                    `${convertedValue.toFixed(4)} ${data.target_currency}`;
+                document.getElementById('convertedValue').className = 
+                    `transaction-value value-${(data.target_currency || '').toLowerCase()}`;
+            }
+
+            function createTransactionTree(data, container) {
+                if (!data.transactions || data.transactions.length === 0) {
+                    return;
+                }
+                
+                const mainTx = data.transactions[0];
+                let svgContent = '';
+                
+                if (mainTx.currency === 'BTC') {
+                    svgContent = createSVGTreeFromBTCTransaction(mainTx, data.target_currency);
+                } else if (mainTx.currency === 'ETH') {
+                    svgContent = createSVGTreeFromETHTransaction(mainTx, data.target_currency);
+                } else if (mainTx.currency === 'SOL') {
+                    svgContent = createSVGTreeFromSOLTransaction(mainTx, data.target_currency);
+                } else {
+                    svgContent = createSVGTreeFromBTCTransaction(mainTx, data.target_currency);
+                }
+                
+                container.innerHTML = svgContent;
+            }
+
+            // Öffentliche API
+            return {
+                showLoading: function(containerId) {
+                    const container = document.getElementById(containerId);
+                    showLoading(container);
+                },
+                
+                showError: function(containerId, message) {
+                    const container = document.getElementById(containerId);
+                    showError(container, message);
+                },
+                
+                visualizeTransactions: function(data, containerId) {
+                    const container = document.getElementById(containerId);
+                    
+                    if (!data || !data.transactions || data.transactions.length === 0) {
+                        showError(container, 'Keine Transaktionsdaten verfügbar.');
+                        return;
+                    }
+                    
+                    updateInfoPanels(data);
+                    
+                    container.classList.remove('loading');
+                    createTransactionTree(data, container);
+                },
+                
+                setCurrencyColors: function(colors) {
+                    if (colors.btc) currencyColors.btc = colors.btc;
+                    if (colors.eth) currencyColors.eth = colors.eth;
+                    if (colors.sol) currencyColors.sol = colors.sol;
+                }
+            };
+        })();
+
+        window.TransactionVisualizer = TransactionVisualizer;
+    </script>
+
+    <!-- Main Application Code -->
+    <script>
+        const API_BASE_URL = '/api/v1';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTabs();
+            initTransactionTracker();
+            initSocialAnalysis();
+            initializeDates();
+        });
+
+        function initializeTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        }
+
+        function initializeDates() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('start_date').value = today;
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('end_date').value = tomorrow.toISOString().split('T')[0];
+        }
+
+        function initTransactionTracker() {
+            document.getElementById('trackButton').addEventListener('click', trackTransactions);
+        }
+
+        async function trackTransactions() {
+            const startTx = document.getElementById('startTx').value;
+            const targetCurrency = document.getElementById('targetCurrency').value;
+            const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
+            
+            if (!startTx) {
+                showError('Bitte geben Sie eine Starttransaktion ein.');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                const data = generateSampleData(startTx, targetCurrency, numTransactions);
+                visualizeTransactions(data);
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Transaktionsdaten:', error);
+                showError('Transaktionsdaten konnten nicht abgerufen werden.');
+            }
+        }
+
+        function visualizeTransactions(data) {
+            TransactionVisualizer.visualizeTransactions(data, 'transactionTree');
+        }
+
+        function showLoading() {
+            TransactionVisualizer.showLoading('transactionTree');
+        }
+
+        function showError(message) {
+            TransactionVisualizer.showError('transactionTree', message);
+        }
+
+        function initSocialAnalysis() {
+            document.getElementById('analysisForm').addEventListener('submit', submitAnalysis);
+        }
+
+        async function submitAnalysis(event) {
+            event.preventDefault();
+            
+            try {
+                const formData = {
+                    blockchain: document.getElementById('blockchain').value,
+                    contract_address: document.getElementById('contract_address').value.trim() || null,
+                    twitter_username: document.getElementById('twitter_username').value.trim(),
+                    keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
+                    start_date: document.getElementById('start_date').value,
+                    end_date: document.getElementById('end_date').value,
+                    tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
+                };
+
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
+
+                const response = await fetch(`${API_BASE_URL}/analyze/rule-based`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Fehler beim Starten der Analyse');
+                }
+
+                const jobId = data.job_id;
+                
+                resultDiv.innerHTML = `
+                    <h3>Analyse erfolgreich gestartet!</h3>
+                    <p><strong>Job-ID:</strong> ${jobId}</p>
+                    <p><strong>Status:</strong> ${data.status}</p>
+                `;
+
+                simulatePolling(jobId);
+
+            } catch (error) {
+                console.error('Error submitting analysis:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>Fehler!</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+
+        async function simulatePolling(jobId) {
+            const resultDiv = document.getElementById('result');
+            
+            const interval = setInterval(async () => {
+                try {
+                    const status = await getAnalysisStatus(jobId);
+                    
+                    if (status.status === "Completed") {
+                        clearInterval(interval);
+                        
+                        resultDiv.innerHTML = `
+                            <h3>Analyse abgeschlossen!</h3>
+                            <p><strong>Job-ID:</strong> ${jobId}</p>
+                            <p><strong>Status:</strong> ${status.status}</p>
+                            <div class="analysis-results">
+                                <h4>Gefundene Wallet-Adressen:</h4>
+                                ${status.potential_wallets && status.potential_wallets.length > 0 
+                                    ? `<ul>${status.potential_wallets.map(wallet => `<li>${wallet}</li>`).join('')}</ul>`
+                                    : '<p>Keine Wallet-Adressen gefunden.</p>'
+                                }
+                                <p><strong>Analysierte Tweets:</strong> ${status.analyzed_tweets}</p>
+                                <p><strong>Analysierte Transaktionen:</strong> ${status.analyzed_transactions}</p>
+                            </div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <h3>Analyse läuft...</h3>
+                            <p><strong>Job-ID:</strong> ${jobId}</p>
+                            <p><strong>Status:</strong> ${status.status}</p>
+                        `;
+                    }
+                } catch (error) {
+                    clearInterval(interval);
+                    resultDiv.innerHTML = `
+                        <h3>Fehler!</h3>
+                        <p>Fehler beim Abrufen des Analyse-Status: ${error.message}</p>
+                    `;
+                }
+            }, 2000);
+        }
+
+        async function getAnalysisStatus(jobId) {
+            try {
+                const response = await fetch(`/analysis/status/${jobId}`);
+                return await response.json();
+            } catch (error) {
+                console.error('Fehler beim Abrufen des Status:', error);
+                throw error;
+            }
+        }
+
+        function generateSampleData(startTx, targetCurrency, numTransactions) {
+            // This is a placeholder function to generate sample data
+            // In a real implementation, this would be replaced by actual API calls
+            return {
+                source_currency: "BTC",
+                target_currency: targetCurrency,
+                start_transaction: startTx,
+                transactions_count: numTransactions,
+                transactions: [{
+                    currency: "BTC",
+                    timestamp: Date.now() / 1000,
+                    inputs: [{ value: 1.0, value_converted: 1.5 }],
+                    fee: 0.0001
+                }]
+            };
+        }
+    </script>
 </head>
 <body>
     <div class="container">
