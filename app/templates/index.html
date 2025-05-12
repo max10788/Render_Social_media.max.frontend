@@ -318,7 +318,10 @@
 
         async function getAnalysisStatus(jobId) {
             try {
-                const response = await fetch(`/analysis/status/${jobId}`);
+                const response = await fetch(`${API_BASE_URL}/analysis/status/${jobId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 return await response.json();
             } catch (error) {
                 console.error('Fehler beim Abrufen des Status:', error);
