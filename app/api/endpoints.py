@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import joblib
 import uuid
+from fastapi.staticfiles import StaticFiles
 
 # Interne Module importieren
 from app.core.twitter_api import TwitterClient
@@ -23,28 +24,32 @@ from app.models.schemas import AnalyzeRequest, AnalyzeResponse, FeedbackRequest,
 from app.core.crypto_tracker import CryptoTrackingService
 from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
 
-# FastAPI App erstellen
-app = FastAPI(title="Crypto Social Analysis API")
-
 # Globale Variable für Status-Tracking
 ANALYSIS_STATUS = {}
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
 
-# Router initialisieren
-router = APIRouter()
-app.include_router(router, prefix="/api/v1")
+# FastAPI App erstellen
+app = FastAPI(title="Crypto Social Analysis API")
 
+# CORS Middleware hinzufügen
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your frontend domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Static files mounten
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Router initialisieren
+router = APIRouter()
+
+# Router zur App hinzufügen
+app.include_router(router, prefix="/api/v1")
 
 # Hilfsfunktionen für Korrelationen
 def validate_temporal_correlation(tweet_time, tx_time, tolerance_minutes=60):
