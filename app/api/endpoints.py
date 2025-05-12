@@ -48,9 +48,6 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Router initialisieren
 router = APIRouter()
 
-# Router zur App hinzufügen
-app.include_router(router, prefix="/api/v1")
-
 # Hilfsfunktionen für Korrelationen
 def validate_temporal_correlation(tweet_time, tx_time, tolerance_minutes=60):
     return abs((datetime.fromisoformat(tx_time) - datetime.fromtimestamp(tx_time)).total_seconds()) < tolerance_minutes * 60
@@ -400,6 +397,8 @@ def get_training_progress(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error fetching training progress: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+app.include_router(router, prefix="/api/v1")
 
 # Server starten wenn direkt ausgeführt
 if __name__ == "__main__":
