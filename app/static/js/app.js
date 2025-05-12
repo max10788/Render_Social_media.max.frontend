@@ -86,11 +86,14 @@ function initSocialAnalysis() {
     document.getElementById('analysisForm').addEventListener('submit', submitAnalysis);
 }
 
+// Add at the top of app.js
+const API_BASE_URL = '/api/v1';
+
+// Then modify the fetch call:
 async function submitAnalysis(event) {
     event.preventDefault();
     
     try {
-        // Format the data according to your AnalyzeRequest schema
         const formData = {
             blockchain: document.getElementById('blockchain').value,
             contract_address: document.getElementById('contract_address').value.trim() || null,
@@ -104,14 +107,17 @@ async function submitAnalysis(event) {
         const resultDiv = document.getElementById('result');
         resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
 
-        // Keep it as a POST request since your schema is designed for POST
-        const response = await fetch('/api/v1/analyze/rule-based', {
+        const response = await fetch(`${API_BASE_URL}/analyze/rule-based`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(formData)
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
         
