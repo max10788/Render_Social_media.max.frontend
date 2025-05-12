@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Router initialisieren
 router = APIRouter()
+app.include_router(router, prefix="/api/v1")
 
 # Hilfsfunktionen für Korrelationen
 def validate_temporal_correlation(tweet_time, tx_time, tolerance_minutes=60):
@@ -377,14 +378,6 @@ def get_training_progress(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error fetching training progress: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# Router zur App hinzufügen
-app.include_router(router, prefix="/api/v1")
-
-# Wenn die Datei direkt ausgeführt wird
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # Server starten wenn direkt ausgeführt
 if __name__ == "__main__":
