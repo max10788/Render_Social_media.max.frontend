@@ -103,8 +103,8 @@ async function submitAnalysis(event) {
         const resultDiv = document.getElementById('result');
         resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
 
-        // Actually call the backend endpoint
-        const response = await fetch('/analyze/rule-based', {
+        // Update the URL to match your FastAPI endpoint
+        const response = await fetch('/api/v1/analyze/rule-based', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -181,7 +181,8 @@ async function simulatePolling(jobId) {
 
 async function getAnalysisStatus(jobId) {
     try {
-        const response = await fetch(`/analysis/status/${jobId}`);
+        // Update the URL to match your FastAPI endpoint
+        const response = await fetch(`/api/v1/analysis/status/${jobId}`);
         return await response.json();
     } catch (error) {
         console.error('Fehler beim Abrufen des Status:', error);
