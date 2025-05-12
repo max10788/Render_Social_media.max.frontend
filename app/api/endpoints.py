@@ -107,7 +107,11 @@ def train_model(db: Session):
 
 # Regelbasierte Analyse
 @router.post("/analyze/rule-based")
-async def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks):
+async def start_analysis(
+    request: AnalyzeRequest,
+    background_tasks: BackgroundTasks
+):
+    """Startet die Analyse und gibt eine Job-ID zurück."""
     try:
         job_id = str(uuid.uuid4())
         ANALYSIS_STATUS[job_id] = "In Progress"
