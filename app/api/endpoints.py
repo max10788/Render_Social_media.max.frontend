@@ -36,6 +36,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 app.include_router(router, prefix="/api/v1")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with your frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 # Hilfsfunktionen für Korrelationen
 def validate_temporal_correlation(tweet_time, tx_time, tolerance_minutes=60):
     return abs((datetime.fromisoformat(tx_time) - datetime.fromtimestamp(tx_time)).total_seconds()) < tolerance_minutes * 60
@@ -91,16 +101,19 @@ def train_model(db: Session):
     joblib.dump(model, "model.pkl")
 
 # Regelbasierte Analyse
-@router.post("/analyze/rule-based", response_model=dict)
+@router.post("/analyze/rule-based")
 async def start_analysis(request: AnalyzeRequest, background_tasks: BackgroundTasks):
-    """Startet die Analyse und gibt eine Job-ID zurück."""
-    job_id = str(uuid.uuid4())  # Generiere eine eindeutige Job-ID
-    ANALYSIS_STATUS[job_id] = "In Progress"
-
-    # Starte die Analyse im Hintergrund
-    background_tasks.add_task(run_analysis, request, job_id)
-
-    return {"job_id": job_id, "status": "Analysis started"}
+    try:
+        job_id = str(uuid.uuid4())
+        ANALYSIS_STATUS[job_id] = "In Progress"
+        
+        # Start the analysis in the background
+        background_tasks.add_task(run_analysis, request, job_id)
+        
+        return {"job_id": job_id, "status": "Analysis started"}
+    except Exception as e:
+        logger.error(f"Error starting analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 async def run_analysis(request: AnalyzeRequest, job_id: str):
