@@ -103,14 +103,18 @@ async function submitAnalysis(event) {
         const resultDiv = document.getElementById('result');
         resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
 
-        // Update the URL to match your FastAPI endpoint
-        const response = await fetch('/api/v1/analyze/rule-based', {
+        // Try without the /api/v1 prefix since it might be added by the router
+        const response = await fetch('/analyze/rule-based', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(formData)
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const data = await response.json();
         
