@@ -111,8 +111,10 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
     """Führt die Analyse im Hintergrund durch."""
     try:
         # Blockchain-Parameter validieren
-        if request.blockchain.value.lower() not in ["ethereum", "solana", "binance", "polygon"]:
-            ANALYSIS_STATUS[job_id] = "Failed: Unsupported blockchain"
+        if not request.blockchain or request.blockchain.value.lower() not in ["ethereum", "solana", "binance", "polygon"]:
+            error_msg = f"Failed: Unsupported blockchain: {request.blockchain}"
+            ANALYSIS_STATUS[job_id] = error_msg
+            logger.error(error_msg)
             return
 
         # Tweets abrufen (hier: Suche nach Keywords, nicht nach User)
@@ -209,12 +211,16 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
 @router.get("/analysis/status/{job_id}")
 async def get_analysis_status(job_id: str):
     """Gibt den Status der Analyse zurück."""
-    status = ANALYSIS_STATUS.get(job_id, "Job ID not found")
-    # Fügen Sie hier die Wallet-Informationen hinzu
+    status = ANALYSIS_STATUS.get(job_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail=f"Job ID {job_id} not found")
+        
     return {
         "job_id": job_id, 
         "status": status,
-        "potential_wallets": potential_wallet if status == "Completed" else None
+        "potential_wallets": status.get("potential_wallets", []) if isinstance(status, dict) else None,
+        "analyzed_tweets": status.get("analyzed_tweets", 0) if isinstance(status, dict) else 0,
+        "analyzed_transactions": status.get("analyzed_transactions", 0) if isinstance(status, dict) else 0
     }
 
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
