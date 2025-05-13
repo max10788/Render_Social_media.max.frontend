@@ -30,9 +30,6 @@ ANALYSIS_STATUS = {}
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
 
-# FastAPI App erstellen
-app = FastAPI(title="Crypto Social Analysis API")
-
 # Router initialisieren
 router = APIRouter()
 
@@ -385,26 +382,3 @@ def get_training_progress(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error fetching training progress: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# Third: Include the router BEFORE mounting static files and adding middleware
-app.include_router(router, prefix="/api/v1")
-
-# Fourth: Add the CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Fifth: Mount static files
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-# Server startup
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
