@@ -244,6 +244,7 @@
                 // Update the status polling function:
                 async function getAnalysisStatus(jobId) {
                     try {
+                        // Fix: Use API_BASE_URL
                         const response = await fetch(`${API_BASE_URL}/analysis/status/${jobId}`);
                         if (!response.ok) {
                             throw new Error(`HTTP error! status: ${response.status}`);
