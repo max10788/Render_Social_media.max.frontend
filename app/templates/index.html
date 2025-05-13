@@ -219,11 +219,11 @@
         }
 
         async function submitAnalysis(event) {
-            event.preventDefault();
+        event.preventDefault();
             
             try {
                 const formData = {
-                    blockchain: document.getElementById('blockchain').value,
+                    blockchain: document.getElementById('blockchain').value.toLowerCase(), // Add toLowerCase()
                     contract_address: document.getElementById('contract_address').value.trim() || null,
                     twitter_username: document.getElementById('twitter_username').value.trim(),
                     keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
@@ -231,55 +231,91 @@
                     end_date: document.getElementById('end_date').value,
                     tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
                 };
-            
+        
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block'; // Make sure this is set
+                resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
+        
+                // Add debug logging
+                console.log('Sending analysis request:', formData);
+        
                 const response = await fetch(`${API_BASE_URL}/analyze/rule-based`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json'  // Add Accept header
                     },
                     body: JSON.stringify(formData)
                 });
-            
-                // Update the status polling function:
-                async function getAnalysisStatus(jobId) {
-                    try {
-                        // Fix: Use API_BASE_URL
-                        const response = await fetch(`${API_BASE_URL}/analysis/status/${jobId}`);
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return await response.json();
-                    } catch (error) {
-                        console.error('Fehler beim Abrufen des Status:', error);
-                        throw error;
-                    }
+        
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
+        
+                const data = await response.json();
+                const jobId = data.job_id;
+                
+                // Add debug logging
+                console.log('Analysis started:', data);
+        
+                resultDiv.innerHTML = `
+                    <h3>Analyse erfolgreich gestartet!</h3>
+                    <p><strong>Job-ID:</strong> ${jobId}</p>
+                    <p><strong>Status:</strong> ${data.status}</p>
+                `;
+        
+                // Start polling
+                simulatePolling(jobId);
+        
+            } catch (error) {
+                console.error('Error submitting analysis:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>Fehler!</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
 
         
         async function simulatePolling(jobId) {
             const resultDiv = document.getElementById('result');
+            let retries = 0;
+            const maxRetries = 30; // Stop after 1 minute (30 * 2 seconds)
             
             const interval = setInterval(async () => {
                 try {
+                    retries++;
                     const status = await getAnalysisStatus(jobId);
                     
-                    if (status.status === "Completed") {
+                    // Add debug logging
+                    console.log('Poll status:', status);
+        
+                    if (status.status === "Completed" || status.status.startsWith("Failed")) {
                         clearInterval(interval);
                         
                         resultDiv.innerHTML = `
-                            <h3>Analyse abgeschlossen!</h3>
+                            <h3>${status.status === "Completed" ? "Analyse abgeschlossen!" : "Analyse fehlgeschlagen"}</h3>
                             <p><strong>Job-ID:</strong> ${jobId}</p>
                             <p><strong>Status:</strong> ${status.status}</p>
+                            ${status.status === "Completed" ? `
                             <div class="analysis-results">
                                 <h4>Gefundene Wallet-Adressen:</h4>
                                 ${status.potential_wallets && status.potential_wallets.length > 0 
                                     ? `<ul>${status.potential_wallets.map(wallet => `<li>${wallet}</li>`).join('')}</ul>`
                                     : '<p>Keine Wallet-Adressen gefunden.</p>'
                                 }
-                                <p><strong>Analysierte Tweets:</strong> ${status.analyzed_tweets}</p>
-                                <p><strong>Analysierte Transaktionen:</strong> ${status.analyzed_transactions}</p>
+                                <p><strong>Analysierte Tweets:</strong> ${status.analyzed_tweets || 0}</p>
+                                <p><strong>Analysierte Transaktionen:</strong> ${status.analyzed_transactions || 0}</p>
                             </div>
+                            ` : ''}
+                        `;
+                    } else if (retries >= maxRetries) {
+                        clearInterval(interval);
+                        resultDiv.innerHTML = `
+                            <h3>Zeitüberschreitung</h3>
+                            <p>Die Analyse dauert länger als erwartet. Bitte überprüfen Sie später den Status.</p>
+                            <p><strong>Job-ID:</strong> ${jobId}</p>
                         `;
                     } else {
                         resultDiv.innerHTML = `
@@ -289,11 +325,14 @@
                         `;
                     }
                 } catch (error) {
-                    clearInterval(interval);
-                    resultDiv.innerHTML = `
-                        <h3>Fehler!</h3>
-                        <p>Fehler beim Abrufen des Analyse-Status: ${error.message}</p>
-                    `;
+                    console.error('Error polling status:', error);
+                    if (retries >= maxRetries) {
+                        clearInterval(interval);
+                        resultDiv.innerHTML = `
+                            <h3>Fehler!</h3>
+                            <p>Fehler beim Abrufen des Analyse-Status: ${error.message}</p>
+                        `;
+                    }
                 }
             }, 2000);
         }
