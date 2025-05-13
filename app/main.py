@@ -5,12 +5,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router  # Importieren Sie den API-Router
 
-# Initialisieren der FastAPI-Anwendung
-app = FastAPI(
-    title="Social Sentiment Analysis",
-    description="Eine Anwendung zur Analyse von On-Chain-Sentimenten aus Social Media.",
-    version="1.0.0"
-)
+app = FastAPI()
 
 # CORS konfigurieren (optional, falls benötigt)
 app.add_middleware(
@@ -27,8 +22,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Laden der HTML-Templates
 templates = Jinja2Templates(directory="app/templates")
 
-# API-Router integrieren
-app.include_router(api_router, prefix="/api", tags=["API"])
+app.include_router(api_router, prefix="/api", tags=["API"])  # Registers routes with /api prefix
 
 # Route für die Startseite
 @app.get("/", response_class=HTMLResponse)
