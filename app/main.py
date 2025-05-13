@@ -22,7 +22,8 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Laden der HTML-Templates
 templates = Jinja2Templates(directory="app/templates")
 
-app.include_router(api_router, prefix="/api", tags=["API"])  # Registers routes with /api prefix
+# API-Router integrieren
+app.include_router(api_router, prefix="/api/v1", tags=["API"])
 
 # Route für die Startseite
 @app.get("/", response_class=HTMLResponse)
