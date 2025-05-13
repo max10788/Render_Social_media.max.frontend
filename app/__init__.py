@@ -1,5 +1,4 @@
-from fastapi import FastAPI
+from fastapi import APIRouter
 from app.api.endpoints import router
 
-app = FastAPI()
-app.include_router(router)
+__all__ = ['router']
