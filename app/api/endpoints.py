@@ -20,7 +20,14 @@ from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback
 from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
 from textblob import TextBlob
-from app.models.schemas import AnalyzeRequest, AnalyzeResponse, FeedbackRequest, TransactionTrackRequest, TransactionTrackResponse
+from app.models.schemas import (
+    AnalyzeRequest, 
+    AnalyzeResponse, 
+    FeedbackRequest, 
+    TransactionTrackRequest, 
+    TransactionTrackResponse,
+    BlockchainEnum  # Add this import
+)
 from app.core.crypto_tracker import CryptoTrackingService
 from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
 
