@@ -258,6 +258,14 @@ async def get_analysis_status(job_id: str):
         "analyzed_transactions": status.get("analyzed_transactions", 0) if isinstance(status, dict) else 0
     }
 
+@# Add the missing dependency function
+def get_crypto_service() -> CryptoTrackingService:
+    """
+    Dependency to get CryptoTrackingService instance.
+    Returns a configured CryptoTrackingService.
+    """
+    return CryptoTrackingService()
+
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(
     request: TransactionTrackRequest,
