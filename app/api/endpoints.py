@@ -114,21 +114,56 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
         logger.debug(f"Received request with blockchain: {request.blockchain}")
 
         # 1. Blockchain-Parameter validieren
+        # Da wir BlockchainEnum verwenden, ist request.blockchain bereits validiert
+        # und kann nicht None sein, aber wir fügen eine zusätzliche Sicherheitsprüfung hinzu
         if not request.blockchain:
-            error_msg = "Failed: No blockchain specified. Please provide one of: ethereum, solana, binance, or polygon"
+            error_msg = "Failed: No blockchain specified"
             ANALYSIS_STATUS[job_id] = error_msg
             logger.error(error_msg)
             return
 
-        # Convert blockchain value to lowercase string for comparison
-        blockchain_value = request.blockchain.value.lower() if hasattr(request.blockchain, 'value') else str(request.blockchain).lower()
+        # Der Wert ist bereits ein Enum, also können wir direkt darauf zugreifen
+        blockchain_value = request.blockchain.value
 
-        # Validate blockchain value against supported blockchains
-        supported_blockchains = {"ethereum", "solana", "binance", "polygon"}
-        if blockchain_value not in supported_blockchains:
-            error_msg = f"Failed: Unsupported blockchain: {blockchain_value}. Supported blockchains are: {', '.join(supported_blockchains)}"
+        # 2. Blockchain-RPC-Endpunkt ermitteln
+        blockchain_endpoint = {
+            BlockchainEnum.solana.value: os.getenv("SOLANA_RPC_URL"),
+            BlockchainEnum.ethereum.value: os.getenv("ETHEREUM_RPC_URL"),
+            BlockchainEnum.binance.value: os.getenv("BINANCE_RPC_URL"),
+            BlockchainEnum.polygon.value: os.getenv("POLYGON_RPC_URL"),
+        }.get(blockchain_value)
+
+        if not blockchain_endpoint:
+            error_msg = f"Failed: RPC endpoint not configured for blockchain {blockchain_value}"
             ANALYSIS_STATUS[job_id] = error_msg
             logger.error(error_msg)
+            return
+
+        # 3. Tweets basierend auf Keywords abrufen
+        twitter_client = TwitterClient()
+        tweets = await twitter_client.fetch_tweets_by_keywords(
+            keywords=request.keywords,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            tweet_limit=request.tweet_limit
+        )
+        
+        if not tweets:
+            ANALYSIS_STATUS[job_id] = "Failed: No tweets found"
+            logger.warning("No tweets found for the given criteria")
+            return
+
+        # 4. On-Chain-Daten abrufen
+        if not request.contract_address:
+            error_msg = "Failed: Contract address is required"
+            ANALYSIS_STATUS[job_id] = error_msg
+            logger.error(error_msg)
+            return
+
+        on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.contract_address)
+        if not on_chain_data:
+            ANALYSIS_STATUS[job_id] = "Failed: No on-chain data found"
+            logger.warning("No on-chain data found for the contract address")
             return
 
         # 2. Tweets basierend auf Keywords abrufen
