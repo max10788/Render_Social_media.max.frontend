@@ -30,6 +30,9 @@ from app.models.schemas import (
 )
 from app.core.crypto_tracker import CryptoTrackingService
 from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
+from app.models.schemas import TransactionTrackRequest, TransactionTrackResponse
+from app.core.crypto_tracker import CryptoTrackingService
+from app.core.exceptions import TransactionNotFoundError, CryptoTrackerError
 
 # Globale Variable für Status-Tracking
 ANALYSIS_STATUS = {}
@@ -255,65 +258,35 @@ async def get_analysis_status(job_id: str):
         "analyzed_transactions": status.get("analyzed_transactions", 0) if isinstance(status, dict) else 0
     }
 
-@router.post("/track-transactions", response_model=TransactionResponse)
+@router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(
-    request: TransactionRequest,
+    request: TransactionTrackRequest,
     background_tasks: BackgroundTasks,
     crypto_service: CryptoTrackingService = Depends(get_crypto_service)
 ):
     """
     Track a chain of cryptocurrency transactions starting from a given transaction hash.
-    
-    Parameters:
-    - start_tx_hash: The hash of the starting transaction
-    - target_currency: The target currency for conversion (BTC, ETH, SOL)
-    - num_transactions: Number of transactions to track (default: 10)
-    
-    Returns:
-    - Transaction chain details and related information
     """
     try:
-        # Track the transaction chain using the crypto service
         result = await crypto_service.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
             target_currency=request.target_currency,
             num_transactions=request.num_transactions
         )
         
-        # Save transactions to database in background
-        background_tasks.add_task(
-            save_transactions_to_db,
-            transactions=result["transactions"]
-        )
-        
-        return TransactionResponse(
-            source_currency=result["source_currency"],
-            target_currency=result["target_currency"],
-            start_transaction=result["start_transaction"],
-            transactions_count=len(result["transactions"]),
-            transactions=result["transactions"]
-        )
+        # Add tracking timestamp if not present
+        if "tracking_timestamp" not in result:
+            result["tracking_timestamp"] = int(datetime.utcnow().timestamp())
+            
+        return TransactionTrackResponse(**result)
         
     except TransactionNotFoundError as e:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Transaction not found: {str(e)}"
-        )
+        raise HTTPException(status_code=404, detail=str(e))
     except CryptoTrackerError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Error tracking transaction: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error tracking transactions: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error while tracking transactions"
-        )
-
-def get_crypto_service():
-    """Dependency to get CryptoTrackingService instance"""
-    return CryptoTrackingService()
+        raise HTTPException(status_code=500, detail="Internal server error while tracking transactions")
 
 async def save_transactions_to_db(db: Session, transactions: list[dict]):
     """Speichert Transaktionen in der Datenbank"""
