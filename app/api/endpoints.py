@@ -120,88 +120,119 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
         logger.debug(f"Starting analysis for job {job_id}")
         logger.debug(f"Received request with blockchain: {request.blockchain}")
 
-        # 1. Contract-Adresse validieren
-        if not request.contract_address:
-            error_msg = "Failed: Contract address is required"
-            ANALYSIS_STATUS[job_id] = error_msg
-            logger.error(error_msg)
-            return
+        # Initialize variables
+        tweets = []
+        on_chain_data = []
+        db = next(get_db())  # Get database session
 
-        # 2. Blockchain-Parameter validieren
-        if not request.blockchain:
-            error_msg = "Failed: No blockchain specified"
-            ANALYSIS_STATUS[job_id] = error_msg
-            logger.error(error_msg)
-            return
+        try:
+            # 1. Blockchain-Parameter validieren
+            if not request.blockchain:
+                error_msg = "Failed: No blockchain specified"
+                ANALYSIS_STATUS[job_id] = error_msg
+                logger.error(error_msg)
+                return
 
-        blockchain_value = request.blockchain.value
+            blockchain_value = request.blockchain.value.lower() if hasattr(request.blockchain, 'value') else str(request.blockchain).lower()
 
-        # 3. Blockchain-RPC-Endpunkt ermitteln
-        blockchain_endpoint = {
-            "solana": os.getenv("SOLANA_RPC_URL"),
-            "ethereum": os.getenv("ETHEREUM_RPC_URL"),
-            "binance": os.getenv("BINANCE_RPC_URL"),
-            "polygon": os.getenv("POLYGON_RPC_URL"),
-        }.get(blockchain_value.lower())
+            if blockchain_value not in ["ethereum", "solana", "binance", "polygon"]:
+                error_msg = f"Failed: Unsupported blockchain: {blockchain_value}"
+                ANALYSIS_STATUS[job_id] = error_msg
+                logger.error(error_msg)
+                return
 
-        if not blockchain_endpoint:
-            error_msg = f"Failed: RPC endpoint not configured for blockchain {blockchain_value}"
-            ANALYSIS_STATUS[job_id] = error_msg
-            logger.error(error_msg)
-            return
-
-        # 5. Korrelation zwischen Tweets und Transaktionen herstellen
-        potential_wallets = set()
-        for tweet in tweets:
-            for tx in on_chain_data:
-                if validate_temporal_correlation(tweet.get("created_at"), tx.get("block_time")):
-                    if tweet.get("amount") and validate_amount_correlation(tweet["amount"], tx.get("amount", 0)):
-                        potential_wallets.add(tx["wallet_address"])
-                        logger.info(f"Found wallet via amount correlation: {tx['wallet_address']}")
-                if validate_keyword_correlation(tweet.get("keywords", []), tx.get("description", "")):
-                    potential_wallets.add(tx["wallet_address"])
-                if validate_address_correlation(tweet.get("addresses", []), tx.get("wallet_address", "")):
-                    potential_wallets.add(tx["wallet_address"])
-                if validate_hashtag_correlation(tweet.get("hashtags", []), tx.get("description", "")):
-                    potential_wallets.add(tx["wallet_address"])
-                if validate_link_correlation(tweet.get("links", []), tx.get("description", "")):
-                    potential_wallets.add(tx["wallet_address"])
-
-        # 6. Sentiment-Score berechnen
-        sentiment_texts = [tweet["text"] for tweet in tweets if "text" in tweet]
-        sentiment_score = calculate_sentiment_score(sentiment_texts)
-
-        # 7. In Datenbank speichern
-        db_analysis = SentimentAnalysis(
-            query=request.contract_address,
-            sentiment_score=sentiment_score,
-            post_count=len(tweets),
-        )
-        db.add(db_analysis)
-
-        db_transactions = [
-            OnChainTransaction(
-                query=request.contract_address,
-                transaction_id=tx.get("signature", tx.get("hash")),
-                amount=tx.get("amount", 0),
-                transaction_type=tx.get("type", "unknown"),
-                block_time=datetime.fromtimestamp(tx.get("blockTime", tx.get("timestamp"))),
-                blockchain=blockchain_value.capitalize()
+            # 2. Tweets basierend auf Keywords abrufen
+            twitter_client = TwitterClient()
+            tweets = await twitter_client.fetch_tweets_by_keywords(
+                keywords=request.keywords,
+                start_date=request.start_date,
+                end_date=request.end_date,
+                tweet_limit=request.tweet_limit
             )
-            for tx in on_chain_data
-        ]
-        db.add_all(db_transactions)
-        db.commit()
+            if not tweets:
+                ANALYSIS_STATUS[job_id] = "Failed: No tweets found"
+                logger.warning("No tweets found for the given criteria")
+                return
 
-        # 8. Status aktualisieren
-        ANALYSIS_STATUS[job_id] = {
-            "status": "Completed",
-            "potential_wallets": list(potential_wallets),
-            "analyzed_tweets": len(tweets),
-            "analyzed_transactions": len(on_chain_data)
-        }
+            # 3. Blockchain-RPC-Endpunkt ermitteln
+            blockchain_endpoint = {
+                "solana": os.getenv("SOLANA_RPC_URL"),
+                "ethereum": os.getenv("ETHEREUM_RPC_URL"),
+                "binance": os.getenv("BINANCE_RPC_URL"),
+                "polygon": os.getenv("POLYGON_RPC_URL"),
+            }.get(blockchain_value)
 
-        logger.info(f"Analysis completed successfully for job {job_id}")
+            if not blockchain_endpoint:
+                error_msg = "Failed: Unsupported blockchain endpoint"
+                ANALYSIS_STATUS[job_id] = error_msg
+                logger.error(error_msg)
+                return
+
+            # 4. On-Chain-Daten abrufen
+            on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.contract_address)
+            if not on_chain_data:
+                ANALYSIS_STATUS[job_id] = "Failed: No on-chain data found"
+                logger.warning("No on-chain data found for the contract address")
+                return
+
+            # 5. Korrelation zwischen Tweets und Transaktionen herstellen
+            potential_wallets = set()
+            for tweet in tweets:
+                for tx in on_chain_data:
+                    if validate_temporal_correlation(tweet.get("created_at"), tx.get("block_time")):
+                        if tweet.get("amount") and validate_amount_correlation(tweet["amount"], tx.get("amount", 0)):
+                            potential_wallets.add(tx["wallet_address"])
+                            logger.info(f"Found wallet via amount correlation: {tx['wallet_address']}")
+                    if validate_keyword_correlation(tweet.get("keywords", []), tx.get("description", "")):
+                        potential_wallets.add(tx["wallet_address"])
+                    if validate_address_correlation(tweet.get("addresses", []), tx.get("wallet_address", "")):
+                        potential_wallets.add(tx["wallet_address"])
+                    if validate_hashtag_correlation(tweet.get("hashtags", []), tx.get("description", "")):
+                        potential_wallets.add(tx["wallet_address"])
+                    if validate_link_correlation(tweet.get("links", []), tx.get("description", "")):
+                        potential_wallets.add(tx["wallet_address"])
+
+            # 6. Sentiment-Score berechnen
+            sentiment_texts = [tweet["text"] for tweet in tweets if "text" in tweet]
+            sentiment_score = calculate_sentiment_score(sentiment_texts)
+
+            # 7. In Datenbank speichern
+            db_analysis = SentimentAnalysis(
+                query=request.contract_address,
+                sentiment_score=sentiment_score,
+                post_count=len(tweets),
+            )
+            db.add(db_analysis)
+
+            db_transactions = [
+                OnChainTransaction(
+                    query=request.contract_address,
+                    transaction_id=tx.get("signature", tx.get("hash")),
+                    amount=tx.get("amount", 0),
+                    transaction_type=tx.get("type", "unknown"),
+                    block_time=datetime.fromtimestamp(tx.get("blockTime", tx.get("timestamp"))),
+                    blockchain=blockchain_value.capitalize()
+                )
+                for tx in on_chain_data
+            ]
+            db.add_all(db_transactions)
+            db.commit()
+
+            # 8. Status aktualisieren
+            ANALYSIS_STATUS[job_id] = {
+                "status": "Completed",
+                "potential_wallets": list(potential_wallets),
+                "analyzed_tweets": len(tweets),
+                "analyzed_transactions": len(on_chain_data)
+            }
+
+            logger.info(f"Analysis completed successfully for job {job_id}")
+
+        except Exception as e:
+            db.rollback()  # Rollback database changes on error
+            raise e
+        finally:
+            db.close()  # Always close the database session
 
     except Exception as e:
         error_msg = f"Failed: {str(e)}"
