@@ -32,17 +32,42 @@ def validate_query_and_blockchain(query: str, blockchain: str):
         if not re.match(r"^0x[a-fA-F0-9]{40}$", query):  # Ethereum-Adressen beginnen mit "0x"
             raise ValueError("Ungültige Ethereum-Adresse.")
 
-def fetch_on_chain_data(query: str, blockchain: str):
+def fetch_on_chain_data(blockchain_endpoint: str, contract_address: str):
     """
-    Ruft On-Chain-Daten basierend auf dem Query und der Blockchain ab.
+    Ruft On-Chain-Daten basierend auf dem Endpoint und der Contract-Adresse ab.
     
     Args:
-        query: Die Adresse oder der Suchbegriff.
-        blockchain: Die ausgewählte Blockchain (z. B. "solana", "ethereum").
+        blockchain_endpoint: Die URL des Blockchain-RPC-Endpoints.
+        contract_address: Die Adresse des Smart Contracts.
     
     Returns:
         list: Eine Liste von Transaktionen.
     """
+    if not blockchain_endpoint or not contract_address:
+        raise ValueError("Blockchain endpoint and contract address are required")
+    
+    try:
+        # Extract blockchain type from endpoint URL
+        blockchain_type = None
+        if "solana" in blockchain_endpoint.lower():
+            blockchain_type = "solana"
+        elif "ethereum" in blockchain_endpoint.lower():
+            blockchain_type = "ethereum"
+        elif "binance" in blockchain_endpoint.lower():
+            blockchain_type = "binance"
+        elif "polygon" in blockchain_endpoint.lower():
+            blockchain_type = "polygon"
+        
+        # Validate the contract address format
+        if blockchain_type in ["ethereum", "binance", "polygon"]:
+            if not contract_address.startswith("0x") or len(contract_address) != 42:
+                raise ValueError(f"Invalid {blockchain_type} contract address format")
+        elif blockchain_type == "solana":
+            if len(contract_address) != 44:
+                raise ValueError("Invalid Solana contract address format")
+        else:
+            raise ValueError(f"Unsupported blockchain type derived from endpoint: {blockchain_type}")
+
     validate_query_and_blockchain(query, blockchain)
     
     try:
