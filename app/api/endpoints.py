@@ -115,15 +115,18 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
 
         # 1. Blockchain-Parameter validieren
         if not request.blockchain:
-            error_msg = "Failed: No blockchain specified"
+            error_msg = "Failed: No blockchain specified. Please provide one of: ethereum, solana, binance, or polygon"
             ANALYSIS_STATUS[job_id] = error_msg
             logger.error(error_msg)
             return
 
+        # Convert blockchain value to lowercase string for comparison
         blockchain_value = request.blockchain.value.lower() if hasattr(request.blockchain, 'value') else str(request.blockchain).lower()
 
-        if blockchain_value not in ["ethereum", "solana", "binance", "polygon"]:
-            error_msg = f"Failed: Unsupported blockchain: {blockchain_value}"
+        # Validate blockchain value against supported blockchains
+        supported_blockchains = {"ethereum", "solana", "binance", "polygon"}
+        if blockchain_value not in supported_blockchains:
+            error_msg = f"Failed: Unsupported blockchain: {blockchain_value}. Supported blockchains are: {', '.join(supported_blockchains)}"
             ANALYSIS_STATUS[job_id] = error_msg
             logger.error(error_msg)
             return
