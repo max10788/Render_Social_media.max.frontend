@@ -219,12 +219,47 @@
         }
 
         async function submitAnalysis(event) {
-        event.preventDefault();
+            event.preventDefault();
+            
+            // Get the blockchain value
+            const blockchain = document.getElementById('blockchain').value.toLowerCase();
+            const contractAddress = document.getElementById('contract_address').value.trim();
+            
+            // Validate contract address
+            if (!contractAddress) {
+                document.getElementById('result').innerHTML = `
+                    <h3>Fehler!</h3>
+                    <p>Contract-Adresse ist erforderlich.</p>
+                `;
+                document.getElementById('result').style.display = 'block';
+                return;
+            }
+        
+            // Validate contract address format based on blockchain
+            if (["ethereum", "binance", "polygon"].includes(blockchain)) {
+                if (!contractAddress.startsWith('0x') || contractAddress.length !== 42) {
+                    document.getElementById('result').innerHTML = `
+                        <h3>Fehler!</h3>
+                        <p>${blockchain}-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein.</p>
+                    `;
+                    document.getElementById('result').style.display = 'block';
+                    return;
+                }
+            } else if (blockchain === "solana") {
+                if (contractAddress.length !== 44) {
+                    document.getElementById('result').innerHTML = `
+                        <h3>Fehler!</h3>
+                        <p>Solana-Adressen müssen 44 Zeichen lang sein.</p>
+                    `;
+                    document.getElementById('result').style.display = 'block';
+                    return;
+                }
+            }
             
             try {
                 const formData = {
-                    blockchain: document.getElementById('blockchain').value.toLowerCase(), // Add toLowerCase()
-                    contract_address: document.getElementById('contract_address').value.trim() || null,
+                    blockchain: blockchain,
+                    contract_address: contractAddress,
                     twitter_username: document.getElementById('twitter_username').value.trim(),
                     keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
                     start_date: document.getElementById('start_date').value,
