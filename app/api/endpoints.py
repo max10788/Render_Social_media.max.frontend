@@ -258,7 +258,7 @@ async def get_analysis_status(job_id: str):
         "analyzed_transactions": status.get("analyzed_transactions", 0) if isinstance(status, dict) else 0
     }
 
-@# Add the missing dependency function
+# Add this near the top of the file, after the imports and before other functions
 def get_crypto_service() -> CryptoTrackingService:
     """
     Dependency to get CryptoTrackingService instance.
@@ -266,14 +266,16 @@ def get_crypto_service() -> CryptoTrackingService:
     """
     return CryptoTrackingService()
 
+# Then update your track_transactions endpoint to use the dependency
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(
     request: TransactionTrackRequest,
     background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
     crypto_service: CryptoTrackingService = Depends(get_crypto_service)
 ):
     """
-    Track a chain of cryptocurrency transactions starting from a given transaction hash.
+    Verfolgt eine Kette von Kryptowährungs-Transaktionen.
     """
     try:
         result = await crypto_service.track_transaction_chain(
@@ -281,38 +283,23 @@ async def track_transactions(
             target_currency=request.target_currency,
             num_transactions=request.num_transactions
         )
-        
-        # Add tracking timestamp if not present
-        if "tracking_timestamp" not in result:
-            result["tracking_timestamp"] = int(datetime.utcnow().timestamp())
-            
+       
+        # Speichere Transaktionen in der DB im Hintergrund
+        background_tasks.add_task(
+            save_transactions_to_db,
+            db=db,
+            transactions=result["transactions"]
+        )
+       
         return TransactionTrackResponse(**result)
-        
+       
     except TransactionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except CryptoTrackerError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Unexpected error tracking transactions: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error while tracking transactions")
-
-async def save_transactions_to_db(db: Session, transactions: list[dict]):
-    """Speichert Transaktionen in der Datenbank"""
-    try:
-        for tx_data in transactions:
-            db_tx = CryptoTransaction(
-                transaction_hash=tx_data["hash"],
-                currency=tx_data["currency"],
-                timestamp=datetime.fromtimestamp(tx_data["timestamp"]),
-                amount=tx_data.get("value", 0),
-                fee=tx_data.get("fee", 0),
-                direction=tx_data["direction"]
-            )
-            db.add(db_tx)
-        db.commit()
-    except Exception as e:
-        logger.error(f"Fehler beim Speichern der Transaktionen: {e}")
-        db.rollback()
+        logger.error(f"Fehler beim Tracking der Transaktionen: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
         
 # ML-basierte Analyse
