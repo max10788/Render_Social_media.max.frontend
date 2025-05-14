@@ -119,12 +119,35 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
         logger.debug(f"Starting analysis for job {job_id}")
         logger.debug(f"Received request with blockchain: {request.blockchain}")
 
+        # 1. Contract-Adresse validieren
+        if not request.contract_address:
+            error_msg = "Failed: Contract address is required"
+            ANALYSIS_STATUS[job_id] = error_msg
+            logger.error(error_msg)
+            return
+
         # 1. Blockchain-Parameter validieren
         if not request.blockchain:
             error_msg = "Failed: No blockchain specified"
             ANALYSIS_STATUS[job_id] = error_msg
             logger.error(error_msg)
             return
+
+        blockchain_value = request.blockchain.value
+
+        # 3. Blockchain-spezifische Adressvalidierung
+        if blockchain_value in ["ethereum", "binance", "polygon"]:
+            if not request.contract_address.startswith("0x") or len(request.contract_address) != 42:
+                error_msg = f"Failed: Invalid {blockchain_value} address format"
+                ANALYSIS_STATUS[job_id] = error_msg
+                logger.error(error_msg)
+                return
+        elif blockchain_value == "solana":
+            if len(request.contract_address) != 44:
+                error_msg = "Failed: Invalid Solana address format"
+                ANALYSIS_STATUS[job_id] = error_msg
+                logger.error(error_msg)
+                return
 
         # Da request.blockchain bereits ein BlockchainEnum ist, können wir direkt value nutzen
         blockchain_value = request.blockchain.value
