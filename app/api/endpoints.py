@@ -115,29 +115,26 @@ async def start_analysis(
 
 
 async def run_analysis(request: AnalyzeRequest, job_id: str):
-    """Führt die Analyse im Hintergrund durch."""
     try:
         logger.debug(f"Starting analysis for job {job_id}")
         logger.debug(f"Received request with blockchain: {request.blockchain}")
 
         # 1. Blockchain-Parameter validieren
-        # Da wir BlockchainEnum verwenden, ist request.blockchain bereits validiert
-        # und kann nicht None sein, aber wir fügen eine zusätzliche Sicherheitsprüfung hinzu
         if not request.blockchain:
             error_msg = "Failed: No blockchain specified"
             ANALYSIS_STATUS[job_id] = error_msg
             logger.error(error_msg)
             return
 
-        # Der Wert ist bereits ein Enum, also können wir direkt darauf zugreifen
+        # Da request.blockchain bereits ein BlockchainEnum ist, können wir direkt value nutzen
         blockchain_value = request.blockchain.value
 
-        # 2. Blockchain-RPC-Endpunkt ermitteln
+        # 3. Blockchain-RPC-Endpunkt ermitteln
         blockchain_endpoint = {
-            BlockchainEnum.solana.value: os.getenv("SOLANA_RPC_URL"),
-            BlockchainEnum.ethereum.value: os.getenv("ETHEREUM_RPC_URL"),
-            BlockchainEnum.binance.value: os.getenv("BINANCE_RPC_URL"),
-            BlockchainEnum.polygon.value: os.getenv("POLYGON_RPC_URL"),
+            "solana": os.getenv("SOLANA_RPC_URL"),
+            "ethereum": os.getenv("ETHEREUM_RPC_URL"),
+            "binance": os.getenv("BINANCE_RPC_URL"),
+            "polygon": os.getenv("POLYGON_RPC_URL"),
         }.get(blockchain_value)
 
         if not blockchain_endpoint:
