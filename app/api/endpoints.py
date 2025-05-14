@@ -115,6 +115,7 @@ async def start_analysis(
 
 
 async def run_analysis(request: AnalyzeRequest, job_id: str):
+    """Führt die Analyse im Hintergrund durch."""
     try:
         logger.debug(f"Starting analysis for job {job_id}")
         logger.debug(f"Received request with blockchain: {request.blockchain}")
@@ -126,7 +127,7 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
             logger.error(error_msg)
             return
 
-        # 1. Blockchain-Parameter validieren
+        # 2. Blockchain-Parameter validieren
         if not request.blockchain:
             error_msg = "Failed: No blockchain specified"
             ANALYSIS_STATUS[job_id] = error_msg
@@ -135,96 +136,18 @@ async def run_analysis(request: AnalyzeRequest, job_id: str):
 
         blockchain_value = request.blockchain.value
 
-        # 3. Blockchain-spezifische Adressvalidierung
-        if blockchain_value in ["ethereum", "binance", "polygon"]:
-            if not request.contract_address.startswith("0x") or len(request.contract_address) != 42:
-                error_msg = f"Failed: Invalid {blockchain_value} address format"
-                ANALYSIS_STATUS[job_id] = error_msg
-                logger.error(error_msg)
-                return
-        elif blockchain_value == "solana":
-            if len(request.contract_address) != 44:
-                error_msg = "Failed: Invalid Solana address format"
-                ANALYSIS_STATUS[job_id] = error_msg
-                logger.error(error_msg)
-                return
-
-        # Da request.blockchain bereits ein BlockchainEnum ist, können wir direkt value nutzen
-        blockchain_value = request.blockchain.value
-
         # 3. Blockchain-RPC-Endpunkt ermitteln
         blockchain_endpoint = {
             "solana": os.getenv("SOLANA_RPC_URL"),
             "ethereum": os.getenv("ETHEREUM_RPC_URL"),
             "binance": os.getenv("BINANCE_RPC_URL"),
             "polygon": os.getenv("POLYGON_RPC_URL"),
-        }.get(blockchain_value)
+        }.get(blockchain_value.lower())
 
         if not blockchain_endpoint:
             error_msg = f"Failed: RPC endpoint not configured for blockchain {blockchain_value}"
             ANALYSIS_STATUS[job_id] = error_msg
             logger.error(error_msg)
-            return
-
-        # 3. Tweets basierend auf Keywords abrufen
-        twitter_client = TwitterClient()
-        tweets = await twitter_client.fetch_tweets_by_keywords(
-            keywords=request.keywords,
-            start_date=request.start_date,
-            end_date=request.end_date,
-            tweet_limit=request.tweet_limit
-        )
-        
-        if not tweets:
-            ANALYSIS_STATUS[job_id] = "Failed: No tweets found"
-            logger.warning("No tweets found for the given criteria")
-            return
-
-        # 4. On-Chain-Daten abrufen
-        if not request.contract_address:
-            error_msg = "Failed: Contract address is required"
-            ANALYSIS_STATUS[job_id] = error_msg
-            logger.error(error_msg)
-            return
-
-        on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.contract_address)
-        if not on_chain_data:
-            ANALYSIS_STATUS[job_id] = "Failed: No on-chain data found"
-            logger.warning("No on-chain data found for the contract address")
-            return
-
-        # 2. Tweets basierend auf Keywords abrufen
-        twitter_client = TwitterClient()
-        tweets = await twitter_client.fetch_tweets_by_keywords(
-            keywords=request.keywords,
-            start_date=request.start_date,
-            end_date=request.end_date,
-            tweet_limit=request.tweet_limit
-        )
-        if not tweets:
-            ANALYSIS_STATUS[job_id] = "Failed: No tweets found"
-            logger.warning("No tweets found for the given criteria")
-            return
-
-        # 3. Blockchain-RPC-Endpunkt ermitteln
-        blockchain_endpoint = {
-            "solana": os.getenv("SOLANA_RPC_URL"),
-            "ethereum": os.getenv("ETHEREUM_RPC_URL"),
-            "binance": os.getenv("BINANCE_RPC_URL"),
-            "polygon": os.getenv("POLYGON_RPC_URL"),
-        }.get(blockchain_value)
-
-        if not blockchain_endpoint:
-            error_msg = "Failed: Unsupported blockchain endpoint"
-            ANALYSIS_STATUS[job_id] = error_msg
-            logger.error(error_msg)
-            return
-
-        # 4. On-Chain-Daten abrufen
-        on_chain_data = fetch_on_chain_data(blockchain_endpoint, request.contract_address)
-        if not on_chain_data:
-            ANALYSIS_STATUS[job_id] = "Failed: No on-chain data found"
-            logger.warning("No on-chain data found for the contract address")
             return
 
         # 5. Korrelation zwischen Tweets und Transaktionen herstellen
