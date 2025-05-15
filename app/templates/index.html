@@ -9,10 +9,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js "></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css " rel="stylesheet"/>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 
     <!-- TransactionVisualizer Code -->
     <script>
 
+        // Aktualisiere die trackTransactions Funktion
         async function trackTransactions() {
             const startTx = document.getElementById('startTx').value;
             const targetCurrency = document.getElementById('targetCurrency').value;
@@ -49,6 +51,7 @@
                 showError('Fehler beim Abrufen der Transaktionsdaten');
             }
         }
+
         
         const TransactionVisualizer = (function() {
             // Private Variablen und Hilfsfunktionen
