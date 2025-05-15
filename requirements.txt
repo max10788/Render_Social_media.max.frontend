@@ -22,3 +22,4 @@ flower==1.2.0  # Monitoring von Celery-Aufgaben
 flask-cors
 web3>=6.0.0
 python-bitcoinrpc==1.0
+solana==0.29.1
