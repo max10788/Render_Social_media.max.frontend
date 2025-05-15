@@ -26,7 +26,6 @@
             showLoading();
             
             try {
-                // Echter API-Aufruf statt Sample-Daten
                 const response = await fetch(`${API_BASE_URL}/track-transactions`, {
                     method: 'POST',
                     headers: {
@@ -40,15 +39,14 @@
                 });
         
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                    throw new Error('Netzwerk-Antwort war nicht ok');
                 }
         
                 const data = await response.json();
-                visualizeTransactions(data);
+                visualizeTransactionFlow(data);
             } catch (error) {
-                console.error('Fehler beim Abrufen der Transaktionsdaten:', error);
-                showError(`Transaktionsdaten konnten nicht abgerufen werden: ${error.message}`);
+                console.error('Fehler:', error);
+                showError('Fehler beim Abrufen der Transaktionsdaten');
             }
         }
         
@@ -126,87 +124,88 @@
                     `transaction-value value-${(data.target_currency || '').toLowerCase()}`;
             }
 
-            function createTransactionTree(data, container) {
-                if (!data.transactions || data.transactions.length === 0) {
-                    return;
-                }
+           function visualizeTransactionFlow(data) {
+                const container = document.getElementById('transactionTree');
+                const width = container.clientWidth;
+                const height = 600;
             
-                const width = 1200;
-                const height = 800;
-                const padding = 40;
+                // D3 Force-Layout Setup
+                const simulation = d3.forceSimulation(data.flow_tree.nodes)
+                    .force('link', d3.forceLink(data.flow_tree.edges)
+                        .id(d => d.address)
+                        .distance(100))
+                    .force('charge', d3.forceManyBody().strength(-300))
+                    .force('center', d3.forceCenter(width / 2, height / 2));
             
-                // D3.js für die Visualisierung verwenden
+                // SVG Setup
                 const svg = d3.select(container)
                     .append('svg')
                     .attr('width', width)
                     .attr('height', height);
             
-                // Erstelle Force-Directed Graph
-                const simulation = d3.forceSimulation(data.flow_map.nodes)
-                    .force('link', d3.forceLink(data.flow_map.edges).id(d => d.address))
-                    .force('charge', d3.forceManyBody().strength(-300))
-                    .force('center', d3.forceCenter(width / 2, height / 2));
+                // Definiere Pfeilspitzen
+                svg.append('defs').selectAll('marker')
+                    .data(['standard', 'swap', 'split', 'merge'])
+                    .enter().append('marker')
+                    .attr('id', d => `arrow-${d}`)
+                    .attr('viewBox', '0 -5 10 10')
+                    .attr('refX', 15)
+                    .attr('refY', 0)
+                    .attr('markerWidth', 6)
+                    .attr('markerHeight', 6)
+                    .attr('orient', 'auto')
+                    .append('path')
+                    .attr('d', 'M0,-5L10,0L0,5')
+                    .attr('fill', d => getTransactionColor(d));
             
                 // Zeichne Verbindungen
-                const links = svg.append('g')
+                const link = svg.append('g')
                     .selectAll('line')
-                    .data(data.flow_map.edges)
-                    .enter()
-                    .append('line')
-                    .attr('class', 'transaction-link')
-                    .attr('marker-end', 'url(#arrowhead)')
-                    .style('stroke', d => getCurrencyColor(d.currency))
-                    .style('stroke-width', d => Math.log(d.value) + 1);
+                    .data(data.flow_tree.edges)
+                    .enter().append('line')
+                    .attr('stroke-width', d => Math.sqrt(d.value))
+                    .attr('stroke', d => getCurrencyColor(d.currency))
+                    .attr('marker-end', d => `url(#arrow-${d.type})`);
             
-                // Zeichne Wallet-Nodes
-                const nodes = svg.append('g')
-                    .selectAll('circle')
-                    .data(data.flow_map.nodes)
-                    .enter()
-                    .append('g')
-                    .attr('class', 'wallet-node')
+                // Zeichne Nodes
+                const node = svg.append('g')
+                    .selectAll('g')
+                    .data(data.flow_tree.nodes)
+                    .enter().append('g')
                     .call(d3.drag()
                         .on('start', dragstarted)
                         .on('drag', dragged)
                         .on('end', dragended));
             
-                // Füge Wallet-Kreise hinzu
-                nodes.append('circle')
-                    .attr('r', d => Math.min(Math.log(d.total_received + 1) * 5 + 5, 20))
-                    .style('fill', d => getWalletColor(d));
+                // Node Kreise
+                node.append('circle')
+                    .attr('r', d => getNodeSize(d))
+                    .attr('fill', d => getCurrencyColor(d.currency));
             
-                // Füge Wallet-Labels hinzu
-                nodes.append('text')
+                // Node Labels
+                node.append('text')
                     .text(d => shortenAddress(d.address))
-                    .attr('dx', 12)
-                    .attr('dy', 4);
+                    .attr('x', 6)
+                    .attr('y', 3);
             
-                // Füge Währungsumwandlungen hinzu
-                const conversions = svg.append('g')
-                    .selectAll('g')
-                    .data(data.flow_map.currency_conversions)
-                    .enter()
-                    .append('g')
-                    .attr('class', 'conversion-node');
+                // Tooltip
+                const tooltip = d3.select(container)
+                    .append('div')
+                    .attr('class', 'tooltip')
+                    .style('opacity', 0);
             
-                // Zeige Warnungen für verdächtige Muster
-                if (data.flow_map.suspicious_patterns.length > 0) {
-                    const warnings = d3.select(container)
-                        .append('div')
-                        .attr('class', 'warnings-panel');
+                // Update-Funktion
+                simulation.on('tick', () => {
+                    link
+                        .attr('x1', d => d.source.x)
+                        .attr('y1', d => d.source.y)
+                        .attr('x2', d => d.target.x)
+                        .attr('y2', d => d.target.y);
             
-                    warnings.selectAll('div')
-                        .data(data.flow_map.suspicious_patterns)
-                        .enter()
-                        .append('div')
-                        .attr('class', 'warning-item')
-                        .html(d => `
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <span class="pattern-type">${d.pattern_type}</span>
-                            <span class="pattern-description">${d.description}</span>
-                            <span class="risk-score">Risk: ${d.risk_score}/100</span>
-                        `);
-                }
+                    node
+                        .attr('transform', d => `translate(${d.x},${d.y})`);
+                });
+            }
             
                 // Aktualisiere Positionen
                 simulation.on('tick', () => {
