@@ -258,25 +258,24 @@ async def get_analysis_status(job_id: str):
         "analyzed_transactions": status.get("analyzed_transactions", 0) if isinstance(status, dict) else 0
     }
 
-# Add this near the top of the file, after the imports and before other functions
 def get_crypto_service() -> CryptoTrackingService:
-    """
-    Dependency to get CryptoTrackingService instance.
-    Returns a configured CryptoTrackingService.
-    """
-    return CryptoTrackingService()
+    """Dependency to get CryptoTrackingService instance."""
+    try:
+        return CryptoTrackingService()
+    except Exception as e:
+        logger.error(f"Error creating CryptoTrackingService: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to initialize crypto tracking service"
+        )
 
-# Then update your track_transactions endpoint to use the dependency
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(
     request: TransactionTrackRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
     crypto_service: CryptoTrackingService = Depends(get_crypto_service)
 ):
-    """
-    Verfolgt eine Kette von Kryptowährungs-Transaktionen.
-    """
+    """Track a chain of cryptocurrency transactions."""
     try:
         result = await crypto_service.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
@@ -284,22 +283,26 @@ async def track_transactions(
             num_transactions=request.num_transactions
         )
        
-        # Speichere Transaktionen in der DB im Hintergrund
+        # Store transactions in DB in background
         background_tasks.add_task(
             save_transactions_to_db,
-            db=db,
             transactions=result["transactions"]
         )
        
         return TransactionTrackResponse(**result)
        
     except TransactionNotFoundError as e:
+        logger.warning(f"Transaction not found: {str(e)}")
         raise HTTPException(status_code=404, detail=str(e))
     except CryptoTrackerError as e:
+        logger.error(f"Crypto tracker error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Fehler beim Tracking der Transaktionen: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error tracking transactions: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error while tracking transactions"
+        )
 
         
 # ML-basierte Analyse
