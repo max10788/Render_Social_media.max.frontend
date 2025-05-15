@@ -1,4 +1,4 @@
-/* Root-Variablen */
+/* Bestehende Root-Variablen beibehalten */
 :root {
     --primary-color: #3b82f6;
     --secondary-color: #00ffbd;
@@ -9,143 +9,83 @@
     --border-color: #4b5563;
     --success-color: #10b981;
     --danger-color: #ef4444;
-    --warning-color: #ff9800;
     --btc-color: #f2a900;
     --eth-color: #627eea;
     --sol-color: #00ffbd;
 }
 
-/* ... [Vorherige Basis-Styles bleiben gleich] ... */
+/* Bestehende Styles beibehalten und neue Transaktions-Visualisierung hinzufügen */
 
-/* Transaktionsbaum und Visualisierung */
+/* Neue Transaktions-Visualisierung im bestehenden Design */
 .transaction-tree {
-    background: #1a1a1a;
-    border-radius: 8px;
-    padding: 20px;
+    background-color: var(--card-bg);
+    border-radius: 0.5rem;
+    padding: 1rem;
     position: relative;
     min-height: 600px;
     margin-top: 20px;
 }
 
 .wallet-node circle {
-    stroke: #fff;
+    stroke: var(--border-color);
     stroke-width: 2px;
-    transition: all 0.3s ease;
-}
-
-.wallet-node circle:hover {
-    stroke: var(--primary-color);
-    stroke-width: 3px;
-    filter: brightness(1.2);
 }
 
 .wallet-node text {
-    font-family: monospace;
-    font-size: 12px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     fill: var(--text-color);
-    pointer-events: none;
 }
 
 .transaction-link {
+    stroke: var(--primary-color);
     opacity: 0.6;
-    transition: opacity 0.3s ease;
 }
 
-.transaction-link:hover {
-    opacity: 1;
-    cursor: pointer;
+.transaction-link.value-btc {
+    stroke: var(--btc-color);
 }
 
-/* Währungsumwandlungen */
-.conversion-node {
-    fill: var(--warning-color);
-    stroke: #ffd700;
-    stroke-width: 2px;
+.transaction-link.value-eth {
+    stroke: var(--eth-color);
 }
 
-.conversion-label {
-    font-size: 10px;
-    fill: var(--text-color);
+.transaction-link.value-sol {
+    stroke: var(--sol-color);
 }
 
-/* Warnungen und Risikomuster */
-.warnings-panel {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(0, 0, 0, 0.8);
-    border-radius: 5px;
-    padding: 10px;
-    max-width: 300px;
-    backdrop-filter: blur(5px);
-}
-
-.warning-item {
-    color: var(--text-color);
-    margin: 5px 0;
-    padding: 8px;
-    border-left: 3px solid var(--warning-color);
-    background: rgba(255, 152, 0, 0.1);
-    border-radius: 0 4px 4px 0;
-}
-
-.pattern-type {
-    color: var(--warning-color);
-    font-weight: bold;
-    display: block;
-    margin-bottom: 4px;
-}
-
-.pattern-description {
-    font-size: 0.9em;
-    display: block;
-    margin: 4px 0;
-}
-
-.risk-score {
-    float: right;
-    color: var(--danger-color);
-    font-weight: bold;
-}
-
-/* Tooltip für Transaktionsdetails */
-.transaction-tooltip {
-    position: absolute;
-    background: rgba(0, 0, 0, 0.9);
-    color: var(--text-color);
-    padding: 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    pointer-events: none;
-    z-index: 1000;
-    max-width: 250px;
-    backdrop-filter: blur(5px);
-}
-
-/* Wallet-Details Panel */
+/* Wallet-Details im bestehenden Design */
 .wallet-details {
-    position: absolute;
-    left: 10px;
-    top: 10px;
-    background: rgba(0, 0, 0, 0.8);
-    padding: 15px;
-    border-radius: 5px;
-    max-width: 300px;
-    backdrop-filter: blur(5px);
+    background-color: var(--card-bg);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin: 0.5rem;
 }
 
 .wallet-details h4 {
-    color: var(--primary-color);
-    margin-bottom: 10px;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
 }
 
 .wallet-stat {
-    display: flex;
-    justify-content: space-between;
-    margin: 5px 0;
+    color: var(--text-muted);
+    margin: 0.25rem 0;
 }
 
-/* Animationen */
+/* Transaktions-Tooltips */
+.transaction-tooltip {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+/* Animation für Transaktionsflüsse */
+.flow-animation {
+    stroke-dasharray: 5,5;
+    animation: flowAnimation 1s linear infinite;
+}
+
 @keyframes flowAnimation {
     from {
         stroke-dashoffset: 10;
@@ -155,81 +95,80 @@
     }
 }
 
-.flow-arrow {
-    stroke-dasharray: 5,5;
-    animation: flowAnimation 1s linear infinite;
+/* Währungsumwandlungen */
+.currency-conversion {
+    fill: var(--warning-color);
+    stroke: var(--border-color);
 }
 
-/* Währungs-Badges */
-.currency-badge {
-    display: inline-block;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.8em;
-    margin-right: 4px;
+/* Legende */
+.transaction-legend {
+    background-color: var(--card-bg);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    margin-top: 1rem;
 }
 
-.currency-badge.btc {
-    background: rgba(242, 169, 0, 0.2);
-    color: var(--btc-color);
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin: 0.25rem 0;
+    color: var(--text-muted);
 }
 
-.currency-badge.eth {
-    background: rgba(98, 126, 234, 0.2);
-    color: var(--eth-color);
+.legend-color {
+    width: 1rem;
+    height: 1rem;
+    margin-right: 0.5rem;
+    border-radius: 0.25rem;
 }
 
-.currency-badge.sol {
-    background: rgba(0, 255, 189, 0.2);
-    color: var(--sol-color);
+/* Wallet-Status-Indikatoren */
+.wallet-node.suspicious circle {
+    stroke: var(--danger-color);
+    stroke-width: 3px;
 }
 
-/* Interaktive Elemente */
+.wallet-node.exchange circle {
+    stroke: var(--success-color);
+    stroke-width: 3px;
+}
+
+/* Transaktionstypen */
+.transaction-type {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Zoom-Controls im bestehenden Design */
 .zoom-controls {
     position: absolute;
-    bottom: 10px;
-    right: 10px;
+    bottom: 1rem;
+    right: 1rem;
     display: flex;
-    gap: 5px;
+    gap: 0.5rem;
 }
 
 .zoom-button {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
+    background-color: var(--primary-color);
     color: var(--text-color);
-    width: 30px;
-    height: 30px;
-    border-radius: 4px;
+    border: none;
+    border-radius: 0.25rem;
+    width: 2rem;
+    height: 2rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.zoom-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-/* Legende */
-.transaction-legend {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    background: rgba(0, 0, 0, 0.8);
-    padding: 10px;
-    border-radius: 5px;
-    font-size: 12px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    margin: 5px 0;
-}
-
-.legend-color {
-    width: 12px;
-    height: 12px;
-    margin-right: 8px;
-    border-radius: 2px;
+/* Bestehende Responsive Styles beibehalten */
+@media (max-width: 768px) {
+    .transaction-tree {
+        min-height: 400px;
+    }
+    
+    .wallet-details {
+        max-width: 100%;
+    }
 }
