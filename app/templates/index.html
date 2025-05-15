@@ -86,7 +86,7 @@
                     `transaction-value value-${(data.target_currency || '').toLowerCase()}`;
             }
 
-            function createTransactionTree(data, container) {
+                  function createTransactionTree(data, container) {
                 if (!data.transactions || data.transactions.length === 0) {
                     return;
                 }
@@ -105,6 +105,52 @@
                 }
                 
                 container.innerHTML = svgContent;
+            }
+
+            // Füge die neue Funktion hier ein
+            function createSVGTreeFromSOLTransaction(transaction, targetCurrency) {
+                const width = 800;
+                const height = 400;
+                const padding = 40;
+                
+                return `
+                <svg width="${width}" height="${height}" class="transaction-tree">
+                    <!-- Transaction Box -->
+                    <g class="transaction-node">
+                        <rect x="${padding}" y="${height/2 - 30}" 
+                              width="200" height="60" 
+                              class="node-rect value-sol" 
+                              rx="5" ry="5"/>
+                        <text x="${padding + 100}" y="${height/2 - 10}" 
+                              class="node-text" text-anchor="middle">
+                            Transaction
+                        </text>
+                        <text x="${padding + 100}" y="${height/2 + 10}" 
+                              class="node-text" text-anchor="middle">
+                            ${transaction.hash.substring(0, 20)}...
+                        </text>
+                        <text x="${padding + 100}" y="${height/2 + 25}" 
+                              class="node-value" text-anchor="middle">
+                            ${transaction.value || 0} SOL
+                        </text>
+                    </g>
+
+                    <!-- Fee Info -->
+                    <g class="fee-info">
+                        <text x="${width - padding}" y="${height - padding}" 
+                              class="fee-text" text-anchor="end">
+                            Fee: ${transaction.fee} SOL
+                        </text>
+                    </g>
+
+                    <!-- Timestamp -->
+                    <g class="timestamp-info">
+                        <text x="${padding}" y="${padding}" 
+                              class="timestamp-text" text-anchor="start">
+                            ${new Date(transaction.timestamp * 1000).toLocaleString()}
+                        </text>
+                    </g>
+                </svg>`;
             }
 
             // Öffentliche API
