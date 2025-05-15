@@ -275,28 +275,34 @@ async def track_transactions(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
+    """
+    Verfolgt eine Kette von Kryptowährungs-Transaktionen.
+    """
     try:
         tracking_service = CryptoTrackingService()
-        
-        # Erweiterte Tracking-Parameter
+       
+        # Korrigierter Aufruf ohne max_depth
         result = await tracking_service.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
             target_currency=request.target_currency,
-            num_transactions=request.num_transactions,
-            max_depth=5  # Maximale Rekursionstiefe
+            num_transactions=request.num_transactions  # Stellen Sie sicher, dass dieser Parameter existiert
         )
-        
-        # Speichere Ergebnisse in der DB
+       
+        # Speichere Transaktionen in der DB im Hintergrund
         background_tasks.add_task(
             save_transactions_to_db,
             db=db,
-            flow_tree=result["flow_tree"]
+            transactions=result["transactions"]
         )
-        
+       
         return TransactionTrackResponse(**result)
-        
+       
+    except TransactionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except CryptoTrackerError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Fehler beim Tracking: {str(e)}")
+        logger.error(f"Fehler beim Tracking der Transaktionen: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
         
