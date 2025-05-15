@@ -2,11 +2,9 @@ from typing import Dict, List, Optional
 import logging
 from datetime import datetime
 from functools import lru_cache
-import json
 import re
 from web3 import Web3
 from solana.rpc.api import Client as SolanaClient
-from bitcoinrpc.authproxy import AuthServiceProxy
 from app.core.config import settings
 from app.core.exceptions import CryptoTrackerError, APIError, TransactionNotFoundError
 
@@ -25,7 +23,6 @@ class CryptoTrackingService:
         # Initialize blockchain clients
         self.eth_client = Web3(Web3.HTTPProvider(settings.ETHEREUM_RPC_URL))
         self.sol_client = SolanaClient(settings.SOLANA_RPC_URL)
-        self.btc_client = AuthServiceProxy(settings.BITCOIN_RPC_URL)
 
     def _detect_transaction_currency(self, tx_hash: str) -> str:
         """
@@ -39,11 +36,7 @@ class CryptoTrackingService:
         if re.match(r"^[1-9A-HJ-NP-Za-km-z]{88}$", tx_hash):
             return "SOL"
         
-        # Bitcoin: 64 Hex-Zeichen
-        if re.match(r"^[a-fA-F0-9]{64}$", tx_hash):
-            return "BTC"
-        
-        raise ValueError(f"Unbekanntes Transaction-Hash-Format: {tx_hash}")
+        raise ValueError(f"Nicht unterstütztes Transaction-Hash-Format: {tx_hash}. Nur Ethereum und Solana werden unterstützt.")
 
     async def track_transaction_chain(
         self,
@@ -105,8 +98,6 @@ class CryptoTrackingService:
             return await self._get_ethereum_transactions(start_tx_hash, num_transactions)
         elif currency == "SOL":
             return await self._get_solana_transactions(start_tx_hash, num_transactions)
-        elif currency == "BTC":
-            return await self._get_bitcoin_transactions(start_tx_hash, num_transactions)
         else:
             raise ValueError(f"Nicht unterstützte Währung: {currency}")
 
@@ -168,36 +159,6 @@ class CryptoTrackingService:
             return transactions
         except Exception as e:
             logger.error(f"Fehler beim Abrufen der Solana-Transaktionen: {e}")
-            raise
-
-    async def _get_bitcoin_transactions(self, tx_hash: str, num_transactions: int) -> List[Dict]:
-        """
-        Holt Bitcoin-Transaktionen
-        """
-        try:
-            transactions = []
-            current_tx_hash = tx_hash
-            
-            for _ in range(num_transactions):
-                tx = await self.get_cached_transaction(current_tx_hash)
-                if not tx:
-                    tx = self.btc_client.getrawtransaction(current_tx_hash, True)
-                    tx = self._format_btc_transaction(tx)
-                
-                transactions.append(tx)
-                
-                # Finde die nächste verknüpfte Transaktion
-                if tx.get("vout"):
-                    next_tx = await self._find_next_btc_transaction(tx["vout"][0]["scriptPubKey"]["addresses"][0])
-                    if not next_tx:
-                        break
-                    current_tx_hash = next_tx["hash"]
-                else:
-                    break
-            
-            return transactions
-        except Exception as e:
-            logger.error(f"Fehler beim Abrufen der Bitcoin-Transaktionen: {e}")
             raise
 
     async def _convert_transaction_values(
@@ -264,19 +225,6 @@ class CryptoTrackingService:
             "currency": "SOL"
         }
 
-    def _format_btc_transaction(self, tx: Dict) -> Dict:
-        """
-        Formatiert eine Bitcoin-Transaktion
-        """
-        return {
-            "hash": tx["txid"],
-            "inputs": [{"address": vin["address"], "value": vin["value"]} for vin in tx["vin"]],
-            "outputs": [{"address": vout["scriptPubKey"]["addresses"][0], "value": vout["value"]} for vout in tx["vout"]],
-            "fee": sum(vin["value"] for vin in tx["vin"]) - sum(vout["value"] for vout in tx["vout"]),
-            "timestamp": tx["time"],
-            "currency": "BTC"
-        }
-
     @lru_cache(maxsize=1000)
     async def get_cached_transaction(self, tx_hash: str):
         """
@@ -287,12 +235,12 @@ class CryptoTrackingService:
             if not source_currency:
                 raise TransactionNotFoundError(f"Währung für Transaktion {tx_hash} nicht erkennbar")
                
-            if source_currency == "BTC":
-                return await self._get_bitcoin_transactions(tx_hash, 1)[0]
-            elif source_currency == "ETH":
+            if source_currency == "ETH":
                 return await self._get_ethereum_transactions(tx_hash, 1)[0]
             elif source_currency == "SOL":
                 return await self._get_solana_transactions(tx_hash, 1)[0]
+            else:
+                raise ValueError("Nur Ethereum und Solana Transaktionen werden unterstützt")
         except Exception as e:
             logger.error(f"Error caching transaction {tx_hash}: {e}")
             raise APIError(f"API-Fehler beim Abrufen der gecachten Transaktion: {str(e)}")
