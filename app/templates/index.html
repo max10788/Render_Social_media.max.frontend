@@ -274,6 +274,7 @@
             showLoading();
             
             try {
+                // Echter API-Aufruf statt Sample-Daten
                 const response = await fetch(`${API_BASE_URL}/track-transactions`, {
                     method: 'POST',
                     headers: {
@@ -298,7 +299,6 @@
                 showError(`Transaktionsdaten konnten nicht abgerufen werden: ${error.message}`);
             }
         }
-
 
         function visualizeTransactions(data) {
             TransactionVisualizer.visualizeTransactions(data, 'transactionTree');
