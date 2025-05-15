@@ -16,7 +16,7 @@
 
         // Aktualisiere die trackTransactions Funktion
         // In index.html, ersetze die trackTransactions Funktion:
-        async function trackTransactions() {
+        aasync function trackTransactions() {
             const startTx = document.getElementById('startTx').value;
             const targetCurrency = document.getElementById('targetCurrency').value;
             const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
@@ -29,10 +29,12 @@
             showLoading();
             
             try {
+                // Echten API-Aufruf durchführen
                 const response = await fetch(`${API_BASE_URL}/track-transactions`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({
                         start_tx_hash: startTx,
@@ -43,28 +45,11 @@
         
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Netzwerk-Antwort war nicht ok');
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
         
                 const data = await response.json();
-                
-                // Konvertiere das API-Response-Format in das erwartete Format
-                const formattedData = {
-                    source_currency: data.source_currency,
-                    target_currency: data.target_currency,
-                    start_transaction: data.start_transaction,
-                    transactions_count: data.transactions_count,
-                    transactions: data.transactions.map(tx => ({
-                        ...tx,
-                        timestamp: tx.timestamp || Date.now() / 1000,
-                        inputs: tx.value ? [{ value: tx.value, value_converted: tx.value_converted }] : [],
-                        fee: tx.fee || 0
-                    }))
-                };
-        
-                // Visualisiere die Daten
-                TransactionVisualizer.visualizeTransactions(formattedData, 'transactionTree');
-        
+                visualizeTransactions(data);
             } catch (error) {
                 console.error('Fehler beim Abrufen der Transaktionsdaten:', error);
                 showError('Transaktionsdaten konnten nicht abgerufen werden: ' + error.message);
@@ -80,58 +65,104 @@
         }
         
         // Füge die createSVGTreeFromSOLTransaction Funktion hinzu
-        function createSVGTreeFromSOLTransaction(transaction, targetCurrency) {
+        function createSVGTreeFromBTCTransaction(tx, targetCurrency) {
             const width = 800;
-            const height = 400;
+            const height = 600;
+            let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
             
-            return `
-                <svg width="${width}" height="${height}" class="transaction-tree">
-                    <defs>
-                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                            refX="9" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="${currencyColors.sol}"/>
-                        </marker>
-                    </defs>
-                    
-                    <!-- Transaktionsfluss -->
-                    <g class="transaction-flow">
-                        <line x1="${width/4}" y1="${height/2}"
-                              x2="${width*3/4}" y2="${height/2}"
-                              stroke="${currencyColors.sol}" 
-                              stroke-width="2"
-                              marker-end="url(#arrowhead)"/>
-                    </g>
+            // Startknoten (Input)
+            svg += `<g transform="translate(50,50)">`;
+            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors.btc}"/>`;
+            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.inputs[0].value} BTC</text>`;
+            svg += `</g>`;
+            
+            // Verbindungslinien und Output-Knoten
+            if (tx.outputs && tx.outputs.length > 0) {
+                const outputSpacing = height / (tx.outputs.length + 1);
+                tx.outputs.forEach((output, i) => {
+                    const y = outputSpacing * (i + 1);
+                    svg += `<line x1="70" y1="50" x2="200" y2="${y}" stroke="#666" stroke-width="2"/>`;
+                    svg += `<g transform="translate(200,${y})">`;
+                    svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors[targetCurrency.toLowerCase()]}"/>`;
+                    svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${output.value} ${targetCurrency}</text>`;
+                    svg += `</g>`;
+                });
+            }
+            
+            svg += `</svg>`;
+            return svg;
+        }
         
-                    <!-- Quell-Wallet -->
-                    <g class="wallet-node source" transform="translate(${width/4}, ${height/2})">
-                        <circle r="30" fill="${currencyColors.sol}"/>
-                        <text y="50" text-anchor="middle" class="wallet-label">
-                            ${shortenAddress(transaction.from_address || '')}
-                        </text>
-                    </g>
+        function createSVGTreeFromETHTransaction(tx, targetCurrency) {
+            const width = 800;
+            const height = 600;
+            let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
+            
+            // Startknoten
+            svg += `<g transform="translate(50,50)">`;
+            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors.eth}"/>`;
+            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.value} ETH</text>`;
+            svg += `</g>`;
+            
+            // Zielknoten
+            svg += `<line x1="70" y1="50" x2="200" y2="50" stroke="#666" stroke-width="2"/>`;
+            svg += `<g transform="translate(200,50)">`;
+            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors[targetCurrency.toLowerCase()]}"/>`;
+            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.value} ${targetCurrency}</text>`;
+            svg += `</g>`;
+            
+            svg += `</svg>`;
+            return svg;
+        }
         
-                    <!-- Ziel-Wallet -->
-                    <g class="wallet-node target" transform="translate(${width*3/4}, ${height/2})">
-                        <circle r="30" fill="${currencyColors[targetCurrency.toLowerCase()]}"/>
-                        <text y="50" text-anchor="middle" class="wallet-label">
-                            ${shortenAddress(transaction.to_address || '')}
-                        </text>
-                    </g>
-        
-                    <!-- Transaktionsdetails -->
-                    <g class="transaction-details" transform="translate(${width/2}, ${height/4})">
-                        <text text-anchor="middle" class="transaction-value">
-                            ${transaction.value} SOL
-                        </text>
-                        <text y="20" text-anchor="middle" class="transaction-hash">
-                            ${shortenAddress(transaction.hash)}
-                        </text>
-                    </g>
-                </svg>
-            `;
+        function createSVGTreeFromSOLTransaction(tx, targetCurrency) {
+            const width = 800;
+            const height = 600;
+            let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
+            
+            // Startknoten
+            svg += `<g transform="translate(50,50)">`;
+            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors.sol}"/>`;
+            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.amount} SOL</text>`;
+            svg += `</g>`;
+            
+            // Zielknoten mit konvertiertem Wert
+            svg += `<line x1="70" y1="50" x2="200" y2="50" stroke="#666" stroke-width="2"/>`;
+            svg += `<g transform="translate(200,50)">`;
+            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors[targetCurrency.toLowerCase()]}"/>`;
+            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.amount_converted || tx.amount} ${targetCurrency}</text>`;
+            svg += `</g>`;
+            
+            svg += `</svg>`;
+            return svg;
         }
 
-        
+        function addTooltip(element, data) {
+            element.addEventListener('mouseover', (e) => {
+                const tooltip = document.createElement('div');
+                tooltip.className = 'transaction-tooltip';
+                tooltip.innerHTML = `
+                    <strong>Hash:</strong> ${data.hash}<br>
+                    <strong>Zeit:</strong> ${new Date(data.timestamp * 1000).toLocaleString()}<br>
+                    <strong>Wert:</strong> ${data.value} ${data.currency}<br>
+                    <strong>Gebühr:</strong> ${data.fee || '0'} ${data.currency}
+                `;
+                document.body.appendChild(tooltip);
+                
+                // Position Tooltip
+                const rect = element.getBoundingClientRect();
+                tooltip.style.left = `${rect.left + window.scrollX}px`;
+                tooltip.style.top = `${rect.top + window.scrollY - tooltip.offsetHeight - 5}px`;
+            });
+            
+            element.addEventListener('mouseout', () => {
+                const tooltip = document.querySelector('.transaction-tooltip');
+                if (tooltip) {
+                    tooltip.remove();
+                }
+            });
+        }
+                
         const TransactionVisualizer = (function() {
             // Private Variablen und Hilfsfunktionen
             const currencyColors = {
