@@ -304,6 +304,33 @@
             document.getElementById('trackButton').addEventListener('click', trackTransactions);
         }
 
+
+        function validateTransactionHash(hash) {
+            // Ethereum Format
+            if (/^0x[a-fA-F0-9]{64}$/.test(hash)) {
+                return true;
+            }
+            // Solana Format
+            if (/^[1-9A-HJ-NP-Za-km-z]{43,90}$/.test(hash)) {
+                return true;
+            }
+            return false;
+        }
+        
+        // Event-Listener für Input-Validierung
+        document.getElementById('startTx').addEventListener('input', function(e) {
+            const hash = e.target.value;
+            const isValid = validateTransactionHash(hash);
+            
+            if (hash && !isValid) {
+                e.target.classList.add('invalid');
+                document.getElementById('trackButton').disabled = true;
+            } else {
+                e.target.classList.remove('invalid');
+                document.getElementById('trackButton').disabled = false;
+            }
+        });
+        
         async function trackTransactions() {
             const startTx = document.getElementById('startTx').value;
             const targetCurrency = document.getElementById('targetCurrency').value;
@@ -340,7 +367,7 @@
                 visualizeTransactions(data);
             } catch (error) {
                 console.error('Fehler beim Tracking:', error);
-                showError('Fehler beim Tracking: ' + error.message);
+                showError(`Fehler beim Tracking: ${error.message}\n\nBitte überprüfen Sie das Format der Transaktion.`);
             }
         }
         function visualizeTransactions(data) {
