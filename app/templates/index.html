@@ -113,46 +113,81 @@
                 const height = 400;
                 const padding = 40;
                 
-                return `
+                let svgContent = `
                 <svg width="${width}" height="${height}" class="transaction-tree">
-                    <!-- Transaction Box -->
-                    <g class="transaction-node">
-                        <rect x="${padding}" y="${height/2 - 30}" 
-                              width="200" height="60" 
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                            refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#00ffbd"/>
+                        </marker>
+                    </defs>
+                    
+                    <!-- Transaction Flow -->
+                    <g class="transaction-flow">
+                        <line x1="${padding + 200}" y1="${height/2}"
+                              x2="${width - padding - 200}" y2="${height/2}"
+                              stroke="#00ffbd" stroke-width="2"
+                              marker-end="url(#arrowhead)"/>
+                    </g>
+            
+                    <!-- Source Transaction Box -->
+                    <g class="transaction-node source">
+                        <rect x="${padding}" y="${height/2 - 40}" 
+                              width="200" height="80" 
                               class="node-rect value-sol" 
                               rx="5" ry="5"/>
-                        <text x="${padding + 100}" y="${height/2 - 10}" 
+                        <text x="${padding + 100}" y="${height/2 - 20}" 
                               class="node-text" text-anchor="middle">
-                            Transaction
+                            Source Transaction
                         </text>
-                        <text x="${padding + 100}" y="${height/2 + 10}" 
+                        <text x="${padding + 100}" y="${height/2}" 
                               class="node-text" text-anchor="middle">
-                            ${transaction.hash.substring(0, 20)}...
+                            ${transaction.hash.substring(0, 15)}...
                         </text>
-                        <text x="${padding + 100}" y="${height/2 + 25}" 
+                        <text x="${padding + 100}" y="${height/2 + 20}" 
                               class="node-value" text-anchor="middle">
                             ${transaction.value || 0} SOL
                         </text>
                     </g>
-
-                    <!-- Fee Info -->
-                    <g class="fee-info">
+            
+                    <!-- Target Transaction Box (if exists) -->
+                    <g class="transaction-node target">
+                        <rect x="${width - padding - 200}" y="${height/2 - 40}" 
+                              width="200" height="80" 
+                              class="node-rect value-${targetCurrency.toLowerCase()}" 
+                              rx="5" ry="5"/>
+                        <text x="${width - padding - 100}" y="${height/2 - 20}" 
+                              class="node-text" text-anchor="middle">
+                            Target Currency
+                        </text>
+                        <text x="${width - padding - 100}" y="${height/2}" 
+                              class="node-text" text-anchor="middle">
+                            ${targetCurrency}
+                        </text>
+                        <text x="${width - padding - 100}" y="${height/2 + 20}" 
+                              class="node-value" text-anchor="middle">
+                            ${transaction.value_converted || transaction.value || 0} ${targetCurrency}
+                        </text>
+                    </g>
+            
+                    <!-- Transaction Details -->
+                    <g class="transaction-details">
+                        <!-- Timestamp -->
+                        <text x="${padding}" y="${padding}" 
+                              class="timestamp-text" text-anchor="start">
+                            ${new Date(transaction.timestamp * 1000).toLocaleString()}
+                        </text>
+                        
+                        <!-- Fee -->
                         <text x="${width - padding}" y="${height - padding}" 
                               class="fee-text" text-anchor="end">
                             Fee: ${transaction.fee} SOL
                         </text>
                     </g>
-
-                    <!-- Timestamp -->
-                    <g class="timestamp-info">
-                        <text x="${padding}" y="${padding}" 
-                              class="timestamp-text" text-anchor="start">
-                            ${new Date(transaction.timestamp * 1000).toLocaleString()}
-                        </text>
-                    </g>
                 </svg>`;
+                
+                return svgContent;
             }
-
             // Öffentliche API
             return {
                 showLoading: function(containerId) {
