@@ -25,18 +25,35 @@ class CryptoTrackingService:
         self.sol_client = SolanaClient(settings.SOLANA_RPC_URL)
 
     def _detect_transaction_currency(self, tx_hash: str) -> str:
-        """
-        Erkennt die Währung anhand des Transaction-Hash-Formats
-        """
-        # Ethereum: 0x gefolgt von 64 Hex-Zeichen
-        if re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
-            return "ETH"
+    """
+    Erkennt die Währung anhand des Transaction-Hash-Formats
+    
+    Args:
+        tx_hash: Der Transaction-Hash als String
         
-        # Solana: Base58-String mit 88 Zeichen
-        if re.match(r"^[1-9A-HJ-NP-Za-km-z]{88}$", tx_hash):
-            return "SOL"
+    Returns:
+        str: "ETH" für Ethereum oder "SOL" für Solana
         
-        raise ValueError(f"Nicht unterstütztes Transaction-Hash-Format: {tx_hash}. Nur Ethereum und Solana werden unterstützt.")
+    Raises:
+        ValueError: Wenn das Format nicht erkannt wird
+    """
+    # Ethereum: 0x gefolgt von 64 Hex-Zeichen
+    if re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
+        return "ETH"
+    
+    # Solana: Base58-String, Länge zwischen 86 und 90 Zeichen
+    # Erweiterte Prüfung für Solana-Signaturen
+    if re.match(r"^[1-9A-HJ-NP-Za-km-z]{86,90}$", tx_hash):
+        return "SOL"
+        
+    # Base58-String beliebiger Länge für Solana (fallback)
+    if re.match(r"^[1-9A-HJ-NP-Za-km-z]{43,88}$", tx_hash):
+        return "SOL"
+    
+    raise ValueError(
+        f"Nicht unterstütztes Transaction-Hash-Format: {tx_hash}. "
+        "Nur Ethereum (0x + 64 Hex-Zeichen) und Solana (Base58-String) werden unterstützt."
+    )
 
     async def track_transaction_chain(
         self,
