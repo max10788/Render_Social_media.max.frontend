@@ -269,7 +269,7 @@ def get_crypto_service() -> CryptoTrackingService:
             detail="Failed to initialize crypto tracking service"
         )
 
-@r@router.post("/track-transactions", response_model=TransactionTrackResponse)
+@router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(
     request: TransactionTrackRequest,
     background_tasks: BackgroundTasks,
