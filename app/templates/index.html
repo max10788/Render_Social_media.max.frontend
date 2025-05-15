@@ -11,444 +11,261 @@
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
 
-    <!-- TransactionVisualizer Code -->
+<!-- submitAnalysis + TransactionVisualizer integriert -->
     <script>
-
-        // Aktualisiere die trackTransactions Funktion
-        // In index.html, ersetze die trackTransactions Funktion:
-        aasync function trackTransactions() {
-            const startTx = document.getElementById('startTx').value;
-            const targetCurrency = document.getElementById('targetCurrency').value;
-            const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
-            
-            if (!startTx) {
-                showError('Bitte geben Sie eine Starttransaktion ein.');
-                return;
-            }
-            
-            showLoading();
-            
+        // --- 1. Submit Logic ---
+        async function submitAnalysis(event) {
+            event.preventDefault();
+    
             try {
-                // Echten API-Aufruf durchführen
-                const response = await fetch(`${API_BASE_URL}/track-transactions`, {
+                const formData = {
+                    blockchain: document.getElementById('blockchain').value.toLowerCase(),
+                    contract_address: document.getElementById('contract_address').value.trim() || null,
+                    keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
+                    start_date: document.getElementById('start_date').value,
+                    end_date: document.getElementById('end_date').value,
+                    tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
+                };
+    
+                console.log('Formular-Daten:', formData);
+    
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
+    
+                const response = await fetch('/api/v1/analyze/rule-based', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({
-                        start_tx_hash: startTx,
-                        target_currency: targetCurrency,
-                        num_transactions: numTransactions
-                    })
+                    body: JSON.stringify(formData)
                 });
-        
+    
+                console.log('API Response Status:', response.status);
+    
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
-        
+    
                 const data = await response.json();
-                visualizeTransactions(data);
-            } catch (error) {
-                console.error('Fehler beim Abrufen der Transaktionsdaten:', error);
-                showError('Transaktionsdaten konnten nicht abgerufen werden: ' + error.message);
-            }
-        }
-        
-        // Füge diese Hilfsfunktion hinzu
-        function shortenAddress(address) {
-            if (!address) return '';
-            return address.length > 12 ? 
-                `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 
-                address;
-        }
-        
-        // Füge die createSVGTreeFromSOLTransaction Funktion hinzu
-        function createSVGTreeFromBTCTransaction(tx, targetCurrency) {
-            const width = 800;
-            const height = 600;
-            let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
-            
-            // Startknoten (Input)
-            svg += `<g transform="translate(50,50)">`;
-            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors.btc}"/>`;
-            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.inputs[0].value} BTC</text>`;
-            svg += `</g>`;
-            
-            // Verbindungslinien und Output-Knoten
-            if (tx.outputs && tx.outputs.length > 0) {
-                const outputSpacing = height / (tx.outputs.length + 1);
-                tx.outputs.forEach((output, i) => {
-                    const y = outputSpacing * (i + 1);
-                    svg += `<line x1="70" y1="50" x2="200" y2="${y}" stroke="#666" stroke-width="2"/>`;
-                    svg += `<g transform="translate(200,${y})">`;
-                    svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors[targetCurrency.toLowerCase()]}"/>`;
-                    svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${output.value} ${targetCurrency}</text>`;
-                    svg += `</g>`;
-                });
-            }
-            
-            svg += `</svg>`;
-            return svg;
-        }
-        
-        function createSVGTreeFromETHTransaction(tx, targetCurrency) {
-            const width = 800;
-            const height = 600;
-            let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
-            
-            // Startknoten
-            svg += `<g transform="translate(50,50)">`;
-            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors.eth}"/>`;
-            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.value} ETH</text>`;
-            svg += `</g>`;
-            
-            // Zielknoten
-            svg += `<line x1="70" y1="50" x2="200" y2="50" stroke="#666" stroke-width="2"/>`;
-            svg += `<g transform="translate(200,50)">`;
-            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors[targetCurrency.toLowerCase()]}"/>`;
-            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.value} ${targetCurrency}</text>`;
-            svg += `</g>`;
-            
-            svg += `</svg>`;
-            return svg;
-        }
-        
-        function createSVGTreeFromSOLTransaction(tx, targetCurrency) {
-            const width = 800;
-            const height = 600;
-            let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
-            
-            // Startknoten
-            svg += `<g transform="translate(50,50)">`;
-            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors.sol}"/>`;
-            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.amount} SOL</text>`;
-            svg += `</g>`;
-            
-            // Zielknoten mit konvertiertem Wert
-            svg += `<line x1="70" y1="50" x2="200" y2="50" stroke="#666" stroke-width="2"/>`;
-            svg += `<g transform="translate(200,50)">`;
-            svg += `<circle cx="0" cy="0" r="20" fill="${currencyColors[targetCurrency.toLowerCase()]}"/>`;
-            svg += `<text x="0" y="0" text-anchor="middle" dy=".3em" fill="white">${tx.amount_converted || tx.amount} ${targetCurrency}</text>`;
-            svg += `</g>`;
-            
-            svg += `</svg>`;
-            return svg;
-        }
-
-        function addTooltip(element, data) {
-            element.addEventListener('mouseover', (e) => {
-                const tooltip = document.createElement('div');
-                tooltip.className = 'transaction-tooltip';
-                tooltip.innerHTML = `
-                    <strong>Hash:</strong> ${data.hash}<br>
-                    <strong>Zeit:</strong> ${new Date(data.timestamp * 1000).toLocaleString()}<br>
-                    <strong>Wert:</strong> ${data.value} ${data.currency}<br>
-                    <strong>Gebühr:</strong> ${data.fee || '0'} ${data.currency}
-                `;
-                document.body.appendChild(tooltip);
-                
-                // Position Tooltip
-                const rect = element.getBoundingClientRect();
-                tooltip.style.left = `${rect.left + window.scrollX}px`;
-                tooltip.style.top = `${rect.top + window.scrollY - tooltip.offsetHeight - 5}px`;
-            });
-            
-            element.addEventListener('mouseout', () => {
-                const tooltip = document.querySelector('.transaction-tooltip');
-                if (tooltip) {
-                    tooltip.remove();
+                console.log('API Response Data:', data);
+    
+                if (data.job_id) {
+                    pollAnalysisStatus(data.job_id);
+                } else {
+                    throw new Error('Keine Job-ID erhalten');
                 }
+    
+            } catch (error) {
+                console.error('Analyse-Fehler:', error);
+                document.getElementById('result').innerHTML = `
+                    <div class="error-message">
+                        <h3>Fehler bei der Analyse</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    
+        async function pollAnalysisStatus(jobId) {
+            const resultDiv = document.getElementById('result');
+            let attempts = 0;
+            const maxAttempts = 30;
+    
+            const pollInterval = setInterval(async () => {
+                try {
+                    attempts++;
+                    console.log(`Polling Versuch ${attempts} für Job ${jobId}`);
+    
+                    const response = await fetch(`/api/v1/analysis/status/${jobId}`);
+                    const status = await response.json();
+    
+                    console.log('Status Update:', status);
+    
+                    if (status.status === 'Completed') {
+                        clearInterval(pollInterval);
+                        displayResults(status);
+                        visualizeTransactionsFromAnalysis(status); // Neue Funktion hier
+                    } else if (status.status.startsWith('Failed')) {
+                        clearInterval(pollInterval);
+                        throw new Error(status.error || 'Analyse fehlgeschlagen');
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        throw new Error('Zeitüberschreitung bei der Analyse');
+                    } else {
+                        resultDiv.innerHTML = `
+                            <h3>Analyse läuft...</h3>
+                            <p>Status: ${status.status}</p>
+                            <p>Fortschritt: ${Math.round((attempts / maxAttempts) * 100)}%</p>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('Polling-Fehler:', error);
+                    clearInterval(pollInterval);
+                    resultDiv.innerHTML = `
+                        <div class="error-message">
+                            <h3>Fehler beim Status-Update</h3>
+                            <p>${error.message}</p>
+                        </div>
+                    `;
+                }
+            }, 2000);
+        }
+    
+        function displayResults(status) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div class="analysis-results">
+                    <h3>Analyse abgeschlossen!</h3>
+                    <div class="results-grid">
+                        <div class="result-card">
+                            <h4>Blockchain-Daten</h4>
+                            <p>Analysierte Transaktionen: ${status.analyzed_transactions || 0}</p>
+                            <p>Gefundene Wallets: ${status.potential_wallets ? status.potential_wallets.length : 0}</p>
+                        </div>
+                        <div class="result-card">
+                            <h4>Social Media Daten</h4>
+                            <p>Analysierte Tweets: ${status.analyzed_tweets || 0}</p>
+                        </div>
+                    </div>
+                    ${status.potential_wallets && status.potential_wallets.length > 0 ? `
+                        <div class="wallets-list">
+                            <h4>Gefundene Wallet-Adressen:</h4>
+                            <ul>
+                                ${status.potential_wallets.map(wallet => `
+                                    <li>
+                                        <code>${wallet}</code>
+                                        <button onclick="copyToClipboard('${wallet}')" class="copy-btn">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    ` : '<p>Keine Wallet-Adressen gefunden.</p>'}
+                    
+                    <!-- Container für Visualisierung -->
+                    <div id="transactionTree" style="width:100%; height:600px; border:1px solid #ccc;"></div>
+                </div>
+            `;
+        }
+    
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = 'In Zwischenablage kopiert!';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
             });
         }
-                
-        const TransactionVisualizer = (function() {
-            // Private Variablen und Hilfsfunktionen
+    
+        // --- 2. TransactionVisualizer aus Pasted_Text_1747321915901.txt ---
+        // Hier eingefügter Code vom IIFE TransactionVisualizer
+        const TransactionVisualizer = (function () {
             const currencyColors = {
                 btc: '#f2a900',
                 eth: '#627eea',
                 sol: '#00ffbd'
             };
-
+    
+            function shortenAddress(address) {
+                return address?.length > 12 
+                    ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` 
+                    : address || '';
+            }
+    
             function showLoading(container) {
-                container.innerHTML = '';
-                container.className = 'loading';
+                container.innerHTML = '<p>Lade Visualisierung...</p>';
             }
-
+    
             function showError(container, message) {
-                container.classList.remove('loading');
-                container.innerHTML = `<div class="error-message">${message}</div>`;
+                container.innerHTML = `<div class="error">${message}</div>`;
             }
-
-            function updateInfoPanels(data) {
-                // Start-Informationen
-                document.getElementById('sourceCurrency').textContent = data.source_currency || '-';
-                document.getElementById('sourceCurrency').className = 'transaction-value value-' + (data.source_currency || '').toLowerCase();
-                document.getElementById('startHash').textContent = data.start_transaction || '-';
-                
-                const startTime = data.transactions && data.transactions[0] ? 
-                    new Date(data.transactions[0].timestamp * 1000).toLocaleString() : '-';
-                document.getElementById('startTime').textContent = startTime;
-                
-                // Transaktionsstatistik aktualisieren
-                document.getElementById('txCount').textContent = data.transactions_count || 0;
-                
-                let totalValue = 0;
-                let totalFees = 0;
-                
-                if (data.transactions && data.transactions.length > 0) {
-                    if (data.transactions[0].currency === 'BTC') {
-                        totalValue = data.transactions[0].inputs.reduce((sum, input) => sum + input.value, 0);
-                    }
-                    totalFees = data.transactions.reduce((sum, tx) => sum + (tx.fee || 0), 0);
-                }
-                
-                document.getElementById('totalValue').textContent = 
-                    `${totalValue.toFixed(8)} ${data.source_currency}`;
-                document.getElementById('totalValue').className = 
-                    `transaction-value value-${(data.source_currency || '').toLowerCase()}`;
-                    
-                document.getElementById('totalFees').textContent = 
-                    `${totalFees.toFixed(8)} ${data.source_currency}`;
-                document.getElementById('totalFees').className = 
-                    `transaction-value value-${(data.source_currency || '').toLowerCase()}`;
-                
-                // Konvertierungsinformationen
-                document.getElementById('targetCurrencyDisplay').textContent = data.target_currency || '-';
-                document.getElementById('targetCurrencyDisplay').className = 
-                    `transaction-value value-${(data.target_currency || '').toLowerCase()}`;
-                
-                let exchangeRate = 1.0;
-                if (data.transactions && data.transactions[0] && data.transactions[0].inputs && data.transactions[0].inputs[0]) {
-                    const input = data.transactions[0].inputs[0];
-                    if (input.value > 0 && input.value_converted) {
-                        exchangeRate = input.value_converted / input.value;
-                    }
-                }
-                
-                document.getElementById('exchangeRate').textContent = 
-                    `1 ${data.source_currency} = ${exchangeRate.toFixed(4)} ${data.target_currency}`;
-                    
-                const convertedValue = totalValue * exchangeRate;
-                document.getElementById('convertedValue').textContent = 
-                    `${convertedValue.toFixed(4)} ${data.target_currency}`;
-                document.getElementById('convertedValue').className = 
-                    `transaction-value value-${(data.target_currency || '').toLowerCase()}`;
+    
+            function createSVGTreeFromBTCTransaction(tx, targetCurrency) {
+                return `<svg><text x="10" y="20">BTC Visualisierung nicht implementiert</text></svg>`;
             }
-
-           function visualizeTransactionFlow(data) {
+    
+            function createSVGTreeFromETHTransaction(tx, targetCurrency) {
+                return `<svg><text x="10" y="20">ETH Visualisierung nicht implementiert</text></svg>`;
+            }
+    
+            function createSVGTreeFromSOLTransaction(tx, targetCurrency) {
+                return `<svg><text x="10" y="20">SOL Visualisierung nicht implementiert</text></svg>`;
+            }
+    
+            function visualizeTransactionFlow(data) {
+                // Dummy-Implementierung – kann später mit echten Daten gefüllt werden
                 const container = document.getElementById('transactionTree');
-                const width = container.clientWidth;
-                const height = 600;
-            
-                // D3 Force-Layout Setup
-                const simulation = d3.forceSimulation(data.flow_tree.nodes)
-                    .force('link', d3.forceLink(data.flow_tree.edges)
-                        .id(d => d.address)
-                        .distance(100))
-                    .force('charge', d3.forceManyBody().strength(-300))
-                    .force('center', d3.forceCenter(width / 2, height / 2));
-            
-                // SVG Setup
-                const svg = d3.select(container)
-                    .append('svg')
-                    .attr('width', width)
-                    .attr('height', height);
-            
-                // Definiere Pfeilspitzen
-                svg.append('defs').selectAll('marker')
-                    .data(['standard', 'swap', 'split', 'merge'])
-                    .enter().append('marker')
-                    .attr('id', d => `arrow-${d}`)
-                    .attr('viewBox', '0 -5 10 10')
-                    .attr('refX', 15)
-                    .attr('refY', 0)
-                    .attr('markerWidth', 6)
-                    .attr('markerHeight', 6)
-                    .attr('orient', 'auto')
-                    .append('path')
-                    .attr('d', 'M0,-5L10,0L0,5')
-                    .attr('fill', d => getTransactionColor(d));
-            
-                // Zeichne Verbindungen
-                const link = svg.append('g')
-                    .selectAll('line')
-                    .data(data.flow_tree.edges)
-                    .enter().append('line')
-                    .attr('stroke-width', d => Math.sqrt(d.value))
-                    .attr('stroke', d => getCurrencyColor(d.currency))
-                    .attr('marker-end', d => `url(#arrow-${d.type})`);
-            
-                // Zeichne Nodes
-                const node = svg.append('g')
-                    .selectAll('g')
-                    .data(data.flow_tree.nodes)
-                    .enter().append('g')
-                    .call(d3.drag()
-                        .on('start', dragstarted)
-                        .on('drag', dragged)
-                        .on('end', dragended));
-            
-                // Node Kreise
-                node.append('circle')
-                    .attr('r', d => getNodeSize(d))
-                    .attr('fill', d => getCurrencyColor(d.currency));
-            
-                // Node Labels
-                node.append('text')
-                    .text(d => shortenAddress(d.address))
-                    .attr('x', 6)
-                    .attr('y', 3);
-            
-                // Tooltip
-                const tooltip = d3.select(container)
-                    .append('div')
-                    .attr('class', 'tooltip')
-                    .style('opacity', 0);
-            
-                // Update-Funktion
-                simulation.on('tick', () => {
-                    link
-                        .attr('x1', d => d.source.x)
-                        .attr('y1', d => d.source.y)
-                        .attr('x2', d => d.target.x)
-                        .attr('y2', d => d.target.y);
-            
-                    node
-                        .attr('transform', d => `translate(${d.x},${d.y})`);
+                container.innerHTML = "<p>Visualisiere Transaktionsfluss...</p>";
+            }
+    
+            function addTooltip(element, data) {
+                element.addEventListener('mouseover', (e) => {
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'transaction-tooltip';
+                    tooltip.innerHTML = `
+                        <strong>Hash:</strong> ${data.hash}<br>
+                        <strong>Zeit:</strong> ${new Date(data.timestamp * 1000).toLocaleString()}<br>
+                        <strong>Wert:</strong> ${data.value} ${data.currency}<br>
+                        <strong>Gebühr:</strong> ${data.fee || '0'} ${data.currency}
+                    `;
+                    document.body.appendChild(tooltip);
+                    const rect = element.getBoundingClientRect();
+                    tooltip.style.left = `${rect.left + window.scrollX}px`;
+                    tooltip.style.top = `${rect.top + window.scrollY - tooltip.offsetHeight - 5}px`;
+                });
+                element.addEventListener('mouseout', () => {
+                    const tooltip = document.querySelector('.transaction-tooltip');
+                    if (tooltip) tooltip.remove();
                 });
             }
-            
-                // Aktualisiere Positionen
-                simulation.on('tick', () => {
-                    links
-                        .attr('x1', d => d.source.x)
-                        .attr('y1', d => d.source.y)
-                        .attr('x2', d => d.target.x)
-                        .attr('y2', d => d.target.y);
-            
-                    nodes
-                        .attr('transform', d => `translate(${d.x},${d.y})`);
-                });
-            }
-
-            // Füge die neue Funktion hier ein
-            function createSVGTreeFromSOLTransaction(transaction, targetCurrency) {
-                const width = 800;
-                const height = 400;
-                const padding = 40;
-                
-                let svgContent = `
-                <svg width="${width}" height="${height}" class="transaction-tree">
-                    <defs>
-                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
-                            refX="9" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="#00ffbd"/>
-                        </marker>
-                    </defs>
-                    
-                    <!-- Transaction Flow -->
-                    <g class="transaction-flow">
-                        <line x1="${padding + 200}" y1="${height/2}"
-                              x2="${width - padding - 200}" y2="${height/2}"
-                              stroke="#00ffbd" stroke-width="2"
-                              marker-end="url(#arrowhead)"/>
-                    </g>
-            
-                    <!-- Source Transaction Box -->
-                    <g class="transaction-node source">
-                        <rect x="${padding}" y="${height/2 - 40}" 
-                              width="200" height="80" 
-                              class="node-rect value-sol" 
-                              rx="5" ry="5"/>
-                        <text x="${padding + 100}" y="${height/2 - 20}" 
-                              class="node-text" text-anchor="middle">
-                            Source Transaction
-                        </text>
-                        <text x="${padding + 100}" y="${height/2}" 
-                              class="node-text" text-anchor="middle">
-                            ${transaction.hash.substring(0, 15)}...
-                        </text>
-                        <text x="${padding + 100}" y="${height/2 + 20}" 
-                              class="node-value" text-anchor="middle">
-                            ${transaction.value || 0} SOL
-                        </text>
-                    </g>
-            
-                    <!-- Target Transaction Box (if exists) -->
-                    <g class="transaction-node target">
-                        <rect x="${width - padding - 200}" y="${height/2 - 40}" 
-                              width="200" height="80" 
-                              class="node-rect value-${targetCurrency.toLowerCase()}" 
-                              rx="5" ry="5"/>
-                        <text x="${width - padding - 100}" y="${height/2 - 20}" 
-                              class="node-text" text-anchor="middle">
-                            Target Currency
-                        </text>
-                        <text x="${width - padding - 100}" y="${height/2}" 
-                              class="node-text" text-anchor="middle">
-                            ${targetCurrency}
-                        </text>
-                        <text x="${width - padding - 100}" y="${height/2 + 20}" 
-                              class="node-value" text-anchor="middle">
-                            ${transaction.value_converted || transaction.value || 0} ${targetCurrency}
-                        </text>
-                    </g>
-            
-                    <!-- Transaction Details -->
-                    <g class="transaction-details">
-                        <!-- Timestamp -->
-                        <text x="${padding}" y="${padding}" 
-                              class="timestamp-text" text-anchor="start">
-                            ${new Date(transaction.timestamp * 1000).toLocaleString()}
-                        </text>
-                        
-                        <!-- Fee -->
-                        <text x="${width - padding}" y="${height - padding}" 
-                              class="fee-text" text-anchor="end">
-                            Fee: ${transaction.fee} SOL
-                        </text>
-                    </g>
-                </svg>`;
-                
-                return svgContent;
-            }
-            // Öffentliche API
+    
             return {
-                showLoading: function(containerId) {
+                showLoading: function (containerId) {
                     const container = document.getElementById(containerId);
                     showLoading(container);
                 },
-                
-                showError: function(containerId, message) {
+                showError: function (containerId, message) {
                     const container = document.getElementById(containerId);
                     showError(container, message);
                 },
-                
-                visualizeTransactions: function(data, containerId) {
+                visualizeTransactions: function (data, containerId) {
                     const container = document.getElementById(containerId);
-                    
                     if (!data || !data.transactions || data.transactions.length === 0) {
                         showError(container, 'Keine Transaktionsdaten verfügbar.');
                         return;
                     }
-                    
-                    updateInfoPanels(data);
-                    
-                    container.classList.remove('loading');
-                    createTransactionTree(data, container);
+                    visualizeTransactionFlow(data);
                 },
-                
-                setCurrencyColors: function(colors) {
-                    if (colors.btc) currencyColors.btc = colors.btc;
-                    if (colors.eth) currencyColors.eth = colors.eth;
-                    if (colors.sol) currencyColors.sol = colors.sol;
+                setCurrencyColors: function (colors) {
+                    Object.assign(currencyColors, colors);
                 }
             };
         })();
-
-        window.TransactionVisualizer = TransactionVisualizer;
+    
+        // --- 3. Neue Funktion zur Visualisierung nach Analyse ---
+        async function visualizeTransactionsFromAnalysis(status) {
+            if (!status.potential_wallets?.length) return;
+    
+            const walletAddress = status.potential_wallets[0]; // Beispielhaft nur erste Wallet
+            const containerId = 'transactionTree';
+    
+            TransactionVisualizer.showLoading(containerId);
+    
+            try {
+                const response = await fetch(`/api/v1/transactions?wallet=${walletAddress}&limit=5`);
+                if (!response.ok) throw new Error("Transaktionsdaten konnten nicht geladen werden.");
+    
+                const txData = await response.json();
+                TransactionVisualizer.visualizeTransactions(txData, containerId);
+            } catch (error) {
+                TransactionVisualizer.showError(containerId, error.message);
+            }
+        }
     </script>
 
     <!-- Main Application Code -->
