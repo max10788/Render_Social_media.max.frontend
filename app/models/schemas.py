@@ -125,64 +125,10 @@ class FeedbackRequest(BaseModel):
 # Füge diese neue Klasse zu schemas.py hinzu:
 
 class TransactionTrackRequest(BaseModel):
-    """Schema für Transaktions-Tracking Anfragen"""
-    start_tx_hash: str = Field(..., description="Hash der Ausgangstransaktion")
-    target_currency: str = Field(
-        ...,
-        description="Zielwährung für die Konversion (BTC, ETH, SOL)"
-    )
-    num_transactions: Optional[int] = Field(
-        10,
-        ge=1,
-        le=100,
-        description="Anzahl der zu verfolgenden Transaktionen (1-100, Standard: 10)"
-    )
-
-    @validator('target_currency')
-    def validate_currency(cls, v):
-        if v.upper() not in ['BTC', 'ETH', 'SOL']:
-            raise ValueError('Zielwährung muss BTC, ETH oder SOL sein')
-        return v.upper()
-
-class TransactionInfo(BaseModel):
-    """Schema für einzelne Transaktionsinformationen"""
-    hash: str
-    currency: str
-    timestamp: int
-    direction: str
-    fee: Optional[float]
-    fee_converted: Optional[float]
-    value: Optional[float]
-    value_converted: Optional[float]
+    start_tx_hash: str
+    target_currency: str
+    num_transactions: int = 10  # Default-Wert von 10
 
 class TransactionTrackResponse(BaseModel):
-    """Schema für die Antwort des Transaktions-Trackings"""
-    start_transaction: str
-    source_currency: str
-    target_currency: str
-    transactions_count: int
-    transactions: List[TransactionInfo]
-    tracking_timestamp: int
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "start_transaction": "0x123abc...",
-                "source_currency": "ETH",
-                "target_currency": "BTC",
-                "transactions_count": 2,
-                "transactions": [
-                    {
-                        "hash": "0x123abc...",
-                        "currency": "ETH",
-                        "timestamp": 1683555555,
-                        "direction": "out",
-                        "fee": 0.002,
-                        "fee_converted": 0.0001,
-                        "value": 1.5,
-                        "value_converted": 0.075
-                    }
-                ],
-                "tracking_timestamp": 1683555666
-            }
-        }
+    transactions: list
+    status: str = "success"
