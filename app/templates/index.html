@@ -15,6 +15,7 @@
     <script>
 
         // Aktualisiere die trackTransactions Funktion
+        // In index.html, ersetze die trackTransactions Funktion:
         async function trackTransactions() {
             const startTx = document.getElementById('startTx').value;
             const targetCurrency = document.getElementById('targetCurrency').value;
@@ -41,15 +42,93 @@
                 });
         
                 if (!response.ok) {
-                    throw new Error('Netzwerk-Antwort war nicht ok');
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Netzwerk-Antwort war nicht ok');
                 }
         
                 const data = await response.json();
-                visualizeTransactionFlow(data);
+                
+                // Konvertiere das API-Response-Format in das erwartete Format
+                const formattedData = {
+                    source_currency: data.source_currency,
+                    target_currency: data.target_currency,
+                    start_transaction: data.start_transaction,
+                    transactions_count: data.transactions_count,
+                    transactions: data.transactions.map(tx => ({
+                        ...tx,
+                        timestamp: tx.timestamp || Date.now() / 1000,
+                        inputs: tx.value ? [{ value: tx.value, value_converted: tx.value_converted }] : [],
+                        fee: tx.fee || 0
+                    }))
+                };
+        
+                // Visualisiere die Daten
+                TransactionVisualizer.visualizeTransactions(formattedData, 'transactionTree');
+        
             } catch (error) {
-                console.error('Fehler:', error);
-                showError('Fehler beim Abrufen der Transaktionsdaten');
+                console.error('Fehler beim Abrufen der Transaktionsdaten:', error);
+                showError('Transaktionsdaten konnten nicht abgerufen werden: ' + error.message);
             }
+        }
+        
+        // Füge diese Hilfsfunktion hinzu
+        function shortenAddress(address) {
+            if (!address) return '';
+            return address.length > 12 ? 
+                `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 
+                address;
+        }
+        
+        // Füge die createSVGTreeFromSOLTransaction Funktion hinzu
+        function createSVGTreeFromSOLTransaction(transaction, targetCurrency) {
+            const width = 800;
+            const height = 400;
+            
+            return `
+                <svg width="${width}" height="${height}" class="transaction-tree">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                            refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="${currencyColors.sol}"/>
+                        </marker>
+                    </defs>
+                    
+                    <!-- Transaktionsfluss -->
+                    <g class="transaction-flow">
+                        <line x1="${width/4}" y1="${height/2}"
+                              x2="${width*3/4}" y2="${height/2}"
+                              stroke="${currencyColors.sol}" 
+                              stroke-width="2"
+                              marker-end="url(#arrowhead)"/>
+                    </g>
+        
+                    <!-- Quell-Wallet -->
+                    <g class="wallet-node source" transform="translate(${width/4}, ${height/2})">
+                        <circle r="30" fill="${currencyColors.sol}"/>
+                        <text y="50" text-anchor="middle" class="wallet-label">
+                            ${shortenAddress(transaction.from_address || '')}
+                        </text>
+                    </g>
+        
+                    <!-- Ziel-Wallet -->
+                    <g class="wallet-node target" transform="translate(${width*3/4}, ${height/2})">
+                        <circle r="30" fill="${currencyColors[targetCurrency.toLowerCase()]}"/>
+                        <text y="50" text-anchor="middle" class="wallet-label">
+                            ${shortenAddress(transaction.to_address || '')}
+                        </text>
+                    </g>
+        
+                    <!-- Transaktionsdetails -->
+                    <g class="transaction-details" transform="translate(${width/2}, ${height/4})">
+                        <text text-anchor="middle" class="transaction-value">
+                            ${transaction.value} SOL
+                        </text>
+                        <text y="20" text-anchor="middle" class="transaction-hash">
+                            ${shortenAddress(transaction.hash)}
+                        </text>
+                    </g>
+                </svg>
+            `;
         }
 
         
