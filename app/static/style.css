@@ -203,3 +203,37 @@ th {
         height: 300px;
     }
 }
+
+.transaction-tree {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.node-rect {
+    fill: #2d2d2d;
+    stroke: #4a4a4a;
+    stroke-width: 2;
+}
+
+.node-rect.value-sol {
+    stroke: #00ffbd;
+}
+
+.node-text {
+    fill: #ffffff;
+    font-size: 14px;
+    font-family: monospace;
+}
+
+.node-value {
+    fill: #00ffbd;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+.fee-text, .timestamp-text {
+    fill: #888888;
+    font-size: 12px;
+    font-family: monospace;
+}
