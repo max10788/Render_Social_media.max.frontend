@@ -317,11 +317,11 @@
             showLoading();
             
             try {
-                // Echter API-Aufruf statt Sample-Daten
                 const response = await fetch(`${API_BASE_URL}/track-transactions`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({
                         start_tx_hash: startTx,
@@ -336,13 +336,13 @@
                 }
         
                 const data = await response.json();
+                console.log('Tracking-Ergebnis:', data);  // Debug-Logging
                 visualizeTransactions(data);
             } catch (error) {
-                console.error('Fehler beim Abrufen der Transaktionsdaten:', error);
-                showError(`Transaktionsdaten konnten nicht abgerufen werden: ${error.message}`);
+                console.error('Fehler beim Tracking:', error);
+                showError('Fehler beim Tracking: ' + error.message);
             }
         }
-
         function visualizeTransactions(data) {
             TransactionVisualizer.visualizeTransactions(data, 'transactionTree');
         }
