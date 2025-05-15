@@ -7,49 +7,68 @@ from app.core.crypto_tracker_backend import CryptoTracker
 from app.core.config import settings
 from app.core.exceptions import CryptoTrackerError, APIError, TransactionNotFoundError
 
+# Configure logger
 logger = logging.getLogger(__name__)
 
 class CryptoTrackingService:
     def __init__(self, api_keys: Optional[Dict[str, str]] = None):
         if api_keys is None:
             api_keys = {
-                "etherscan": settings.ETHERSCAN_API_KEY,
-                "coingecko": settings.COINGECKO_API_KEY,
+                "etherscan": settings.ETHERSCAN_API_KEY or "",
+                "coingecko": settings.COINGECKO_API_KEY or "",
             }
         self.tracker = CryptoTracker(api_keys)
-        self.cache_ttl = 3600  # 1 Stunde Cache-Zeit
+        self.cache_ttl = 3600  # 1 hour cache time
        
     async def track_transaction_chain(self,
         start_tx_hash: str,
         target_currency: str,
         num_transactions: int = 10
     ) -> Dict:
+        """Track a chain of cryptocurrency transactions."""
         try:
-            return self.tracker.track_transactions(
+            # Validate inputs
+            if not start_tx_hash:
+                raise ValueError("Start transaction hash is required")
+            if not target_currency:
+                raise ValueError("Target currency is required")
+            if num_transactions < 1 or num_transactions > 100:
+                raise ValueError("Number of transactions must be between 1 and 100")
+
+            result = await self.tracker.track_transactions(
                 start_tx_hash=start_tx_hash,
-                target_currency=target_currency,
+                target_currency=target_currency.upper(),
                 num_transactions=num_transactions
             )
+
+            if not result:
+                raise TransactionNotFoundError(f"No transaction data found for hash {start_tx_hash}")
+
+            return result
+
         except Exception as e:
-            logger.error(f"Fehler beim Tracking der Transaktion {start_tx_hash}: {e}")
+            logger.error(f"Error tracking transaction {start_tx_hash}: {str(e)}")
             if "not found" in str(e).lower():
-                raise TransactionNotFoundError(f"Transaktion {start_tx_hash} nicht gefunden")
-            raise APIError(f"API-Fehler: {str(e)}")
+                raise TransactionNotFoundError(f"Transaction {start_tx_hash} not found")
+            raise APIError(f"API Error: {str(e)}")
 
     @lru_cache(maxsize=1000)
     async def get_cached_transaction(self, tx_hash: str):
-        """Cache für einzelne Transaktionen"""
+        """Cache for individual transactions."""
         try:
-            source_currency = self.tracker._detect_transaction_currency(tx_hash)
+            source_currency = await self.tracker._detect_transaction_currency(tx_hash)
             if not source_currency:
-                raise TransactionNotFoundError(f"Währung für Transaktion {tx_hash} nicht erkennbar")
+                raise TransactionNotFoundError(f"Currency not detectable for transaction {tx_hash}")
                
             if source_currency == "BTC":
-                return self.tracker.track_bitcoin_transactions(tx_hash, 1)[0]
+                return await self.tracker.track_bitcoin_transactions(tx_hash, 1)
             elif source_currency == "ETH":
-                return self.tracker.track_ethereum_transactions(tx_hash, 1)[0]
+                return await self.tracker.track_ethereum_transactions(tx_hash, 1)
             elif source_currency == "SOL":
-                return self.tracker.track_solana_transactions(tx_hash, 1)[0]
+                return await self.tracker.track_solana_transactions(tx_hash, 1)
+            else:
+                raise ValueError(f"Unsupported currency: {source_currency}")
+
         except Exception as e:
-            logger.error(f"Error caching transaction {tx_hash}: {e}")
-            raise APIError(f"API-Fehler beim Abrufen der gecachten Transaktion: {str(e)}")
+            logger.error(f"Error caching transaction {tx_hash}: {str(e)}")
+            raise APIError(f"API Error while retrieving cached transaction: {str(e)}")
