@@ -212,12 +212,19 @@ th {
 
 .node-rect {
     fill: #2d2d2d;
-    stroke: #4a4a4a;
     stroke-width: 2;
 }
 
 .node-rect.value-sol {
     stroke: #00ffbd;
+}
+
+.node-rect.value-btc {
+    stroke: #f2a900;
+}
+
+.node-rect.value-eth {
+    stroke: #627eea;
 }
 
 .node-text {
@@ -236,4 +243,18 @@ th {
     fill: #888888;
     font-size: 12px;
     font-family: monospace;
+}
+
+.transaction-flow line {
+    stroke-dasharray: 5,5;
+    animation: flowAnimation 1s linear infinite;
+}
+
+@keyframes flowAnimation {
+    from {
+        stroke-dashoffset: 10;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
 }
