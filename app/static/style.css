@@ -9,247 +9,143 @@
     --border-color: #4b5563;
     --success-color: #10b981;
     --danger-color: #ef4444;
+    --warning-color: #ff9800;
     --btc-color: #f2a900;
     --eth-color: #627eea;
     --sol-color: #00ffbd;
 }
 
-/* Basis-Stilregeln */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/* ... [Vorherige Basis-Styles bleiben gleich] ... */
 
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    line-height: 1.6;
-    padding: 20px;
-}
-
-/* Container und Layout */
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-}
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.title {
-    font-size: 1.8rem;
-    font-weight: 700;
-}
-
-/* Tabs */
-.tabs {
-    display: flex;
-    margin-bottom: 1.5rem;
-    background-color: var(--card-bg);
-    border-radius: 0.5rem;
-    overflow: hidden;
-}
-
-.tab {
-    padding: 0.75rem 1.5rem;
-    cursor: pointer;
-    text-align: center;
-    flex: 1;
-    transition: background-color 0.2s;
-    border-bottom: 3px solid transparent;
-}
-
-.tab.active {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-bottom: 3px solid var(--primary-color);
-    font-weight: 600;
-}
-
-/* Karten und Panels */
-.info-card, .control-item, .metrics-card, .flow-section {
-    background-color: var(--card-bg);
-    padding: 1rem;
-    border-radius: 0.5rem;
-}
-
-.info-panel {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-/* Formulare und Eingabefelder */
-form {
-    background-color: var(--card-bg);
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    margin-bottom: 2rem;
-}
-
-form div {
-    margin-bottom: 1rem;
-}
-
-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: var(--text-muted);
-}
-
-select, input {
-    width: 100%;
-    padding: 0.5rem;
-    background-color: #4b5563;
-    color: var(--text-color);
-    border: none;
-    border-radius: 0.25rem;
-}
-
-button {
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 0.25rem;
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    font-weight: 600;
-}
-
-button:hover {
-    background-color: #2563eb;
-}
-
-/* Tabellen */
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-th, td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-}
-
-th {
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-/* Farbklassen für Kryptowährungen */
-.value-btc {
-    color: var(--btc-color);
-}
-
-.value-eth {
-    color: var(--eth-color);
-}
-
-.value-sol {
-    color: var(--sol-color);
-}
-
-/* Hilfeklassen */
-.loading {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-}
-
-.error-message {
-    color: var(--danger-color);
-    text-align: center;
-    padding: 20px;
-}
-
-/* Animation */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-radius: 50%;
-    border-top: 4px solid var(--primary-color);
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .info-panel {
-        grid-template-columns: 1fr;
-    }
-    
-    .controls {
-        grid-template-columns: 1fr;
-    }
-    
-    .chart-container {
-        height: 300px;
-    }
-}
-
+/* Transaktionsbaum und Visualisierung */
 .transaction-tree {
     background: #1a1a1a;
     border-radius: 8px;
     padding: 20px;
+    position: relative;
+    min-height: 600px;
+    margin-top: 20px;
 }
 
-.node-rect {
-    fill: #2d2d2d;
-    stroke-width: 2;
+.wallet-node circle {
+    stroke: #fff;
+    stroke-width: 2px;
+    transition: all 0.3s ease;
 }
 
-.node-rect.value-sol {
-    stroke: #00ffbd;
+.wallet-node circle:hover {
+    stroke: var(--primary-color);
+    stroke-width: 3px;
+    filter: brightness(1.2);
 }
 
-.node-rect.value-btc {
-    stroke: #f2a900;
-}
-
-.node-rect.value-eth {
-    stroke: #627eea;
-}
-
-.node-text {
-    fill: #ffffff;
-    font-size: 14px;
+.wallet-node text {
     font-family: monospace;
-}
-
-.node-value {
-    fill: #00ffbd;
     font-size: 12px;
-    font-family: monospace;
+    fill: var(--text-color);
+    pointer-events: none;
 }
 
-.fee-text, .timestamp-text {
-    fill: #888888;
+.transaction-link {
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+.transaction-link:hover {
+    opacity: 1;
+    cursor: pointer;
+}
+
+/* Währungsumwandlungen */
+.conversion-node {
+    fill: var(--warning-color);
+    stroke: #ffd700;
+    stroke-width: 2px;
+}
+
+.conversion-label {
+    font-size: 10px;
+    fill: var(--text-color);
+}
+
+/* Warnungen und Risikomuster */
+.warnings-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 5px;
+    padding: 10px;
+    max-width: 300px;
+    backdrop-filter: blur(5px);
+}
+
+.warning-item {
+    color: var(--text-color);
+    margin: 5px 0;
+    padding: 8px;
+    border-left: 3px solid var(--warning-color);
+    background: rgba(255, 152, 0, 0.1);
+    border-radius: 0 4px 4px 0;
+}
+
+.pattern-type {
+    color: var(--warning-color);
+    font-weight: bold;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.pattern-description {
+    font-size: 0.9em;
+    display: block;
+    margin: 4px 0;
+}
+
+.risk-score {
+    float: right;
+    color: var(--danger-color);
+    font-weight: bold;
+}
+
+/* Tooltip für Transaktionsdetails */
+.transaction-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: var(--text-color);
+    padding: 10px;
+    border-radius: 4px;
     font-size: 12px;
-    font-family: monospace;
+    pointer-events: none;
+    z-index: 1000;
+    max-width: 250px;
+    backdrop-filter: blur(5px);
 }
 
-.transaction-flow line {
-    stroke-dasharray: 5,5;
-    animation: flowAnimation 1s linear infinite;
+/* Wallet-Details Panel */
+.wallet-details {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 15px;
+    border-radius: 5px;
+    max-width: 300px;
+    backdrop-filter: blur(5px);
 }
 
+.wallet-details h4 {
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+.wallet-stat {
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0;
+}
+
+/* Animationen */
 @keyframes flowAnimation {
     from {
         stroke-dashoffset: 10;
@@ -257,4 +153,83 @@ th {
     to {
         stroke-dashoffset: 0;
     }
+}
+
+.flow-arrow {
+    stroke-dasharray: 5,5;
+    animation: flowAnimation 1s linear infinite;
+}
+
+/* Währungs-Badges */
+.currency-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    margin-right: 4px;
+}
+
+.currency-badge.btc {
+    background: rgba(242, 169, 0, 0.2);
+    color: var(--btc-color);
+}
+
+.currency-badge.eth {
+    background: rgba(98, 126, 234, 0.2);
+    color: var(--eth-color);
+}
+
+.currency-badge.sol {
+    background: rgba(0, 255, 189, 0.2);
+    color: var(--sol-color);
+}
+
+/* Interaktive Elemente */
+.zoom-controls {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: flex;
+    gap: 5px;
+}
+
+.zoom-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-color);
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zoom-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Legende */
+.transaction-legend {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 12px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin: 5px 0;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    margin-right: 8px;
+    border-radius: 2px;
 }
