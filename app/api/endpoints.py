@@ -269,40 +269,35 @@ def get_crypto_service() -> CryptoTrackingService:
             detail="Failed to initialize crypto tracking service"
         )
 
-@router.post("/track-transactions", response_model=TransactionTrackResponse)
+@r@router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(
     request: TransactionTrackRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
 ):
-    """
-    Track a chain of cryptocurrency transactions.
-    """
     try:
-        # Initialize tracking service
         tracking_service = CryptoTrackingService()
         
-        # Get transaction data
+        # Erweiterte Tracking-Parameter
         result = await tracking_service.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
             target_currency=request.target_currency,
-            num_transactions=request.num_transactions
+            num_transactions=request.num_transactions,
+            max_depth=5  # Maximale Rekursionstiefe
         )
         
-        # Return response
+        # Speichere Ergebnisse in der DB
+        background_tasks.add_task(
+            save_transactions_to_db,
+            db=db,
+            flow_tree=result["flow_tree"]
+        )
+        
         return TransactionTrackResponse(**result)
         
-    except TransactionNotFoundError as e:
-        logger.warning(f"Transaction not found: {str(e)}")
-        raise HTTPException(status_code=404, detail=str(e))
-    except CryptoTrackerError as e:
-        logger.error(f"Crypto tracker error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Unexpected error tracking transactions: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error while tracking transactions"
-        )
+        logger.error(f"Fehler beim Tracking: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
         
 # ML-basierte Analyse
