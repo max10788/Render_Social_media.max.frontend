@@ -12,6 +12,46 @@
 
     <!-- TransactionVisualizer Code -->
     <script>
+
+        async function trackTransactions() {
+            const startTx = document.getElementById('startTx').value;
+            const targetCurrency = document.getElementById('targetCurrency').value;
+            const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
+            
+            if (!startTx) {
+                showError('Bitte geben Sie eine Starttransaktion ein.');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                // Echter API-Aufruf statt Sample-Daten
+                const response = await fetch(`${API_BASE_URL}/track-transactions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        start_tx_hash: startTx,
+                        target_currency: targetCurrency,
+                        num_transactions: numTransactions
+                    })
+                });
+        
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+        
+                const data = await response.json();
+                visualizeTransactions(data);
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Transaktionsdaten:', error);
+                showError(`Transaktionsdaten konnten nicht abgerufen werden: ${error.message}`);
+            }
+        }
+        
         const TransactionVisualizer = (function() {
             // Private Variablen und Hilfsfunktionen
             const currencyColors = {
