@@ -1,12 +1,12 @@
 from typing import Dict, List, Optional
 import logging
 from datetime import datetime
-#from functools import lru_cache # Remove the cache
+from functools import lru_cache
 import json
 import re
 from web3 import Web3
 from solana.rpc.api import Client as SolanaClient
-from solana.rpc.types import TxRpcRequestConfig, Signature
+from solana.rpc.types import Signature  # Import Signature, remove TxRpcRequestConfig
 import aiohttp
 from app.core.config import settings
 from app.core.exceptions import CryptoTrackerError, APIError, TransactionNotFoundError
@@ -258,22 +258,22 @@ class CryptoTrackingService:
             "direction": "out"
         }
 
-#    @lru_cache(maxsize=1000) # Remove the cache
+    @lru_cache(maxsize=1000)
     async def get_cached_transaction(self, tx_hash: str):
         """Cache für einzelne Transaktionen"""
         try:
-            source_currency = self._detect_transaction_currency(tx_hash)
-            if source_currency == "ETH":
-                transactions = await self._get_ethereum_transactions(tx_hash, 1)
-                return transactions[0]
-            elif source_currency == "SOL":
-                transactions = await self._get_solana_transactions(tx_hash, 1)
-                return transactions[0]
-            else:
-                raise ValueError("Nur Ethereum und Solana Transaktionen werden unterstützt")
+                source_currency = self._detect_transaction_currency(tx_hash)
+                if source_currency == "ETH":
+                    transactions = await self._get_ethereum_transactions(tx_hash, 1)
+                    return transactions[0]
+                elif source_currency == "SOL":
+                    transactions = await self._get_solana_transactions(tx_hash, 1)
+                    return transactions[0]
+                else:
+                    raise ValueError("Nur Ethereum und Solana Transaktionen werden unterstützt")
         except Exception as e:
-            logger.error(f"Error caching transaction {tx_hash}: {e}")
-            return None
+                logger.error(f"Error caching transaction {tx_hash}: {e}")
+                return None
     
     async def _convert_transaction_values(
         self,
@@ -299,9 +299,6 @@ class CryptoTrackingService:
                     
             return transactions
             
-        except Exception as e:
-            logger.error(f"Fehler bei der Währungsumrechnung: {e}")
-            raise
         except Exception as e:
             logger.error(f"Fehler bei der Währungsumrechnung: {e}")
             raise
