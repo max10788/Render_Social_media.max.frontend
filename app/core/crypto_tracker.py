@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class CryptoTrackingService:
     def __init__(self, api_keys: Optional[Dict[str, str]] = None):
+        """Initialize the CryptoTrackingService."""
         if api_keys is None:
             api_keys = {
                 "etherscan": settings.ETHERSCAN_API_KEY,
@@ -26,43 +27,43 @@ class CryptoTrackingService:
         self.sol_client = SolanaClient(settings.SOLANA_RPC_URL)
         self.session = None
 
+    # Context Manager Methods
     async def __aenter__(self):
+        """Initialize aiohttp session when entering context."""
         self.session = aiohttp.ClientSession()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Close aiohttp session when exiting context."""
         if self.session:
             await self.session.close()
 
-    # Main public method
+    # Main Public Method
     async def track_transaction_chain(
         self,
         start_tx_hash: str,
         target_currency: str,
         num_transactions: int = 10
     ) -> Dict:
-        """
-        Tracks a chain of transactions.
-        
-        Args:
-            start_tx_hash: Initial transaction hash
-            target_currency: Target currency for conversion
-            num_transactions: Maximum number of transactions to track
-            
-        Returns:
-            Dict containing transaction data
-        """
+        """Track a chain of cryptocurrency transactions."""
         try:
+            # Detect source currency from transaction hash
             source_currency = self._detect_transaction_currency(start_tx_hash)
             logger.info(f"Detected currency for {start_tx_hash}: {source_currency}")
             
+            # Get transactions based on currency
             transactions = await self._get_transactions(
                 start_tx_hash,
                 source_currency,
                 num_transactions
             )
+            
+            if not transactions:
+                raise TransactionNotFoundError(f"No transactions found starting from {start_tx_hash}")
+                
             logger.info(f"Found transactions: {len(transactions)}")
             
+            # Convert values to target currency
             converted_transactions = await self._convert_transaction_values(
                 transactions,
                 source_currency,
@@ -80,13 +81,16 @@ class CryptoTrackingService:
             
         except Exception as e:
             logger.error(f"Error tracking {start_tx_hash}: {e}")
-            if "not found" in str(e).lower():
-                raise TransactionNotFoundError(f"Transaction {start_tx_hash} not found")
-            raise APIError(f"API Error: {str(e)}")
+            if isinstance(e, TransactionNotFoundError):
+                raise
+            elif isinstance(e, APIError):
+                raise
+            else:
+                raise APIError(f"Error tracking transactions: {str(e)}")
 
-    # Currency detection and validation methods
+    # Currency Detection and Validation Methods
     def _detect_transaction_currency(self, tx_hash: str) -> str:
-        """Detects currency based on transaction hash format."""
+        """Detect currency based on transaction hash format."""
         # Ethereum: 0x followed by 64 hex characters
         if re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
             return "ETH"
@@ -100,96 +104,14 @@ class CryptoTrackingService:
             "Only Ethereum (0x + 64 hex chars) and Solana (Base58 string) supported."
         )
 
-    def _validate_solana_signature(self, signature: str) -> bool:
-        """
-        Validates if a string is a valid Solana transaction signature.
-        """
-        try:
-            if not isinstance(signature, str):
-                return False
-            
-            # Check if it matches the Solana signature pattern
-            return bool(re.match(r"^[1-9A-HJ-NP-Za-km-z]{87,88}$", signature))
-                
-        except Exception as e:
-            logger.error(f"Error validating Solana signature: {e}")
-            return False
-
-    async def _get_exchange_rate(self, source_currency: str, target_currency: str) -> float:
-        """
-        Gets the current exchange rate between two currencies using CoinGecko API.
-        
-        Args:
-            source_currency: The source currency (e.g., "ETH", "SOL")
-            target_currency: The target currency (e.g., "ETH", "SOL", "USD")
-            
-        Returns:
-            float: The exchange rate
-            
-        Raises:
-            APIError: If there's an error fetching the exchange rate
-        """
-        try:
-            if source_currency == target_currency:
-                return 1.0
-    
-            # Map our currency codes to CoinGecko IDs
-            currency_map = {
-                "ETH": "ethereum",
-                "SOL": "solana",
-                "BTC": "bitcoin",
-                "USD": "usd"
-            }
-            
-            source = currency_map.get(source_currency.upper())
-            target = currency_map.get(target_currency.upper())
-            
-            if not source or not target:
-                raise ValueError(f"Unsupported currency pair: {source_currency}-{target_currency}")
-            
-            if not self.session:
-                self.session = aiohttp.ClientSession()
-            
-            # Construct CoinGecko API URL
-            url = f"https://api.coingecko.com/api/v3/simple/price"
-            params = {
-                "ids": source,
-                "vs_currencies": target.lower(),
-                "x_cg_demo_api_key": self.api_keys.get("coingecko", "")
-            }
-            
-            async with self.session.get(url, params=params) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    logger.error(f"CoinGecko API error: Status {response.status}, Response: {error_text}")
-                    raise APIError(f"CoinGecko API error: {response.status}")
-                
-                data = await response.json()
-                if not data or source not in data:
-                    raise APIError("Invalid response from CoinGecko API")
-                
-                rate = data[source].get(target.lower())
-                if rate is None:
-                    raise APIError(f"Exchange rate not found for {source_currency}-{target_currency}")
-                
-                return float(rate)
-                
-        except Exception as e:
-            logger.error(f"Error fetching exchange rate: {e}")
-            # Return 1.0 as fallback if the currencies are the same
-            if source_currency.upper() == target_currency.upper():
-                return 1.0
-            raise APIError(f"Failed to get exchange rate: {str(e)}")
-
-    
-    # Transaction fetching methods
+    # Transaction Fetching Methods
     async def _get_transactions(
         self,
         start_tx_hash: str,
         currency: str,
         num_transactions: int
     ) -> List[Dict]:
-        """Gets transactions from the respective blockchain."""
+        """Get transactions from the respective blockchain."""
         if currency == "ETH":
             return await self._get_ethereum_transactions(start_tx_hash, num_transactions)
         elif currency == "SOL":
@@ -198,7 +120,7 @@ class CryptoTrackingService:
             raise ValueError(f"Unsupported currency: {currency}")
 
     async def _get_ethereum_transactions(self, tx_hash: str, num_transactions: int) -> List[Dict]:
-        """Fetches Ethereum transactions."""
+        """Fetch Ethereum transactions."""
         try:
             transactions = []
             current_tx_hash = tx_hash
@@ -225,17 +147,13 @@ class CryptoTrackingService:
             logger.error(f"Error fetching Ethereum transactions: {e}")
             raise
 
-    
     async def _get_solana_transactions(self, tx_hash: str, num_transactions: int) -> List[Dict]:
-        """Fetches Solana transactions."""
+        """Fetch Solana transactions."""
         try:
             transactions = []
             current_tx_hash = tx_hash
             
             for _ in range(num_transactions):
-                if not self._validate_solana_signature(current_tx_hash):
-                    raise ValueError(f"Invalid Solana signature format: {current_tx_hash}")
-                
                 tx = await self.get_cached_transaction(current_tx_hash)
                 if not tx:
                     response = await self.sol_client.get_transaction(current_tx_hash)
@@ -260,9 +178,9 @@ class CryptoTrackingService:
             logger.error(f"Error fetching Solana transactions: {e}")
             raise
 
-    # Transaction finding methods
+    # Transaction Finding Methods
     async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
-        """Finds the next Ethereum transaction for an address."""
+        """Find the next Ethereum transaction for an address."""
         try:
             tx_count = self.eth_client.eth.get_transaction_count(address)
             if tx_count > 0:
@@ -276,17 +194,9 @@ class CryptoTrackingService:
         return None
 
     async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
-        """
-        Finds the next Solana transaction for an address.
-        
-        Args:
-            address: The Solana address to check
-            
-        Returns:
-            Optional[Dict]: The next transaction if found, None otherwise
-        """
+        """Find the next Solana transaction for an address."""
         try:
-            # Get recent transactions for the address
+            # Get recent signatures for the address
             response = await self.sol_client.get_signatures_for_address(
                 address,
                 limit=1  # We only need the most recent one
@@ -295,19 +205,18 @@ class CryptoTrackingService:
             if response["result"]:
                 # Get the full transaction details
                 signature = response["result"][0]["signature"]
-                if self._validate_solana_signature(signature):
-                    tx_response = await self.sol_client.get_transaction(signature)
-                    if tx_response["result"]:
-                        return self._format_sol_transaction(tx_response["result"])
+                tx_response = await self.sol_client.get_transaction(signature)
+                if tx_response["result"]:
+                    return self._format_sol_transaction(tx_response["result"])
             
             return None
         except Exception as e:
             logger.error(f"Error finding next SOL transaction: {e}")
             return None
 
-    # Transaction formatting methods
+    # Transaction Formatting Methods
     def _format_eth_transaction(self, tx: Dict) -> Dict:
-        """Formats an Ethereum transaction."""
+        """Format an Ethereum transaction."""
         return {
             "hash": tx["hash"].hex(),
             "from_address": tx["from"],
@@ -320,7 +229,7 @@ class CryptoTrackingService:
         }
 
     def _format_sol_transaction(self, tx: Dict) -> Dict:
-        """Formats a Solana transaction."""
+        """Format a Solana transaction."""
         return {
             "hash": tx["transaction"]["signatures"][0],
             "from_address": tx["transaction"]["message"]["accountKeys"][0],
@@ -332,17 +241,17 @@ class CryptoTrackingService:
             "direction": "out"
         }
 
-    # Caching and conversion methods
+    # Caching and Conversion Methods
     async def get_cached_transaction(self, tx_hash: str) -> Optional[Dict]:
-        """Caches individual transactions."""
+        """Cache for individual transactions."""
         try:
             source_currency = self._detect_transaction_currency(tx_hash)
             if source_currency == "ETH":
                 transactions = await self._get_ethereum_transactions(tx_hash, 1)
-                return transactions[0]
+                return transactions[0] if transactions else None
             elif source_currency == "SOL":
                 transactions = await self._get_solana_transactions(tx_hash, 1)
-                return transactions[0]
+                return transactions[0] if transactions else None
             else:
                 raise ValueError("Only Ethereum and Solana transactions supported")
         except Exception as e:
@@ -355,7 +264,7 @@ class CryptoTrackingService:
         source_currency: str,
         target_currency: str
     ) -> List[Dict]:
-        """Converts transaction values to target currency."""
+        """Convert transaction values to target currency."""
         try:
             if source_currency == target_currency:
                 return transactions
@@ -376,3 +285,55 @@ class CryptoTrackingService:
         except Exception as e:
             logger.error(f"Error converting currency values: {e}")
             raise
+
+    async def _get_exchange_rate(self, source_currency: str, target_currency: str) -> float:
+        """Get current exchange rate between two currencies using CoinGecko API."""
+        try:
+            if source_currency == target_currency:
+                return 1.0
+
+            # Map currency codes to CoinGecko IDs
+            currency_map = {
+                "ETH": "ethereum",
+                "SOL": "solana",
+                "BTC": "bitcoin",
+                "USD": "usd"
+            }
+            
+            source = currency_map.get(source_currency.upper())
+            target = currency_map.get(target_currency.upper())
+            
+            if not source or not target:
+                raise ValueError(f"Unsupported currency pair: {source_currency}-{target_currency}")
+            
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+            
+            url = f"https://api.coingecko.com/api/v3/simple/price"
+            params = {
+                "ids": source,
+                "vs_currencies": target.lower(),
+                "x_cg_demo_api_key": self.api_keys.get("coingecko", "")
+            }
+            
+            async with self.session.get(url, params=params) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"CoinGecko API error: Status {response.status}, Response: {error_text}")
+                    raise APIError(f"CoinGecko API error: {response.status}")
+                
+                data = await response.json()
+                if not data or source not in data:
+                    raise APIError("Invalid response from CoinGecko API")
+                
+                rate = data[source].get(target.lower())
+                if rate is None:
+                    raise APIError(f"Exchange rate not found for {source_currency}-{target_currency}")
+                
+                return float(rate)
+                
+        except Exception as e:
+            logger.error(f"Error fetching exchange rate: {e}")
+            if source_currency.upper() == target_currency.upper():
+                return 1.0
+            raise APIError(f"Failed to get exchange rate: {str(e)}")
