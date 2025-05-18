@@ -114,6 +114,7 @@ class CryptoTrackingService:
         except Exception as e:
             logger.error(f"Error validating Solana signature: {e}")
             return False
+
     async def _get_exchange_rate(self, source_currency: str, target_currency: str) -> float:
         """
         Gets the current exchange rate between two currencies using CoinGecko API.
@@ -129,6 +130,9 @@ class CryptoTrackingService:
             APIError: If there's an error fetching the exchange rate
         """
         try:
+            if source_currency == target_currency:
+                return 1.0
+    
             # Map our currency codes to CoinGecko IDs
             currency_map = {
                 "ETH": "ethereum",
@@ -143,6 +147,9 @@ class CryptoTrackingService:
             if not source or not target:
                 raise ValueError(f"Unsupported currency pair: {source_currency}-{target_currency}")
             
+            if not self.session:
+                self.session = aiohttp.ClientSession()
+            
             # Construct CoinGecko API URL
             url = f"https://api.coingecko.com/api/v3/simple/price"
             params = {
@@ -153,6 +160,8 @@ class CryptoTrackingService:
             
             async with self.session.get(url, params=params) as response:
                 if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"CoinGecko API error: Status {response.status}, Response: {error_text}")
                     raise APIError(f"CoinGecko API error: {response.status}")
                 
                 data = await response.json()
@@ -167,7 +176,11 @@ class CryptoTrackingService:
                 
         except Exception as e:
             logger.error(f"Error fetching exchange rate: {e}")
+            # Return 1.0 as fallback if the currencies are the same
+            if source_currency.upper() == target_currency.upper():
+                return 1.0
             raise APIError(f"Failed to get exchange rate: {str(e)}")
+
     
     # Transaction fetching methods
     async def _get_transactions(
