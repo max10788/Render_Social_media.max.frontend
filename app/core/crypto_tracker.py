@@ -254,49 +254,23 @@ class CryptoTrackingService:
             "direction": "out"
         }
 
-    @lru_cache(maxsize=1000)
-    async def get_cached_transaction(self, tx_hash: str):
-        """Cache für einzelne Transaktionen"""
+@lru_cache(maxsize=1000)
+async def get_cached_transaction(self, tx_hash: str):
+    """Cache für einzelne Transaktionen"""
         try:
             source_currency = self._detect_transaction_currency(tx_hash)
             if source_currency == "ETH":
-                return await self._get_ethereum_transactions(tx_hash, 1)[0]
+                transactions = await self._get_ethereum_transactions(tx_hash, 1)
+                return transactions[0]
             elif source_currency == "SOL":
-                return await self._get_solana_transactions(tx_hash, 1)[0]
+                transactions = await self._get_solana_transactions(tx_hash, 1)
+                return transactions[0]
             else:
                 raise ValueError("Nur Ethereum und Solana Transaktionen werden unterstützt")
         except Exception as e:
             logger.error(f"Error caching transaction {tx_hash}: {e}")
             return None
-
-    async def _get_exchange_rate(self, source_currency: str, target_currency: str) -> float:
-        """
-        Holt den aktuellen Wechselkurs von CoinGecko
-        """
-        if not self.session:
-            self.session = aiohttp.ClientSession()
-            
-        try:
-            url = (
-                f"https://api.coingecko.com/api/v3/simple/price"
-                f"?ids={source_currency.lower()}"
-                f"&vs_currencies={target_currency.lower()}"
-            )
-            
-            async with self.session.get(url) as response:
-                if response.status == 429:  # Rate limit erreicht
-                    raise APIError("CoinGecko Rate-Limit erreicht")
-                    
-                data = await response.json()
-                if source_currency.lower() not in data or target_currency.lower() not in data[source_currency.lower()]:
-                    raise APIError("Wechselkurs nicht verfügbar")
-                    
-                return float(data[source_currency.lower()][target_currency.lower()])
-                
-        except Exception as e:
-            logger.error(f"Fehler beim Abrufen des Wechselkurses: {e}")
-            raise APIError(f"Fehler beim Abrufen des Wechselkurses: {str(e)}")
-
+    
     async def _convert_transaction_values(
         self,
         transactions: List[Dict],
