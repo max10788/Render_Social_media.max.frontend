@@ -154,29 +154,47 @@ class CryptoTrackingService:
             current_tx_hash = tx_hash
             
             for _ in range(num_transactions):
-                tx = await self.get_cached_transaction(current_tx_hash)
-                if not tx:
-                    response = await self.sol_client.get_transaction(current_tx_hash)
-                    if response["result"]:
-                        tx = self._format_sol_transaction(response["result"])
-                        logger.debug(f"New SOL transaction found: {tx['hash']}")
-                    else:
-                        raise TransactionNotFoundError(f"Solana transaction not found: {current_tx_hash}")
-                
-                transactions.append(tx)
-                
-                next_tx = await self._find_next_sol_transaction(tx["to_address"])
-                if not next_tx:
-                    logger.debug(f"No further SOL transaction found after {tx['hash']}")
-                    break
+                try:
+                    # Validate the transaction hash format
+                    if not re.match(r"^[1-9A-HJ-NP-Za-km-z]{87,88}$", current_tx_hash):
+                        raise ValueError(f"Invalid Solana transaction signature format: {current_tx_hash}")
                     
-                current_tx_hash = next_tx["hash"]
+                    # Get transaction from Solana
+                    response = await self.sol_client.get_transaction(
+                        tx_sig=current_tx_hash,
+                        encoding="jsonParsed"  # Add explicit encoding
+                    )
+                    
+                    if not response or "result" not in response:
+                        logger.error(f"Invalid response format from Solana API: {response}")
+                        raise TransactionNotFoundError(f"No valid response for transaction: {current_tx_hash}")
+                    
+                    result = response["result"]
+                    if not result:
+                        raise TransactionNotFoundError(f"Transaction not found: {current_tx_hash}")
+                    
+                    # Format and add the transaction
+                    tx = self._format_sol_transaction(result)
+                    logger.debug(f"New SOL transaction found: {tx['hash']}")
+                    transactions.append(tx)
+                    
+                    # Find the next transaction
+                    next_tx = await self._find_next_sol_transaction(tx["to_address"])
+                    if not next_tx:
+                        logger.debug(f"No further SOL transaction found after {tx['hash']}")
+                        break
+                        
+                    current_tx_hash = next_tx["hash"]
+                    
+                except Exception as e:
+                    logger.error(f"Error processing Solana transaction {current_tx_hash}: {str(e)}")
+                    break
             
             return transactions
-            
+                
         except Exception as e:
-            logger.error(f"Error fetching Solana transactions: {e}")
-            raise
+            logger.error(f"Error fetching Solana transactions: {str(e)}")
+            raise APIError(f"Failed to fetch Solana transactions: {str(e)}")
 
     # Transaction Finding Methods
     async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
@@ -193,26 +211,43 @@ class CryptoTrackingService:
             logger.error(f"Error finding next ETH transaction: {e}")
         return None
 
-    async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
-        """Find the next Solana transaction for an address."""
-        try:
-            # Get recent signatures for the address
-            response = await self.sol_client.get_signatures_for_address(
-                address,
-                limit=1  # We only need the most recent one
-            )
-            
-            if response["result"]:
-                # Get the full transaction details
-                signature = response["result"][0]["signature"]
-                tx_response = await self.sol_client.get_transaction(signature)
-                if tx_response["result"]:
-                    return self._format_sol_transaction(tx_response["result"])
-            
+async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
+    """Find the next Solana transaction for an address."""
+    try:
+        # Get recent signatures for the address
+        response = await self.sol_client.get_signatures_for_address(
+            account=address,
+            limit=1,
+            commitment="confirmed"
+        )
+        
+        if not response or "result" not in response:
+            logger.error(f"Invalid response from get_signatures_for_address: {response}")
             return None
-        except Exception as e:
-            logger.error(f"Error finding next SOL transaction: {e}")
+            
+        signatures = response["result"]
+        if not signatures:
             return None
+            
+        # Get the full transaction details
+        signature = signatures[0]["signature"]
+        tx_response = await self.sol_client.get_transaction(
+            tx_sig=signature,
+            encoding="jsonParsed"
+        )
+        
+        if not tx_response or "result" not in tx_response:
+            logger.error(f"Invalid response from get_transaction: {tx_response}")
+            return None
+            
+        if tx_response["result"]:
+            return self._format_sol_transaction(tx_response["result"])
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error finding next SOL transaction: {str(e)}")
+        return None
 
     # Transaction Formatting Methods
     def _format_eth_transaction(self, tx: Dict) -> Dict:
@@ -228,18 +263,91 @@ class CryptoTrackingService:
             "direction": "out"
         }
 
-    def _format_sol_transaction(self, tx: Dict) -> Dict:
-        """Format a Solana transaction."""
+def _format_sol_transaction(self, tx: Dict) -> Dict:
+    """Format a Solana transaction."""
+    try:
+        if not tx or "transaction" not in tx or "meta" not in tx:
+            raise ValueError("Invalid transaction data structure")
+            
+        transaction = tx["transaction"]
+        meta = tx["meta"]
+        
+        if not transaction.get("signatures"):
+            raise ValueError("No signatures found in transaction")
+            
+        # Get the first signature as the transaction hash
+        tx_hash = transaction["signatures"][0]
+        
+        # Get the account keys
+        message = transaction.get("message", {})
+        account_keys = message.get("accountKeys", [])
+        if len(account_keys) < 2:
+            raise ValueError("Insufficient account keys in transaction")
+            
+        # Calculate the amount (difference in balances)
+        pre_balances = meta.get("preBalances", [0, 0])
+        post_balances = meta.get("postBalances", [0, 0])
+        if len(pre_balances) < 2 or len(post_balances) < 2:
+            raise ValueError("Invalid balance data in transaction")
+            
+        amount = (post_balances[1] - pre_balances[1]) / 1e9  # Convert lamports to SOL
+        
         return {
-            "hash": tx["transaction"]["signatures"][0],
-            "from_address": tx["transaction"]["message"]["accountKeys"][0],
-            "to_address": tx["transaction"]["message"]["accountKeys"][1],
-            "amount": float(tx["meta"]["postBalances"][1] - tx["meta"]["preBalances"][1]) / 1e9,
-            "fee": float(tx["meta"]["fee"]) / 1e9,
-            "timestamp": tx["blockTime"],
+            "hash": tx_hash,
+            "from_address": account_keys[0],
+            "to_address": account_keys[1],
+            "amount": abs(amount),  # Use absolute value for consistent reporting
+            "fee": float(meta.get("fee", 0)) / 1e9,  # Convert lamports to SOL
+            "timestamp": tx.get("blockTime", int(datetime.now().timestamp())),
             "currency": "SOL",
             "direction": "out"
         }
+    except Exception as e:
+        logger.error(f"Error formatting Solana transaction: {str(e)}")
+        raise ValueError(f"Failed to format Solana transaction: {str(e)}")
+
+    def _format_sol_transaction(self, tx: Dict) -> Dict:
+        """Format a Solana transaction."""
+        try:
+            if not tx or "transaction" not in tx or "meta" not in tx:
+                raise ValueError("Invalid transaction data structure")
+                
+            transaction = tx["transaction"]
+            meta = tx["meta"]
+            
+            if not transaction.get("signatures"):
+                raise ValueError("No signatures found in transaction")
+                
+            # Get the first signature as the transaction hash
+            tx_hash = transaction["signatures"][0]
+            
+            # Get the account keys
+            message = transaction.get("message", {})
+            account_keys = message.get("accountKeys", [])
+            if len(account_keys) < 2:
+                raise ValueError("Insufficient account keys in transaction")
+                
+            # Calculate the amount (difference in balances)
+            pre_balances = meta.get("preBalances", [0, 0])
+            post_balances = meta.get("postBalances", [0, 0])
+            if len(pre_balances) < 2 or len(post_balances) < 2:
+                raise ValueError("Invalid balance data in transaction")
+                
+            amount = (post_balances[1] - pre_balances[1]) / 1e9  # Convert lamports to SOL
+            
+            return {
+                "hash": tx_hash,
+                "from_address": account_keys[0],
+                "to_address": account_keys[1],
+                "amount": abs(amount),  # Use absolute value for consistent reporting
+                "fee": float(meta.get("fee", 0)) / 1e9,  # Convert lamports to SOL
+                "timestamp": tx.get("blockTime", int(datetime.now().timestamp())),
+                "currency": "SOL",
+                "direction": "out"
+            }
+        except Exception as e:
+            logger.error(f"Error formatting Solana transaction: {str(e)}")
+            raise ValueError(f"Failed to format Solana transaction: {str(e)}")
 
     # Caching and Conversion Methods
     async def get_cached_transaction(self, tx_hash: str) -> Optional[Dict]:
