@@ -265,7 +265,7 @@ class CryptoTrackingService:
                     return transactions[0]
                 else:
                     raise ValueError("Nur Ethereum und Solana Transaktionen werden unterstützt")
-            except Exception as e:
+        except Exception as e:
                 logger.error(f"Error caching transaction {tx_hash}: {e}")
                 return None
     
