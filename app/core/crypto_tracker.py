@@ -1,19 +1,20 @@
 from typing import Dict, List, Optional
 import logging
 from datetime import datetime
-#from functools import lru_cache # Removed lru_cache
 import json
 import re
 from web3 import Web3
 from solana.rpc.api import Client as SolanaClient
-from solana.core.transaction import TransactionSignature  # Import TransactionSignature
 import aiohttp
+import base58
 from app.core.config import settings
 from app.core.exceptions import CryptoTrackerError, APIError, TransactionNotFoundError
 
 logger = logging.getLogger(__name__)
 
 class CryptoTrackingService:
+    """Service for tracking cryptocurrency transactions across different blockchains."""
+    
     def __init__(self, api_keys: Optional[Dict[str, str]] = None):
         if api_keys is None:
             api_keys = {
@@ -21,13 +22,14 @@ class CryptoTrackingService:
                 "coingecko": settings.COINGECKO_API_KEY,
             }
         self.api_keys = api_keys
-        self.cache_ttl = 3600  # 1 Stunde Cache-Zeit
+        self.cache_ttl = 3600  # 1 hour cache time
         
         # Initialize blockchain clients
         self.eth_client = Web3(Web3.HTTPProvider(settings.ETHEREUM_RPC_URL))
         self.sol_client = SolanaClient(settings.SOLANA_RPC_URL)
         self.session = None
 
+    # Context manager methods
     async def __aenter__(self):
         self.session = aiohttp.ClientSession()
         return self
@@ -36,32 +38,7 @@ class CryptoTrackingService:
         if self.session:
             await self.session.close()
 
-    def _detect_transaction_currency(self, tx_hash: str) -> str:
-        """
-        Erkennt die Währung anhand des Transaction-Hash-Formats
-        
-        Args:
-            tx_hash: Der Transaction-Hash als String
-            
-        Returns:
-            str: "ETH" für Ethereum oder "SOL" für Solana
-            
-        Raises:
-            ValueError: Wenn das Format nicht erkannt wird
-        """
-        # Ethereum: 0x gefolgt von 64 Hex-Zeichen
-        if re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
-            return "ETH"
-        
-        # Solana: Base58-String, variable Länge
-        if re.match(r"^[1-9A-HJ-NP-Za-km-z]{43,90}$", tx_hash):
-            return "SOL"
-        
-        raise ValueError(
-            f"Nicht unterstütztes Transaction-Hash-Format: {tx_hash}. "
-            "Nur Ethereum (0x + 64 Hex-Zeichen) und Solana (Base58-String) werden unterstützt."
-        )
-
+    # Main public method
     async def track_transaction_chain(
         self,
         start_tx_hash: str,
@@ -69,30 +46,27 @@ class CryptoTrackingService:
         num_transactions: int = 10
     ) -> Dict:
         """
-        Verfolgt eine Kette von Transaktionen.
+        Tracks a chain of transactions.
         
         Args:
-            start_tx_hash: Hash der Ausgangstransaktion
-            target_currency: Zielwährung für die Konvertierung
-            num_transactions: Maximale Anzahl zu verfolgender Transaktionen
+            start_tx_hash: Initial transaction hash
+            target_currency: Target currency for conversion
+            num_transactions: Maximum number of transactions to track
             
         Returns:
-            Dict mit Transaktionsdaten
+            Dict containing transaction data
         """
         try:
-            # Ermittle die Ausgangswährung
             source_currency = self._detect_transaction_currency(start_tx_hash)
-            logger.info(f"Erkannte Währung für {start_tx_hash}: {source_currency}")
+            logger.info(f"Detected currency for {start_tx_hash}: {source_currency}")
             
-            # Hole Transaktionen basierend auf der Währung
             transactions = await self._get_transactions(
                 start_tx_hash,
                 source_currency,
                 num_transactions
             )
-            logger.info(f"Gefundene Transaktionen: {len(transactions)}")
+            logger.info(f"Found transactions: {len(transactions)}")
             
-            # Konvertiere Werte in Zielwährung
             converted_transactions = await self._convert_transaction_values(
                 transactions,
                 source_currency,
@@ -109,48 +83,72 @@ class CryptoTrackingService:
             }
             
         except Exception as e:
-            logger.error(f"Fehler beim Tracking von {start_tx_hash}: {e}")
+            logger.error(f"Error tracking {start_tx_hash}: {e}")
             if "not found" in str(e).lower():
-                raise TransactionNotFoundError(f"Transaktion {start_tx_hash} nicht gefunden")
-            raise APIError(f"API-Fehler: {str(e)}")
+                raise TransactionNotFoundError(f"Transaction {start_tx_hash} not found")
+            raise APIError(f"API Error: {str(e)}")
 
+    # Currency detection and validation methods
+    def _detect_transaction_currency(self, tx_hash: str) -> str:
+        """Detects currency based on transaction hash format."""
+        # Ethereum: 0x followed by 64 hex characters
+        if re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
+            return "ETH"
+        
+        # Solana: Base58 string, variable length
+        if re.match(r"^[1-9A-HJ-NP-Za-km-z]{43,90}$", tx_hash):
+            return "SOL"
+        
+        raise ValueError(
+            f"Unsupported transaction hash format: {tx_hash}. "
+            "Only Ethereum (0x + 64 hex chars) and Solana (Base58 string) supported."
+        )
+
+    def _validate_solana_signature(self, signature: str) -> bool:
+        """Validates if a string is a valid Solana transaction signature."""
+        try:
+            if not isinstance(signature, str):
+                return False
+            
+            decoded = base58.b58decode(signature)
+            return len(decoded) == 64
+        except Exception as e:
+            logger.error(f"Error validating Solana signature: {e}")
+            return False
+
+    # Transaction fetching methods
     async def _get_transactions(
         self,
         start_tx_hash: str,
         currency: str,
         num_transactions: int
     ) -> List[Dict]:
-        """
-        Holt Transaktionen von der jeweiligen Blockchain
-        """
+        """Gets transactions from the respective blockchain."""
         if currency == "ETH":
             return await self._get_ethereum_transactions(start_tx_hash, num_transactions)
         elif currency == "SOL":
             return await self._get_solana_transactions(start_tx_hash, num_transactions)
         else:
-            raise ValueError(f"Nicht unterstützte Währung: {currency}")
+            raise ValueError(f"Unsupported currency: {currency}")
 
     async def _get_ethereum_transactions(self, tx_hash: str, num_transactions: int) -> List[Dict]:
-        """Holt Ethereum-Transaktionen"""
+        """Fetches Ethereum transactions."""
         try:
             transactions = []
             current_tx_hash = tx_hash
             
             for _ in range(num_transactions):
-                # Versuche zuerst aus dem Cache zu laden
                 tx = await self.get_cached_transaction(current_tx_hash)
                 if not tx:
-                    # Wenn nicht im Cache, hole von der Blockchain
                     raw_tx = self.eth_client.eth.get_transaction(current_tx_hash)
                     tx = self._format_eth_transaction(raw_tx)
-                    logger.debug(f"Neue ETH-Transaktion gefunden: {tx['hash']}")
+                    logger.debug(f"New ETH transaction found: {tx['hash']}")
                 
                 transactions.append(tx)
                 
-                # Suche nach der nächsten verknüpften Transaktion
                 next_tx = await self._find_next_eth_transaction(tx["to_address"])
                 if not next_tx:
-                    logger.debug(f"Keine weitere ETH-Transaktion gefunden nach {tx['hash']}")
+                    logger.debug(f"No further ETH transaction found after {tx['hash']}")
                     break
                     
                 current_tx_hash = next_tx["hash"]
@@ -158,38 +156,33 @@ class CryptoTrackingService:
             return transactions
             
         except Exception as e:
-            logger.error(f"Fehler beim Abrufen der Ethereum-Transaktionen: {e}")
+            logger.error(f"Error fetching Ethereum transactions: {e}")
             raise
 
     async def _get_solana_transactions(self, tx_hash: str, num_transactions: int) -> List[Dict]:
-        """Holt Solana-Transaktionen"""
+        """Fetches Solana transactions."""
         try:
             transactions = []
             current_tx_hash = tx_hash
             
             for _ in range(num_transactions):
-                # Convert tx_hash to the appropriate type if required
-                #tx = await self.get_cached_transaction(current_tx_hash) # Removed caching
-                #if not tx:
-                    # If not cached, fetch from blockchain
-                try:
-                    signature = TransactionSignature(current_tx_hash) # Convert to TransactionSignature object
-                    response = await self.sol_client.get_transaction(signature)
+                if not self._validate_solana_signature(current_tx_hash):
+                    raise ValueError(f"Invalid Solana signature format: {current_tx_hash}")
+                
+                tx = await self.get_cached_transaction(current_tx_hash)
+                if not tx:
+                    response = await self.sol_client.get_transaction(current_tx_hash)
                     if response["result"]:
                         tx = self._format_sol_transaction(response["result"])
-                        logger.debug(f"Neue SOL-Transaktion gefunden: {tx['hash']}")
+                        logger.debug(f"New SOL transaction found: {tx['hash']}")
                     else:
-                        raise TransactionNotFoundError(f"Solana-Transaktion nicht gefunden: {current_tx_hash}")
-                except Exception as e:
-                    logger.error(f"Error getting solana transaction: {e}")
-                    raise
+                        raise TransactionNotFoundError(f"Solana transaction not found: {current_tx_hash}")
                 
                 transactions.append(tx)
                 
-                # Find the next linked transaction
                 next_tx = await self._find_next_sol_transaction(tx["to_address"])
                 if not next_tx:
-                    logger.debug(f"Keine weitere SOL-Transaktion gefunden nach {tx['hash']}")
+                    logger.debug(f"No further SOL transaction found after {tx['hash']}")
                     break
                     
                 current_tx_hash = next_tx["hash"]
@@ -197,11 +190,12 @@ class CryptoTrackingService:
             return transactions
             
         except Exception as e:
-            logger.error(f"Fehler beim Abrufen der Solana-Transaktionen: {e}")
+            logger.error(f"Error fetching Solana transactions: {e}")
             raise
 
+    # Transaction finding methods
     async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
-        """Findet die nächste Ethereum-Transaktion für eine Adresse"""
+        """Finds the next Ethereum transaction for an address."""
         try:
             tx_count = self.eth_client.eth.get_transaction_count(address)
             if tx_count > 0:
@@ -211,27 +205,33 @@ class CryptoTrackingService:
                 )
                 return self._format_eth_transaction(latest_tx)
         except Exception as e:
-            logger.error(f"Fehler beim Suchen der nächsten ETH-Transaktion: {e}")
+            logger.error(f"Error finding next ETH transaction: {e}")
         return None
 
-    async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
-        """Findet die nächste Ethereum-Transaktion für eine Adresse"""
+    async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
+        """Finds the next Solana transaction for an address."""
         try:
-            tx_count = self.eth_client.eth.get_transaction_count(address)
-            if tx_count > 0:
-                latest_tx = self.eth_client.eth.get_transaction_by_block_number_and_index(
-                    self.eth_client.eth.block_number, 
-                    tx_count - 1
-                )
-                return self._format_eth_transaction(latest_tx)
+            # Get recent transactions for the address using getSignaturesForAddress
+            response = await self.sol_client.get_signatures_for_address(
+                address,
+                limit=1  # We only need the most recent one
+            )
+            
+            if response["result"]:
+                # Get the full transaction details
+                signature = response["result"][0]["signature"]
+                tx_response = await self.sol_client.get_transaction(signature)
+                if tx_response["result"]:
+                    return self._format_sol_transaction(tx_response["result"])
+            
+            return None
         except Exception as e:
-            logger.error(f"Fehler beim Suchen der nächsten ETH-Transaktion: {e}")
-        return None
-    
+            logger.error(f"Error finding next SOL transaction: {e}")
+            return None
+
+    # Transaction formatting methods
     def _format_eth_transaction(self, tx: Dict) -> Dict:
-        """
-        Formatiert eine Ethereum-Transaktion
-        """
+        """Formats an Ethereum transaction."""
         return {
             "hash": tx["hash"].hex(),
             "from_address": tx["from"],
@@ -244,9 +244,7 @@ class CryptoTrackingService:
         }
 
     def _format_sol_transaction(self, tx: Dict) -> Dict:
-        """
-        Formatiert eine Solana-Transaktion
-        """
+        """Formats a Solana transaction."""
         return {
             "hash": tx["transaction"]["signatures"][0],
             "from_address": tx["transaction"]["message"]["accountKeys"][0],
@@ -258,9 +256,9 @@ class CryptoTrackingService:
             "direction": "out"
         }
 
-#    @lru_cache(maxsize=1000) # Removed lru_cache
-    async def get_cached_transaction(self, tx_hash: str):
-        """Cache für einzelne Transaktionen"""
+    # Caching and conversion methods
+    async def get_cached_transaction(self, tx_hash: str) -> Optional[Dict]:
+        """Caches individual transactions."""
         try:
             source_currency = self._detect_transaction_currency(tx_hash)
             if source_currency == "ETH":
@@ -270,24 +268,24 @@ class CryptoTrackingService:
                 transactions = await self._get_solana_transactions(tx_hash, 1)
                 return transactions[0]
             else:
-                raise ValueError("Nur Ethereum und Solana Transaktionen werden unterstützt")
+                raise ValueError("Only Ethereum and Solana transactions supported")
         except Exception as e:
             logger.error(f"Error caching transaction {tx_hash}: {e}")
             return None
-    
+
     async def _convert_transaction_values(
         self,
         transactions: List[Dict],
         source_currency: str,
         target_currency: str
     ) -> List[Dict]:
-        """Konvertiert Transaktionswerte in die Zielwährung"""
+        """Converts transaction values to target currency."""
         try:
             if source_currency == target_currency:
                 return transactions
                 
             rate = await self._get_exchange_rate(source_currency, target_currency)
-            logger.info(f"Wechselkurs {source_currency} -> {target_currency}: {rate}")
+            logger.info(f"Exchange rate {source_currency} -> {target_currency}: {rate}")
             
             for tx in transactions:
                 if "value" in tx:
@@ -300,5 +298,5 @@ class CryptoTrackingService:
             return transactions
             
         except Exception as e:
-            logger.error(f"Fehler bei der Währungsumrechnung: {e}")
+            logger.error(f"Error converting currency values: {e}")
             raise
