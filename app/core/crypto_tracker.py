@@ -167,10 +167,10 @@ class CryptoTrackingService:
             current_tx_hash = tx_hash
             
             for _ in range(num_transactions):
-                # Versuche zuerst aus dem Cache zu laden
+                # Convert tx_hash to the appropriate type if required
                 tx = await self.get_cached_transaction(current_tx_hash)
                 if not tx:
-                    # Wenn nicht im Cache, hole von der Blockchain
+                    # If not cached, fetch from blockchain
                     response = await self.sol_client.get_transaction(current_tx_hash)
                     if response["result"]:
                         tx = self._format_sol_transaction(response["result"])
@@ -180,7 +180,7 @@ class CryptoTrackingService:
                 
                 transactions.append(tx)
                 
-                # Suche nach der nächsten verknüpften Transaktion
+                # Find the next linked transaction
                 next_tx = await self._find_next_sol_transaction(tx["to_address"])
                 if not next_tx:
                     logger.debug(f"Keine weitere SOL-Transaktion gefunden nach {tx['hash']}")
@@ -194,7 +194,7 @@ class CryptoTrackingService:
             logger.error(f"Fehler beim Abrufen der Solana-Transaktionen: {e}")
             raise
 
-    async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
+        async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
         """Findet die nächste Ethereum-Transaktion für eine Adresse"""
         try:
             tx_count = self.eth_client.eth.get_transaction_count(address)
