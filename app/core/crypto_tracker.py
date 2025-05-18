@@ -208,22 +208,20 @@ class CryptoTrackingService:
             logger.error(f"Fehler beim Suchen der nächsten ETH-Transaktion: {e}")
         return None
 
-    async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
-        """Findet die nächste Solana-Transaktion für eine Adresse"""
+    async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
+        """Findet die nächste Ethereum-Transaktion für eine Adresse"""
         try:
-            response = await self.sol_client.get_signatures_for_address(
-                address,
-                limit=1
-            )
-            if response["result"]:
-                tx_sig = response["result"][0]["signature"]
-                tx_response = await self.sol_client.get_transaction(tx_sig)
-                if tx_response["result"]:
-                    return self._format_sol_transaction(tx_response["result"])
+            tx_count = self.eth_client.eth.get_transaction_count(address)
+            if tx_count > 0:
+                latest_tx = self.eth_client.eth.get_transaction_by_block_number_and_index(
+                    self.eth_client.eth.block_number, 
+                    tx_count - 1
+                )
+                return self._format_eth_transaction(latest_tx)
         except Exception as e:
-            logger.error(f"Fehler beim Suchen der nächsten SOL-Transaktion: {e}")
+            logger.error(f"Fehler beim Suchen der nächsten ETH-Transaktion: {e}")
         return None
-
+    
     def _format_eth_transaction(self, tx: Dict) -> Dict:
         """
         Formatiert eine Ethereum-Transaktion
