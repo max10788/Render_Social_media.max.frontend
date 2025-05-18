@@ -255,7 +255,7 @@ class CryptoTrackingService:
     @lru_cache(maxsize=1000)
     async def get_cached_transaction(self, tx_hash: str):
         """Cache für einzelne Transaktionen"""
-            try:
+        try:
                 source_currency = self._detect_transaction_currency(tx_hash)
                 if source_currency == "ETH":
                     transactions = await self._get_ethereum_transactions(tx_hash, 1)
