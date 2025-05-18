@@ -33,7 +33,7 @@ class CryptoTrackingService:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
-            await self.session.close(
+            await self.session.close()
 
     # Main public method
     async def track_transaction_chain(
