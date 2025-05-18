@@ -6,7 +6,6 @@ import re
 from web3 import Web3
 from solana.rpc.api import Client as SolanaClient
 import aiohttp
-import base58
 from app.core.config import settings
 from app.core.exceptions import CryptoTrackerError, APIError, TransactionNotFoundError
 
