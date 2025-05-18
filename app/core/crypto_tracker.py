@@ -252,22 +252,22 @@ class CryptoTrackingService:
             "direction": "out"
         }
 
-@lru_cache(maxsize=1000)
-async def get_cached_transaction(self, tx_hash: str):
-    """Cache für einzelne Transaktionen"""
-        try:
-            source_currency = self._detect_transaction_currency(tx_hash)
-            if source_currency == "ETH":
-                transactions = await self._get_ethereum_transactions(tx_hash, 1)
-                return transactions[0]
-            elif source_currency == "SOL":
-                transactions = await self._get_solana_transactions(tx_hash, 1)
-                return transactions[0]
-            else:
-                raise ValueError("Nur Ethereum und Solana Transaktionen werden unterstützt")
-        except Exception as e:
-            logger.error(f"Error caching transaction {tx_hash}: {e}")
-            return None
+    @lru_cache(maxsize=1000)
+    async def get_cached_transaction(self, tx_hash: str):
+        """Cache für einzelne Transaktionen"""
+            try:
+                source_currency = self._detect_transaction_currency(tx_hash)
+                if source_currency == "ETH":
+                    transactions = await self._get_ethereum_transactions(tx_hash, 1)
+                    return transactions[0]
+                elif source_currency == "SOL":
+                    transactions = await self._get_solana_transactions(tx_hash, 1)
+                    return transactions[0]
+                else:
+                    raise ValueError("Nur Ethereum und Solana Transaktionen werden unterstützt")
+            except Exception as e:
+                logger.error(f"Error caching transaction {tx_hash}: {e}")
+                return None
     
     async def _convert_transaction_values(
         self,
