@@ -194,7 +194,7 @@ class CryptoTrackingService:
             logger.error(f"Fehler beim Abrufen der Solana-Transaktionen: {e}")
             raise
 
-        async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
+    async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
         """Findet die nächste Ethereum-Transaktion für eine Adresse"""
         try:
             tx_count = self.eth_client.eth.get_transaction_count(address)
