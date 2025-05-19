@@ -389,22 +389,51 @@ class CryptoTrackingService:
 
     def _format_sol_transaction(self, tx: Dict) -> Dict:
         try:
-            if not tx or "transaction" not in tx or "meta" not in tx:
-                raise ValueError("Invalid transaction data structure")
+            # Wenn tx ein String ist, in Dict umwandeln
+            if isinstance(tx, str):
+                try:
+                    tx = json.loads(tx)
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"Invalid JSON data received: {e}")
+    
+            # Prüfen, ob wir Zugriff auf transaction und meta haben
+            if not isinstance(tx, dict):
+                raise ValueError("Transaction data is not a dictionary")
+    
+            # Für neue solders-Versionen mit .value.to_json()
+            if "result" in tx and isinstance(tx["result"], str):
+                try:
+                    tx = json.loads(tx["result"])
+                except json.JSONDecodeError:
+                    raise ValueError("Failed to parse result field as JSON")
+    
+            # Prüfung ob die benötigten Felder vorhanden sind
+            if "transaction" not in tx or "meta" not in tx:
+                raise ValueError("Missing required fields in transaction data")
+    
             transaction = tx["transaction"]
             meta = tx["meta"]
+    
+            # Signatures prüfen
             if not transaction.get("signatures"):
                 raise ValueError("No signatures found in transaction")
+    
             tx_hash = transaction["signatures"][0]
+    
+            # Account Keys extrahieren
             message = transaction.get("message", {})
             account_keys = message.get("accountKeys", [])
             if len(account_keys) < 2:
                 raise ValueError("Insufficient account keys in transaction")
+    
+            # Balances verarbeiten
             pre_balances = meta.get("preBalances", [0, 0])
             post_balances = meta.get("postBalances", [0, 0])
             if len(pre_balances) < 2 or len(post_balances) < 2:
                 raise ValueError("Invalid balance data in transaction")
+    
             amount = (post_balances[1] - pre_balances[1]) / 1e9
+    
             return {
                 "hash": tx_hash,
                 "from_address": account_keys[0],
@@ -415,6 +444,7 @@ class CryptoTrackingService:
                 "currency": "SOL",
                 "direction": "out"
             }
+    
         except Exception as e:
             logger.error(f"Error formatting Solana transaction: {str(e)}", exc_info=True)
             raise ValueError(f"Failed to format Solana transaction: {str(e)}")
