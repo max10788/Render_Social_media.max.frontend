@@ -6,7 +6,7 @@ psycopg2-binary==2.9.9
 redis==4.6.0
 vaderSentiment==3.3.2
 pytest==7.4.0
-pytest-asyncio==0.21.0  # Für asynchrone Tests
+pytest-asyncio==0.21.0
 pydantic==1.10.12
 python-dotenv==1.0.0
 jinja2==3.1.2
@@ -17,9 +17,14 @@ textblob==0.15.3
 numpy==1.23.5
 aiohttp==3.9.1
 langdetect==1.0.9
-celery==5.3.4  # Für Hintergrundaufgaben
-flower==1.2.0  # Monitoring von Celery-Aufgaben
+celery==5.3.4
+flower==1.2.0
 flask-cors
-web3>=6.0.0
+web3==5.31.1
 python-bitcoinrpc==1.0
 solana==0.29.1
+# Optional dev/debugging tools
+loguru==0.7.2
+python-multipart==0.0.6
+email-validator==2.1.0
+gunicorn==21.2.0
