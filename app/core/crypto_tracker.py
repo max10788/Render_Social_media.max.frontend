@@ -162,7 +162,7 @@ class CryptoTrackingService:
                     # Get transaction from Solana
                     response = await self.sol_client.get_transaction(
                         tx_sig=current_tx_hash,
-                        encoding="jsonParsed"  # Add explicit encoding
+                        encoding="jsonParsed"
                     )
                     
                     if not response or "result" not in response:
@@ -175,13 +175,11 @@ class CryptoTrackingService:
                     
                     # Format and add the transaction
                     tx = self._format_sol_transaction(result)
-                    logger.debug(f"New SOL transaction found: {tx['hash']}")
                     transactions.append(tx)
                     
                     # Find the next transaction
                     next_tx = await self._find_next_sol_transaction(tx["to_address"])
                     if not next_tx:
-                        logger.debug(f"No further SOL transaction found after {tx['hash']}")
                         break
                         
                     current_tx_hash = next_tx["hash"]
@@ -195,7 +193,6 @@ class CryptoTrackingService:
         except Exception as e:
             logger.error(f"Error fetching Solana transactions: {str(e)}")
             raise APIError(f"Failed to fetch Solana transactions: {str(e)}")
-
     # Transaction Finding Methods
     async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
         """Find the next Ethereum transaction for an address."""
