@@ -1,3 +1,5 @@
+# crypto_tracker.py
+
 from typing import Dict, List, Optional
 import logging
 import re
@@ -7,7 +9,7 @@ from solders.signature import Signature
 from web3 import Web3
 import aiohttp
 from app.core.config import settings
-from app.core.exceptions import CryptoTrackerError, APIError, TransactionNotFoundError
+from app.core.exceptions import APIError, TransactionNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +45,13 @@ class CryptoTrackingService:
             source_currency = self._detect_transaction_currency(start_tx_hash)
             logger.info(f"Detected currency for {start_tx_hash}: {source_currency}")
 
-            transactions = await self._get_transactions(start_tx_hash, source_currency, num_transactions)
-
+            transactions = await self._get_transactions(
+                start_tx_hash, source_currency, num_transactions
+            )
             if not transactions:
-                raise TransactionNotFoundError(f"No transactions found starting from {start_tx_hash}")
-
-            logger.info(f"Found transactions: {len(transactions)}")
+                raise TransactionNotFoundError(
+                    f"No transactions found starting from {start_tx_hash}"
+                )
 
             converted_transactions = await self._convert_transaction_values(
                 transactions, source_currency, target_currency
@@ -65,10 +68,7 @@ class CryptoTrackingService:
 
         except Exception as e:
             logger.error(f"Error tracking {start_tx_hash}: {e}", exc_info=True)
-            if isinstance(e, (TransactionNotFoundError, APIError)):
-                raise
-            else:
-                raise APIError(f"Error tracking transactions: {str(e)}")
+            raise
 
     def _detect_transaction_currency(self, tx_hash: str) -> str:
         if re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
@@ -99,11 +99,9 @@ class CryptoTrackingService:
                 if not tx:
                     raw_tx = self.eth_client.eth.get_transaction(current_tx_hash)
                     tx = self._format_eth_transaction(raw_tx)
-                    logger.debug(f"New ETH transaction found: {tx['hash']}")
                 transactions.append(tx)
                 next_tx = await self._find_next_eth_transaction(tx["to_address"])
                 if not next_tx:
-                    logger.debug(f"No further ETH transaction found after {tx['hash']}")
                     break
                 current_tx_hash = next_tx["hash"]
             return transactions
@@ -119,7 +117,7 @@ class CryptoTrackingService:
 
             for _ in range(num_transactions):
                 if current_tx_hash in processed_hashes:
-                    logger.warning(f"Detected loop in transaction chain. Breaking loop.")
+                    logger.warning("Detected loop in transaction chain. Breaking loop.")
                     break
                 processed_hashes.add(current_tx_hash)
 
@@ -132,20 +130,14 @@ class CryptoTrackingService:
                 )
 
                 if not response or "result" not in response:
-                    logger.error(f"Invalid response format from Solana API: {response}")
                     raise TransactionNotFoundError(f"No valid response for transaction: {current_tx_hash}")
 
                 result = response["result"]
-                if not result:
-                    raise TransactionNotFoundError(f"Transaction not found: {current_tx_hash}")
-
                 tx = self._format_sol_transaction(result)
-                logger.debug(f"New SOL transaction found: {tx['hash']}")
                 transactions.append(tx)
 
                 next_tx = await self._find_next_sol_transaction(tx["to_address"])
                 if not next_tx:
-                    logger.debug(f"No further SOL transaction found after {tx['hash']}")
                     break
                 current_tx_hash = next_tx["hash"]
 
@@ -155,7 +147,6 @@ class CryptoTrackingService:
             raise APIError(f"Failed to fetch Solana transactions: {str(e)}")
 
     async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
-        """Find the next Solana transaction for an address."""
         try:
             response = await self.sol_client.get_signatures_for_address(
                 account=address,
@@ -163,7 +154,6 @@ class CryptoTrackingService:
                 commitment="confirmed"
             )
             if not response or "result" not in response:
-                logger.error(f"Invalid response from get_signatures_for_address: {response}")
                 return None
 
             signatures = response["result"]
@@ -179,13 +169,9 @@ class CryptoTrackingService:
             )
 
             if not tx_response or "result" not in tx_response:
-                logger.error(f"Invalid response from get_transaction: {tx_response}")
                 return None
 
-            if tx_response["result"]:
-                return self._format_sol_transaction(tx_response["result"])
-
-            return None
+            return self._format_sol_transaction(tx_response["result"])
 
         except Exception as e:
             logger.error(f"Error finding next SOL transaction: {str(e)}", exc_info=True)
