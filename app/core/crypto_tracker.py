@@ -306,49 +306,6 @@ def _format_sol_transaction(self, tx: Dict) -> Dict:
         logger.error(f"Error formatting Solana transaction: {str(e)}")
         raise ValueError(f"Failed to format Solana transaction: {str(e)}")
 
-    def _format_sol_transaction(self, tx: Dict) -> Dict:
-        """Format a Solana transaction."""
-        try:
-            if not tx or "transaction" not in tx or "meta" not in tx:
-                raise ValueError("Invalid transaction data structure")
-                
-            transaction = tx["transaction"]
-            meta = tx["meta"]
-            
-            if not transaction.get("signatures"):
-                raise ValueError("No signatures found in transaction")
-                
-            # Get the first signature as the transaction hash
-            tx_hash = transaction["signatures"][0]
-            
-            # Get the account keys
-            message = transaction.get("message", {})
-            account_keys = message.get("accountKeys", [])
-            if len(account_keys) < 2:
-                raise ValueError("Insufficient account keys in transaction")
-                
-            # Calculate the amount (difference in balances)
-            pre_balances = meta.get("preBalances", [0, 0])
-            post_balances = meta.get("postBalances", [0, 0])
-            if len(pre_balances) < 2 or len(post_balances) < 2:
-                raise ValueError("Invalid balance data in transaction")
-                
-            amount = (post_balances[1] - pre_balances[1]) / 1e9  # Convert lamports to SOL
-            
-            return {
-                "hash": tx_hash,
-                "from_address": account_keys[0],
-                "to_address": account_keys[1],
-                "amount": abs(amount),  # Use absolute value for consistent reporting
-                "fee": float(meta.get("fee", 0)) / 1e9,  # Convert lamports to SOL
-                "timestamp": tx.get("blockTime", int(datetime.now().timestamp())),
-                "currency": "SOL",
-                "direction": "out"
-            }
-        except Exception as e:
-            logger.error(f"Error formatting Solana transaction: {str(e)}")
-            raise ValueError(f"Failed to format Solana transaction: {str(e)}")
-
     # Caching and Conversion Methods
     async def get_cached_transaction(self, tx_hash: str) -> Optional[Dict]:
         """Cache for individual transactions."""
