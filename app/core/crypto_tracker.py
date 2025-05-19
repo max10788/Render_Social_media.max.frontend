@@ -211,43 +211,43 @@ class CryptoTrackingService:
             logger.error(f"Error finding next ETH transaction: {e}")
         return None
 
-async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
-    """Find the next Solana transaction for an address."""
-    try:
-        # Get recent signatures for the address
-        response = await self.sol_client.get_signatures_for_address(
-            account=address,
-            limit=1,
-            commitment="confirmed"
-        )
-        
-        if not response or "result" not in response:
-            logger.error(f"Invalid response from get_signatures_for_address: {response}")
+    async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
+        """Find the next Solana transaction for an address."""
+        try:
+            # Get recent signatures for the address
+            response = await self.sol_client.get_signatures_for_address(
+                account=address,
+                limit=1,
+                commitment="confirmed"
+            )
+            
+            if not response or "result" not in response:
+                logger.error(f"Invalid response from get_signatures_for_address: {response}")
+                return None
+                
+            signatures = response["result"]
+            if not signatures:
+                return None
+                
+            # Get the full transaction details
+            signature = signatures[0]["signature"]
+            tx_response = await self.sol_client.get_transaction(
+                tx_sig=signature,
+                encoding="jsonParsed"
+            )
+            
+            if not tx_response or "result" not in tx_response:
+                logger.error(f"Invalid response from get_transaction: {tx_response}")
+                return None
+                
+            if tx_response["result"]:
+                return self._format_sol_transaction(tx_response["result"])
+            
             return None
             
-        signatures = response["result"]
-        if not signatures:
+        except Exception as e:
+            logger.error(f"Error finding next SOL transaction: {str(e)}")
             return None
-            
-        # Get the full transaction details
-        signature = signatures[0]["signature"]
-        tx_response = await self.sol_client.get_transaction(
-            tx_sig=signature,
-            encoding="jsonParsed"
-        )
-        
-        if not tx_response or "result" not in tx_response:
-            logger.error(f"Invalid response from get_transaction: {tx_response}")
-            return None
-            
-        if tx_response["result"]:
-            return self._format_sol_transaction(tx_response["result"])
-        
-        return None
-        
-    except Exception as e:
-        logger.error(f"Error finding next SOL transaction: {str(e)}")
-        return None
 
     # Transaction Formatting Methods
     def _format_eth_transaction(self, tx: Dict) -> Dict:
