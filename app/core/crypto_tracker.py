@@ -125,53 +125,81 @@ class CryptoTrackingService:
                     break
                 processed_hashes.add(current_tx_hash)
     
-                # Handle 88-character Solana transaction signatures
+                # Handle Solana transaction signatures
                 try:
+                    # Import base58 for decoding if needed
+                    try:
+                        import base58
+                    except ImportError:
+                        logger.warning("base58 package not found, installing...")
+                        import subprocess
+                        import sys
+                        subprocess.check_call([sys.executable, "-m", "pip", "install", "base58"])
+                        import base58
+    
+                    # For newer Solana client versions, get_transaction() is not awaitable
+                    # and directly returns the response object
+                    response = None
+                    
                     if len(current_tx_hash) == 88:
-                        # For newer format signatures (88 chars), we need to decode from base58
-                        # and create the signature differently
+                        # For 88-character signatures, decode from base58
                         try:
-                            # Try to import base58
-                            import base58
-                        except ImportError:
-                            logger.warning("base58 package not found, installing...")
-                            import subprocess
-                            import sys
-                            subprocess.check_call([sys.executable, "-m", "pip", "install", "base58"])
-                            import base58
-                        
-                        # Decode the base58 signature and create a valid Signature object
-                        decoded_bytes = base58.b58decode(current_tx_hash)
-                        
-                        # Use from_bytes if available, otherwise try other methods
-                        if hasattr(Signature, 'from_bytes'):
-                            signature = Signature.from_bytes(decoded_bytes)
-                        else:
-                            # Alternative approach if from_bytes is not available
-                            # Convert to a hex string of appropriate length
-                            hex_string = decoded_bytes.hex()[:64]
-                            signature = Signature.from_string(hex_string)
+                            decoded_bytes = base58.b58decode(current_tx_hash)
                             
-                        response = await self.sol_client.get_transaction(
-                            tx_sig=signature,
-                            encoding="jsonParsed"
-                        )
+                            # Handle the signature correctly based on available methods
+                            signature = None
+                            if hasattr(Signature, 'from_bytes'):
+                                signature = Signature.from_bytes(decoded_bytes)
+                            else:
+                                # Fallback for older versions
+                                hex_string = decoded_bytes.hex()[:64]
+                                signature = Signature.from_string(hex_string)
+                                
+                            # Call get_transaction with proper signature object
+                            tx_response = self.sol_client.get_transaction(
+                                tx_sig=signature,
+                                encoding="jsonParsed"
+                            )
+                            
+                            # Handle different response formats
+                            if hasattr(tx_response, 'value') and hasattr(tx_response.value, 'to_json'):
+                                # Handle object with value attribute (newer solders versions)
+                                response = {"result": tx_response.value.to_json()}
+                            elif hasattr(tx_response, 'to_json'):
+                                # Handle direct response object
+                                response = {"result": tx_response.to_json()}
+                            else:
+                                # It's already a dict
+                                response = tx_response
+                        except Exception as decode_error:
+                            logger.error(f"Error decoding signature: {decode_error}")
+                            raise
                     else:
                         # For standard length signatures
-                        response = await self.sol_client.get_transaction(
+                        tx_response = self.sol_client.get_transaction(
                             tx_sig=Signature(current_tx_hash),
                             encoding="jsonParsed"
                         )
+                        
+                        # Handle different response formats
+                        if hasattr(tx_response, 'value') and hasattr(tx_response.value, 'to_json'):
+                            response = {"result": tx_response.value.to_json()}
+                        elif hasattr(tx_response, 'to_json'):
+                            response = {"result": tx_response.to_json()}
+                        else:
+                            response = tx_response
+    
                 except Exception as sig_error:
                     logger.error(f"Error handling signature {current_tx_hash}: {sig_error}")
                     
-                    # Try an alternative approach - use the REST API directly if available
-                    if self.session is None:
-                        self.session = aiohttp.ClientSession()
-                    
+                    # Try an alternative approach - use direct HTTP requests
                     try:
-                        # Direct API call to bypass Signature object issues
-                        solana_api_url = self.sol_client.url
+                        if self.session is None:
+                            self.session = aiohttp.ClientSession()
+                        
+                        # Extract RPC URL from settings
+                        solana_api_url = settings.SOLANA_RPC_URL
+                        
                         payload = {
                             "jsonrpc": "2.0",
                             "id": 1,
@@ -188,7 +216,7 @@ class CryptoTrackingService:
                         logger.error(f"Alternative approach failed: {alt_error}")
                         raise TransactionNotFoundError(f"Failed to process transaction {current_tx_hash}")
     
-                if not response or "result" not in response:
+                if not response or "result" not in response or not response["result"]:
                     raise TransactionNotFoundError(f"No valid response for transaction: {current_tx_hash}")
     
                 result = response["result"]
@@ -207,64 +235,110 @@ class CryptoTrackingService:
 
     async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
         try:
-            response = await self.sol_client.get_signatures_for_address(
-                account=address,
-                limit=1,
-                commitment="confirmed"
-            )
-            if not response or "result" not in response:
+            # Handle response format properly based on client type
+            try:
+                sig_response = self.sol_client.get_signatures_for_address(
+                    account=address,
+                    limit=1,
+                    commitment="confirmed"
+                )
+                
+                # Convert the response to a standard format
+                if hasattr(sig_response, 'value') and hasattr(sig_response.value, 'to_json'):
+                    # Handle object with value attribute
+                    signatures_data = {"result": sig_response.value.to_json()}
+                elif hasattr(sig_response, 'to_json'):
+                    # Handle direct response object
+                    signatures_data = {"result": sig_response.to_json()}
+                else:
+                    # It's already in dict format
+                    signatures_data = sig_response
+            except Exception as sig_error:
+                logger.error(f"Error getting signatures for address {address}: {sig_error}")
+                
+                # Fallback to direct RPC
+                try:
+                    if self.session is None:
+                        self.session = aiohttp.ClientSession()
+                    
+                    # Get the RPC URL from settings
+                    solana_api_url = settings.SOLANA_RPC_URL
+                    
+                    payload = {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getSignaturesForAddress",
+                        "params": [
+                            address,
+                            {"limit": 1, "commitment": "confirmed"}
+                        ]
+                    }
+                    
+                    async with self.session.post(solana_api_url, json=payload) as resp:
+                        signatures_data = await resp.json()
+                except Exception as alt_error:
+                    logger.error(f"Alternative approach failed for signatures: {alt_error}")
+                    return None
+            
+            if not signatures_data or "result" not in signatures_data or not signatures_data["result"]:
                 return None
     
-            signatures = response["result"]
+            # Extract signature from response
+            signatures = signatures_data["result"]
             if not signatures:
                 return None
     
-            signature_str = signatures[0]["signature"]
-            
-            # Handle 88-character Solana transaction signatures
+            # Get the signature string based on response format
+            if isinstance(signatures[0], dict) and "signature" in signatures[0]:
+                signature_str = signatures[0]["signature"]
+            else:
+                # Try to extract the signature from a different format
+                signature_str = str(signatures[0])
+                
+            # Get the transaction data using the signature
             try:
+                import base58
+                
+                # Process the signature
                 if len(signature_str) == 88:
-                    # For newer format signatures (88 chars), we need to decode from base58
-                    try:
-                        import base58
-                    except ImportError:
-                        logger.warning("base58 package not found, installing...")
-                        import subprocess
-                        import sys
-                        subprocess.check_call([sys.executable, "-m", "pip", "install", "base58"])
-                        import base58
-                    
-                    # Decode the base58 signature and create a valid Signature object
+                    # For 88-character signatures, decode from base58
                     decoded_bytes = base58.b58decode(signature_str)
                     
-                    # Use from_bytes if available, otherwise try other methods
+                    # Create signature object
                     if hasattr(Signature, 'from_bytes'):
                         signature = Signature.from_bytes(decoded_bytes)
                     else:
-                        # Alternative approach if from_bytes is not available
+                        # Alternative for older versions
                         hex_string = decoded_bytes.hex()[:64]
                         signature = Signature.from_string(hex_string)
-                        
-                    tx_response = await self.sol_client.get_transaction(
-                        tx_sig=signature,
-                        encoding="jsonParsed"
-                    )
                 else:
-                    # For standard length signatures
-                    tx_response = await self.sol_client.get_transaction(
-                        tx_sig=Signature(signature_str),
-                        encoding="jsonParsed"
-                    )
-            except Exception as sig_error:
-                logger.error(f"Error handling signature in _find_next_sol_transaction: {sig_error}")
+                    signature = Signature(signature_str)
+                    
+                # Get transaction data
+                tx_response = self.sol_client.get_transaction(
+                    tx_sig=signature,
+                    encoding="jsonParsed"
+                )
                 
-                # Try an alternative approach - use the REST API directly
-                if self.session is None:
-                    self.session = aiohttp.ClientSession()
+                # Handle response format
+                if hasattr(tx_response, 'value') and hasattr(tx_response.value, 'to_json'):
+                    transaction_data = {"result": tx_response.value.to_json()}
+                elif hasattr(tx_response, 'to_json'):
+                    transaction_data = {"result": tx_response.to_json()}
+                else:
+                    transaction_data = tx_response
+                    
+            except Exception as tx_error:
+                logger.error(f"Error getting transaction data: {tx_error}")
                 
+                # Fallback to direct RPC
                 try:
-                    # Direct API call to bypass Signature object issues
-                    solana_api_url = self.sol_client.url
+                    if self.session is None:
+                        self.session = aiohttp.ClientSession()
+                    
+                    # Get the RPC URL from settings
+                    solana_api_url = settings.SOLANA_RPC_URL
+                    
                     payload = {
                         "jsonrpc": "2.0",
                         "id": 1,
@@ -276,20 +350,19 @@ class CryptoTrackingService:
                     }
                     
                     async with self.session.post(solana_api_url, json=payload) as resp:
-                        tx_response = await resp.json()
+                        transaction_data = await resp.json()
                 except Exception as alt_error:
-                    logger.error(f"Alternative approach failed in _find_next_sol_transaction: {alt_error}")
+                    logger.error(f"Alternative approach failed for transaction: {alt_error}")
                     return None
     
-            if not tx_response or "result" not in tx_response:
+            if not transaction_data or "result" not in transaction_data or not transaction_data["result"]:
                 return None
     
-            return self._format_sol_transaction(tx_response["result"])
+            return self._format_sol_transaction(transaction_data["result"])
     
         except Exception as e:
             logger.error(f"Error finding next SOL transaction: {str(e)}", exc_info=True)
             return None
-
     async def _find_next_eth_transaction(self, address: str) -> Optional[Dict]:
         try:
             tx_count = self.eth_client.eth.get_transaction_count(address)
