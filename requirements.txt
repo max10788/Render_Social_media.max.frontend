@@ -23,7 +23,7 @@ flask-cors
 web3==6.17.1
 python-bitcoinrpc==1.0
 solana==0.29.1
-# Optional dev/debugging tools
+solders
 loguru==0.7.2
 python-multipart==0.0.6
 email-validator==2.1.0
