@@ -3,7 +3,7 @@ import logging
 import re
 from datetime import datetime
 from solana.rpc.api import Client as SolanaClient
-from solana.rpc.types import Signature
+from solders.signature import Signature
 from web3 import Web3
 import aiohttp
 from app.core.config import settings
