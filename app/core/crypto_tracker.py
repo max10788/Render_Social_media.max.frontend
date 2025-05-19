@@ -70,9 +70,13 @@ class CryptoTrackingService:
             logger.error(f"Error tracking {start_tx_hash}: {e}", exc_info=True)
             raise
 
+
     def _detect_transaction_currency(self, tx_hash: str) -> str:
+        """Detect the currency type based on transaction hash format"""
+        # Update the Solana check to handle 88-character transactions too
         if re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
             return "ETH"
+        # Modified pattern to match both 43-90 char signatures AND 88-char signatures
         if re.match(r"^[1-9A-HJ-NP-Za-km-z]{43,90}$", tx_hash):
             return "SOL"
         raise ValueError("Unsupported transaction hash format")
@@ -114,33 +118,88 @@ class CryptoTrackingService:
             transactions = []
             current_tx_hash = tx_hash
             processed_hashes = set()
-
+    
             for _ in range(num_transactions):
                 if current_tx_hash in processed_hashes:
                     logger.warning("Detected loop in transaction chain. Breaking loop.")
                     break
                 processed_hashes.add(current_tx_hash)
-
-                if not re.match(r"^[1-9A-HJ-NP-Za-km-z]{87,88}$", current_tx_hash):
-                    raise ValueError(f"Invalid Solana transaction signature format: {current_tx_hash}")
-
-                response = await self.sol_client.get_transaction(
-                    tx_sig=Signature(current_tx_hash),
-                    encoding="jsonParsed"
-                )
-
+    
+                # Handle 88-character Solana transaction signatures
+                try:
+                    if len(current_tx_hash) == 88:
+                        # For newer format signatures (88 chars), we need to decode from base58
+                        # and create the signature differently
+                        try:
+                            # Try to import base58
+                            import base58
+                        except ImportError:
+                            logger.warning("base58 package not found, installing...")
+                            import subprocess
+                            import sys
+                            subprocess.check_call([sys.executable, "-m", "pip", "install", "base58"])
+                            import base58
+                        
+                        # Decode the base58 signature and create a valid Signature object
+                        decoded_bytes = base58.b58decode(current_tx_hash)
+                        
+                        # Use from_bytes if available, otherwise try other methods
+                        if hasattr(Signature, 'from_bytes'):
+                            signature = Signature.from_bytes(decoded_bytes)
+                        else:
+                            # Alternative approach if from_bytes is not available
+                            # Convert to a hex string of appropriate length
+                            hex_string = decoded_bytes.hex()[:64]
+                            signature = Signature.from_string(hex_string)
+                            
+                        response = await self.sol_client.get_transaction(
+                            tx_sig=signature,
+                            encoding="jsonParsed"
+                        )
+                    else:
+                        # For standard length signatures
+                        response = await self.sol_client.get_transaction(
+                            tx_sig=Signature(current_tx_hash),
+                            encoding="jsonParsed"
+                        )
+                except Exception as sig_error:
+                    logger.error(f"Error handling signature {current_tx_hash}: {sig_error}")
+                    
+                    # Try an alternative approach - use the REST API directly if available
+                    if self.session is None:
+                        self.session = aiohttp.ClientSession()
+                    
+                    try:
+                        # Direct API call to bypass Signature object issues
+                        solana_api_url = self.sol_client.url
+                        payload = {
+                            "jsonrpc": "2.0",
+                            "id": 1,
+                            "method": "getTransaction",
+                            "params": [
+                                current_tx_hash,
+                                {"encoding": "jsonParsed"}
+                            ]
+                        }
+                        
+                        async with self.session.post(solana_api_url, json=payload) as resp:
+                            response = await resp.json()
+                    except Exception as alt_error:
+                        logger.error(f"Alternative approach failed: {alt_error}")
+                        raise TransactionNotFoundError(f"Failed to process transaction {current_tx_hash}")
+    
                 if not response or "result" not in response:
                     raise TransactionNotFoundError(f"No valid response for transaction: {current_tx_hash}")
-
+    
                 result = response["result"]
                 tx = self._format_sol_transaction(result)
                 transactions.append(tx)
-
+    
                 next_tx = await self._find_next_sol_transaction(tx["to_address"])
                 if not next_tx:
                     break
                 current_tx_hash = next_tx["hash"]
-
+    
             return transactions
         except Exception as e:
             logger.error(f"Error fetching Solana transactions: {str(e)}", exc_info=True)
@@ -155,24 +214,78 @@ class CryptoTrackingService:
             )
             if not response or "result" not in response:
                 return None
-
+    
             signatures = response["result"]
             if not signatures:
                 return None
-
+    
             signature_str = signatures[0]["signature"]
-            signature = Signature(signature_str)
-
-            tx_response = await self.sol_client.get_transaction(
-                tx_sig=signature,
-                encoding="jsonParsed"
-            )
-
+            
+            # Handle 88-character Solana transaction signatures
+            try:
+                if len(signature_str) == 88:
+                    # For newer format signatures (88 chars), we need to decode from base58
+                    try:
+                        import base58
+                    except ImportError:
+                        logger.warning("base58 package not found, installing...")
+                        import subprocess
+                        import sys
+                        subprocess.check_call([sys.executable, "-m", "pip", "install", "base58"])
+                        import base58
+                    
+                    # Decode the base58 signature and create a valid Signature object
+                    decoded_bytes = base58.b58decode(signature_str)
+                    
+                    # Use from_bytes if available, otherwise try other methods
+                    if hasattr(Signature, 'from_bytes'):
+                        signature = Signature.from_bytes(decoded_bytes)
+                    else:
+                        # Alternative approach if from_bytes is not available
+                        hex_string = decoded_bytes.hex()[:64]
+                        signature = Signature.from_string(hex_string)
+                        
+                    tx_response = await self.sol_client.get_transaction(
+                        tx_sig=signature,
+                        encoding="jsonParsed"
+                    )
+                else:
+                    # For standard length signatures
+                    tx_response = await self.sol_client.get_transaction(
+                        tx_sig=Signature(signature_str),
+                        encoding="jsonParsed"
+                    )
+            except Exception as sig_error:
+                logger.error(f"Error handling signature in _find_next_sol_transaction: {sig_error}")
+                
+                # Try an alternative approach - use the REST API directly
+                if self.session is None:
+                    self.session = aiohttp.ClientSession()
+                
+                try:
+                    # Direct API call to bypass Signature object issues
+                    solana_api_url = self.sol_client.url
+                    payload = {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getTransaction",
+                        "params": [
+                            signature_str,
+                            {"encoding": "jsonParsed"}
+                        ]
+                    }
+                    
+                    async with self.session.post(solana_api_url, json=payload) as resp:
+                        tx_response = await resp.json()
+                except Exception as alt_error:
+                    logger.error(f"Alternative approach failed in _find_next_sol_transaction: {alt_error}")
+                    return None
+    
             if not tx_response or "result" not in tx_response:
                 return None
-
+    
             return self._format_sol_transaction(tx_response["result"])
-
+    
         except Exception as e:
             logger.error(f"Error finding next SOL transaction: {str(e)}", exc_info=True)
             return None
