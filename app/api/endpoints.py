@@ -270,15 +270,11 @@ def get_crypto_service() -> CryptoTrackingService:
             detail="Failed to initialize crypto tracking service"
         )
 
-@router.post("/track-transactions", response_model=TransactionTrackResponse)
-async def save_transactions_to_db(db: Session, transactions: List[Dict]):
-    """
-    Save tracked transactions to the database.
-    
-    Args:
-        db (Session): Database session
-        transactions (List[Dict]): List of transactions to save
-    """
+--------------------------i
+# track-transaction
+--------------------------i
+
+def save_transactions_to_db(db: Session, transactions: list[dict]):
     try:
         for tx in transactions:
             db_transaction = CryptoTransaction(
@@ -286,60 +282,57 @@ async def save_transactions_to_db(db: Session, transactions: List[Dict]):
                 from_address=tx["from_address"],
                 to_address=tx["to_address"],
                 amount=tx.get("amount", 0.0),
-                amount_converted=tx.get("amount_converted", None),
+                amount_converted=tx.get("amount_converted"),
                 fee=tx.get("fee", 0.0),
-                fee_converted=tx.get("fee_converted", None),
+                fee_converted=tx.get("fee_converted"),
                 currency=tx["currency"],
                 timestamp=datetime.fromtimestamp(tx["timestamp"]),
                 direction=tx.get("direction", "out")
             )
             db.add(db_transaction)
-        
         db.commit()
-        logger.info(f"Successfully saved {len(transactions)} transactions to database")
-    
+        logger.info(f"Saved {len(transactions)} transactions.")
     except Exception as e:
         db.rollback()
-        logger.error(f"Error saving transactions to database: {e}")
-        raise APIError(f"Failed to save transactions: {str(e)}")
+        logger.error(f"Failed to save transactions: {e}")
+        raise
 
-async def track_transactions(
+# Haupt-Funktion für das Tracking
+async def track_transactions_controller(
     request: TransactionTrackRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    """
-    Verfolgt eine Kette von Kryptowährungs-Transaktionen.
-    """
     try:
         tracking_service = CryptoTrackingService()
-       
-        # Korrigierter Aufruf ohne max_depth
         result = await tracking_service.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
             target_currency=request.target_currency,
-            num_transactions=request.num_transactions  # Stellen Sie sicher, dass dieser Parameter existiert
+            num_transactions=request.num_transactions
         )
-       
-        # Speichere Transaktionen in der DB im Hintergrund
-        background_tasks.add_task(
-            save_transactions_to_db,
-            db=db,
-            transactions=result["transactions"]
-        )
-       
+        background_tasks.add_task(save_transactions_to_db, db=db, transactions=result["transactions"])
         return TransactionTrackResponse(**result)
-       
     except TransactionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except CryptoTrackerError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Fehler beim Tracking der Transaktionen: {e}")
+        logger.error(f"Error during transaction tracking: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-        
+# Route
+@router.post("/track-transactions", response_model=TransactionTrackResponse)
+async def track_transaction_route(
+    request: TransactionTrackRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    return await track_transactions_controller(request, background_tasks, db)
+
+--------------------------i
 # ML-basierte Analyse
+--------------------------i
+
 @router.post("/analyze/ml", response_model=AnalyzeResponse)
 async def analyze_ml(request:  AnalyzeRequest, db: Session = Depends(get_db)):
     try:
