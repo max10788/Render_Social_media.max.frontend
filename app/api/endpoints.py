@@ -35,11 +35,11 @@ from app.models.schemas import TransactionTrackRequest, TransactionTrackResponse
 from app.core.crypto_tracker import CryptoTrackingService
 from app.core.exceptions import TransactionNotFoundError, CryptoTrackerError
 
-# Globale Variable für Status-Tracking
-ANALYSIS_STATUS = {}
-
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
+
+# Globale Variable für Status-Tracking
+ANALYSIS_STATUS = {}
 
 # Router initialisieren
 router = APIRouter()
