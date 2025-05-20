@@ -270,9 +270,9 @@ def get_crypto_service() -> CryptoTrackingService:
             detail="Failed to initialize crypto tracking service"
         )
 
---------------------------i
+#--------------------------i
 # track-transaction
---------------------------i
+#--------------------------i
 
 def save_transactions_to_db(db: Session, transactions: list[dict]):
     try:
@@ -329,9 +329,9 @@ async def track_transaction_route(
 ):
     return await track_transactions_controller(request, background_tasks, db)
 
---------------------------i
+#--------------------------i
 # ML-basierte Analyse
---------------------------i
+#--------------------------i
 
 @router.post("/analyze/ml", response_model=AnalyzeResponse)
 async def analyze_ml(request:  AnalyzeRequest, db: Session = Depends(get_db)):
