@@ -236,7 +236,13 @@ class CryptoTrackingService:
 
     async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
         try:
-            # Handle response format properly based on client type
+            # If address is a dict, extract the pubkey
+            if isinstance(address, dict) and 'pubkey' in address:
+                address = address['pubkey']
+            
+            # Convert address to string if it isn't already
+            address = str(address)
+        
             try:
                 sig_response = self.sol_client.get_signatures_for_address(
                     account=address,
