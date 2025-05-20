@@ -12,6 +12,7 @@ from sklearn.metrics import accuracy_score
 import joblib
 import uuid
 from fastapi.staticfiles import StaticFiles
+from typing import List, Dict
 
 # Interne Module importieren
 from app.core.twitter_api import TwitterClient
