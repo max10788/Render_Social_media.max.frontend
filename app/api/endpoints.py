@@ -279,8 +279,8 @@ def save_transactions_to_db(db: Session, transactions: list[dict]):
         for tx in transactions:
             db_transaction = CryptoTransaction(
                 hash=tx["hash"],
-                from_address=tx["from_address"],
-                to_address=tx["to_address"],
+                from_address=tx["from_address"]["pubkey"],   # Nur pubkey speichern
+                to_address=tx["to_address"]["pubkey"],       # Nur pubkey speichern
                 amount=tx.get("amount", 0.0),
                 amount_converted=tx.get("amount_converted"),
                 fee=tx.get("fee", 0.0),
