@@ -5,6 +5,9 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router  # Importieren Sie den API-Router
 
+import logging
+logger = logging.getLogger(__name__)
+
 app = FastAPI()
 
 # CORS konfigurieren (optional, falls benötigt)
