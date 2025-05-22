@@ -4,8 +4,8 @@ import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 import aiohttp
-from .crypto_tracker import BlockchainClient, Transaction, Currency
-from ..exceptions import APIError, TransactionNotFoundError
+from app.core.crypto_tracker import BlockchainClient, Transaction, Currency
+from app.core.exceptions import APIError, TransactionNotFoundError
 
 logger = logging.getLogger(__name__)
 
