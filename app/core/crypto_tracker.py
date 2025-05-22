@@ -372,46 +372,52 @@ class CryptoTrackingService:
 
     def _format_sol_transaction(self, tx: Dict) -> Dict:
         try:
-            # If tx is a string, convert to dict
+            # Wenn tx ein String ist, versuche ihn zu parsen
             if isinstance(tx, str):
                 try:
                     tx = json.loads(tx)
-                except json.JSONDecodeError as e:
-                    raise ValueError(f"Invalid JSON data received: {e}")
+                except json.JSONDecodeError:
+                    raise ValueError("Failed to parse transaction string as JSON")
     
-            # Check if we have access to transaction and meta
-            if not isinstance(tx, dict):
-                raise ValueError("Transaction data is not a dictionary")
-    
-            # For new solders versions with .value.to_json()
+            # Für neue solders Versionen, mit .value.to_json()
             if "result" in tx and isinstance(tx["result"], str):
                 try:
                     tx = json.loads(tx["result"])
                 except json.JSONDecodeError:
                     raise ValueError("Failed to parse result field as JSON")
     
-            # Check if required fields are present
-            if "transaction" not in tx or "meta" not in tx:
-                raise ValueError("Missing required fields in transaction data")
+            # Prüfe auf direkte Transaction-Daten
+            if "transaction" in tx and "meta" in tx:
+                transaction = tx["transaction"]
+                meta = tx["meta"]
+            elif "message" in tx and "signature" in tx:
+                # Direktes Fallback: tx ist möglicherweise der message-body
+                transaction = {
+                    "message": tx,
+                    "signatures": [tx.get("signature", "unknown")]
+                }
+                meta = {}
+            else:
+                # Versuche, die Struktur dynamisch zu erkennen
+                if "accountKeys" in tx:
+                    # Es könnte bereits der "message"-Teil sein
+                    transaction = {"message": tx}
+                    meta = {}
+                else:
+                    raise ValueError("Unknown transaction structure received")
     
-            transaction = tx["transaction"]
-            meta = tx["meta"]
-    
-            # Check signatures
-            if not transaction.get("signatures"):
-                raise ValueError("No signatures found in transaction")
-    
-            tx_hash = transaction["signatures"][0]
-    
-            # Extract account keys
+            # Extrahiere signifikante Werte
+            tx_hash = transaction.get("signatures", ["unknown"])[0]
             message = transaction.get("message", {})
             account_keys = message.get("accountKeys", [])
+            
             if len(account_keys) < 2:
                 raise ValueError("Insufficient account keys in transaction")
     
-            # Process balances
+            # Balances prüfen
             pre_balances = meta.get("preBalances", [0, 0])
             post_balances = meta.get("postBalances", [0, 0])
+    
             if len(pre_balances) < 2 or len(post_balances) < 2:
                 raise ValueError("Invalid balance data in transaction")
     
@@ -431,7 +437,7 @@ class CryptoTrackingService:
         except Exception as e:
             logger.error(f"Error formatting Solana transaction: {str(e)}", exc_info=True)
             raise ValueError(f"Failed to format Solana transaction: {str(e)}")
-
+        
     async def get_cached_transaction(self, tx_hash: str) -> Optional[Dict]:
         try:
             source_currency = self._detect_transaction_currency(tx_hash)
