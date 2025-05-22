@@ -435,44 +435,29 @@ class CryptoTrackingService:
         except Exception as e:
             logger.error(f"Error formatting Solana transaction: {str(e)}", exc_info=True)
             raise ValueError(f"Failed to format Solana transaction: {str(e)}")
-        
-    async def get_cached_transaction(self, tx_hash: str) -> Optional[Dict]:
-        try:
-            source_currency = self._detect_transaction_currency(tx_hash)
-            if source_currency == "ETH":
-                transactions = await self._get_ethereum_transactions(tx_hash, 1)
-                return transactions[0] if transactions else None
-            elif source_currency == "SOL":
-                transactions = await self._get_solana_transactions(tx_hash, 1)
-                return transactions[0] if transactions else None
-            else:
-                raise ValueError("Only Ethereum and Solana transactions supported")
-        except Exception as e:
-            logger.error(f"Error caching transaction {tx_hash}: {e}", exc_info=True)
-            return None
-
-    async def _convert_transaction_values(
-        self,
-        transactions: List[Dict],
-        source_currency: str,
-        target_currency: str
-    ) -> List[Dict]:
-        try:
-            if source_currency == target_currency:
+    
+        async def _convert_transaction_values(
+            self,
+            transactions: List[Dict],
+            source_currency: str,
+            target_currency: str
+        ) -> List[Dict]:
+            try:
+                if source_currency == target_currency:
+                    return transactions
+                rate = await self._get_exchange_rate(source_currency, target_currency)
+                logger.info(f"Exchange rate {source_currency} -> {target_currency}: {rate}")
+                for tx in transactions:
+                    if "value" in tx:
+                        tx["value_converted"] = tx["value"] * rate
+                    if "amount" in tx:
+                        tx["amount_converted"] = tx["amount"] * rate
+                    if "fee" in tx:
+                        tx["fee_converted"] = tx["fee"] * rate
                 return transactions
-            rate = await self._get_exchange_rate(source_currency, target_currency)
-            logger.info(f"Exchange rate {source_currency} -> {target_currency}: {rate}")
-            for tx in transactions:
-                if "value" in tx:
-                    tx["value_converted"] = tx["value"] * rate
-                if "amount" in tx:
-                    tx["amount_converted"] = tx["amount"] * rate
-                if "fee" in tx:
-                    tx["fee_converted"] = tx["fee"] * rate
-            return transactions
-        except Exception as e:
-            logger.error(f"Error converting currency values: {e}", exc_info=True)
-            raise
+            except Exception as e:
+                logger.error(f"Error converting currency values: {e}", exc_info=True)
+                raise
 
     async def _get_exchange_rate(self, source_currency: str, target_currency: str) -> float:
         try:
