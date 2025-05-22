@@ -16,36 +16,42 @@ class SolanaClient(BlockchainClient):
         self.rpc_url = settings.SOLANA_RPC_URL
         self.request_id = 1
 
-    async def get_transaction(self, tx_hash: str) -> Optional[Transaction]:
-        try:
-            if not self._is_valid_signature(tx_hash):
-                logger.error(f"Invalid Solana signature format: {tx_hash}")
+    async def get_transaction(self, tx_hash: str, max_retries: int = 3) -> Optional[Transaction]:
+        """Get a Solana transaction by signature."""
+        for attempt in range(max_retries + 1):
+            try:
+                # Validate signature format
+                if not self._is_valid_signature(tx_hash):
+                    logger.error(f"Invalid Solana signature format: {tx_hash}")
+                    return None
+    
+                # Make RPC call
+                response = await self._make_rpc_call(
+                    "getTransaction",
+                    [tx_hash, {"encoding": "jsonParsed"}]
+                )
+                if not response or not response.get("result"):
+                    logger.warning(f"Transaction not found: {tx_hash}")
+                    if attempt < max_retries:
+                        wait_time = 2 ** attempt
+                        logger.info(f"Retrying in {wait_time}s...")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    return None
+    
+                return self._format_solana_transaction(response["result"], tx_hash)
+    
+            except Exception as e:
+                logger.error(f"Error fetching Solana transaction {tx_hash}: {e}")
+                if attempt < max_retries:
+                    wait_time = 2 ** attempt
+                    logger.info(f"Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
                 return None
+        return None
 
-            payload = {
-                "jsonrpc": "2.0",
-                "id": self.request_id,
-                "method": "getTransaction",
-                "params": [
-                    tx_hash,
-                    {"encoding": "jsonParsed"}
-                ]
-            }
-            self.request_id += 1
-
-            async with self.session.post(self.rpc_url, json=payload) as response:
-                if response.status != 200:
-                    logger.warning(f"RPC Error {response.status}: {await response.text()}")
-                    return None
-                data = await response.json()
-                if not data.get("result"):
-                    return None
-                return self._format_solana_transaction(data["result"], tx_hash)
-        except Exception as e:
-            logger.error(f"Error fetching Solana transaction {tx_hash}: {e}")
-            return None
-
-    async def find_next_transaction(self, address: str) -> Optional[Transaction]:
+    async def find_next_transaction(self, address: str, max_retries: int = 3) -> Optional[Transaction]:
         try:
             if isinstance(address, dict) and 'pubkey' in address:
                 address = address['pubkey']
