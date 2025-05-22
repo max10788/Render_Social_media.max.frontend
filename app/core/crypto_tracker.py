@@ -124,24 +124,29 @@ class CryptoTrackingService:
                     break
                 processed_hashes.add(current_tx_hash)
     
-                # Import base58 only when needed
-                import base58
+                # Import base58 with auto-install fallback
+                try:
+                    import base58
+                except ImportError:
+                    logger.warning("base58 package not found, installing...")
+                    import subprocess
+                    import sys
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", "base58"])
+                    import base58
     
                 signature = None
-                decoded_bytes = None
+                response = None
     
-                # Try decoding if it's 88 chars long
-                if len(current_tx_hash) == 88:
-                    try:
-                        decoded_bytes = base58.b58decode(current_tx_hash)
-                        if len(decoded_bytes) != 64:
-                            raise ValueError(f"Expected 64 bytes after decode, got {len(decoded_bytes)}")
+                # Versuche, die Transaktion abzurufen
+                try:
+                    decoded_bytes = base58.b58decode(current_tx_hash)
+                    if len(decoded_bytes) == 64:
                         signature = Signature.from_bytes(decoded_bytes)
-                    except Exception as e:
-                        logger.warning(f"Failed to decode signature: {e}. Falling back to direct use.")
-    
-                # If decoding failed or not 88 chars, just use the string directly
-                if not signature:
+                    else:
+                        logger.warning(f"Decoded signature has invalid length: {len(decoded_bytes)} bytes")
+                        raise ValueError("Invalid signature length after decoding")
+                except Exception as decode_error:
+                    logger.warning(f"Base58 decode failed or signature invalid: {decode_error}")
                     signature = Signature(current_tx_hash)
     
                 try:
@@ -149,10 +154,21 @@ class CryptoTrackingService:
                         tx_sig=signature,
                         encoding="jsonParsed"
                     )
-                except Exception as rpc_error:
-                    logger.warning(f"RPC error fetching transaction: {rpc_error}, trying fallback")
     
-                    # Fallback: Direct HTTP POST to Solana RPC
+                    if hasattr(tx_response, 'value') and hasattr(tx_response.value, 'to_json'):
+                        response = {"result": tx_response.value.to_json()}
+                    elif hasattr(tx_response, 'to_json'):
+                        response = {"result": tx_response.to_json()}
+                    else:
+                        response = tx_response
+    
+                except Exception as sig_error:
+                    logger.warning(f"Signature error with {current_tx_hash}, trying fallback RPC call")
+    
+                    # Fallback: direkter RPC-Aufruf über HTTP POST
+                    if self.session is None:
+                        self.session = aiohttp.ClientSession()
+    
                     solana_api_url = settings.SOLANA_RPC_URL
                     payload = {
                         "jsonrpc": "2.0",
@@ -163,19 +179,14 @@ class CryptoTrackingService:
                             {"encoding": "jsonParsed"}
                         ]
                     }
+    
                     async with self.session.post(solana_api_url, json=payload) as resp:
-                        tx_response = await resp.json()
-                        if not tx_response or "result" not in tx_response:
-                            raise TransactionNotFoundError(f"No valid response from RPC for {current_tx_hash}")
+                        response = await resp.json()
     
-                # Format the transaction
-                if hasattr(tx_response, 'value') and hasattr(tx_response.value, 'to_json'):
-                    result = tx_response.value.to_json()
-                elif isinstance(tx_response, dict) and "result" in tx_response:
-                    result = tx_response["result"]
-                else:
-                    result = tx_response
+                if not response or "result" not in response or not response["result"]:
+                    raise TransactionNotFoundError(f"No valid response for transaction: {current_tx_hash}")
     
+                result = response["result"]
                 tx = self._format_sol_transaction(result)
                 transactions.append(tx)
     
