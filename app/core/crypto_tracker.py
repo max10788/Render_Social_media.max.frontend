@@ -235,12 +235,12 @@ class CryptoTrackingService:
             raise APIError(f"Failed to fetch Solana transactions: {str(e)}")
 
     def is_valid_solana_tx_hash(self, tx_hash: str) -> bool:
-    try:
-        import base58
-        decoded = base58.b58decode(tx_hash)
-        return len(decoded) == 64  # Solana-Signaturen sind immer 64 Bytes
-    except Exception:
-        return False
+        try:
+            import base58
+            decoded = base58.b58decode(tx_hash)
+            return len(decoded) == 64  # Solana-Signaturen sind immer 64 Bytes
+        except Exception:
+            return False
     
     async def _find_next_sol_transaction(self, address: str) -> Optional[Dict]:
         try:
