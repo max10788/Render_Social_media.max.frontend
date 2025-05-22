@@ -51,30 +51,43 @@ class SolanaClient(BlockchainClient):
             logger.error(f"Unexpected error during RPC call: {e}")
             return None
 
-    async def get_transaction(self, tx_hash: str) -> Optional[Transaction]:
-        """Get a Solana transaction by signature."""
-        try:
-            # Validate signature format
-            if not self._is_valid_signature(tx_hash):
-                logger.error(f"Invalid Solana signature format: {tx_hash}")
+    async def get_transaction(self, tx_hash: str, max_retries: int = 3) -> Optional[Transaction]:
+        """Get a Solana transaction by signature with retry mechanism."""
+        for attempt in range(max_retries + 1):
+            try:
+                # Validate signature format
+                if not self._is_valid_signature(tx_hash):
+                    logger.error(f"Invalid Solana signature format: {tx_hash}")
+                    return None
+    
+                # Make RPC call
+                response = await self._make_rpc_call(
+                    "getTransaction",
+                    [tx_hash, {"encoding": "jsonParsed"}]
+                )
+    
+                if not response or not response.get("result"):
+                    logger.warning(f"Transaction not found: {tx_hash}")
+                    if attempt < max_retries:
+                        wait_time = 2 ** attempt
+                        logger.info(f"Retrying in {wait_time}s...")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    return None
+    
+                return self._format_solana_transaction(response["result"], tx_hash)
+    
+            except Exception as e:
+                logger.error(f"Error fetching Solana transaction {tx_hash}: {e}")
+                if attempt < max_retries:
+                    wait_time = 2 ** attempt
+                    logger.info(f"Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
                 return None
+        return None
 
-            # Make RPC call
-            response = await self._make_rpc_call(
-                "getTransaction",
-                [tx_hash, {"encoding": "jsonParsed"}]
-            )
-            if not response or not response.get("result"):
-                logger.warning(f"Transaction not found: {tx_hash}")
-                return None
-
-            return self._format_solana_transaction(response["result"], tx_hash)
-
-        except Exception as e:
-            logger.error(f"Error fetching Solana transaction {tx_hash}: {e}")
-            return None
-
-    async def find_next_transaction(self, address: str) -> Optional[Transaction]:
+    async def find_next_transaction(self, address: str, max_retries: int = 3) -> Optional[Transaction]:
         """Find the next transaction from a given address."""
         try:
             # Clean address format
