@@ -391,20 +391,18 @@ class CryptoTrackingService:
                 transaction = tx["transaction"]
                 meta = tx["meta"]
             elif "message" in tx and "signature" in tx:
-                # Direktes Fallback: tx ist möglicherweise der message-body
+                # Fallback für minimale Struktur (z.B. von getSignaturesForAddress)
                 transaction = {
                     "message": tx,
                     "signatures": [tx.get("signature", "unknown")]
                 }
                 meta = {}
+            elif "accountKeys" in tx:
+                # Direktes Fallback: tx ist bereits der message-body
+                transaction = {"message": tx}
+                meta = {}
             else:
-                # Versuche, die Struktur dynamisch zu erkennen
-                if "accountKeys" in tx:
-                    # Es könnte bereits der "message"-Teil sein
-                    transaction = {"message": tx}
-                    meta = {}
-                else:
-                    raise ValueError("Unknown transaction structure received")
+                raise ValueError("Unknown transaction structure received")
     
             # Extrahiere signifikante Werte
             tx_hash = transaction.get("signatures", ["unknown"])[0]
