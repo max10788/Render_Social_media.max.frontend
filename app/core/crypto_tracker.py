@@ -386,7 +386,7 @@ class CryptoTrackingService:
                 except json.JSONDecodeError:
                     raise ValueError("Failed to parse result field as JSON")
     
-            # Prüfe auf direkte Transaction-Daten
+            # Prüfe auf verschiedene Strukturen und extrahiere Daten dynamisch
             if "transaction" in tx and "meta" in tx:
                 transaction = tx["transaction"]
                 meta = tx["meta"]
@@ -401,6 +401,13 @@ class CryptoTrackingService:
                 # Direktes Fallback: tx ist bereits der message-body
                 transaction = {"message": tx}
                 meta = {}
+            elif "accountKeys" in tx.get("message", {}):
+                # Transaction enthält nur das message-Feld
+                transaction = {
+                    "message": tx.get("message", {}),
+                    "signatures": tx.get("signatures", ["unknown"])
+                }
+                meta = tx.get("meta", {})
             else:
                 raise ValueError("Unknown transaction structure received")
     
