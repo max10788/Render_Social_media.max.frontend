@@ -1,60 +1,54 @@
-# 🌐 Core Framework
-fastapi==0.95.2
+# Core Framework & Server
+fastapi==2.0.1              # Unterstützt Pydantic >=2.0
 uvicorn==0.23.2
 gunicorn==21.2.0
 
-# 📡 HTTP Client für Async-RPC
+# Web & HTTP
 aiohttp==3.9.1
+python-multipart==0.0.6
+email-validator==2.1.0
+jinja2==3.1.2
 
-# 🧠 ML & Analyse
-scikit-learn==1.3.0
-numpy==1.23.5
-joblib==1.3.2
-pandas==2.0.3
+# Twitter API
+tweepy==4.14.0
+vaderSentiment==3.3.2
 textblob==0.15.3
 nltk==3.8.1
-langdetect==1.0.9
 
-# 🔍 Logging & Debugging
-loguru==0.7.2
-python-dotenv==1.0.0
-
-# 🛡️ Security & Auth
-pydantic==1.10.12
-email-validator==2.1.0
-python-multipart==0.0.6
-cryptography==41.0.7
-
-# 🧱 Datenbank
+# Datenbank
 sqlalchemy==2.0.20
 psycopg2-binary==2.9.9
 redis==4.6.0
 
-# 🐦 Twitter API
-tweepy==4.14.0
-vaderSentiment==3.3.2
+# ML / Analyse
+scikit-learn==1.3.0
+joblib==1.3.2
+numpy==1.23.5
+pandas==2.0.3
 
-# 🪙 Kryptowährungen & Blockchain
-web3==6.17.1                # Ethereum SDK
-solana==0.32.0             # Solana SDK
-solders>=0.4.23            # Für Signaturen in Solana
-base58==2.1.1              # Base58 Decoding
+# Ethereum
+web3==6.17.1
 
-# 📈 Coingecko für Wechselkurse
+# Solana
+solana==0.32.0
+solders>=0.4.23
+base58==2.1.1
+
+# JSON RPC + Validierung
+pydantic==2.3.0            # Wichtig für pydantic-settings
+pydantic-settings==2.0.3  # Benötigt Pydantic >=2.0
 requests==2.31.0
-urllib3==2.0.4
 
-# 🧪 Testing & Entwicklung
+# Logging & Monitoring
+loguru==0.7.2
+
+# Testing
 pytest==7.4.0
 pytest-asyncio==0.21.0
 
-# 🚀 Deployment / Cloud
+# Background Tasks & Queue
 celery==5.3.4
 flower==1.2.0
 
-# 📦 JSON & Validierung
-pydantic-settings==2.0.3
-jsonschema==4.19.0
-
-# 🧵 Concurrency & Async
-asyncpg==0.27.0           # Optional: Für async PostgreSQL
+# Sicherheit
+cryptography==41.0.7
