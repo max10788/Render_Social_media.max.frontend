@@ -10,6 +10,9 @@ from datetime import datetime
 import aiohttp
 from base58 import b58decode  # pip install base58
 
+import logging
+logger = logging.getLogger(__name__)
+
 # Versuche, das Solana SDK zu laden
 try:
     from solana.rpc.api import Client as SolanaRpcClient
