@@ -1,51 +1,60 @@
-# Core Framework & Server
+# 🌐 Core Framework
 fastapi==0.95.2
 uvicorn==0.23.2
 gunicorn==21.2.0
 
-# Web & HTTP
+# 📡 HTTP Client für Async-RPC
 aiohttp==3.9.1
-python-multipart==0.0.6
-email-validator==2.1.0
-jinja2==3.1.2
 
-# Twitter API
-tweepy==4.14.0
-vaderSentiment==3.3.2
+# 🧠 ML & Analyse
+scikit-learn==1.3.0
+numpy==1.23.5
+joblib==1.3.2
+pandas==2.0.3
 textblob==0.15.3
 nltk==3.8.1
+langdetect==1.0.9
 
-# Datenbank
+# 🔍 Logging & Debugging
+loguru==0.7.2
+python-dotenv==1.0.0
+
+# 🛡️ Security & Auth
+pydantic==1.10.12
+email-validator==2.1.0
+python-multipart==0.0.6
+cryptography==41.0.7
+
+# 🧱 Datenbank
 sqlalchemy==2.0.20
 psycopg2-binary==2.9.9
 redis==4.6.0
 
-# ML / Analyse
-scikit-learn==1.3.0
-joblib==1.3.2
-numpy==1.23.5
+# 🐦 Twitter API
+tweepy==4.14.0
+vaderSentiment==3.3.2
 
-# Ethereum
-web3==6.17.1
+# 🪙 Kryptowährungen & Blockchain
+web3==6.17.1                # Ethereum SDK
+solana==0.32.0             # Solana SDK
+solders>=0.4.23            # Für Signaturen in Solana
+base58==2.1.1              # Base58 Decoding
 
-# Solana
-solana==0.32.0  # Aktuelle stabile Version mit SDK Unterstützung
-solders>=0.4.23  # Für Signature-Unterstützung mit solana.py
+# 📈 Coingecko für Wechselkurse
+requests==2.31.0
+urllib3==2.0.4
 
-# Base58 Decoding
-base58==2.1.1
+# 🧪 Testing & Entwicklung
+pytest==7.4.0
+pytest-asyncio==0.21.0
 
-# JSON RPC + Validierung
-python-dotenv==1.0.0
-pydantic==1.10.12
-
-# Logging & Monitoring
-loguru==0.7.2
-
-# Background Tasks & Queue
+# 🚀 Deployment / Cloud
 celery==5.3.4
 flower==1.2.0
 
-# Tests
-pytest==7.4.0
-pytest-asyncio==0.21.0
+# 📦 JSON & Validierung
+pydantic-settings==2.0.3
+jsonschema==4.19.0
+
+# 🧵 Concurrency & Async
+asyncpg==0.27.0           # Optional: Für async PostgreSQL
