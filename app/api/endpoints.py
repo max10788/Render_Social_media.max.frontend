@@ -33,6 +33,8 @@ from app.core.crypto_tracker_improved import CryptoTrackingService
 from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
 from app.models.schemas import TransactionTrackRequest, TransactionTrackResponse
 from app.core.exceptions import TransactionNotFoundError, CryptoTrackerError
+from app.core.solana_client import SolanaClient
+from app.core.ethereum_client import EthereumClient
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
@@ -297,26 +299,39 @@ def save_transactions_to_db(db: Session, transactions: list[dict]):
         raise
 
 # Haupt-Funktion für das Tracking
+# In endpoints.py
 async def track_transactions_controller(
     request: TransactionTrackRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     try:
-        tracking_service = CryptoTrackingService()
+        async with aiohttp.ClientSession() as session:
+            solana_client = SolanaClient(session)
+            ethereum_client = EthereumClient(session)
+            tracking_service = CryptoTrackingService(
+                solana_client=solana_client,
+                ethereum_client=ethereum_client
+            )
+
         result = await tracking_service.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
             target_currency=request.target_currency,
             num_transactions=request.num_transactions
         )
-        background_tasks.add_task(save_transactions_to_db, db=db, transactions=result["transactions"])
-        return TransactionTrackResponse(**result)
+
+        # ✅ Verwende .transactions und nicht ["transactions"]
+        background_tasks.add_task(save_transactions_to_db, db=db, transactions=result.transactions)
+
+        # ✅ Gib das Ergebnis als Dictionary zurück
+        return result.to_dict()
+
     except TransactionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except CryptoTrackerError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error during transaction tracking: {e}")
+        logger.error(f"Error during transaction tracking: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # Route
