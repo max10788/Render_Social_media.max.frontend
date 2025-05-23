@@ -300,30 +300,33 @@ def save_transactions_to_db(db: Session, transactions: list[dict]):
 
 # Haupt-Funktion für das Tracking
 # In endpoints.py
+# In app/api/endpoints.py
+
 async def track_transactions_controller(
     request: TransactionTrackRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     try:
+        # Verwende die CryptoTrackingService-Abstraktion
         async with aiohttp.ClientSession() as session:
-            solana_client = SolanaClient(session)
-            ethereum_client = EthereumClient(session)
             tracking_service = CryptoTrackingService(
-                solana_client=solana_client,
-                ethereum_client=ethereum_client
+                solana_client=SolanaClient(session),
+                ethereum_client=EthereumClient(session),
+                cache_provider=InMemoryCache(),
+                exchange_rate_provider=CoinGeckoExchangeRate(session=session)
             )
 
-        result = await tracking_service.track_transaction_chain(
-            start_tx_hash=request.start_tx_hash,
-            target_currency=request.target_currency,
-            num_transactions=request.num_transactions
-        )
+            result = await tracking_service.track_transaction_chain(
+                start_tx_hash=request.start_tx_hash,
+                target_currency=request.target_currency,
+                num_transactions=request.num_transactions
+            )
 
-        # ✅ Verwende .transactions und nicht ["transactions"]
+        # Speichere Transaktionen in DB
         background_tasks.add_task(save_transactions_to_db, db=db, transactions=result.transactions)
 
-        # ✅ Gib das Ergebnis als Dictionary zurück
+        # Gib Antwort zurück
         return result.to_dict()
 
     except TransactionNotFoundError as e:
@@ -332,7 +335,7 @@ async def track_transactions_controller(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error during transaction tracking: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 # Route
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
