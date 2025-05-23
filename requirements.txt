@@ -1,6 +1,6 @@
 # Core Framework & Server
-fastapi==2.0.1              # Unterstützt Pydantic >=2.0
-uvicorn==0.23.2
+fastapi==0.95.2
+uvicorn==0.23.1
 gunicorn==21.2.0
 
 # Web & HTTP
@@ -28,6 +28,7 @@ pandas==2.0.3
 
 # Ethereum
 web3==6.17.1
+python-bitcoinrpc==1.0
 
 # Solana
 solana==0.32.0
@@ -35,9 +36,9 @@ solders>=0.4.23
 base58==2.1.1
 
 # JSON RPC + Validierung
-pydantic==2.3.0            # Wichtig für pydantic-settings
-pydantic-settings==2.0.3  # Benötigt Pydantic >=2.0
-requests==2.31.0
+pydantic==1.10.12
+python-dotenv==1.0.0
+jsonschema==4.19.0
 
 # Logging & Monitoring
 loguru==0.7.2
@@ -46,9 +47,10 @@ loguru==0.7.2
 pytest==7.4.0
 pytest-asyncio==0.21.0
 
-# Background Tasks & Queue
+# Background Tasks
 celery==5.3.4
 flower==1.2.0
 
-# Sicherheit
-cryptography==41.0.7
+# Wechselkurse
+requests==2.31.0
+urllib3==2.0.4
