@@ -29,7 +29,7 @@ from app.models.schemas import (
     TransactionTrackResponse,
     BlockchainEnum  # Add this import
 )
-from app.core.crypto_tracker_improved import CryptoTrackingService
+from app.core.crypto_tracker import CryptoTrackingService
 from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
 from app.models.schemas import TransactionTrackRequest, TransactionTrackResponse
 from app.core.exceptions import TransactionNotFoundError, CryptoTrackerError
