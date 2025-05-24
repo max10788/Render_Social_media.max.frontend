@@ -24,7 +24,7 @@ except ImportError:
     SOLANA_SDK_AVAILABLE = False
 
 # Deine Module
-from .crypto_tracker_improved import BlockchainClient, Transaction, Currency
+from app.core.crypto_tracker import BlockchainClient, Transaction, Currency
 from app.core.exceptions import APIError, TransactionNotFoundError
 from app.core.config import settings
 
