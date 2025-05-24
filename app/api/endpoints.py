@@ -314,10 +314,8 @@ async def track_transactions_controller(
             tracking_service = CryptoTrackingService(
                 solana_client=SolanaClient(session),
                 ethereum_client=EthereumClient(session),
-                cache_provider=InMemoryCache(),
                 exchange_rate_provider=CoinGeckoExchangeRate(session=session)
             )
-
             result = await tracking_service.track_transaction_chain(
                 start_tx_hash=request.start_tx_hash,
                 target_currency=request.target_currency,
