@@ -37,6 +37,7 @@ from app.core.exceptions import TransactionNotFoundError, CryptoTrackerError
 from app.core.solana_client import SolanaClient
 from app.core.ethereum_client import EthereumClient
 from app.core.exchange_rate import CoinGeckoExchangeRate
+from app.core.cache import InMemoryCache
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
