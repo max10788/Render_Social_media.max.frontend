@@ -36,6 +36,7 @@ from app.models.schemas import TransactionTrackRequest, TransactionTrackResponse
 from app.core.exceptions import TransactionNotFoundError, CryptoTrackerError
 from app.core.solana_client import SolanaClient
 from app.core.ethereum_client import EthereumClient
+from app.core.exchange_rate import CoinGeckoExchangeRate
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
@@ -309,11 +310,11 @@ async def track_transactions_controller(
     db: Session = Depends(get_db)
 ):
     try:
-        # Verwende die CryptoTrackingService-Abstraktion
         async with aiohttp.ClientSession() as session:
             tracking_service = CryptoTrackingService(
                 solana_client=SolanaClient(session),
                 ethereum_client=EthereumClient(session),
+                cache_provider=InMemoryCache(),
                 exchange_rate_provider=CoinGeckoExchangeRate(session=session)
             )
             result = await tracking_service.track_transaction_chain(
@@ -322,10 +323,7 @@ async def track_transactions_controller(
                 num_transactions=request.num_transactions
             )
 
-        # Speichere Transaktionen in DB
         background_tasks.add_task(save_transactions_to_db, db=db, transactions=result.transactions)
-
-        # Gib Antwort zurück
         return result.to_dict()
 
     except TransactionNotFoundError as e:
