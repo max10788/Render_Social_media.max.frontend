@@ -13,7 +13,7 @@ from base58 import b58decode  # pip install base58
 import logging
 logger = logging.getLogger(__name__)
 
-# Versuche, das Solana SDK zu laden
+# Try to load the Solana SDK
 try:
     from solana.rpc.api import Client as SolanaRpcClient
     from solders.signature import Signature
@@ -23,7 +23,7 @@ except ImportError:
     logger.warning("solana/rpc/types/solders not found – using fallback logic")
     SOLANA_SDK_AVAILABLE = False
 
-# Deine Module
+# Your modules
 from app.core.crypto_tracker import BlockchainClient, Transaction, Currency
 from app.core.exceptions import APIError, TransactionNotFoundError
 from app.core.config import settings
@@ -36,11 +36,11 @@ class SolanaClient(BlockchainClient):
         self.rpc_url = settings.SOLANA_RPC_URL
         self.request_id = 1
 
-        # Falls solana SDK verfügbar ist, nutze es zusätzlich
+        # Use SDK client if available
         self.sdk_client = SolanaRpcClient(self.rpc_url) if SOLANA_SDK_AVAILABLE else None
 
     async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict]:
-        """Sendet einen JSON-RPC-Aufruf an den Solana RPC-Server."""
+        """Sends a JSON-RPC call to the Solana RPC server."""
         payload = {
             "jsonrpc": "2.0",
             "id": self.request_id,
@@ -58,24 +58,40 @@ class SolanaClient(BlockchainClient):
             ) as response:
                 if response.status != 200:
                     logger.error(f"RPC Error {response.status}: {await response.text()}")
-                    return None
+                    raise APIError(f"RPC server returned status {response.status}")
+                
                 data = await response.json()
                 if "error" in data:
-                    logger.error(f"RPC returned error: {data['error']}")
-                    return None
-                return data.get("result")
+                    error_msg = data['error'].get('message', str(data['error']))
+                    logger.error(f"RPC returned error: {error_msg}")
+                    if "not found" in str(error_msg).lower():
+                        raise TransactionNotFoundError(f"Transaction not found: {params}")
+                    raise APIError(f"RPC error: {error_msg}")
+                
+                if "result" not in data:
+                    raise APIError("Invalid RPC response format: missing 'result' field")
+                    
+                return data["result"]
+                
         except aiohttp.ClientError as e:
             logger.error(f"HTTP error during RPC call: {e}")
-            return None
+            raise APIError(f"HTTP error: {str(e)}")
+        except (APIError, TransactionNotFoundError):
+            raise
         except Exception as e:
             logger.error(f"Unexpected error during RPC call: {e}")
-            return None
+            raise APIError(f"Unexpected error: {str(e)}")
 
     async def get_transaction(self, tx_hash: str, max_retries: int = 3) -> Optional[Transaction]:
-        """Holt eine Solana-Transaktion per Signature mit fallback auf HTTP."""
-        for attempt in range(max_retries + 1):
+        """Fetches a Solana transaction by signature with fallback to HTTP."""
+        # Validate signature format before making any calls
+        if not self._is_valid_signature(tx_hash):
+            logger.error(f"Invalid signature format: {tx_hash}")
+            return None
+
+        for attempt in range(max_retries):
             try:
-                # Prüfe zuerst das SDK
+                # Try SDK first
                 if SOLANA_SDK_AVAILABLE:
                     try:
                         signature = Signature.from_string(tx_hash)
@@ -85,32 +101,35 @@ class SolanaClient(BlockchainClient):
                     except Exception as sdk_error:
                         logger.warning(f"SDK transaction fetch failed: {sdk_error}")
 
-                # Fallback: Nutze direkte RPC-Anfrage
+                # Fallback: Use direct RPC request
                 response = await self._make_rpc_call(
                     "getTransaction",
                     [tx_hash, {"encoding": "jsonParsed"}]
                 )
 
-                if not response or not isinstance(response, dict):
-                    logger.warning(f"Invalid RPC response format for {tx_hash}")
-                    if attempt < max_retries:
-                        wait_time = 2 ** attempt
-                        logger.info(f"Retrying in {wait_time}s...")
-                        await asyncio.sleep(wait_time)
-                        continue
-                    return None
+                if not response:
+                    raise TransactionNotFoundError(f"Transaction not found: {tx_hash}")
+
+                if not isinstance(response, dict):
+                    raise APIError(f"Invalid response format for {tx_hash}")
 
                 return self._format_solana_transaction(response, tx_hash)
 
-            except Exception as e:
-                logger.error(f"Error fetching Solana transaction {tx_hash}: {e}")
-                if attempt < max_retries:
-                    wait_time = 2 ** attempt
-                    logger.info(f"Retrying in {wait_time}s...")
-                    await asyncio.sleep(wait_time)
-                    continue
+            except TransactionNotFoundError:
+                # Don't retry if transaction is definitely not found
+                logger.warning(f"Transaction not found: {tx_hash}")
                 return None
+            except (APIError, Exception) as e:
+                wait_time = min(2 ** attempt, 8)  # Cap maximum wait time at 8 seconds
+                if attempt < max_retries - 1:
+                    logger.info(f"Attempt {attempt + 1} failed: {str(e)}. Retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(f"All attempts failed for transaction {tx_hash}")
+                    return None
+
         return None
+
 
     async def find_next_transaction(self, address: str, max_retries: int = 3) -> Optional[Transaction]:
         """Finde die nächste Transaktion eines Wallets."""
