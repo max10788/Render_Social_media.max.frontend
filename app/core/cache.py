@@ -1,6 +1,6 @@
 # app/core/cache.py
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 class InMemoryCache:
     def __init__(self):
