@@ -278,71 +278,58 @@ def get_crypto_service() -> CryptoTrackingService:
 # track-transaction
 #--------------------------i
 
-def save_transactions_to_db(db: Session, transactions: list[dict]):
-    try:
-        for tx in transactions:
-            db_transaction = CryptoTransaction(
-                hash=tx["hash"],
-                from_address=tx["from_address"]["pubkey"],   # Nur pubkey speichern
-                to_address=tx["to_address"]["pubkey"],       # Nur pubkey speichern
-                amount=tx.get("amount", 0.0),
-                amount_converted=tx.get("amount_converted"),
-                fee=tx.get("fee", 0.0),
-                fee_converted=tx.get("fee_converted"),
-                currency=tx["currency"],
-                timestamp=datetime.fromtimestamp(tx["timestamp"]),
-                direction=tx.get("direction", "out")
-            )
-            db.add(db_transaction)
-        db.commit()
-        logger.info(f"Saved {len(transactions)} transactions.")
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to save transactions: {e}")
-        raise
-
-# Haupt-Funktion für das Tracking
-# In endpoints.py
-# In app/api/endpoints.py
-
-async def track_transactions_controller(
-    request: TransactionTrackRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    try:
-        async with aiohttp.ClientSession() as session:
-            tracking_service = CryptoTrackingService(
-                solana_client=SolanaClient(session),
-                ethereum_client=EthereumClient(session),
-                cache_provider=InMemoryCache(),
-                exchange_rate_provider=CoinGeckoExchangeRate(session=session)
-            )
-            result = await tracking_service.track_transaction_chain(
-                start_tx_hash=request.start_tx_hash,
-                target_currency=request.target_currency,
-                num_transactions=request.num_transactions
-            )
-
-        background_tasks.add_task(save_transactions_to_db, db=db, transactions=result.transactions)
-        return result.to_dict()
-
-    except TransactionNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except CryptoTrackerError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error during transaction tracking: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
-
-# Route
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transaction_route(
     request: TransactionTrackRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    return await track_transactions_controller(request, background_tasks, db)
+    try:
+        async with aiohttp.ClientSession() as session:
+            # Instanziiere Solana-Client
+            solana_client = SolanaClient(session)
+            
+            # Hole die erste Transaktion
+            tx_data = await solana_client.get_transaction(request.start_tx_hash)
+            if not tx_data:
+                raise HTTPException(status_code=404, detail="Initial transaction not found")
+            
+            transactions = [tx_data]
+            current_address = tx_data.to_address
+            
+            # Hole weitere Transaktionen basierend auf der Zieladdresse
+            for _ in range(request.num_transactions - 1):
+                next_tx = await solana_client.find_next_transaction(current_address)
+                if not next_tx:
+                    break
+                transactions.append(next_tx)
+                current_address = next_tx.to_address
+
+            # Formatiere die Transaktionen für die Antwort
+            formatted_transactions = [{
+                "hash": tx.hash,
+                "from_address": tx.from_address,
+                "to_address": tx.to_address,
+                "amount": tx.amount,
+                "fee": tx.fee,
+                "timestamp": tx.timestamp,
+                "currency": "SOL",
+                "block_number": tx.block_number
+            } for tx in transactions]
+
+            # Speichere in Datenbank
+            background_tasks.add_task(save_transactions_to_db, db, formatted_transactions)
+
+            return {
+                "transactions": formatted_transactions,
+                "status": "success",
+                "total_transactions": len(formatted_transactions),
+                "target_currency": request.target_currency
+            }
+
+    except Exception as e:
+        logger.error(f"Error tracking transactions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 #--------------------------i
 # ML-basierte Analyse
