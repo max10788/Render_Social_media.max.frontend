@@ -332,131 +332,131 @@
         });
         
         async function trackTransactions() {
-    const startTx = document.getElementById('startTx').value;
-    const targetCurrency = document.getElementById('targetCurrency').value;
-    const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
-    
-    if (!startTx) {
-        showError('Bitte geben Sie eine Starttransaktion ein.');
-        return;
-    }
-    
-    showLoading();
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/track-transactions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                start_tx_hash: startTx,
-                target_currency: targetCurrency,
-                num_transactions: numTransactions
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+            const startTx = document.getElementById('startTx').value;
+            const targetCurrency = document.getElementById('targetCurrency').value;
+            const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
+            
+            if (!startTx) {
+                showError('Bitte geben Sie eine Starttransaktion ein.');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/track-transactions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        start_tx_hash: startTx,
+                        target_currency: targetCurrency,
+                        num_transactions: numTransactions
+                    })
+                });
+        
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+        
+                const data = await response.json();
+                console.log('Tracking-Ergebnis:', data);
+        
+                // Update UI with transaction data
+                updateTransactionInfo(data);
+                
+                // Visualize transactions
+                if (data.transactions && data.transactions.length > 0) {
+                    const container = document.getElementById('transactionTree');
+                    const svgContent = createSVGTreeFromSOLTransaction(data.transactions[0], data.target_currency);
+                    container.innerHTML = svgContent;
+                    
+                    // Update statistics
+                    document.getElementById('txCount').textContent = data.total_transactions;
+                    document.getElementById('sourceCurrency').textContent = 'SOL';
+                    document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
+                    
+                    // Calculate totals
+                    const totalValue = data.transactions.reduce((sum, tx) => sum + tx.amount, 0);
+                    const totalFees = data.transactions.reduce((sum, tx) => sum + tx.fee, 0);
+                    
+                    document.getElementById('totalValue').textContent = `${totalValue.toFixed(4)} SOL`;
+                    document.getElementById('totalFees').textContent = `${totalFees.toFixed(4)} SOL`;
+                    
+                    // Update start transaction info
+                    const firstTx = data.transactions[0];
+                    document.getElementById('startHash').textContent = firstTx.hash;
+                    document.getElementById('startTime').textContent = new Date(firstTx.timestamp * 1000).toLocaleString();
+                }
+            } catch (error) {
+                console.error('Fehler beim Tracking:', error);
+                showError(`Fehler beim Tracking: ${error.message}`);
+            }
         }
-
-        const data = await response.json();
-        console.log('Tracking-Ergebnis:', data);
-
-        // Update UI with transaction data
-        updateTransactionInfo(data);
         
-        // Visualize transactions
-        if (data.transactions && data.transactions.length > 0) {
-            const container = document.getElementById('transactionTree');
-            const svgContent = createSVGTreeFromSOLTransaction(data.transactions[0], data.target_currency);
-            container.innerHTML = svgContent;
+        function updateTransactionInfo(data) {
+            const startInfoDiv = document.getElementById('startInfo');
+            const txStatsDiv = document.getElementById('txStats');
+            const conversionInfoDiv = document.getElementById('conversionInfo');
             
-            // Update statistics
-            document.getElementById('txCount').textContent = data.total_transactions;
-            document.getElementById('sourceCurrency').textContent = 'SOL';
-            document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
-            
-            // Calculate totals
-            const totalValue = data.transactions.reduce((sum, tx) => sum + tx.amount, 0);
-            const totalFees = data.transactions.reduce((sum, tx) => sum + tx.fee, 0);
-            
-            document.getElementById('totalValue').textContent = `${totalValue.toFixed(4)} SOL`;
-            document.getElementById('totalFees').textContent = `${totalFees.toFixed(4)} SOL`;
-            
-            // Update start transaction info
-            const firstTx = data.transactions[0];
-            document.getElementById('startHash').textContent = firstTx.hash;
-            document.getElementById('startTime').textContent = new Date(firstTx.timestamp * 1000).toLocaleString();
+            if (data.transactions && data.transactions.length > 0) {
+                const firstTx = data.transactions[0];
+                
+                // Update start info
+                startInfoDiv.innerHTML = `
+                    <div class="transaction-item">
+                        <span>Währung:</span>
+                        <span class="transaction-value">SOL</span>
+                    </div>
+                    <div class="transaction-item">
+                        <span>Hash:</span>
+                        <span class="transaction-value">${firstTx.hash}</span>
+                    </div>
+                    <div class="transaction-item">
+                        <span>Zeitstempel:</span>
+                        <span class="transaction-value">${new Date(firstTx.timestamp * 1000).toLocaleString()}</span>
+                    </div>
+                `;
+                
+                // Update transaction stats
+                const totalValue = data.transactions.reduce((sum, tx) => sum + tx.amount, 0);
+                const totalFees = data.transactions.reduce((sum, tx) => sum + tx.fee, 0);
+                
+                txStatsDiv.innerHTML = `
+                    <div class="transaction-item">
+                        <span>Anzahl verfolgt:</span>
+                        <span class="transaction-value">${data.transactions.length}</span>
+                    </div>
+                    <div class="transaction-item">
+                        <span>Gesamtwert:</span>
+                        <span class="transaction-value">${totalValue.toFixed(4)} SOL</span>
+                    </div>
+                    <div class="transaction-item">
+                        <span>Gesamtgebühren:</span>
+                        <span class="transaction-value">${totalFees.toFixed(4)} SOL</span>
+                    </div>
+                `;
+                
+                // Update conversion info
+                conversionInfoDiv.innerHTML = `
+                    <div class="transaction-item">
+                        <span>Zielwährung:</span>
+                        <span class="transaction-value">${data.target_currency}</span>
+                    </div>
+                    <div class="transaction-item">
+                        <span>Wechselkurs:</span>
+                        <span class="transaction-value">-</span>
+                    </div>
+                    <div class="transaction-item">
+                        <span>Wert in Zielwährung:</span>
+                        <span class="transaction-value">-</span>
+                    </div>
+                `;
+            }
         }
-    } catch (error) {
-        console.error('Fehler beim Tracking:', error);
-        showError(`Fehler beim Tracking: ${error.message}`);
-    }
-}
-
-function updateTransactionInfo(data) {
-    const startInfoDiv = document.getElementById('startInfo');
-    const txStatsDiv = document.getElementById('txStats');
-    const conversionInfoDiv = document.getElementById('conversionInfo');
-    
-    if (data.transactions && data.transactions.length > 0) {
-        const firstTx = data.transactions[0];
-        
-        // Update start info
-        startInfoDiv.innerHTML = `
-            <div class="transaction-item">
-                <span>Währung:</span>
-                <span class="transaction-value">SOL</span>
-            </div>
-            <div class="transaction-item">
-                <span>Hash:</span>
-                <span class="transaction-value">${firstTx.hash}</span>
-            </div>
-            <div class="transaction-item">
-                <span>Zeitstempel:</span>
-                <span class="transaction-value">${new Date(firstTx.timestamp * 1000).toLocaleString()}</span>
-            </div>
-        `;
-        
-        // Update transaction stats
-        const totalValue = data.transactions.reduce((sum, tx) => sum + tx.amount, 0);
-        const totalFees = data.transactions.reduce((sum, tx) => sum + tx.fee, 0);
-        
-        txStatsDiv.innerHTML = `
-            <div class="transaction-item">
-                <span>Anzahl verfolgt:</span>
-                <span class="transaction-value">${data.transactions.length}</span>
-            </div>
-            <div class="transaction-item">
-                <span>Gesamtwert:</span>
-                <span class="transaction-value">${totalValue.toFixed(4)} SOL</span>
-            </div>
-            <div class="transaction-item">
-                <span>Gesamtgebühren:</span>
-                <span class="transaction-value">${totalFees.toFixed(4)} SOL</span>
-            </div>
-        `;
-        
-        // Update conversion info
-        conversionInfoDiv.innerHTML = `
-            <div class="transaction-item">
-                <span>Zielwährung:</span>
-                <span class="transaction-value">${data.target_currency}</span>
-            </div>
-            <div class="transaction-item">
-                <span>Wechselkurs:</span>
-                <span class="transaction-value">-</span>
-            </div>
-            <div class="transaction-item">
-                <span>Wert in Zielwährung:</span>
-                <span class="transaction-value">-</span>
-            </div>
-        `;
-    }
-}
         async function submitAnalysis(event) {
             event.preventDefault();
             
