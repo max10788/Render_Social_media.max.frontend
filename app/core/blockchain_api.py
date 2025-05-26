@@ -102,22 +102,40 @@ def validate_blockchain_type(blockchain_endpoint: str) -> str:
 
 # Keep all the existing imports and validation functions
 
+
 def fetch_on_chain_data(blockchain_endpoint: str, contract_address: str) -> list:
     """
+    Ruft On-Chain-Daten basierend auf dem Endpoint und der Contract-Adresse ab.
     Fetches on-chain data from any supported blockchain.
     
     Args:
+        blockchain_endpoint: Die URL des Blockchain-RPC-Endpoints.
+        contract_address: Die Adresse des Smart Contracts.
+    
         blockchain_endpoint: The URL of the blockchain RPC endpoint
         contract_address: The address to fetch data for
         
     Returns:
+        list: Eine Liste von Transaktionen.
         list: List of transactions
     """
     try:
+        if not blockchain_endpoint or not contract_address:
+            raise ValueError("Blockchain endpoint and contract address are required")
+
         blockchain_type = validate_blockchain_type(blockchain_endpoint)
         if not blockchain_type:
             raise ValueError(f"Unsupported blockchain endpoint: {blockchain_endpoint}")
 
+        # Validate contract address format
+        if blockchain_type in ["ethereum", "binance", "polygon"]:
+            if not contract_address.startswith("0x") or len(contract_address) != 42:
+                raise ValueError(f"Invalid {blockchain_type} contract address format")
+        elif blockchain_type == "solana":
+            if len(contract_address) != 44:
+                raise ValueError("Invalid Solana contract address format")
+
+        # Fetch data based on blockchain type
         # For Solana specific fetching
         if blockchain_type == "solana":
             payload = {
@@ -148,6 +166,7 @@ def fetch_on_chain_data(blockchain_endpoint: str, contract_address: str) -> list
                 }
                 for tx in transactions
             ]
+        else:  # ethereum, binance, polygon
             
         # Keep existing code for other blockchains (ethereum, binance, polygon)
         else:
@@ -157,6 +176,24 @@ def fetch_on_chain_data(blockchain_endpoint: str, contract_address: str) -> list
                 "address": contract_address,
                 "apikey": settings.get_blockchain_api_key(blockchain_type)
             }
+            response = requests.get(blockchain_endpoint, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get("status") != "1":
+                raise ValueError(f"API Error: {data.get('message')}")
+                
+            transactions = data.get("result", [])
+            return [
+                {
+                    "transaction_id": tx.get("hash", ""),
+                    "amount": float(tx.get("value", 0)) / 1e18,
+                    "block_time": int(tx.get("timeStamp", 0)),
+                    "wallet_address": contract_address,
+                    "description": tx.get("input", "")
+                }
+                for tx in transactions
+            ]
             # Rest of the existing code for other blockchains...
 
     except requests.exceptions.RequestException as e:
