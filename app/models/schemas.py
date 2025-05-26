@@ -122,13 +122,13 @@ class FeedbackRequest(BaseModel):
     transaction_id: str
     label: bool  # True = korreliert, False = nicht korreliert
 
-# Füge diese neue Klasse zu schemas.py hinzu:
-
 class TransactionTrackRequest(BaseModel):
-    start_tx_hash: str
-    target_currency: str
-    num_transactions: int = 10  # Default-Wert von 10
+    start_tx_hash: str = Field(..., description="The initial transaction hash to start tracking from")
+    target_currency: str = Field(..., description="Target currency for conversion (e.g., 'USD', 'EUR')")
+    num_transactions: int = Field(default=10, ge=1, le=100, description="Number of transactions to track")
 
 class TransactionTrackResponse(BaseModel):
-    transactions: list
-    status: str = "success"
+    transactions: List[dict]
+    status: str
+    total_transactions: int
+    target_currency: str
