@@ -98,26 +98,19 @@ def validate_blockchain_type(blockchain_endpoint: str) -> str:
         return "binance"
     elif "polygon" in endpoint_lower:
         return "polygon"
-    return None
-
-# Keep all the existing imports and validation functions
-
+    else:
+        return None
 
 def fetch_on_chain_data(blockchain_endpoint: str, contract_address: str) -> list:
     """
     Ruft On-Chain-Daten basierend auf dem Endpoint und der Contract-Adresse ab.
-    Fetches on-chain data from any supported blockchain.
     
     Args:
         blockchain_endpoint: Die URL des Blockchain-RPC-Endpoints.
         contract_address: Die Adresse des Smart Contracts.
     
-        blockchain_endpoint: The URL of the blockchain RPC endpoint
-        contract_address: The address to fetch data for
-        
     Returns:
         list: Eine Liste von Transaktionen.
-        list: List of transactions
     """
     try:
         if not blockchain_endpoint or not contract_address:
@@ -136,7 +129,6 @@ def fetch_on_chain_data(blockchain_endpoint: str, contract_address: str) -> list
                 raise ValueError("Invalid Solana contract address format")
 
         # Fetch data based on blockchain type
-        # For Solana specific fetching
         if blockchain_type == "solana":
             payload = {
                 "jsonrpc": "2.0",
@@ -144,32 +136,21 @@ def fetch_on_chain_data(blockchain_endpoint: str, contract_address: str) -> list
                 "method": "getSignaturesForAddress",
                 "params": [contract_address]
             }
-            
             response = requests.post(blockchain_endpoint, json=payload)
             response.raise_for_status()
             data = response.json()
-            
-            if "result" not in data:
-                raise ValueError("Invalid response from Solana RPC")
-                
             transactions = data.get("result", [])
-            
-            # Format Solana transactions
             return [
                 {
                     "transaction_id": tx.get("signature", ""),
                     "amount": tx.get("meta", {}).get("postBalances", [0])[0],
                     "block_time": tx.get("blockTime", 0),
                     "wallet_address": contract_address,
-                    "to_address": tx.get("meta", {}).get("postTokenBalances", [{}])[0].get("owner", ""),
                     "description": tx.get("memo", "")
                 }
                 for tx in transactions
             ]
         else:  # ethereum, binance, polygon
-            
-        # Keep existing code for other blockchains (ethereum, binance, polygon)
-        else:
             params = {
                 "module": "account",
                 "action": "txlist",
@@ -194,7 +175,6 @@ def fetch_on_chain_data(blockchain_endpoint: str, contract_address: str) -> list
                 }
                 for tx in transactions
             ]
-            # Rest of the existing code for other blockchains...
 
     except requests.exceptions.RequestException as e:
         logging.error(f"Error fetching on-chain data: {e}")
