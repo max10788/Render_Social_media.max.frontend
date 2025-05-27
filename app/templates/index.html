@@ -16,23 +16,27 @@
         // --- 1. Submit Logic ---
         async function submitAnalysis(event) {
             event.preventDefault();
-    
+        
+            // Felder exakt nach dem Backend-Schema!
+            const formData = {
+                blockchain: document.getElementById('blockchain').value, // Enum-Wert als String
+                contract_address: document.getElementById('contract_address').value.trim() || null,
+                twitter_username: document.getElementById('twitter_username').value.trim() || null,
+                keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
+                start_date: document.getElementById('start_date').value,
+                end_date: document.getElementById('end_date').value,
+                tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
+            };
+        
+            // Optional: leere Strings zu null (für optionale Felder)
+            if (formData.contract_address === "") formData.contract_address = null;
+            if (formData.twitter_username === "") formData.twitter_username = null;
+        
             try {
-                const formData = {
-                    blockchain: document.getElementById('blockchain').value.toLowerCase(),
-                    contract_address: document.getElementById('contract_address').value.trim() || null,
-                    keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
-                    start_date: document.getElementById('start_date').value,
-                    end_date: document.getElementById('end_date').value,
-                    tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
-                };
-    
-                console.log('Formular-Daten:', formData);
-    
                 const resultDiv = document.getElementById('result');
                 resultDiv.style.display = 'block';
                 resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
-    
+        
                 const response = await fetch('/api/v1/analyze/rule-based', {
                     method: 'POST',
                     headers: {
@@ -41,23 +45,19 @@
                     },
                     body: JSON.stringify(formData)
                 });
-    
-                console.log('API Response Status:', response.status);
-    
+        
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
-    
+        
                 const data = await response.json();
-                console.log('API Response Data:', data);
-    
                 if (data.job_id) {
                     pollAnalysisStatus(data.job_id);
                 } else {
                     throw new Error('Keine Job-ID erhalten');
                 }
-    
+        
             } catch (error) {
                 console.error('Analyse-Fehler:', error);
                 document.getElementById('result').innerHTML = `
