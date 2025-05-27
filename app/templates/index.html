@@ -4,40 +4,57 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto-Flow: Unified Analysis Dashboard</title>
+
+    <!-- Externe Ressourcen -->
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css " rel="stylesheet"/>
+    <script src="https://d3js.org/d3.v7.min.js "></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js "></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js "></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js "></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css " rel="stylesheet"/>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
 
-<!-- submitAnalysis + TransactionVisualizer integriert -->
     <script>
+        const API_BASE_URL = '/api/v1';
+
         // --- 1. Submit Logic ---
         async function submitAnalysis(event) {
             event.preventDefault();
-        
-            // Felder exakt nach dem Backend-Schema!
-            const formData = {
-                blockchain: document.getElementById('blockchain').value, // Enum-Wert als String
-                contract_address: document.getElementById('contract_address').value.trim() || null,
-                twitter_username: document.getElementById('twitter_username').value.trim() || null,
-                keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
-                start_date: document.getElementById('start_date').value,
-                end_date: document.getElementById('end_date').value,
-                tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
-            };
-        
-            // Optional: leere Strings zu null (für optionale Felder)
-            if (formData.contract_address === "") formData.contract_address = null;
-            if (formData.twitter_username === "") formData.twitter_username = null;
-        
+            const blockchain = document.getElementById('blockchain').value.toLowerCase();
+            const contractAddress = document.getElementById('contract_address').value.trim();
+
+            if (!contractAddress) {
+                showErrorInResult('Contract-Adresse ist erforderlich.');
+                return;
+            }
+
+            if (["ethereum", "binance", "polygon"].includes(blockchain)) {
+                if (!contractAddress.startsWith('0x') || contractAddress.length !== 42) {
+                    showErrorInResult(`${blockchain}-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein.`);
+                    return;
+                }
+            } else if (blockchain === "solana") {
+                if (contractAddress.length !== 44) {
+                    showErrorInResult('Solana-Adressen müssen 44 Zeichen lang sein.');
+                    return;
+                }
+            }
+
             try {
+                const formData = {
+                    blockchain: blockchain,
+                    contract_address: contractAddress,
+                    twitter_username: document.getElementById('twitter_username').value.trim(),
+                    keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
+                    start_date: document.getElementById('start_date').value,
+                    end_date: document.getElementById('end_date').value,
+                    tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
+                };
+
                 const resultDiv = document.getElementById('result');
                 resultDiv.style.display = 'block';
                 resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
-        
-                const response = await fetch('/api/v1/analyze/rule-based', {
+
+                const response = await fetch(`${API_BASE_URL}/analyze/rule-based`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -45,54 +62,48 @@
                     },
                     body: JSON.stringify(formData)
                 });
-        
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
-        
+
                 const data = await response.json();
-                if (data.job_id) {
-                    pollAnalysisStatus(data.job_id);
-                } else {
-                    throw new Error('Keine Job-ID erhalten');
-                }
-        
-            } catch (error) {
-                console.error('Analyse-Fehler:', error);
-                document.getElementById('result').innerHTML = `
-                    <div class="error-message">
-                        <h3>Fehler bei der Analyse</h3>
-                        <p>${error.message}</p>
-                    </div>
+                const jobId = data.job_id;
+
+                resultDiv.innerHTML = `
+                    <h3>Analyse erfolgreich gestartet!</h3>
+                    <p><strong>Job-ID:</strong> ${jobId}</p>
+                    <p><strong>Status:</strong> ${data.status}</p>
                 `;
+
+                pollAnalysisStatus(jobId);
+            } catch (error) {
+                console.error('Error submitting analysis:', error);
+                showErrorInResult(`Fehler beim Starten der Analyse: ${error.message}`);
             }
         }
-    
+
         async function pollAnalysisStatus(jobId) {
             const resultDiv = document.getElementById('result');
             let attempts = 0;
             const maxAttempts = 30;
-    
-            const pollInterval = setInterval(async () => {
+
+            const interval = setInterval(async () => {
                 try {
                     attempts++;
-                    console.log(`Polling Versuch ${attempts} für Job ${jobId}`);
-    
                     const response = await fetch(`/api/v1/analysis/status/${jobId}`);
                     const status = await response.json();
-    
-                    console.log('Status Update:', status);
-    
+
                     if (status.status === 'Completed') {
-                        clearInterval(pollInterval);
+                        clearInterval(interval);
                         displayResults(status);
-                        visualizeTransactionsFromAnalysis(status); // Neue Funktion hier
+                        visualizeTransactionsFromAnalysis(status);
                     } else if (status.status.startsWith('Failed')) {
-                        clearInterval(pollInterval);
+                        clearInterval(interval);
                         throw new Error(status.error || 'Analyse fehlgeschlagen');
                     } else if (attempts >= maxAttempts) {
-                        clearInterval(pollInterval);
+                        clearInterval(interval);
                         throw new Error('Zeitüberschreitung bei der Analyse');
                     } else {
                         resultDiv.innerHTML = `
@@ -102,18 +113,12 @@
                         `;
                     }
                 } catch (error) {
-                    console.error('Polling-Fehler:', error);
-                    clearInterval(pollInterval);
-                    resultDiv.innerHTML = `
-                        <div class="error-message">
-                            <h3>Fehler beim Status-Update</h3>
-                            <p>${error.message}</p>
-                        </div>
-                    `;
+                    clearInterval(interval);
+                    resultDiv.innerHTML = `<div class="error-message"><h3>Fehler</h3><p>${error.message}</p></div>`;
                 }
             }, 2000);
         }
-    
+
         function displayResults(status) {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = `
@@ -145,13 +150,11 @@
                             </ul>
                         </div>
                     ` : '<p>Keine Wallet-Adressen gefunden.</p>'}
-                    
-                    <!-- Container für Visualisierung -->
                     <div id="transactionTree" style="width:100%; height:600px; border:1px solid #ccc;"></div>
                 </div>
             `;
         }
-    
+
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 const toast = document.createElement('div');
@@ -161,48 +164,46 @@
                 setTimeout(() => toast.remove(), 2000);
             });
         }
-    
-        // --- 2. TransactionVisualizer aus Pasted_Text_1747321915901.txt ---
-        // Hier eingefügter Code vom IIFE TransactionVisualizer
+
+        // --- 2. TransactionVisualizer (IIFE) ---
         const TransactionVisualizer = (function () {
             const currencyColors = {
                 btc: '#f2a900',
                 eth: '#627eea',
                 sol: '#00ffbd'
             };
-    
+
             function shortenAddress(address) {
                 return address?.length > 12 
                     ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` 
                     : address || '';
             }
-    
+
             function showLoading(container) {
                 container.innerHTML = '<p>Lade Visualisierung...</p>';
             }
-    
+
             function showError(container, message) {
                 container.innerHTML = `<div class="error">${message}</div>`;
             }
-    
+
             function createSVGTreeFromBTCTransaction(tx, targetCurrency) {
                 return `<svg><text x="10" y="20">BTC Visualisierung nicht implementiert</text></svg>`;
             }
-    
+
             function createSVGTreeFromETHTransaction(tx, targetCurrency) {
                 return `<svg><text x="10" y="20">ETH Visualisierung nicht implementiert</text></svg>`;
             }
-    
+
             function createSVGTreeFromSOLTransaction(tx, targetCurrency) {
                 return `<svg><text x="10" y="20">SOL Visualisierung nicht implementiert</text></svg>`;
             }
-    
+
             function visualizeTransactionFlow(data) {
-                // Dummy-Implementierung – kann später mit echten Daten gefüllt werden
                 const container = document.getElementById('transactionTree');
                 container.innerHTML = "<p>Visualisiere Transaktionsfluss...</p>";
             }
-    
+
             function addTooltip(element, data) {
                 element.addEventListener('mouseover', (e) => {
                     const tooltip = document.createElement('div');
@@ -223,7 +224,7 @@
                     if (tooltip) tooltip.remove();
                 });
             }
-    
+
             return {
                 showLoading: function (containerId) {
                     const container = document.getElementById(containerId);
@@ -246,33 +247,33 @@
                 }
             };
         })();
-    
-        // --- 3. Neue Funktion zur Visualisierung nach Analyse ---
+
         async function visualizeTransactionsFromAnalysis(status) {
             if (!status.potential_wallets?.length) return;
-    
-            const walletAddress = status.potential_wallets[0]; // Beispielhaft nur erste Wallet
+            const walletAddress = status.potential_wallets[0];
             const containerId = 'transactionTree';
-    
             TransactionVisualizer.showLoading(containerId);
-    
+
             try {
                 const response = await fetch(`/api/v1/transactions?wallet=${walletAddress}&limit=5`);
                 if (!response.ok) throw new Error("Transaktionsdaten konnten nicht geladen werden.");
-    
                 const txData = await response.json();
                 TransactionVisualizer.visualizeTransactions(txData, containerId);
             } catch (error) {
                 TransactionVisualizer.showError(containerId, error.message);
             }
         }
-    </script>
 
-    <!-- Main Application Code -->
-    <script>
-        const API_BASE_URL = '/api/v1';
+        function showErrorInResult(message) {
+            document.getElementById('result').innerHTML = `
+                <div class="error-message">
+                    <h3>Fehler</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             initializeTabs();
             initTransactionTracker();
             initSocialAnalysis();
@@ -282,11 +283,11 @@
         function initializeTabs() {
             const tabs = document.querySelectorAll('.tab');
             tabs.forEach(tab => {
-                tab.addEventListener('click', function() {
+                tab.addEventListener('click', function () {
                     const tabId = this.getAttribute('data-tab');
                     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                     this.classList.add('active');
-                    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                     document.getElementById(tabId).classList.add('active');
                 });
             });
@@ -302,47 +303,34 @@
 
         function initTransactionTracker() {
             document.getElementById('trackButton').addEventListener('click', trackTransactions);
+            document.getElementById('startTx').addEventListener('input', function (e) {
+                const hash = e.target.value;
+                const isValid = validateTransactionHash(hash);
+                if (hash && !isValid) {
+                    e.target.classList.add('invalid');
+                    document.getElementById('trackButton').disabled = true;
+                } else {
+                    e.target.classList.remove('invalid');
+                    document.getElementById('trackButton').disabled = false;
+                }
+            });
         }
-
 
         function validateTransactionHash(hash) {
-            // Ethereum Format
-            if (/^0x[a-fA-F0-9]{64}$/.test(hash)) {
-                return true;
-            }
-            // Solana Format
-            if (/^[1-9A-HJ-NP-Za-km-z]{43,90}$/.test(hash)) {
-                return true;
-            }
-            return false;
+            return /^0x[a-fA-F0-9]{64}$/.test(hash) || /^[1-9A-HJ-NP-Za-km-z]{43,90}$/.test(hash);
         }
-        
-        // Event-Listener für Input-Validierung
-        document.getElementById('startTx').addEventListener('input', function(e) {
-            const hash = e.target.value;
-            const isValid = validateTransactionHash(hash);
-            
-            if (hash && !isValid) {
-                e.target.classList.add('invalid');
-                document.getElementById('trackButton').disabled = true;
-            } else {
-                e.target.classList.remove('invalid');
-                document.getElementById('trackButton').disabled = false;
-            }
-        });
-        
+
         async function trackTransactions() {
             const startTx = document.getElementById('startTx').value;
             const targetCurrency = document.getElementById('targetCurrency').value;
             const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
-            
+
             if (!startTx) {
-                showError('Bitte geben Sie eine Starttransaktion ein.');
+                showErrorInResult('Bitte geben Sie eine Starttransaktion ein.');
                 return;
             }
-            
+
             showLoading();
-            
             try {
                 const response = await fetch(`${API_BASE_URL}/track-transactions`, {
                     method: 'POST',
@@ -356,56 +344,48 @@
                         num_transactions: numTransactions
                     })
                 });
-        
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
-        
+
                 const data = await response.json();
-                console.log('Tracking-Ergebnis:', data);
-        
-                // Update UI with transaction data
                 updateTransactionInfo(data);
-                
-                // Visualize transactions
+
                 if (data.transactions && data.transactions.length > 0) {
                     const container = document.getElementById('transactionTree');
                     const svgContent = createSVGTreeFromSOLTransaction(data.transactions[0], data.target_currency);
                     container.innerHTML = svgContent;
-                    
-                    // Update statistics
+
                     document.getElementById('txCount').textContent = data.total_transactions;
                     document.getElementById('sourceCurrency').textContent = 'SOL';
                     document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
-                    
-                    // Calculate totals
+
                     const totalValue = data.transactions.reduce((sum, tx) => sum + tx.amount, 0);
                     const totalFees = data.transactions.reduce((sum, tx) => sum + tx.fee, 0);
-                    
+
                     document.getElementById('totalValue').textContent = `${totalValue.toFixed(4)} SOL`;
                     document.getElementById('totalFees').textContent = `${totalFees.toFixed(4)} SOL`;
-                    
-                    // Update start transaction info
+
                     const firstTx = data.transactions[0];
                     document.getElementById('startHash').textContent = firstTx.hash;
                     document.getElementById('startTime').textContent = new Date(firstTx.timestamp * 1000).toLocaleString();
                 }
             } catch (error) {
                 console.error('Fehler beim Tracking:', error);
-                showError(`Fehler beim Tracking: ${error.message}`);
+                showErrorInResult(`Fehler beim Tracking: ${error.message}`);
             }
         }
-        
+
         function updateTransactionInfo(data) {
             const startInfoDiv = document.getElementById('startInfo');
             const txStatsDiv = document.getElementById('txStats');
             const conversionInfoDiv = document.getElementById('conversionInfo');
-            
+
             if (data.transactions && data.transactions.length > 0) {
                 const firstTx = data.transactions[0];
-                
-                // Update start info
+
                 startInfoDiv.innerHTML = `
                     <div class="transaction-item">
                         <span>Währung:</span>
@@ -420,11 +400,10 @@
                         <span class="transaction-value">${new Date(firstTx.timestamp * 1000).toLocaleString()}</span>
                     </div>
                 `;
-                
-                // Update transaction stats
+
                 const totalValue = data.transactions.reduce((sum, tx) => sum + tx.amount, 0);
                 const totalFees = data.transactions.reduce((sum, tx) => sum + tx.fee, 0);
-                
+
                 txStatsDiv.innerHTML = `
                     <div class="transaction-item">
                         <span>Anzahl verfolgt:</span>
@@ -439,8 +418,7 @@
                         <span class="transaction-value">${totalFees.toFixed(4)} SOL</span>
                     </div>
                 `;
-                
-                // Update conversion info
+
                 conversionInfoDiv.innerHTML = `
                     <div class="transaction-item">
                         <span>Zielwährung:</span>
@@ -457,189 +435,6 @@
                 `;
             }
         }
-        async function submitAnalysis(event) {
-            event.preventDefault();
-            
-            // Get the blockchain value
-            const blockchain = document.getElementById('blockchain').value.toLowerCase();
-            const contractAddress = document.getElementById('contract_address').value.trim();
-            
-            // Validate contract address
-            if (!contractAddress) {
-                document.getElementById('result').innerHTML = `
-                    <h3>Fehler!</h3>
-                    <p>Contract-Adresse ist erforderlich.</p>
-                `;
-                document.getElementById('result').style.display = 'block';
-                return;
-            }
-        
-            // Validate contract address format based on blockchain
-            if (["ethereum", "binance", "polygon"].includes(blockchain)) {
-                if (!contractAddress.startsWith('0x') || contractAddress.length !== 42) {
-                    document.getElementById('result').innerHTML = `
-                        <h3>Fehler!</h3>
-                        <p>${blockchain}-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein.</p>
-                    `;
-                    document.getElementById('result').style.display = 'block';
-                    return;
-                }
-            } else if (blockchain === "solana") {
-                if (contractAddress.length !== 44) {
-                    document.getElementById('result').innerHTML = `
-                        <h3>Fehler!</h3>
-                        <p>Solana-Adressen müssen 44 Zeichen lang sein.</p>
-                    `;
-                    document.getElementById('result').style.display = 'block';
-                    return;
-                }
-            }
-            
-            try {
-                const formData = {
-                    blockchain: blockchain,
-                    contract_address: contractAddress,
-                    twitter_username: document.getElementById('twitter_username').value.trim(),
-                    keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
-                    start_date: document.getElementById('start_date').value,
-                    end_date: document.getElementById('end_date').value,
-                    tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
-                };
-        
-                const resultDiv = document.getElementById('result');
-                resultDiv.style.display = 'block'; // Make sure this is set
-                resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
-        
-                // Add debug logging
-                console.log('Sending analysis request:', formData);
-        
-                const response = await fetch(`${API_BASE_URL}/analyze/rule-based`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'  // Add Accept header
-                    },
-                    body: JSON.stringify(formData)
-                });
-        
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-                }
-        
-                const data = await response.json();
-                const jobId = data.job_id;
-                
-                // Add debug logging
-                console.log('Analysis started:', data);
-        
-                resultDiv.innerHTML = `
-                    <h3>Analyse erfolgreich gestartet!</h3>
-                    <p><strong>Job-ID:</strong> ${jobId}</p>
-                    <p><strong>Status:</strong> ${data.status}</p>
-                `;
-        
-                // Start polling
-                simulatePolling(jobId);
-        
-            } catch (error) {
-                console.error('Error submitting analysis:', error);
-                document.getElementById('result').innerHTML = `
-                    <h3>Fehler!</h3>
-                    <p>${error.message}</p>
-                `;
-            }
-        }
-
-        
-        async function simulatePolling(jobId) {
-            const resultDiv = document.getElementById('result');
-            let retries = 0;
-            const maxRetries = 30; // Stop after 1 minute (30 * 2 seconds)
-            
-            const interval = setInterval(async () => {
-                try {
-                    retries++;
-                    const status = await getAnalysisStatus(jobId);
-                    
-                    // Add debug logging
-                    console.log('Poll status:', status);
-        
-                    if (status.status === "Completed" || status.status.startsWith("Failed")) {
-                        clearInterval(interval);
-                        
-                        resultDiv.innerHTML = `
-                            <h3>${status.status === "Completed" ? "Analyse abgeschlossen!" : "Analyse fehlgeschlagen"}</h3>
-                            <p><strong>Job-ID:</strong> ${jobId}</p>
-                            <p><strong>Status:</strong> ${status.status}</p>
-                            ${status.status === "Completed" ? `
-                            <div class="analysis-results">
-                                <h4>Gefundene Wallet-Adressen:</h4>
-                                ${status.potential_wallets && status.potential_wallets.length > 0 
-                                    ? `<ul>${status.potential_wallets.map(wallet => `<li>${wallet}</li>`).join('')}</ul>`
-                                    : '<p>Keine Wallet-Adressen gefunden.</p>'
-                                }
-                                <p><strong>Analysierte Tweets:</strong> ${status.analyzed_tweets || 0}</p>
-                                <p><strong>Analysierte Transaktionen:</strong> ${status.analyzed_transactions || 0}</p>
-                            </div>
-                            ` : ''}
-                        `;
-                    } else if (retries >= maxRetries) {
-                        clearInterval(interval);
-                        resultDiv.innerHTML = `
-                            <h3>Zeitüberschreitung</h3>
-                            <p>Die Analyse dauert länger als erwartet. Bitte überprüfen Sie später den Status.</p>
-                            <p><strong>Job-ID:</strong> ${jobId}</p>
-                        `;
-                    } else {
-                        resultDiv.innerHTML = `
-                            <h3>Analyse läuft...</h3>
-                            <p><strong>Job-ID:</strong> ${jobId}</p>
-                            <p><strong>Status:</strong> ${status.status}</p>
-                        `;
-                    }
-                } catch (error) {
-                    console.error('Error polling status:', error);
-                    if (retries >= maxRetries) {
-                        clearInterval(interval);
-                        resultDiv.innerHTML = `
-                            <h3>Fehler!</h3>
-                            <p>Fehler beim Abrufen des Analyse-Status: ${error.message}</p>
-                        `;
-                    }
-                }
-            }, 2000);
-        }
-
-        async function getAnalysisStatus(jobId) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/analysis/status/${jobId}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return await response.json();
-            } catch (error) {
-                console.error('Fehler beim Abrufen des Status:', error);
-                throw error;
-            }
-        }
-
-        function generateSampleData(startTx, targetCurrency, numTransactions) {
-            // This is a placeholder function to generate sample data
-            // In a real implementation, this would be replaced by actual API calls
-            return {
-                source_currency: "BTC",
-                target_currency: targetCurrency,
-                start_transaction: startTx,
-                transactions_count: numTransactions,
-                transactions: [{
-                    currency: "BTC",
-                    timestamp: Date.now() / 1000,
-                    inputs: [{ value: 1.0, value_converted: 1.5 }],
-                    fee: 0.0001
-                }]
-            };
-        }
     </script>
 </head>
 <body>
@@ -654,7 +449,7 @@
             <div class="tab active" data-tab="transaction-tracker">Transaction Tracker</div>
             <div class="tab" data-tab="social-analysis">Social Analysis</div>
         </div>
-        
+
         <!-- Transaction Tracker Tab -->
         <div class="tab-content active" id="transaction-tracker">
             <div class="controls">
@@ -688,7 +483,7 @@
                         </div>
                         <div class="transaction-item">
                             <span>Hash:</span>
-                            <span id="startHash" class="transaction-value" style="word-break: break-all; font-size: 0.9em;">-</span>
+                            <span id="startHash" class="transaction-value">-</span>
                         </div>
                         <div class="transaction-item">
                             <span>Zeitstempel:</span>
@@ -735,7 +530,7 @@
                 <div id="transactionTree" class="loading"></div>
             </div>
         </div>
-        
+
         <!-- Social Analysis Tab -->
         <div class="tab-content" id="social-analysis">
             <form id="analysisForm" onsubmit="event.preventDefault(); submitAnalysis();">
@@ -751,8 +546,8 @@
                 </div>
                 <div>
                     <label for="contract_address">Contract-Adresse:</label>
-                    <input id="contract_address" type="text" 
-                           placeholder="z.B. 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984" 
+                    <input id="contract_address" type="text"
+                           placeholder="z.B. 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984"
                            required>
                     <small>Geben Sie die eindeutige Adresse des Smart Contracts ein.</small>
                 </div>
