@@ -279,58 +279,56 @@ def get_crypto_service() -> CryptoTrackingService:
 #--------------------------i
 
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
-async def track_transaction_route(
-    request: TransactionTrackRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
+async def track_transactions(request: TransactionTrackRequest):
     try:
-        async with aiohttp.ClientSession() as session:
-            # Instanziiere Solana-Client
-            solana_client = SolanaClient(session)
-            
-            # Hole die erste Transaktion
-            tx_data = await solana_client.get_transaction(request.start_tx_hash)
-            if not tx_data:
-                raise HTTPException(status_code=404, detail="Initial transaction not found")
-            
-            transactions = [tx_data]
-            current_address = tx_data.to_address
-            
-            # Hole weitere Transaktionen basierend auf der Zieladdresse
-            for _ in range(request.num_transactions - 1):
-                next_tx = await solana_client.find_next_transaction(current_address)
-                if not next_tx:
-                    break
-                transactions.append(next_tx)
-                current_address = next_tx.to_address
+        tx_info = solana_client.get_transaction(request.start_tx_hash, "json")
+        if not tx_info.value:
+            raise HTTPException(status_code=404, detail="Start transaction not found")
 
-            # Formatiere die Transaktionen für die Antwort
-            formatted_transactions = [{
-                "hash": tx.hash,
-                "from_address": tx.from_address,
-                "to_address": tx.to_address,
-                "amount": tx.amount,
-                "fee": tx.fee,
-                "timestamp": tx.timestamp,
-                "currency": "SOL",
-                "block_number": tx.block_number
-            } for tx in transactions]
+        tracked_transactions = track_transaction_chain(
+            start_tx_hash=request.start_tx_hash,
+            amount_SOL=request.amount,
+            max_depth=request.num_transactions
+        )
 
-            # Speichere in Datenbank
-            background_tasks.add_task(save_transactions_to_db, db, formatted_transactions)
+        if not tracked_transactions:
+            return TransactionTrackResponse(
+                status="complete",
+                total_transactions_tracked=0,
+                tracked_transactions=[],
+                final_status=FinalStatusEnum.still_in_same_wallet,
+                final_wallet_address=None,
+                remaining_amount=request.amount,
+                target_currency=request.target_currency,
+                detected_scenarios=[],
+                scenario_details={}
+            )
 
-            return {
-                "transactions": formatted_transactions,
-                "status": "success",
-                "total_transactions": len(formatted_transactions),
-                "target_currency": request.target_currency
-            }
+        last_tx = tracked_transactions[-1]
+        final_wallet = last_tx.to_wallet
+        remaining_amount = last_tx.amount
+
+        final_status = FinalStatusEnum.tracking_limit_reached
+        if len(tracked_transactions) < request.num_transactions:
+            final_status = FinalStatusEnum.still_in_same_wallet
+
+        scenario_result = detect_scenarios(tracked_transactions)
+
+        return TransactionTrackResponse(
+            status="complete",
+            total_transactions_tracked=len(tracked_transactions),
+            tracked_transactions=tracked_transactions,
+            final_status=final_status,
+            final_wallet_address=final_wallet,
+            remaining_amount=remaining_amount,
+            target_currency=request.target_currency,
+            detected_scenarios=scenario_result["scenarios"],
+            scenario_details=scenario_result["details"]
+        )
 
     except Exception as e:
-        logger.error(f"Error tracking transactions: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
+        
 #--------------------------i
 # ML-basierte Analyse
 #--------------------------i
