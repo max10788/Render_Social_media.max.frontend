@@ -4,6 +4,79 @@ from datetime import date
 from enum import Enum
 from datetime import date, datetime
 
+# --- ENUMS FÜR ERWEITERTE TRACKING-FUNKTIONALITÄT ---
+
+class ScenarioType(str, Enum):
+    delegated_staking = "delegated_staking"
+    defi_deposit = "defi_deposit"
+    nft_investment = "nft_investment"
+    converted_to_stablecoin = "converted_to_stablecoin"
+    donation_or_grant = "donation_or_grant"
+    cross_chain_bridge = "cross_chain_bridge"
+    multi_sig_storage = "multi_sig_storage"
+    flash_loan_arbitrage = "flash_loan_arbitrage"
+    lost_or_dust = "lost_or_dust"
+    returned_to_origin = "returned_to_origin"
+
+class FinalStatusEnum(str, Enum):
+    still_in_same_wallet = "still_in_same_wallet"
+    returned_to_known_wallet = "returned_to_known_wallet"
+    tracking_limit_reached = "tracking_limit_reached"
+
+
+# --- MODELLE FÜR TRANSACTION TRACKING ---
+
+class TransactionTrackRequest(BaseModel):
+    start_tx_hash: str = Field(..., description="The initial transaction hash to start tracking from")
+    target_currency: str = Field(..., description="Target currency for conversion (e.g., 'USD', 'EUR')")
+    amount: float = Field(..., ge=0.000000001, description="Amount of cryptocurrency to track (e.g., 0.5 SOL)")
+    num_transactions: int = Field(default=10, ge=1, le=100, description="Maximum number of transactions to track")
+
+
+class TrackedTransaction(BaseModel):
+    tx_hash: str
+    from_wallet: str
+    to_wallet: str
+    amount: float
+    timestamp: str
+    value_in_target_currency: Optional[float] = None  # z.B. USD-Wert zum Zeitpunkt
+
+
+class TransactionTrackResponse(BaseModel):
+    status: str = Field(..., description="Overall tracking status (e.g., 'complete', 'partial', 'incomplete')")
+    total_transactions_tracked: int
+    tracked_transactions: List[TrackedTransaction]
+    final_status: FinalStatusEnum = Field(..., description="Final state of the tracked amount")
+    final_wallet_address: Optional[str] = Field(
+        None,
+        description="The final wallet address where the funds ended up"
+    )
+    remaining_amount: Optional[float] = Field(
+        None,
+        description="Remaining amount if tracking was incomplete or partially returned"
+    )
+    target_currency: str
+    detected_scenarios: List[ScenarioType] = Field(
+        default_factory=list,
+        description="List of detected usage scenarios along the transaction path"
+    )
+    scenario_details: Dict[ScenarioType, Dict] = Field(
+        default_factory=dict,
+        description="Additional metadata per scenario (e.g., pool name, NFT ID)"
+    )
+
+
+# --- BESTEHENDE MODELLE BLEIBEN UNVERÄNDERT ---
+
+# Pydantic-Model für Feedback
+class FeedbackRequest(BaseModel):
+    tweet_id: str
+    transaction_id: str
+    label: bool  # True = korreliert, False = nicht korreliert
+
+# Deine anderen Klassen wie AnalyzeRequest, CorrelationResult, AnalyzeResponse usw.
+# bleiben unverändert — du fügst sie hier ein wie vorher definiert
+
 class BlockchainEnum(str, Enum):
     ethereum = "ethereum"
     binance = "binance"
@@ -114,21 +187,3 @@ class AnalyzeResponse(BaseModel):
         }
 
 
-
-
-# Pydantic-Model für Feedback
-class FeedbackRequest(BaseModel):
-    tweet_id: str
-    transaction_id: str
-    label: bool  # True = korreliert, False = nicht korreliert
-
-class TransactionTrackRequest(BaseModel):
-    start_tx_hash: str = Field(..., description="The initial transaction hash to start tracking from")
-    target_currency: str = Field(..., description="Target currency for conversion (e.g., 'USD', 'EUR')")
-    num_transactions: int = Field(default=10, ge=1, le=100, description="Number of transactions to track")
-
-class TransactionTrackResponse(BaseModel):
-    transactions: List[dict]
-    status: str
-    total_transactions: int
-    target_currency: str
