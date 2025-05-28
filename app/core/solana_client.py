@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Set, Dict, Optional
 from solana.rpc.api import Client
-from solana.publickey import PublicKey
+from solders.pubkey import Pubkey as PublicKey
 from solana.rpc.types import TxOpts
 from datetime import datetime
 
