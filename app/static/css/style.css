@@ -362,3 +362,63 @@ th {
 .control-item input {
     transition: border-color 0.3s, background-color 0.3s;
 }
+
+metrics-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.metric-card {
+    background-color: var(--card-bg);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    text-align: center;
+}
+
+.metric-card h4 {
+    color: var(--text-muted);
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.metric-card p {
+    color: var(--text-color);
+    font-size: 1.2rem;
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Enhanced transaction tree styling */
+#transactionTree {
+    min-height: 600px;
+    background-color: var(--card-bg);
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.transaction-controls {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.transaction-controls button {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.transaction-controls button:hover {
+    background-color: var(--primary-color);
+}
