@@ -6,7 +6,7 @@ from solana.rpc.types import TxOpts
 from datetime import datetime
 
 # Importiere deine Schemas
-from .schemas import (
+from app.models.schemas import (
     TransactionTrackRequest,
     TransactionTrackResponse,
     TrackedTransaction,
