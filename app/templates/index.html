@@ -142,6 +142,31 @@
                 </div>
             `;
         }
+
+        // Füge dies zur DOMContentLoaded Event-Listener-Funktion hinzu
+        document.addEventListener('DOMContentLoaded', function() {
+            // Bestehender Code...
+            
+            // Initialisiere den Graph
+            initializeTransactionGraph();
+            
+            // Handle Window Resize
+            let resizeTimeout;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(function() {
+                    if (transactionGraph) {
+                        const container = document.getElementById('transactionTree');
+                        transactionGraph = new TransactionGraph('#transactionTree', {
+                            width: container.clientWidth,
+                            height: 600,
+                            nodeRadius: 8,
+                            linkDistance: 120
+                        });
+                    }
+                }, 250);
+            });
+        });
     
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
