@@ -1,0 +1,103 @@
+.transaction-graph {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.links line {
+    stroke-opacity: 0.6;
+}
+
+.nodes circle {
+    stroke: #fff;
+    stroke-width: 1.5px;
+    cursor: pointer;
+    transition: stroke-width 0.2s ease;
+}
+
+.nodes circle:hover {
+    stroke: #000;
+    stroke-width: 2px;
+}
+
+.transaction-tooltip {
+    position: absolute;
+    padding: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    pointer-events: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tooltip-header {
+    font-weight: bold;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #ddd;
+}
+
+.tooltip-body {
+    line-height: 1.4;
+}
+
+.error-message {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    padding: 1rem;
+    margin: 1rem 0;
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.scenario-list {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.scenario-item {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.scenario-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.scenario-item h4 {
+    margin: 0 0 8px 0;
+    color: #2c3e50;
+}
+
+.scenario-item p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.legend {
+    font-size: 12px;
+}
+
+.legend-item text {
+    fill: #666;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
