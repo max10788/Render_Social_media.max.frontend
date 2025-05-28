@@ -13,16 +13,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js "></script>
     <script>
         const API_BASE_URL = '/api/v1';
+        const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price ';
 
-        // --- 1. Submit Logic ---
         async function submitAnalysis(event) {
-            event.preventDefault();
+            event.preventDefault(); // ✅ Added preventDefault()
             const blockchain = document.getElementById('blockchain').value.toLowerCase();
             const contractAddress = document.getElementById('contract_address').value.trim();
+
             if (!contractAddress) {
                 showErrorInResult('Contract-Adresse ist erforderlich.');
                 return;
             }
+
             if (["ethereum", "binance", "polygon"].includes(blockchain)) {
                 if (!contractAddress.startsWith('0x') || contractAddress.length !== 42) {
                     showErrorInResult(`${blockchain}-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein.`);
@@ -34,6 +36,7 @@
                     return;
                 }
             }
+
             try {
                 const formData = {
                     blockchain: blockchain,
@@ -44,9 +47,11 @@
                     end_date: document.getElementById('end_date').value,
                     tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
                 };
+
                 const resultDiv = document.getElementById('result');
                 resultDiv.style.display = 'block';
                 resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
+
                 const response = await fetch(`${API_BASE_URL}/analyze/rule-based`, {
                     method: 'POST',
                     headers: {
@@ -55,18 +60,23 @@
                     },
                     body: JSON.stringify(formData)
                 });
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
+
                 const data = await response.json();
                 const jobId = data.job_id;
+
                 resultDiv.innerHTML = `
                     <h3>Analyse erfolgreich gestartet!</h3>
                     <p><strong>Job-ID:</strong> ${jobId}</p>
                     <p><strong>Status:</strong> ${data.status}</p>
                 `;
+
                 pollAnalysisStatus(jobId);
+
             } catch (error) {
                 console.error('Error submitting analysis:', error);
                 showErrorInResult(`Fehler beim Starten der Analyse: ${error.message}`);
@@ -82,6 +92,7 @@
                     attempts++;
                     const response = await fetch(`/api/v1/analysis/status/${jobId}`);
                     const status = await response.json();
+
                     if (status.status === 'Completed') {
                         clearInterval(interval);
                         displayResults(status);
@@ -108,12 +119,14 @@
 
         function displayResults(status) {
             const resultDiv = document.getElementById('result');
+
             resultDiv.innerHTML = `
                 <div class="analysis-results">
                     <h3>Analyse abgeschlossen!</h3>
                     <div class="results-grid">
                         <div class="result-card">
                             <h4>Blockchain-Daten</h4>
+                            <p>Analysierte Transaktionen: ${status.analyzed_transactions || 0}</p>
                             <p>Gefundene Wallets: ${status.potential_wallets ? status.potential_wallets.length : 0}</p>
                         </div>
                         <div class="result-card">
@@ -151,17 +164,12 @@
             });
         }
 
-        // --- 2. Transaction Tracker Functions ---
-
-        function showLoading() {
-            const container = document.getElementById('transactionTree');
-            container.innerHTML = '<p>Lade Transaktionspfad...</p>';
+        function createSVGTreeFromSOLTransaction(tx, targetCurrency) {
+            return `<svg><text x="10" y="20">SOL Visualisierung nicht implementiert</text></svg>`;
         }
 
         function showErrorInResult(message) {
-            const resultDiv = document.getElementById('result');
-            resultDiv.style.display = 'block';
-            resultDiv.innerHTML = `
+            document.getElementById('result').innerHTML = `
                 <div class="error-message">
                     <h3>Fehler</h3>
                     <p>${message}</p>
@@ -171,7 +179,7 @@
 
         async function trackTransactions() {
             const startTx = document.getElementById('startTx').value;
-            const targetCurrency = document.getElementById('targetCurrency').value;
+            const targetCurrency = document.getElementById('targetCurrency').value.toUpperCase();
             const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
 
             if (!startTx) {
@@ -200,15 +208,31 @@
                     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json(); // Diese Daten entsprechen TransactionTrackResponse
+                const data = await response.json();
 
-                updateTransactionInfo(data); // Zeigt Metadaten an
-                visualizeTransactionPath(data); // Zeichnet den Pfad
+                updateTransactionInfo(data);
+                visualizeTransactionPath(data);
 
             } catch (error) {
                 console.error('Fehler beim Tracking:', error);
                 showErrorInResult(`Fehler beim Tracking: ${error.message}`);
             }
+        }
+
+        async function getExchangeRate(from, to) {
+            try {
+                const res = await fetch(`${COINGECKO_API_URL}?ids=${from}&vs_currencies=${to}`);
+                const json = await res.json();
+                return json[from.toLowerCase()][to.toLowerCase()];
+            } catch (err) {
+                console.error("Kurs konnte nicht geladen werden:", err);
+                return null;
+            }
+        }
+
+        function showLoading() {
+            const container = document.getElementById('transactionTree');
+            container.innerHTML = '<p>Lade Transaktionspfad...</p>';
         }
 
         function updateTransactionInfo(data) {
@@ -230,11 +254,12 @@
                     </div>
                     <div class="transaction-item">
                         <span>Transaktions-ID:</span>
-                        <span class="transaction-value">${firstTx.tx_hash}</span>
+                        <span class="transaction-value">${firstTx.tx_hash}</span> <!-- ✅ Genutzt -->
                     </div>
                 `;
 
                 const totalValue = data.tracked_transactions.reduce((sum, tx) => sum + tx.amount, 0);
+                const exchangeRate = 130; // Mock bis echte API
 
                 txStatsDiv.innerHTML = `
                     <div class="transaction-item">
@@ -251,9 +276,6 @@
                     </div>
                 `;
 
-                const exchangeRate = 130; // Mock-Wert, später per CoinGecko API holen
-                const convertedTotal = totalValue * exchangeRate;
-
                 conversionInfoDiv.innerHTML = `
                     <div class="transaction-item">
                         <span>Zielwährung:</span>
@@ -265,7 +287,7 @@
                     </div>
                     <div class="transaction-item">
                         <span>Wert in Zielwährung:</span>
-                        <span class="transaction-value">${convertedTotal.toFixed(2)} ${data.target_currency}</span>
+                        <span class="transaction-value">${(totalValue * exchangeRate).toFixed(2)} ${data.target_currency}</span>
                     </div>
                 `;
             }
@@ -294,21 +316,12 @@
 
             container.appendChild(list);
 
-            // Optional: Hier später SVG-Diagramm einfügen
-            if (data.detected_scenarios.length > 0) {
-                const scenariosText = data.detected_scenarios.join(', ');
-                const scenarioDiv = document.createElement('div');
-                scenarioDiv.style.marginTop = '20px';
-                scenarioDiv.innerHTML = `<strong>Erkannte Szenarien:</strong> ${scenariosText}`;
-                container.appendChild(scenarioDiv);
-            }
+            // Optional: SVG Platzhalter für spätere Visualisierung
+            const svgContainer = document.createElement('div');
+            svgContainer.style.marginTop = '20px';
+            svgContainer.innerHTML = `<svg width="100%" height="200"><text x="10" y="20">Visualisierungsfläche (zur Entwicklung)</text></svg>`;
+            container.appendChild(svgContainer);
         }
-
-        function createSVGTreeFromSOLTransaction(tx, targetCurrency) {
-            return `<svg><text x="10" y="20">SOL Visualisierung nicht implementiert</text></svg>`;
-        }
-
-        // --- 3. UI Initialization ---
 
         document.addEventListener('DOMContentLoaded', function () {
             initializeTabs();
@@ -355,10 +368,6 @@
 
         function validateTransactionHash(hash) {
             return /^0x[a-fA-F0-9]{64}$/.test(hash) || /^[1-9A-HJ-NP-Za-km-z]{43,90}$/.test(hash);
-        }
-
-        function initSocialAnalysis() {
-            document.getElementById('analysisForm').addEventListener('submit', submitAnalysis);
         }
     </script>
 </head>
