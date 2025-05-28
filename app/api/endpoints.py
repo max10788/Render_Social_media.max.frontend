@@ -280,15 +280,25 @@ def get_crypto_service() -> CryptoTrackingService:
 
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(request: TransactionTrackRequest):
-    print("Eingehende Daten:", request.dict())
+    """
+    Track a chain of transactions starting from a given transaction hash.
+    """
     try:
-        tx_info = solana_client.get_transaction(request.start_tx_hash, "json")
-        if not tx_info.value:
-            raise HTTPException(status_code=404, detail="Start transaction not found")
+        # Initialize Solana client
+        solana_client = SolanaClient()
+        
+        # Validate transaction exists
+        tx_info = await solana_client.get_transaction(request.start_tx_hash)
+        if not tx_info:
+            raise HTTPException(
+                status_code=404, 
+                detail="Start transaction not found"
+            )
 
-        tracked_transactions = track_transaction_chain(
+        # Track transaction chain
+        tracked_transactions = await solana_client.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
-            amount_SOL=request.amount,
+            amount=request.amount,
             max_depth=request.num_transactions
         )
 
@@ -305,16 +315,29 @@ async def track_transactions(request: TransactionTrackRequest):
                 scenario_details={}
             )
 
+        # Get the last transaction to determine final status
         last_tx = tracked_transactions[-1]
         final_wallet = last_tx.to_wallet
         remaining_amount = last_tx.amount
 
+        # Determine final status
         final_status = FinalStatusEnum.tracking_limit_reached
         if len(tracked_transactions) < request.num_transactions:
             final_status = FinalStatusEnum.still_in_same_wallet
 
-        scenario_result = detect_scenarios(tracked_transactions)
+        # Detect scenarios in transaction chain
+        scenario_result = solana_client.detect_scenarios(tracked_transactions)
 
+        # Get exchange rate if needed
+        exchange_rate = None
+        if request.target_currency != "SOL":
+            try:
+                exchange_rate_service = CoinGeckoExchangeRate()
+                exchange_rate = await exchange_rate_service.get_rate("SOL", request.target_currency)
+            except Exception as e:
+                logger.warning(f"Failed to get exchange rate: {e}")
+
+        # Create response
         return TransactionTrackResponse(
             status="complete",
             total_transactions_tracked=len(tracked_transactions),
@@ -324,11 +347,16 @@ async def track_transactions(request: TransactionTrackRequest):
             remaining_amount=remaining_amount,
             target_currency=request.target_currency,
             detected_scenarios=scenario_result["scenarios"],
-            scenario_details=scenario_result["details"]
+            scenario_details=scenario_result["details"],
+            exchange_rate=exchange_rate
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error tracking transactions: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to track transactions: {str(e)}"
+        )
         
 #--------------------------i
 # ML-basierte Analyse
