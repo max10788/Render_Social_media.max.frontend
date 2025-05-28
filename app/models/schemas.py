@@ -72,10 +72,33 @@ class FeedbackRequest(BaseModel):
 
 
 class TransactionTrackRequest(BaseModel):
-    start_tx_hash: str = Field(..., description="Initial transaction hash to track from")
-    target_currency: str = Field(..., description="Target currency (e.g., USD)")
+    start_tx_hash: str = Field(..., description="Initial transaction hash to track from", min_length=64, max_length=88)
+    target_currency: str = Field(default="USD", pattern="^[A-Z]{3,4}$", description="Target currency (e.g., USD)")
     amount: float = Field(..., ge=0.000000001, description="Amount of SOL or token to track")
     num_transactions: int = Field(default=10, ge=1, le=100, description="Max number of transactions to follow")
+    
+    @validator('start_tx_hash')
+    def validate_tx_hash(cls, v):
+        if not v.strip():
+            raise ValueError("Transaction hash cannot be empty")
+        return v.strip()
+    
+    @validator('target_currency')
+    def validate_currency(cls, v):
+        supported_currencies = {"USD", "EUR", "GBP", "JPY", "SOL", "ETH"}
+        if v not in supported_currencies:
+            raise ValueError(f"Currency {v} not supported. Supported currencies: {', '.join(supported_currencies)}")
+        return v
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "start_tx_hash": "4mBdpm27ybQGPTZphbmhqRHnCTmGPdC8mk2fYwfE6RVQDtGbhqK1KNhLZ6NGty3aQZxDGrd9w",
+                "target_currency": "USD",
+                "amount": 1.5,
+                "num_transactions": 10
+            }
+        }
 
 
 class TrackedTransaction(BaseModel):
