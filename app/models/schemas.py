@@ -3,8 +3,15 @@ from typing import List, Dict, Any, Optional
 from datetime import date
 from enum import Enum
 from datetime import date, datetime
+from typing_extensions import Literal
 
-# --- ENUMS FÜR ERWEITERTE TRACKING-FUNKTIONALITÄT ---
+# --- ENUMS ---
+
+class BlockchainEnum(str, Enum):
+    ethereum = "ethereum"
+    binance = "binance"
+    polygon = "polygon"
+    solana = "solana"
 
 class ScenarioType(str, Enum):
     delegated_staking = "delegated_staking"
@@ -24,13 +31,51 @@ class FinalStatusEnum(str, Enum):
     tracking_limit_reached = "tracking_limit_reached"
 
 
-# --- MODELLE FÜR TRANSACTION TRACKING ---
+# --- MODELLE ---
+
+class AnalyzeRequest(BaseModel):
+    blockchain: BlockchainEnum = Field(..., description="Die zu analysierende Blockchain")
+    contract_address: Optional[str] = Field(None)
+    twitter_username: Optional[str] = Field(None)
+    keywords: List[str] = Field(..., min_items=1)
+    start_date: str = Field(...)
+    end_date: str = Field(...)
+    tweet_limit: Optional[int] = Field(1000, ge=10, le=5000)
+
+
+class CorrelationResult(BaseModel):
+    correlation_score: float
+    price_sentiment_correlation: float
+    volume_mentions_correlation: float
+    daily_correlations: dict
+    correlation_details: dict
+
+
+class AnalyzeResponse(BaseModel):
+    analysis_id: int
+    blockchain: str
+    contract_address: str
+    keywords: List[str]
+    start_date: str
+    end_date: str
+    sentiment_score: float
+    correlation_results: CorrelationResult
+    tweets_analyzed: int
+    blockchain_data_points: int
+    created_at: datetime
+
+
+class FeedbackRequest(BaseModel):
+    tweet_id: str
+    transaction_id: str
+    label: bool
+
 
 class TransactionTrackRequest(BaseModel):
-    start_tx_hash: str = Field(..., description="The initial transaction hash to start tracking from")
-    target_currency: str = Field(..., description="Target currency for conversion (e.g., 'USD', 'EUR')")
-    amount: float = Field(..., ge=0.000000001, description="Amount of cryptocurrency to track (e.g., 0.5 SOL)")
-    num_transactions: int = Field(default=10, ge=1, le=100, description="Maximum number of transactions to track")
+    start_tx_hash: str = Field(..., description="Initial transaction hash to track from")
+    target_currency: str = Field(..., description="Target currency (e.g., USD)")
+    amount: float = Field(..., ge=0.000000001, description="Amount of SOL or token to track")
+    num_transactions: int = Field(default=10, ge=1, le=100, description="Max number of transactions to follow")
 
 
 class TrackedTransaction(BaseModel):
@@ -39,50 +84,20 @@ class TrackedTransaction(BaseModel):
     to_wallet: str
     amount: float
     timestamp: str
-    value_in_target_currency: Optional[float] = None  # z.B. USD-Wert zum Zeitpunkt
+    value_in_target_currency: Optional[float] = None
 
 
 class TransactionTrackResponse(BaseModel):
-    status: str = Field(..., description="Overall tracking status (e.g., 'complete', 'partial', 'incomplete')")
+    status: str
     total_transactions_tracked: int
     tracked_transactions: List[TrackedTransaction]
-    final_status: FinalStatusEnum = Field(..., description="Final state of the tracked amount")
-    final_wallet_address: Optional[str] = Field(
-        None,
-        description="The final wallet address where the funds ended up"
-    )
-    remaining_amount: Optional[float] = Field(
-        None,
-        description="Remaining amount if tracking was incomplete or partially returned"
-    )
+    final_status: FinalStatusEnum
+    final_wallet_address: Optional[str] = None
+    remaining_amount: Optional[float] = None
     target_currency: str
-    detected_scenarios: List[ScenarioType] = Field(
-        default_factory=list,
-        description="List of detected usage scenarios along the transaction path"
-    )
-    scenario_details: Dict[ScenarioType, Dict] = Field(
-        default_factory=dict,
-        description="Additional metadata per scenario (e.g., pool name, NFT ID)"
-    )
-
-
-# --- BESTEHENDE MODELLE BLEIBEN UNVERÄNDERT ---
-
-# Pydantic-Model für Feedback
-class FeedbackRequest(BaseModel):
-    tweet_id: str
-    transaction_id: str
-    label: bool  # True = korreliert, False = nicht korreliert
-
-# Deine anderen Klassen wie AnalyzeRequest, CorrelationResult, AnalyzeResponse usw.
-# bleiben unverändert — du fügst sie hier ein wie vorher definiert
-
-class BlockchainEnum(str, Enum):
-    ethereum = "ethereum"
-    binance = "binance"
-    polygon = "polygon"
-    solana = "solana"
-
+    detected_scenarios: List[ScenarioType] = []
+    scenario_details: Dict[ScenarioType, Dict] = {}
+    
 class AnalyzeRequest(BaseModel):
     """
     Anfrage-Schema für Blockchain- und Social-Media-Analyse.
