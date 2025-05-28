@@ -19,10 +19,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js"></script>
 
     <!-- Custom Scripts -->
-    <script src="/static/js/transaction-graph.js"></script
+    <script src="/static/js/transaction-graph.js"></script>
     <script>
         const API_BASE_URL = '/api/v1';
         const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price  ';
+        let transactionGraph;
     
         async function submitAnalysis(event) {
             event.preventDefault();
@@ -324,15 +325,7 @@
                 `;
             }
         }
-    
-        // ✅ Ersetze alte Funktion durch neue D3.js Visualisierung
-        function visualizeTransactionPath(data) {
-            visualizeTransactionPathWithD3(data);
-        }
-    
-        // Globale Variable für die Graph-Instanz
-        let transactionGraph;
-        
+
         function initializeTransactionGraph() {
             transactionGraph = new TransactionGraph('#transactionTree', {
                 width: document.getElementById('transactionTree').clientWidth,
@@ -342,9 +335,12 @@
             });
         }
         
-        // Ersetze die alte visualizeTransactionPath Funktion
         async function visualizeTransactionPath(data) {
             const container = document.getElementById('transactionTree');
+
+            if (!transactionGraph) {
+                initializeTransactionGraph();
+            }
             
             // Initialize the transaction graph
             const graph = new TransactionGraph('#transactionTree', {
