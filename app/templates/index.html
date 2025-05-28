@@ -275,48 +275,39 @@
             visualizeTransactionPathWithD3(data);
         }
     
-        // ➕ Neue D3.js Visualisierungslogik hier eingefügt
-        function visualizeTransactionPathWithD3(data) {
+        // Globale Variable für die Graph-Instanz
+        let transactionGraph;
+        
+        function initializeTransactionGraph() {
+            transactionGraph = new TransactionGraph('#transactionTree', {
+                width: document.getElementById('transactionTree').clientWidth,
+                height: 600,
+                nodeRadius: 8,
+                linkDistance: 120
+            });
+        }
+        
+        // Ersetze die alte visualizeTransactionPath Funktion
+        function visualizeTransactionPath(data) {
+            if (!transactionGraph) {
+                initializeTransactionGraph();
+            }
+            
             const container = document.getElementById('transactionTree');
-            container.innerHTML = "<h3>Transaktionsfluss (D3.js)</h3>";
-    
+            container.innerHTML = ''; // Clear existing content
+            
             if (!data.tracked_transactions || data.tracked_transactions.length === 0) {
-                container.innerHTML += "<p>Keine Transaktionsdaten vorhanden.</p>";
+                container.innerHTML = "<p>Keine Transaktionsdaten vorhanden.</p>";
                 return;
             }
-    
-            const width = container.clientWidth;
-            const height = 600;
-    
-            const svg = d3.select(container)
-                .append("svg")
-                .attr("width", width)
-                .attr("height", height);
-    
-            const nodesMap = new Map();
-            const links = [];
-    
-            let nodeId = 0;
-    
-            data.tracked_transactions.forEach(tx => {
-                const sourceId = tx.from_wallet;
-                const targetId = tx.to_wallet;
-                const amount = tx.amount;
-    
-                if (!nodesMap.has(sourceId)) {
-                    nodesMap.set(sourceId, { id: nodeId++, name: shortenAddress(sourceId) });
-                }
-                if (!nodesMap.has(targetId)) {
-                    nodesMap.set(targetId, { id: nodeId++, name: shortenAddress(targetId) });
-                }
-    
-                links.push({
-                    source: nodesMap.get(sourceId).id,
-                    target: nodesMap.get(targetId).id,
-                    amount: amount,
-                    tx_hash: tx.tx_hash
-                });
+        
+            // Aktualisiere die Grafik mit den neuen Daten
+            transactionGraph.visualizeTransactions(data.start_tx_hash, {
+                targetCurrency: document.getElementById('targetCurrency').value,
+                amount: parseFloat(document.getElementById('numTransactions').value),
+                numTransactions: parseInt(document.getElementById('numTransactions').value, 10)
             });
+        }
     
             const nodes = Array.from(nodesMap.values());
     
