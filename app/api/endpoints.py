@@ -280,6 +280,7 @@ def get_crypto_service() -> CryptoTrackingService:
 
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(request: TransactionTrackRequest):
+    print("Eingehende Daten:", request.dict())
     try:
         tx_info = solana_client.get_transaction(request.start_tx_hash, "json")
         if not tx_info.value:
