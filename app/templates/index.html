@@ -4,14 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto-Flow: Unified Analysis Dashboard</title>
-    <!-- Externe Ressourcen -->
+    <!-- CSS Resources -->
     <link rel="stylesheet" href="/static/style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css " rel="stylesheet"/>
     <link rel="stylesheet" href="/static/css/transaction-graph.css">
-    <script src="https://d3js.org/d3.v7.min.js "></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js "></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js "></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js "></script>
+    <link rel="stylesheet" href="/static/css/transaction-viewer.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" rel="stylesheet"/>
+    
+    <!-- Core Libraries -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-force-cluster@0.1.2/dist/d3-force-cluster.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-context-menu@2.1.0/d3-context-menu.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js"></script>
+
+    <!-- Custom Scripts -->
+    <script src="/static/js/transaction-graph.js"></script
     <script>
         const API_BASE_URL = '/api/v1';
         const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price  ';
@@ -335,26 +343,112 @@
         }
         
         // Ersetze die alte visualizeTransactionPath Funktion
-        function visualizeTransactionPath(data) {
-            if (!transactionGraph) {
-                initializeTransactionGraph();
-            }
-            
+        async function visualizeTransactionPath(data) {
             const container = document.getElementById('transactionTree');
-            container.innerHTML = ''; // Clear existing content
             
-            if (!data.tracked_transactions || data.tracked_transactions.length === 0) {
-                container.innerHTML = "<p>Keine Transaktionsdaten vorhanden.</p>";
-                return;
-            }
-        
-            // Aktualisiere die Grafik mit den neuen Daten
-            transactionGraph.visualizeTransactions(data.start_tx_hash, {
+            // Initialize the transaction graph
+            const graph = new TransactionGraph('#transactionTree', {
+                width: container.clientWidth,
+                height: 600,
+                margin: { top: 20, right: 20, bottom: 30, left: 40 },
+                nodeRadius: 8,
+                linkDistance: 150,
+                colors: {
+                    node: {
+                        default: "#69b3a2",
+                        source: "#2ca02c",
+                        target: "#ff7f0e",
+                        exchange: "#9467bd",
+                        bridge: "#e377c2"
+                    },
+                    link: {
+                        default: "#999",
+                        highlighted: "#ff7f0e"
+                    }
+                }
+            });
+                    // Visualize the transactions
+            await graph.visualizeTransactions(data.tracked_transactions[0].tx_hash, {
                 targetCurrency: document.getElementById('targetCurrency').value,
-                amount: parseFloat(document.getElementById('numTransactions').value),
                 numTransactions: parseInt(document.getElementById('numTransactions').value, 10)
             });
+
+            // Add resize handler
+            const resizeObserver = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    if (entry.contentBoxSize) {
+                        graph.resize(entry.contentBoxSize[0].inlineSize, 600);
+                    }
+                }
+            });
+
+            resizeObserver.observe(container);
         }
+
+        // Add new helper functions
+        function shortenAddress(address, length = 8) {
+            if (!address) return '';
+            return `${address.substring(0, length)}...${address.substring(address.length - length)}`;
+        }
+
+        // Update the existing updateTransactionInfo function
+        function updateTransactionInfo(data) {
+            // Existing code...
+            
+            // Add new transaction metrics
+            if (data.tracked_transactions && data.tracked_transactions.length > 0) {
+                // Calculate additional metrics
+                const metrics = calculateTransactionMetrics(data.tracked_transactions);
+                
+                // Update metrics display
+                displayTransactionMetrics(metrics);
+            }
+        }
+
+        // Add new metric calculation function
+        function calculateTransactionMetrics(transactions) {
+            return {
+                totalVolume: transactions.reduce((sum, tx) => sum + tx.amount, 0),
+                averageAmount: transactions.reduce((sum, tx) => sum + tx.amount, 0) / transactions.length,
+                uniqueWallets: new Set([
+                    ...transactions.map(tx => tx.from_wallet),
+                    ...transactions.map(tx => tx.to_wallet)
+                ]).size,
+                transactionCount: transactions.length
+            };
+        }
+
+        // Add new metrics display function
+        function displayTransactionMetrics(metrics) {
+            const metricsContainer = document.createElement('div');
+            metricsContainer.className = 'metrics-container';
+            metricsContainer.innerHTML = `
+                <div class="metric-card">
+                    <h4>Total Volume</h4>
+                    <p>${metrics.totalVolume.toFixed(4)} SOL</p>
+                </div>
+                <div class="metric-card">
+                    <h4>Average Amount</h4>
+                    <p>${metrics.averageAmount.toFixed(4)} SOL</p>
+                </div>
+                <div class="metric-card">
+                    <h4>Unique Wallets</h4>
+                    <p>${metrics.uniqueWallets}</p>
+                </div>
+                <div class="metric-card">
+                    <h4>Transactions</h4>
+                    <p>${metrics.transactionCount}</p>
+                </div>
+            `;
+
+            const existingMetrics = document.querySelector('.metrics-container');
+            if (existingMetrics) {
+                existingMetrics.replaceWith(metricsContainer);
+            } else {
+                document.getElementById('txStats').appendChild(metricsContainer);
+            }
+        }
+
     
             const nodes = Array.from(nodesMap.values());
     
