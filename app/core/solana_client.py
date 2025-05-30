@@ -2,11 +2,12 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Set, Dict, Optional
 from solana.rpc.api import Client
 from solders.pubkey import Pubkey as PublicKey
+from solders.signature import Signature  # Add this import
 from solana.rpc.types import TxOpts
 from datetime import datetime
 import logging
 
-# Importiere deine Schemas
+# Import your schemas
 from app.models.schemas import (
     TransactionTrackRequest,
     TransactionTrackResponse,
@@ -15,7 +16,7 @@ from app.models.schemas import (
     FinalStatusEnum
 )
 
-router = APIRouter()
+# Configure logging
 logger = logging.getLogger(__name__)
 
 class SolanaClient:
@@ -24,7 +25,7 @@ class SolanaClient:
         self.rpc_url = rpc_url
         self.client = Client(rpc_url)
         
-        # Bekannte Bridge-Adressen für Solana
+        # Known bridge addresses for Solana
         self.KNOWN_BRIDGES = {
             "wormhole": {
                 "address_prefixes": ["Bridge1p5g8jV1tPF3X8D79uHQfLpHDEPw5tsqZ9t6vG2K"],
@@ -38,12 +39,12 @@ class SolanaClient:
             }
         }
 
-    def get_transaction(self, signature: str):
+    async def get_transaction(self, tx_signature: str):
         """
         Get transaction details from Solana blockchain.
         
         Args:
-            signature (str): The transaction signature/hash
+            tx_signature (str): The transaction signature as a string
             
         Returns:
             dict: Transaction details
@@ -52,15 +53,39 @@ class SolanaClient:
             HTTPException: If transaction not found or error occurs
         """
         try:
-            response = self.client.get_transaction(signature, encoding="json")
-            if response.value is None:
+            # Convert string signature to Signature object
+            try:
+                signature = Signature.from_string(tx_signature)
+            except ValueError as e:
+                logger.error(f"Invalid signature format: {tx_signature}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid signature format: {str(e)}"
+                )
+
+            # Get transaction with proper signature object
+            response = self.client.get_transaction(
+                signature,
+                encoding="json",
+                max_supported_transaction_version=0  # Add this parameter for compatibility
+            )
+            
+            if response is None or response.value is None:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Transaction {signature} not found"
+                    detail=f"Transaction {tx_signature} not found"
                 )
+                
             return response
+            
+        except ValueError as e:
+            logger.error(f"Error converting signature {tx_signature}: {str(e)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid transaction signature: {str(e)}"
+            )
         except Exception as e:
-            logger.error(f"Error getting transaction {signature}: {str(e)}")
+            logger.error(f"Error getting transaction {tx_signature}: {str(e)}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to get transaction: {str(e)}"
@@ -88,12 +113,15 @@ class SolanaClient:
                         logger.warning(f"Error parsing SPL token data: {str(e)}")
         return token_data
 
-    def parse_solana_transaction(self, tx_signature: str) -> dict:
+    async def parse_solana_transaction(self, tx_signature: str) -> dict:
         """Parse Solana transaction details."""
         try:
-            tx_resp = self.get_transaction(tx_signature)
+            tx_resp = await self.get_transaction(tx_signature)
             if not tx_resp.value:
-                raise HTTPException(status_code=404, detail=f"Transaction {tx_signature} not found")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Transaction {tx_signature} not found"
+                )
 
             tx = tx_resp.value.transaction
             meta = tx_resp.value.meta
@@ -132,7 +160,10 @@ class SolanaClient:
             }
         except Exception as e:
             logger.error(f"Error parsing transaction {tx_signature}: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error parsing transaction {tx_signature}: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error parsing transaction {tx_signature}: {str(e)}"
+            )
 
         
         def track_transaction_chain(start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
