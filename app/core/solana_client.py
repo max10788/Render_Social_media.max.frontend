@@ -4,6 +4,7 @@ from solana.rpc.api import Client
 from solders.pubkey import Pubkey as PublicKey
 from solana.rpc.types import TxOpts
 from datetime import datetime
+import logging
 
 # Importiere deine Schemas
 from app.models.schemas import (
@@ -15,15 +16,16 @@ from app.models.schemas import (
 )
 
 router = APIRouter()
-
-# Solana RPC-Client
-SOLANA_RPC_URL = "https://api.devnet.solana.com "
-solana_client = Client(SOLANA_RPC_URL)
+logger = logging.getLogger(__name__)
 
 class SolanaClient:
-    def __init__(self):
+    def __init__(self, rpc_url: str = "https://api.devnet.solana.com"):
+        """Initialize SolanaClient with RPC URL."""
+        self.rpc_url = rpc_url
+        self.client = Client(rpc_url)
+        
         # Bekannte Bridge-Adressen für Solana
-        KNOWN_BRIDGES = {
+        self.KNOWN_BRIDGES = {
             "wormhole": {
                 "address_prefixes": ["Bridge1p5g8jV1tPF3X8D79uHQfLpHDEPw5tsqZ9t6vG2K"],
                 "target_chain": "Ethereum",
@@ -35,70 +37,103 @@ class SolanaClient:
                 "protocol": "Allbridge"
             }
         }
+
+    def get_transaction(self, signature: str):
+        """
+        Get transaction details from Solana blockchain.
         
-        def is_spl_token_transfer(logs: List[str]) -> bool:
-            return any("transfer" in log and "TokenkegQfeZyiNwAJbNbGKL67dsAqYh6UPjvF9ME8k8eX5" in log for log in logs)
-        
-        def parse_spl_token_data(logs: List[str]) -> dict:
-            token_data = {"token_symbol": "Unknown", "amount": 0.0, "decimals": 9, "mint_address": None}
-            for log in logs:
-                if "Program log:" in log:
-                    continue
-                if "transfer" in log:
-                    parts = log.split()
-                    if len(parts) > 3:
-                        try:
-                            from_wallet = parts[2]
-                            to_wallet = parts[4]
-                            amount = float(parts[-2])
-                            token_data.update({"from": from_wallet, "to": to_wallet, "amount": amount})
-                        except Exception as e:
-                            pass
-            return token_data
-        
-        def parse_solana_transaction(tx_signature: str) -> dict:
-            try:
-                tx_resp = solana_client.get_transaction(tx_signature, "json", TxOpts(encoding="json"))
-                if not tx_resp.value:
-                    raise HTTPException(status_code=404, detail=f"Transaction {tx_signature} not found")
-        
-                tx = tx_resp.value.transaction
-                meta = tx_resp.value.meta
-                message = tx.transaction.message
-                account_keys = [str(pk) for pk in message.account_keys]
-        
-                # Extrahiere Timestamp
-                timestamp = datetime.utcfromtimestamp(meta.block_time).isoformat()
-        
-                # Finde alle Überweisungen (SOL)
-                transfers_SOL = []
-                pre_balances = meta.pre_balances
-                post_balances = meta.post_balances
-        
-                for i, post_balance in enumerate(post_balances):
-                    change = (post_balance - pre_balances[i]) / 1e9  # Lamports to SOL
-                    if change != 0:
-                        transfers_SOL.append({
-                            "wallet": account_keys[i],
-                            "amount_change": change
-                        })
-        
-                # Finde SPL-Token Transfers
-                transfers_SPL = []
-                logs = meta.log_messages or []
-                if is_spl_token_transfer(logs):
-                    spl_data = parse_spl_token_data(logs)
-                    transfers_SPL.append(spl_data)
-        
-                return {
-                    "tx_hash": tx_signature,
-                    "account_keys": account_keys,
-                    "transfers_SOL": transfers_SOL,
-                    "transfers_SPL": transfers_SPL,
-                    "timestamp": timestamp,
-                }
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error parsing transaction {tx_signature}: {str(e)}")
+        Args:
+            signature (str): The transaction signature/hash
+            
+        Returns:
+            dict: Transaction details
+            
+        Raises:
+            HTTPException: If transaction not found or error occurs
+        """
+        try:
+            response = self.client.get_transaction(signature, encoding="json")
+            if response.value is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Transaction {signature} not found"
+                )
+            return response
+        except Exception as e:
+            logger.error(f"Error getting transaction {signature}: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get transaction: {str(e)}"
+            )
+
+    def is_spl_token_transfer(self, logs: List[str]) -> bool:
+        """Check if transaction logs contain SPL token transfer."""
+        return any("transfer" in log and "TokenkegQfeZyiNwAJbNbGKL67dsAqYh6UPjvF9ME8k8eX5" in log for log in logs)
+
+    def parse_spl_token_data(self, logs: List[str]) -> dict:
+        """Parse SPL token transfer data from transaction logs."""
+        token_data = {"token_symbol": "Unknown", "amount": 0.0, "decimals": 9, "mint_address": None}
+        for log in logs:
+            if "Program log:" in log:
+                continue
+            if "transfer" in log:
+                parts = log.split()
+                if len(parts) > 3:
+                    try:
+                        from_wallet = parts[2]
+                        to_wallet = parts[4]
+                        amount = float(parts[-2])
+                        token_data.update({"from": from_wallet, "to": to_wallet, "amount": amount})
+                    except Exception as e:
+                        logger.warning(f"Error parsing SPL token data: {str(e)}")
+        return token_data
+
+    def parse_solana_transaction(self, tx_signature: str) -> dict:
+        """Parse Solana transaction details."""
+        try:
+            tx_resp = self.get_transaction(tx_signature)
+            if not tx_resp.value:
+                raise HTTPException(status_code=404, detail=f"Transaction {tx_signature} not found")
+
+            tx = tx_resp.value.transaction
+            meta = tx_resp.value.meta
+            message = tx.transaction.message
+            account_keys = [str(pk) for pk in message.account_keys]
+
+            # Extract timestamp
+            timestamp = datetime.utcfromtimestamp(meta.block_time).isoformat()
+
+            # Find all SOL transfers
+            transfers_SOL = []
+            pre_balances = meta.pre_balances
+            post_balances = meta.post_balances
+
+            for i, post_balance in enumerate(post_balances):
+                change = (post_balance - pre_balances[i]) / 1e9  # Lamports to SOL
+                if change != 0:
+                    transfers_SOL.append({
+                        "wallet": account_keys[i],
+                        "amount_change": change
+                    })
+
+            # Find SPL token transfers
+            transfers_SPL = []
+            logs = meta.log_messages or []
+            if self.is_spl_token_transfer(logs):
+                spl_data = self.parse_spl_token_data(logs)
+                transfers_SPL.append(spl_data)
+
+            return {
+                "tx_hash": tx_signature,
+                "account_keys": account_keys,
+                "transfers_SOL": transfers_SOL,
+                "transfers_SPL": transfers_SPL,
+                "timestamp": timestamp,
+            }
+        except Exception as e:
+            logger.error(f"Error parsing transaction {tx_signature}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error parsing transaction {tx_signature}: {str(e)}")
+
         
         def track_transaction_chain(start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
             visited_signatures: Set[str] = set()
