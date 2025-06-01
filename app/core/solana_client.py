@@ -74,7 +74,7 @@ class SolanaClient:
         signature = self._convert_to_signature(tx_signature)
 
         # Run sync call in executor
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         response = await loop.run_in_executor(None, self.client.get_transaction, signature, "json", 0)
         
         if response is None or response.value is None:
@@ -155,8 +155,8 @@ class SolanaClient:
         pubkey = PublicKey.from_string(wallet_address)
 
         # Run sync call in executor
-        loop = asyncio.get_event_loop()
-        resp = await loop.run_in_executor(None, self.client.get_signatures_for_address, pubkey, limit)
+        loop = asyncio.get_running_loop()
+        resp = await loop.run_in_executor(None, self.client.get_transaction, signature, "json", 0)
 
         return [sig.signature.to_string() for sig in resp.value]
 
