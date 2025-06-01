@@ -34,7 +34,8 @@ python-bitcoinrpc==1.0
 # Solana
 solana>=0.31.0
 solders>=0.18.0
-base58==2.1.1
+base58>=2.1.1
+
 
 # JSON RPC + Validierung
 pydantic==1.10.12
@@ -47,6 +48,8 @@ loguru==0.7.2
 # Testing
 pytest==7.4.0
 pytest-asyncio==0.21.0
+async-timeout>=4.0.0
+attrs>=21.2.0
 
 # Background Tasks
 celery==5.3.4
