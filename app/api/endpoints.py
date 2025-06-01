@@ -302,7 +302,7 @@ async def track_transactions(request: TransactionTrackRequest):
         # Track transaction chain
         tracked_transactions = await solana_client.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
-            amount=request.amount,
+            amount_SOL=request.amount,            # <-- Fixed parameter name
             max_depth=request.num_transactions
         )
 
@@ -319,7 +319,20 @@ async def track_transactions(request: TransactionTrackRequest):
                 scenario_details={}
             )
 
-        # Rest of your endpoint implementation...
+        # Additional logic for result processing can go here...
+
+        # Placeholder for returning a successful response
+        return TransactionTrackResponse(
+            status="complete",
+            total_transactions_tracked=len(tracked_transactions),
+            tracked_transactions=tracked_transactions,
+            final_status=FinalStatusEnum.still_in_same_wallet,  # Update as needed
+            final_wallet_address=tracked_transactions[-1].to_wallet if tracked_transactions else None,
+            remaining_amount=request.amount,  # Update as needed
+            target_currency=request.target_currency,
+            detected_scenarios=[],           # Add scenario detection if needed
+            scenario_details={}
+        )
 
     except HTTPException as he:
         # Re-raise HTTP exceptions
