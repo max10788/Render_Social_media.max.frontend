@@ -7,8 +7,8 @@ from solana.rpc.types import TxOpts
 from datetime import datetime
 import base58
 import logging
+import asyncio
 from functools import wraps
-
 # Import your schemas
 from app.models.schemas import (
     TransactionTrackRequest,
@@ -36,11 +36,10 @@ def handle_rpc_errors(func):
     return wrapper
 
 class SolanaClient:
-    def __init__(self, rpc_url: str = "https://api.devnet.solana.com"):
+    def __init__(self, rpc_url: str = "https://api.devnet.solana.com"): 
         """Initialize SolanaClient with RPC URL."""
         self.rpc_url = rpc_url
-        self.client = Client(rpc_url)
-        
+        self.client = Client(rpc_url)  # Sync client
         # Known bridge addresses for Solana
         self.KNOWN_BRIDGES = {
             "wormhole": {
@@ -73,19 +72,16 @@ class SolanaClient:
     async def get_transaction(self, tx_signature: str):
         """Get transaction details from Solana blockchain."""
         signature = self._convert_to_signature(tx_signature)
-        
-        response = await self.client.get_transaction(
-            signature,
-            encoding="json",
-            max_supported_transaction_version=0
-        )
+
+        # Run sync call in executor
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, self.client.get_transaction, signature, "json", 0)
         
         if response is None or response.value is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Transaction {tx_signature} not found"
             )
-            
         return response
 
     def is_spl_token_transfer(self, logs: List[str]) -> bool:
@@ -119,12 +115,10 @@ class SolanaClient:
                 status_code=404,
                 detail=f"Transaction {tx_signature} not found"
             )
-
         tx = tx_resp.value.transaction
         meta = tx_resp.value.meta
         message = tx.transaction.message
         account_keys = [str(pk) for pk in message.account_keys]
-
         # Extract timestamp
         timestamp = datetime.utcfromtimestamp(meta.block_time).isoformat()
 
@@ -132,7 +126,6 @@ class SolanaClient:
         transfers_SOL = []
         pre_balances = meta.pre_balances
         post_balances = meta.post_balances
-
         for i, post_balance in enumerate(post_balances):
             change = (post_balance - pre_balances[i]) / 1e9  # Lamports to SOL
             if change != 0:
@@ -159,13 +152,13 @@ class SolanaClient:
     @handle_rpc_errors
     async def get_next_transactions(self, wallet_address: str, limit: int = 1) -> List[str]:
         """Get next transactions for a wallet address."""
-        try:
-            pubkey = PublicKey.from_string(wallet_address)
-            resp = await self.client.get_signatures_for_address(pubkey, limit=limit)
-            return [sig.signature.to_string() for sig in resp.value]
-        except Exception as e:
-            logger.error(f"Error fetching wallet history: {str(e)}")
-            raise
+        pubkey = PublicKey.from_string(wallet_address)
+
+        # Run sync call in executor
+        loop = asyncio.get_event_loop()
+        resp = await loop.run_in_executor(None, self.client.get_signatures_for_address, pubkey, limit)
+
+        return [sig.signature.to_string() for sig in resp.value]
 
     @handle_rpc_errors
     async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
@@ -178,18 +171,15 @@ class SolanaClient:
             current_tx_hash, remaining_amount = queue.pop(0)
             if current_tx_hash in visited_signatures:
                 continue
-
             visited_signatures.add(current_tx_hash)
             tx_data = await self.parse_solana_transaction(current_tx_hash)
 
             # Find sender and receiver with positive change (SOL)
             incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
-
             for incoming in incoming_SOL:
                 from_wallet = tx_data["account_keys"][0]
                 to_wallet = incoming["wallet"]
                 transfer_amount = abs(incoming["amount_change"])
-
                 tracked_tx = TrackedTransaction(
                     tx_hash=current_tx_hash,
                     from_wallet=from_wallet,
@@ -199,7 +189,6 @@ class SolanaClient:
                     value_in_target_currency=None,
                 )
                 result_transactions.append(tracked_tx)
-
                 # Follow recursively
                 if len(result_transactions) < max_depth:
                     next_signatures = await self.get_next_transactions(to_wallet, limit=1)
@@ -211,7 +200,6 @@ class SolanaClient:
                 from_wallet = spl["from"]
                 to_wallet = spl["to"]
                 transfer_amount = spl["amount"]
-
                 tracked_tx = TrackedTransaction(
                     tx_hash=current_tx_hash,
                     from_wallet=from_wallet or "unknown",
@@ -221,7 +209,6 @@ class SolanaClient:
                     value_in_target_currency=None,
                 )
                 result_transactions.append(tracked_tx)
-
                 # Follow recursively
                 if len(result_transactions) < max_depth:
                     next_signatures = await self.get_next_transactions(to_wallet, limit=1)
@@ -230,50 +217,44 @@ class SolanaClient:
 
         return result_transactions
 
-        
-        def detect_scenarios(self, transactions: List[TrackedTransaction]) -> Dict[str, Dict]:
-            """Detect transaction scenarios."""
-            scenarios = []
-            details = {}
-    
-            if any("Stake" in t.to_wallet for t in transactions):
-                scenarios.append(ScenarioType.delegated_staking)
-                details[ScenarioType.delegated_staking] = {"validator": "Solana Validator A"}
-    
-            if any("Raydium" in t.to_wallet or "Orca" in t.to_wallet for t in transactions):
-                scenarios.append(ScenarioType.defi_deposit)
-                details[ScenarioType.defi_deposit] = {"protocol": "Raydium", "pool": "SOL-USDC"}
-        
-            if any("NFTMarketplace" in t.to_wallet for t in transactions):
-                scenarios.append(ScenarioType.nft_investment)
-                details[ScenarioType.nft_investment] = {"marketplace": "MagicEden", "nft_id": "ME_123456"}
-        
-            if any("USDC" in t.to_wallet or "StableCoin" in t.to_wallet for t in transactions):
-                scenarios.append(ScenarioType.converted_to_stablecoin)
-                details[ScenarioType.converted_to_stablecoin] = {"target_token": "USDC"}
-        
-            if any("DonationWallet" in t.to_wallet for t in transactions):
-                scenarios.append(ScenarioType.donation_or_grant)
-                details[ScenarioType.donation_or_grant] = {"organization": "Solana Foundation"}
-        
-            for tx in transactions:
-                for bridge_name, bridge_info in KNOWN_BRIDGES.items():
-                    if any(prefix in tx.to_wallet for prefix in bridge_info["address_prefixes"]):
-                        scenarios.append(ScenarioType.cross_chain_bridge)
-                        details[ScenarioType.cross_chain_bridge] = {
-                            "protocol": bridge_info["protocol"],
-                            "target_chain": bridge_info["target_chain"],
-                            "bridge_address_used": tx.to_wallet,
-                            "tx_hash": tx.tx_hash
-                        }
-                        break  # Nur einmal pro Brücke hinzufügen
-        
-            if any("MultiSig" in t.to_wallet for t in transactions):
-                scenarios.append(ScenarioType.multi_sig_storage)
-                details[ScenarioType.multi_sig_storage] = {"signers_required": 2}
-        
-            if any(t.amount < 0.001 for t in transactions):  # Kleinstbeträge könnten als "lost"
-                scenarios.append(ScenarioType.lost_or_dust)
-                details[ScenarioType.lost_or_dust] = {"threshold_sol": 0.001}
-        
-            return {"scenarios": scenarios, "details": details}
+    def detect_scenarios(self, transactions: List[TrackedTransaction]) -> Dict[str, Dict]:
+        """Detect transaction scenarios."""
+        scenarios = []
+        details = {}
+        if any("Stake" in t.to_wallet for t in transactions):
+            scenarios.append(ScenarioType.delegated_staking)
+            details[ScenarioType.delegated_staking] = {"validator": "Solana Validator A"}
+        if any("Raydium" in t.to_wallet or "Orca" in t.to_wallet for t in transactions):
+            scenarios.append(ScenarioType.defi_deposit)
+            details[ScenarioType.defi_deposit] = {"protocol": "Raydium", "pool": "SOL-USDC"}
+        if any("NFTMarketplace" in t.to_wallet for t in transactions):
+            scenarios.append(ScenarioType.nft_investment)
+            details[ScenarioType.nft_investment] = {"marketplace": "MagicEden", "nft_id": "ME_123456"}
+        if any("USDC" in t.to_wallet or "StableCoin" in t.to_wallet for t in transactions):
+            scenarios.append(ScenarioType.converted_to_stablecoin)
+            details[ScenarioType.converted_to_stablecoin] = {"target_token": "USDC"}
+        if any("DonationWallet" in t.to_wallet for t in transactions):
+            scenarios.append(ScenarioType.donation_or_grant)
+            details[ScenarioType.donation_or_grant] = {"organization": "Solana Foundation"}
+
+        for tx in transactions:
+            for bridge_name, bridge_info in self.KNOWN_BRIDGES.items():
+                if any(prefix in tx.to_wallet for prefix in bridge_info["address_prefixes"]):
+                    scenarios.append(ScenarioType.cross_chain_bridge)
+                    details[ScenarioType.cross_chain_bridge] = {
+                        "protocol": bridge_info["protocol"],
+                        "target_chain": bridge_info["target_chain"],
+                        "bridge_address_used": tx.to_wallet,
+                        "tx_hash": tx.tx_hash
+                    }
+                    break  # Nur einmal pro Brücke hinzufügen
+
+        if any("MultiSig" in t.to_wallet for t in transactions):
+            scenarios.append(ScenarioType.multi_sig_storage)
+            details[ScenarioType.multi_sig_storage] = {"signers_required": 2}
+
+        if any(t.amount < 0.001 for t in transactions):  # Kleinstbeträge könnten als "lost"
+            scenarios.append(ScenarioType.lost_or_dust)
+            details[ScenarioType.lost_or_dust] = {"threshold_sol": 0.001}
+
+        return {"scenarios": scenarios, "details": details}
