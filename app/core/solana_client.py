@@ -18,7 +18,7 @@ from app.models.schemas import (
     FinalStatusEnum
 )
 
-# Logger besser konfigurieren
+# Improved logger configuration
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
     handler = logging.StreamHandler()
@@ -84,9 +84,14 @@ class SolanaClient:
         loop = asyncio.get_running_loop()
         try:
             logger.debug(f"Requesting transaction: {tx_signature} ({signature})")
+            # Pass encoding and max_supported_transaction_version as keyword arguments!
             response = await loop.run_in_executor(
                 None,
-                lambda: self.client.get_transaction(signature, "json", 0)
+                lambda: self.client.get_transaction(
+                    signature,
+                    encoding="json",
+                    max_supported_transaction_version=0
+                )
             )
             if response is None or not hasattr(response, "value") or response.value is None:
                 logger.error(f"Transaction not found or empty response for: {tx_signature}")
