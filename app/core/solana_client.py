@@ -15,7 +15,7 @@ from app.models.schemas import (
     TransactionTrackResponse,
     TrackedTransaction,
     ScenarioType,
-    FinalStatusEnum
+    FinalStatusEnum,
 )
 
 # Improved logger configuration
