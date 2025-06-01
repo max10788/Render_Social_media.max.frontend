@@ -2,10 +2,12 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Set, Dict, Optional
 from solana.rpc.api import Client
 from solders.pubkey import Pubkey as PublicKey
-from solders.signature import Signature  # Add this import
+from solders.signature import Signature
 from solana.rpc.types import TxOpts
 from datetime import datetime
+import base58
 import logging
+from functools import wraps
 
 # Import your schemas
 from app.models.schemas import (
@@ -18,6 +20,20 @@ from app.models.schemas import (
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+def handle_rpc_errors(func):
+    """Decorator to handle RPC errors consistently."""
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except ValueError as ve:
+            logger.error(f"Value error in {func.__name__}: {str(ve)}")
+            raise HTTPException(status_code=400, detail=str(ve))
+        except Exception as e:
+            logger.error(f"Error in {func.__name__}: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+    return wrapper
 
 class SolanaClient:
     def __init__(self, rpc_url: str = "https://api.devnet.solana.com"):
@@ -39,57 +55,38 @@ class SolanaClient:
             }
         }
 
-    async def get_transaction(self, tx_signature: str):
-        """
-        Get transaction details from Solana blockchain.
-        
-        Args:
-            tx_signature (str): The transaction signature as a string
-            
-        Returns:
-            dict: Transaction details
-            
-        Raises:
-            HTTPException: If transaction not found or error occurs
-        """
+    def _convert_to_signature(self, signature_str: str) -> Signature:
+        """Convert string signature to Solana Signature object."""
         try:
-            # Convert string signature to Signature object
+            # First try direct conversion
+            return Signature.from_string(signature_str)
+        except ValueError:
             try:
-                signature = Signature.from_string(tx_signature)
-            except ValueError as e:
-                logger.error(f"Invalid signature format: {tx_signature}")
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid signature format: {str(e)}"
-                )
+                # Try base58 decode if direct conversion fails
+                decoded = base58.b58decode(signature_str)
+                return Signature.from_bytes(decoded)
+            except Exception as e:
+                logger.error(f"Failed to convert signature {signature_str}: {str(e)}")
+                raise ValueError(f"Invalid signature format: {str(e)}")
 
-            # Get transaction with proper signature object
-            response = self.client.get_transaction(
-                signature,
-                encoding="json",
-                max_supported_transaction_version=0  # Add this parameter for compatibility
+    @handle_rpc_errors
+    async def get_transaction(self, tx_signature: str):
+        """Get transaction details from Solana blockchain."""
+        signature = self._convert_to_signature(tx_signature)
+        
+        response = await self.client.get_transaction(
+            signature,
+            encoding="json",
+            max_supported_transaction_version=0
+        )
+        
+        if response is None or response.value is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Transaction {tx_signature} not found"
             )
             
-            if response is None or response.value is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Transaction {tx_signature} not found"
-                )
-                
-            return response
-            
-        except ValueError as e:
-            logger.error(f"Error converting signature {tx_signature}: {str(e)}")
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid transaction signature: {str(e)}"
-            )
-        except Exception as e:
-            logger.error(f"Error getting transaction {tx_signature}: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to get transaction: {str(e)}"
-            )
+        return response
 
     def is_spl_token_transfer(self, logs: List[str]) -> bool:
         """Check if transaction logs contain SPL token transfer."""
@@ -113,136 +110,136 @@ class SolanaClient:
                         logger.warning(f"Error parsing SPL token data: {str(e)}")
         return token_data
 
+    @handle_rpc_errors
     async def parse_solana_transaction(self, tx_signature: str) -> dict:
         """Parse Solana transaction details."""
-        try:
-            tx_resp = await self.get_transaction(tx_signature)
-            if not tx_resp.value:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Transaction {tx_signature} not found"
-                )
-
-            tx = tx_resp.value.transaction
-            meta = tx_resp.value.meta
-            message = tx.transaction.message
-            account_keys = [str(pk) for pk in message.account_keys]
-
-            # Extract timestamp
-            timestamp = datetime.utcfromtimestamp(meta.block_time).isoformat()
-
-            # Find all SOL transfers
-            transfers_SOL = []
-            pre_balances = meta.pre_balances
-            post_balances = meta.post_balances
-
-            for i, post_balance in enumerate(post_balances):
-                change = (post_balance - pre_balances[i]) / 1e9  # Lamports to SOL
-                if change != 0:
-                    transfers_SOL.append({
-                        "wallet": account_keys[i],
-                        "amount_change": change
-                    })
-
-            # Find SPL token transfers
-            transfers_SPL = []
-            logs = meta.log_messages or []
-            if self.is_spl_token_transfer(logs):
-                spl_data = self.parse_spl_token_data(logs)
-                transfers_SPL.append(spl_data)
-
-            return {
-                "tx_hash": tx_signature,
-                "account_keys": account_keys,
-                "transfers_SOL": transfers_SOL,
-                "transfers_SPL": transfers_SPL,
-                "timestamp": timestamp,
-            }
-        except Exception as e:
-            logger.error(f"Error parsing transaction {tx_signature}: {str(e)}")
+        tx_resp = await self.get_transaction(tx_signature)
+        if not tx_resp.value:
             raise HTTPException(
-                status_code=500,
-                detail=f"Error parsing transaction {tx_signature}: {str(e)}"
+                status_code=404,
+                detail=f"Transaction {tx_signature} not found"
             )
 
+        tx = tx_resp.value.transaction
+        meta = tx_resp.value.meta
+        message = tx.transaction.message
+        account_keys = [str(pk) for pk in message.account_keys]
+
+        # Extract timestamp
+        timestamp = datetime.utcfromtimestamp(meta.block_time).isoformat()
+
+        # Find all SOL transfers
+        transfers_SOL = []
+        pre_balances = meta.pre_balances
+        post_balances = meta.post_balances
+
+        for i, post_balance in enumerate(post_balances):
+            change = (post_balance - pre_balances[i]) / 1e9  # Lamports to SOL
+            if change != 0:
+                transfers_SOL.append({
+                    "wallet": account_keys[i],
+                    "amount_change": change
+                })
+
+        # Find SPL token transfers
+        transfers_SPL = []
+        logs = meta.log_messages or []
+        if self.is_spl_token_transfer(logs):
+            spl_data = self.parse_spl_token_data(logs)
+            transfers_SPL.append(spl_data)
+
+        return {
+            "tx_hash": tx_signature,
+            "account_keys": account_keys,
+            "transfers_SOL": transfers_SOL,
+            "transfers_SPL": transfers_SPL,
+            "timestamp": timestamp,
+        }
+
+    @handle_rpc_errors
+    async def get_next_transactions(self, wallet_address: str, limit: int = 1) -> List[str]:
+        """Get next transactions for a wallet address."""
+        try:
+            pubkey = PublicKey.from_string(wallet_address)
+            resp = await self.client.get_signatures_for_address(pubkey, limit=limit)
+            return [sig.signature.to_string() for sig in resp.value]
+        except Exception as e:
+            logger.error(f"Error fetching wallet history: {str(e)}")
+            raise
+
+    @handle_rpc_errors
+    async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
+        """Track a chain of transactions starting from a given hash."""
+        visited_signatures: Set[str] = set()
+        queue = [(start_tx_hash, amount_SOL)]
+        result_transactions = []
+
+        while queue and len(result_transactions) < max_depth:
+            current_tx_hash, remaining_amount = queue.pop(0)
+            if current_tx_hash in visited_signatures:
+                continue
+
+            visited_signatures.add(current_tx_hash)
+            tx_data = await self.parse_solana_transaction(current_tx_hash)
+
+            # Find sender and receiver with positive change (SOL)
+            incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
+
+            for incoming in incoming_SOL:
+                from_wallet = tx_data["account_keys"][0]
+                to_wallet = incoming["wallet"]
+                transfer_amount = abs(incoming["amount_change"])
+
+                tracked_tx = TrackedTransaction(
+                    tx_hash=current_tx_hash,
+                    from_wallet=from_wallet,
+                    to_wallet=to_wallet,
+                    amount=transfer_amount,
+                    timestamp=tx_data["timestamp"],
+                    value_in_target_currency=None,
+                )
+                result_transactions.append(tracked_tx)
+
+                # Follow recursively
+                if len(result_transactions) < max_depth:
+                    next_signatures = await self.get_next_transactions(to_wallet, limit=1)
+                    for sig in next_signatures:
+                        queue.append((sig, transfer_amount))
+
+            # Handle SPL tokens if present
+            for spl in tx_data["transfers_SPL"]:
+                from_wallet = spl["from"]
+                to_wallet = spl["to"]
+                transfer_amount = spl["amount"]
+
+                tracked_tx = TrackedTransaction(
+                    tx_hash=current_tx_hash,
+                    from_wallet=from_wallet or "unknown",
+                    to_wallet=to_wallet or "unknown",
+                    amount=transfer_amount,
+                    timestamp=tx_data["timestamp"],
+                    value_in_target_currency=None,
+                )
+                result_transactions.append(tracked_tx)
+
+                # Follow recursively
+                if len(result_transactions) < max_depth:
+                    next_signatures = await self.get_next_transactions(to_wallet, limit=1)
+                    for sig in next_signatures:
+                        queue.append((sig, transfer_amount))
+
+        return result_transactions
+
         
-        def track_transaction_chain(start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
-            visited_signatures: Set[str] = set()
-            queue = [(start_tx_hash, amount_SOL)]
-            result_transactions = []
-        
-            while queue and len(result_transactions) < max_depth:
-                current_tx_hash, remaining_amount = queue.pop(0)
-                if current_tx_hash in visited_signatures:
-                    continue
-        
-                visited_signatures.add(current_tx_hash)
-                tx_data = parse_solana_transaction(current_tx_hash)
-        
-                # Finde Sender und Empfänger mit positiver Änderung (SOL)
-                incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
-        
-                for incoming in incoming_SOL:
-                    from_wallet = tx_data["account_keys"][0]
-                    to_wallet = incoming["wallet"]
-                    transfer_amount = abs(incoming["amount_change"])
-        
-                    tracked_tx = TrackedTransaction(
-                        tx_hash=current_tx_hash,
-                        from_wallet=from_wallet,
-                        to_wallet=to_wallet,
-                        amount=transfer_amount,
-                        timestamp=tx_data["timestamp"],
-                        value_in_target_currency=None,
-                    )
-                    result_transactions.append(tracked_tx)
-        
-                    # Rekursiv weiterverfolgen
-                    if len(result_transactions) < max_depth:
-                        next_signatures = get_next_transactions(to_wallet, limit=1)
-                        for sig in next_signatures:
-                            queue.append((sig, transfer_amount))
-        
-                # Behandle SPL-Token falls vorhanden
-                for spl in tx_data["transfers_SPL"]:
-                    from_wallet = spl["from"]
-                    to_wallet = spl["to"]
-                    transfer_amount = spl["amount"]
-        
-                    tracked_tx = TrackedTransaction(
-                        tx_hash=current_tx_hash,
-                        from_wallet=from_wallet or "unknown",
-                        to_wallet=to_wallet or "unknown",
-                        amount=transfer_amount,
-                        timestamp=tx_data["timestamp"],
-                        value_in_target_currency=None,
-                    )
-                    result_transactions.append(tracked_tx)
-        
-                    # Rekursiv weiterverfolgen
-                    if len(result_transactions) < max_depth:
-                        next_signatures = get_next_transactions(to_wallet, limit=1)
-                        for sig in next_signatures:
-                            queue.append((sig, transfer_amount))
-        
-            return result_transactions
-        
-        def get_next_transactions(wallet_address: str, limit: int = 1) -> List[str]:
-            try:
-                pubkey = PublicKey(wallet_address)
-                resp = solana_client.get_signatures_for_address(pubkey, limit=limit)
-                return [sig.signature.hex() for sig in resp.value]
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Error fetching wallet history: {str(e)}")
-        
-        def detect_scenarios(transactions: List[TrackedTransaction]) -> Dict[ScenarioType, Dict]:
+        def detect_scenarios(self, transactions: List[TrackedTransaction]) -> Dict[str, Dict]:
+            """Detect transaction scenarios."""
             scenarios = []
             details = {}
-        
+    
             if any("Stake" in t.to_wallet for t in transactions):
                 scenarios.append(ScenarioType.delegated_staking)
                 details[ScenarioType.delegated_staking] = {"validator": "Solana Validator A"}
-        
+    
             if any("Raydium" in t.to_wallet or "Orca" in t.to_wallet for t in transactions):
                 scenarios.append(ScenarioType.defi_deposit)
                 details[ScenarioType.defi_deposit] = {"protocol": "Raydium", "pool": "SOL-USDC"}
