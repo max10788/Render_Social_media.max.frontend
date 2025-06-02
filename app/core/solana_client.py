@@ -182,6 +182,7 @@ class SolanaClient:
             "timestamp": timestamp,
         }
 
+    @handle_rpc_errors
     async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
         """Track a chain of transactions starting from a given hash."""
         visited_signatures: Set[str] = set()
@@ -236,7 +237,7 @@ class SolanaClient:
                     for sig in next_signatures:
                         queue.append((sig, transfer_amount))
 
-        return result_transactions
+        return result_transactions  # This return statement was likely misplaced
     
     @handle_rpc_errors
     async def get_next_transactions(self, wallet_address: str, limit: int = 1) -> List[str]:
