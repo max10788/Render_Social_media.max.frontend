@@ -199,7 +199,7 @@ class SolanaClient:
         return response
 
     async def parse_solana_transaction(self, tx_signature: str) -> dict:
-        """Parse a Solana transaction with improved error handling and support for different formats."""
+        """Parse a Solana transaction with improved validation and logging."""
         try:
             tx_resp = await self.get_transaction(tx_signature)
             if not hasattr(tx_resp, "value") or tx_resp.value is None:
@@ -208,7 +208,7 @@ class SolanaClient:
                     status_code=404,
                     detail=f"Transaction {tx_signature} not found"
                 )
-
+    
             tx_value = tx_resp.value
             result = {
                 "tx_hash": tx_signature,
@@ -217,37 +217,60 @@ class SolanaClient:
                 "transfers_SPL": [],
                 "timestamp": None,
             }
-
+    
+            # Extract timestamp with validation
             try:
                 block_time = getattr(tx_value, "block_time", None)
                 if block_time:
                     result["timestamp"] = datetime.utcfromtimestamp(block_time).isoformat()
+                    logger.debug(f"Transaction timestamp: {result['timestamp']}")
+                else:
+                    logger.warning(f"No block time found for transaction {tx_signature}")
             except Exception as e:
                 logger.warning(f"Error parsing block time: {e}")
-
+    
+            # Parse transaction data with detailed logging
             try:
                 transaction = self._extract_transaction_data(tx_value)
                 if transaction is None:
+                    logger.warning(f"Could not extract transaction data for {tx_signature}")
                     raise ValueError("Could not extract transaction data")
-
+    
                 message = self._extract_message_data(transaction)
                 if message:
                     result["account_keys"] = self._parse_account_keys(message)
+                    logger.debug(f"Found {len(result['account_keys'])} account keys")
+                else:
+                    logger.warning(f"No message data found in transaction {tx_signature}")
             except Exception as e:
                 logger.warning(f"Error parsing transaction data: {e}")
                 result["account_keys"] = self._fallback_account_keys(tx_value)
-
+                logger.info(f"Using fallback account keys, found: {len(result['account_keys'])}")
+    
+            # Parse transfer data with validation
             try:
                 meta = self._extract_meta_data(tx_value)
                 if meta:
-                    result.update(self._parse_transfer_data(meta, result["account_keys"]))
+                    transfer_data = self._parse_transfer_data(meta, result["account_keys"])
+                    result.update(transfer_data)
+                    
+                    # Log transfer details
+                    if transfer_data["transfers_SOL"]:
+                        logger.info(f"Found {len(transfer_data['transfers_SOL'])} SOL transfers")
+                    if transfer_data["transfers_SPL"]:
+                        logger.info(f"Found {len(transfer_data['transfers_SPL'])} SPL transfers")
+                    
+                    if not transfer_data["transfers_SOL"] and not transfer_data["transfers_SPL"]:
+                        logger.warning(f"No transfers found in transaction {tx_signature}")
+                else:
+                    logger.warning(f"No metadata found for transaction {tx_signature}")
+                    result.update(self._fallback_transfer_data(tx_value))
             except Exception as e:
                 logger.warning(f"Error parsing transfer data: {e}")
                 result.update(self._fallback_transfer_data(tx_value))
-
-            logger.debug(f"Parsed transaction {tx_signature}: {result}")
+    
             return result
-
+    
         except Exception as e:
             logger.error(f"Error parsing transaction {tx_signature}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -271,77 +294,114 @@ class SolanaClient:
 
     @handle_rpc_errors
     async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
-        """Track a chain of transactions starting from a given hash."""
+        """Track a chain of transactions with improved validation and logging."""
         visited_signatures: Set[str] = set()
         queue = [(start_tx_hash, amount_SOL)]
         result_transactions = []
-
+        
+        logger.info(f"Starting transaction chain tracking for {start_tx_hash}")
+        logger.debug(f"Parameters: amount_SOL={amount_SOL}, max_depth={max_depth}")
+    
         while queue and len(result_transactions) < max_depth:
             current_tx_hash, remaining_amount = queue.pop(0)
+            
             if current_tx_hash in visited_signatures:
-                logger.debug(f"Signature {current_tx_hash} already visited")
+                logger.debug(f"Skipping already visited transaction {current_tx_hash}")
                 continue
-
+                
             visited_signatures.add(current_tx_hash)
+            logger.debug(f"Processing transaction {current_tx_hash} ({len(visited_signatures)}/{max_depth})")
+    
             try:
                 tx_data = await self.parse_solana_transaction(current_tx_hash)
+                
+                # Process SOL transfers
+                incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
+                if incoming_SOL:
+                    logger.info(f"Found {len(incoming_SOL)} incoming SOL transfers in {current_tx_hash}")
+                    
+                    for incoming in incoming_SOL:
+                        from_wallet = tx_data["account_keys"][0] if tx_data["account_keys"] else "unknown"
+                        to_wallet = incoming["wallet"]
+                        transfer_amount = abs(incoming["amount_change"])
+                        
+                        logger.debug(f"Processing transfer: {transfer_amount} SOL from {from_wallet} to {to_wallet}")
+                        
+                        tracked_tx = TrackedTransaction(
+                            tx_hash=current_tx_hash,
+                            from_wallet=from_wallet,
+                            to_wallet=to_wallet,
+                            amount=transfer_amount,
+                            timestamp=tx_data["timestamp"],
+                            value_in_target_currency=None,
+                        )
+                        result_transactions.append(tracked_tx)
+                        
+                        if len(result_transactions) < max_depth:
+                            try:
+                                next_signatures = await self.get_next_transactions(to_wallet, limit=1)
+                                logger.debug(f"Found {len(next_signatures)} next transactions for {to_wallet}")
+                                
+                                for sig in next_signatures:
+                                    if sig not in visited_signatures:
+                                        queue.append((sig, transfer_amount))
+                                        logger.debug(f"Added transaction {sig} to processing queue")
+                            except Exception as e:
+                                logger.warning(f"Error fetching next transactions for {to_wallet}: {e}")
+    
+                # Process SPL transfers
+                if tx_data["transfers_SPL"]:
+                    logger.info(f"Found {len(tx_data['transfers_SPL'])} SPL transfers in {current_tx_hash}")
+                    
+                    for spl in tx_data["transfers_SPL"]:
+                        from_wallet = spl.get("from", "unknown")
+                        to_wallet = spl.get("to", "unknown")
+                        transfer_amount = spl.get("amount", 0.0)
+                        
+                        logger.debug(f"Processing SPL transfer: {transfer_amount} tokens from {from_wallet} to {to_wallet}")
+                        
+                        tracked_tx = TrackedTransaction(
+                            tx_hash=current_tx_hash,
+                            from_wallet=from_wallet,
+                            to_wallet=to_wallet,
+                            amount=transfer_amount,
+                            timestamp=tx_data["timestamp"],
+                            value_in_target_currency=None,
+                        )
+                        result_transactions.append(tracked_tx)
+                        
+                        if len(result_transactions) < max_depth:
+                            try:
+                                next_signatures = await self.get_next_transactions(to_wallet, limit=1)
+                                logger.debug(f"Found {len(next_signatures)} next transactions for {to_wallet}")
+                                
+                                for sig in next_signatures:
+                                    if sig not in visited_signatures:
+                                        queue.append((sig, transfer_amount))
+                                        logger.debug(f"Added transaction {sig} to processing queue")
+                            except Exception as e:
+                                logger.warning(f"Error fetching next SPL transactions for {to_wallet}: {e}")
+    
             except HTTPException as he:
                 logger.warning(f"Skipping tx {current_tx_hash} due to HTTPException: {he.detail}")
                 continue
             except Exception as e:
-                logger.error(f"Error parsing transaction {current_tx_hash}: {e}")
+                logger.error(f"Error processing transaction {current_tx_hash}: {e}")
                 continue
 
-            # Process SOL transfers
-            incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
-            for incoming in incoming_SOL:
-                from_wallet = tx_data["account_keys"][0] if tx_data["account_keys"] else "unknown"
-                to_wallet = incoming["wallet"]
-                transfer_amount = abs(incoming["amount_change"])
-                tracked_tx = TrackedTransaction(
-                    tx_hash=current_tx_hash,
-                    from_wallet=from_wallet,
-                    to_wallet=to_wallet,
-                    amount=transfer_amount,
-                    timestamp=tx_data["timestamp"],
-                    value_in_target_currency=None,
-                )
-                result_transactions.append(tracked_tx)
-                if len(result_transactions) < max_depth:
-                    try:
-                        next_signatures = await self.get_next_transactions(to_wallet, limit=1)
-                        for sig in next_signatures:
-                            if sig not in visited_signatures:
-                                queue.append((sig, transfer_amount))
-                    except Exception as e:
-                        logger.warning(f"Error fetching next transactions for {to_wallet}: {e}")
+    if not result_transactions:
+        logger.warning(
+            f"No transactions tracked for hash {start_tx_hash}. "
+            f"Queue processed: {len(visited_signatures)}, "
+            f"Max depth: {max_depth}"
+        )
+    else:
+        logger.info(
+            f"Tracked {len(result_transactions)} transactions in chain "
+            f"(max_depth={max_depth}, visited={len(visited_signatures)})"
+        )
 
-            # Process SPL token transfers
-            for spl in tx_data["transfers_SPL"]:
-                from_wallet = spl.get("from", "unknown")
-                to_wallet = spl.get("to", "unknown")
-                transfer_amount = spl.get("amount", 0.0)
-                tracked_tx = TrackedTransaction(
-                    tx_hash=current_tx_hash,
-                    from_wallet=from_wallet,
-                    to_wallet=to_wallet,
-                    amount=transfer_amount,
-                    timestamp=tx_data["timestamp"],
-                    value_in_target_currency=None,
-                )
-                result_transactions.append(tracked_tx)
-                if len(result_transactions) < max_depth:
-                    try:
-                        next_signatures = await self.get_next_transactions(to_wallet, limit=1)
-                        for sig in next_signatures:
-                            if sig not in visited_signatures:
-                                queue.append((sig, transfer_amount))
-                    except Exception as e:
-                        logger.warning(f"Error fetching next SPL transactions for {to_wallet}: {e}")
-
-        logger.info(f"Tracked {len(result_transactions)} transactions in chain (max_depth={max_depth})")
-        return result_transactions
-
+    return result_transactions
     def detect_scenarios(self, transactions: List[TrackedTransaction]) -> Dict[str, Dict]:
         scenarios = []
         details = {}
