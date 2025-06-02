@@ -128,16 +128,19 @@ class SolanaClient:
             logger.error(f"Transaction response missing meta/transaction for: {tx_signature} ({tx_value})")
             raise HTTPException(status_code=500, detail="Malformed transaction response")
     
-        try:
-            # Defensive: not all transactions have .transaction.message (Raw/Parsed difference)
-            if not hasattr(transaction, "transaction") or not hasattr(transaction.transaction, "message"):
-                logger.error(f"Transaction object missing .transaction.message for: {tx_signature} ({transaction})")
-                raise HTTPException(status_code=500, detail="Malformed transaction message")
+    try:
+        # Defensive: check for both typical and edge-case Solana tx layouts
+        if hasattr(transaction, "transaction") and hasattr(transaction.transaction, "message"):
             message = transaction.transaction.message
-            account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
-        except Exception as e:
-            logger.error(f"Error extracting transaction message: {e}")
+        elif hasattr(transaction, "message"):
+            message = transaction.message
+        else:
+            logger.error(f"Transaction object has no usable message attribute for: {tx_signature} ({transaction})")
             raise HTTPException(status_code=500, detail="Malformed transaction message")
+        account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
+    except Exception as e:
+        logger.error(f"Error extracting transaction message: {e}")
+        raise HTTPException(status_code=500, detail="Malformed transaction message")
     
         try:
             timestamp = datetime.utcfromtimestamp(getattr(meta, "block_time", None) or getattr(tx_value, "block_time", None)).isoformat()
