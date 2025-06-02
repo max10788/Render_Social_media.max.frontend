@@ -281,9 +281,11 @@ def get_crypto_service() -> CryptoTrackingService:
 
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(request: TransactionTrackRequest):
-    """Track a chain of transactions starting from a given transaction hash."""
+    """Track a chain of transactions with improved validation."""
     try:
-        # Initialize Solana client with configured RPC URL
+        logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
+        
+        # Initialize Solana client
         solana_client = SolanaClient(os.getenv("SOLANA_RPC_URL", "https://api.devnet.solana.com"))
         
         # Validate transaction exists
@@ -303,11 +305,12 @@ async def track_transactions(request: TransactionTrackRequest):
         # Track transaction chain
         tracked_transactions = await solana_client.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
-            amount_SOL=request.amount,            # <-- Fixed parameter name
+            amount_SOL=request.amount,
             max_depth=request.num_transactions
         )
 
         if not tracked_transactions:
+            logger.warning(f"No transactions found in chain starting from {request.start_tx_hash}")
             return TransactionTrackResponse(
                 status="complete",
                 total_transactions_tracked=0,
@@ -320,19 +323,31 @@ async def track_transactions(request: TransactionTrackRequest):
                 scenario_details={}
             )
 
-        # Additional logic for result processing can go here...
+        # Detect scenarios
+        scenarios = solana_client.detect_scenarios(tracked_transactions)
+        
+        # Determine final status
+        final_status = FinalStatusEnum.still_in_same_wallet
+        if len(tracked_transactions) >= request.num_transactions:
+            final_status = FinalStatusEnum.tracking_limit_reached
+        elif tracked_transactions[-1].to_wallet == tracked_transactions[0].from_wallet:
+            final_status = FinalStatusEnum.returned_to_known_wallet
 
-        # Placeholder for returning a successful response
+        logger.info(
+            f"Successfully tracked {len(tracked_transactions)} transactions "
+            f"with {len(scenarios.get('scenarios', []))} detected scenarios"
+        )
+
         return TransactionTrackResponse(
             status="complete",
             total_transactions_tracked=len(tracked_transactions),
             tracked_transactions=tracked_transactions,
-            final_status=FinalStatusEnum.still_in_same_wallet,  # Update as needed
+            final_status=final_status,
             final_wallet_address=tracked_transactions[-1].to_wallet if tracked_transactions else None,
-            remaining_amount=request.amount,  # Update as needed
+            remaining_amount=tracked_transactions[-1].amount if tracked_transactions else request.amount,
             target_currency=request.target_currency,
-            detected_scenarios=[],           # Add scenario detection if needed
-            scenario_details={}
+            detected_scenarios=scenarios.get("scenarios", []),
+            scenario_details=scenarios.get("details", {})
         )
 
     except HTTPException as he:
