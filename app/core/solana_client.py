@@ -1,4 +1,4 @@
-from typing import List, Set, Dict, Any, Optional  # Add Optional to imports
+from typing import List, Set, Dict, Any, Optional
 from fastapi import HTTPException
 from solana.rpc.api import Client
 from solders.pubkey import Pubkey as PublicKey
