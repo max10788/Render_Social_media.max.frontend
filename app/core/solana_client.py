@@ -129,6 +129,10 @@ class SolanaClient:
             raise HTTPException(status_code=500, detail="Malformed transaction response")
     
         try:
+            # Defensive: not all transactions have .transaction.message (Raw/Parsed difference)
+            if not hasattr(transaction, "transaction") or not hasattr(transaction.transaction, "message"):
+                logger.error(f"Transaction object missing .transaction.message for: {tx_signature} ({transaction})")
+                raise HTTPException(status_code=500, detail="Malformed transaction message")
             message = transaction.transaction.message
             account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
         except Exception as e:
@@ -136,7 +140,7 @@ class SolanaClient:
             raise HTTPException(status_code=500, detail="Malformed transaction message")
     
         try:
-            timestamp = datetime.utcfromtimestamp(meta.block_time).isoformat()
+            timestamp = datetime.utcfromtimestamp(getattr(meta, "block_time", None) or getattr(tx_value, "block_time", None)).isoformat()
         except Exception:
             timestamp = None
     
