@@ -15,6 +15,11 @@ from app.models.schemas import (
     ScenarioType,
     FinalStatusEnum
 )
+import os
+from dotenv import load_dotenv
+
+# Lade Umgebungsvariablen aus .env Datei
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +38,10 @@ def handle_rpc_errors(func):
     return wrapper
 
 class SolanaClient:
-    def __init__(self, rpc_url: str = "https://api.devnet.solana.com"): 
-        self.rpc_url = rpc_url
-        self.client = Client(rpc_url)
+    def __init__(self, rpc_url: str = None): 
+        # Verwendet Umgebungsvariable oder Fallback-URL
+        self.rpc_url = rpc_url or os.getenv("SOLANA_RPC_URL", "https://api.devnet.solana.com")
+        self.client = Client(self.rpc_url)
         self.KNOWN_BRIDGES = {
             "wormhole": {
                 "address_prefixes": ["Bridge1p5g8jV1tPF3X8D79uHQfLpHDEPw5tsqZ9t6vG2K"],
@@ -48,7 +54,7 @@ class SolanaClient:
                 "protocol": "Allbridge"
             }
         }
-
+        
     def _convert_to_signature(self, signature_str: str) -> Signature:
         try:
             return Signature.from_string(signature_str)
@@ -128,19 +134,19 @@ class SolanaClient:
             logger.error(f"Transaction response missing meta/transaction for: {tx_signature} ({tx_value})")
             raise HTTPException(status_code=500, detail="Malformed transaction response")
     
-    try:
-        # Defensive: check for both typical and edge-case Solana tx layouts
-        if hasattr(transaction, "transaction") and hasattr(transaction.transaction, "message"):
-            message = transaction.transaction.message
-        elif hasattr(transaction, "message"):
-            message = transaction.message
-        else:
-            logger.error(f"Transaction object has no usable message attribute for: {tx_signature} ({transaction})")
+        try:
+            # Defensive: check for both typical and edge-case Solana tx layouts
+            if hasattr(transaction, "transaction") and hasattr(transaction.transaction, "message"):
+                message = transaction.transaction.message
+            elif hasattr(transaction, "message"):
+                message = transaction.message
+            else:
+                logger.error(f"Transaction object has no usable message attribute for: {tx_signature} ({transaction})")
+                raise HTTPException(status_code=500, detail="Malformed transaction message")
+            account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
+        except Exception as e:
+            logger.error(f"Error extracting transaction message: {e}")
             raise HTTPException(status_code=500, detail="Malformed transaction message")
-        account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
-    except Exception as e:
-        logger.error(f"Error extracting transaction message: {e}")
-        raise HTTPException(status_code=500, detail="Malformed transaction message")
     
         try:
             timestamp = datetime.utcfromtimestamp(getattr(meta, "block_time", None) or getattr(tx_value, "block_time", None)).isoformat()
