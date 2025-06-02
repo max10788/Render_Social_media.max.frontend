@@ -104,72 +104,71 @@ class SolanaClient:
                         logger.warning(f"Error parsing SPL token data from log '{log}': {e}")
         return token_data
 
-async def parse_solana_transaction(self, tx_signature: str) -> dict:
-    tx_resp = await self.get_transaction(tx_signature)
-    if not hasattr(tx_resp, "value") or tx_resp.value is None:
-        logger.error(f"Transaction response missing value for: {tx_signature}")
-        raise HTTPException(
-            status_code=404,
-            detail=f"Transaction {tx_signature} not found"
-        )
-    tx_value = tx_resp.value
+    async def parse_solana_transaction(self, tx_signature: str) -> dict:
+        tx_resp = await self.get_transaction(tx_signature)
+        if not hasattr(tx_resp, "value") or tx_resp.value is None:
+            logger.error(f"Transaction response missing value for: {tx_signature}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Transaction {tx_signature} not found"
+            )
+        tx_value = tx_resp.value
+    
+        # Defensive: check if meta and transaction exist
+        meta = getattr(tx_value, "meta", None)
+        transaction = getattr(tx_value, "transaction", None)
+        # --- UNWRAP Option/Some wrapper if present ---
+        if meta is not None and hasattr(meta, "value"):
+            meta = meta.value
+        if transaction is not None and hasattr(transaction, "value"):
+            transaction = transaction.value
+        # --- END UNWRAP ---
+    
+        if meta is None or transaction is None:
+            logger.error(f"Transaction response missing meta/transaction for: {tx_signature} ({tx_value})")
+            raise HTTPException(status_code=500, detail="Malformed transaction response")
+    
+        try:
+            message = transaction.transaction.message
+            account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
+        except Exception as e:
+            logger.error(f"Error extracting transaction message: {e}")
+            raise HTTPException(status_code=500, detail="Malformed transaction message")
+    
+        try:
+            timestamp = datetime.utcfromtimestamp(meta.block_time).isoformat()
+        except Exception:
+            timestamp = None
+    
+        transfers_SOL = []
+        try:
+            pre_balances = getattr(meta, "pre_balances", [])
+            post_balances = getattr(meta, "post_balances", [])
+            for i, post_balance in enumerate(post_balances):
+                change = (post_balance - pre_balances[i]) / 1e9  # Lamports to SOL
+                if change != 0:
+                    transfers_SOL.append({
+                        "wallet": account_keys[i] if i < len(account_keys) else "unknown",
+                        "amount_change": change
+                    })
+        except Exception as e:
+            logger.warning(f"Error parsing SOL transfers: {e}")
+    
+        transfers_SPL = []
+        logs = getattr(meta, "log_messages", []) or []
+        if self.is_spl_token_transfer(logs):
+            spl_data = self.parse_spl_token_data(logs)
+            transfers_SPL.append(spl_data)
+    
+        logger.debug(f"Parsed tx {tx_signature}: SOL={transfers_SOL}, SPL={transfers_SPL}")
+        return {
+            "tx_hash": tx_signature,
+            "account_keys": account_keys,
+            "transfers_SOL": transfers_SOL,
+            "transfers_SPL": transfers_SPL,
+            "timestamp": timestamp,
+        }
 
-    # Defensive: check if meta and transaction exist
-    meta = getattr(tx_value, "meta", None)
-    transaction = getattr(tx_value, "transaction", None)
-    # --- UNWRAP Option/Some wrapper if present ---
-    if meta is not None and hasattr(meta, "value"):
-        meta = meta.value
-    if transaction is not None and hasattr(transaction, "value"):
-        transaction = transaction.value
-    # --- END UNWRAP ---
-
-    if meta is None or transaction is None:
-        logger.error(f"Transaction response missing meta/transaction for: {tx_signature} ({tx_value})")
-        raise HTTPException(status_code=500, detail="Malformed transaction response")
-
-    try:
-        message = transaction.transaction.message
-        account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
-    except Exception as e:
-        logger.error(f"Error extracting transaction message: {e}")
-        raise HTTPException(status_code=500, detail="Malformed transaction message")
-
-    try:
-        timestamp = datetime.utcfromtimestamp(meta.block_time).isoformat()
-    except Exception:
-        timestamp = None
-
-    transfers_SOL = []
-    try:
-        pre_balances = getattr(meta, "pre_balances", [])
-        post_balances = getattr(meta, "post_balances", [])
-        for i, post_balance in enumerate(post_balances):
-            change = (post_balance - pre_balances[i]) / 1e9  # Lamports to SOL
-            if change != 0:
-                transfers_SOL.append({
-                    "wallet": account_keys[i] if i < len(account_keys) else "unknown",
-                    "amount_change": change
-                })
-    except Exception as e:
-        logger.warning(f"Error parsing SOL transfers: {e}")
-
-    transfers_SPL = []
-    logs = getattr(meta, "log_messages", []) or []
-    if self.is_spl_token_transfer(logs):
-        spl_data = self.parse_spl_token_data(logs)
-        transfers_SPL.append(spl_data)
-
-    logger.debug(f"Parsed tx {tx_signature}: SOL={transfers_SOL}, SPL={transfers_SPL}")
-    return {
-        "tx_hash": tx_signature,
-        "account_keys": account_keys,
-        "transfers_SOL": transfers_SOL,
-        "transfers_SPL": transfers_SPL,
-        "timestamp": timestamp,
-    }
-
-    @handle_rpc_errors
     async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
         """Track a chain of transactions starting from a given hash."""
         visited_signatures: Set[str] = set()
