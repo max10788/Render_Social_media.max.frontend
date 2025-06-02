@@ -293,15 +293,52 @@ class SolanaClient:
             raise
 
     @handle_rpc_errors
-    async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
-        """Track a chain of transactions with improved validation and logging."""
+    async def track_transaction_chain(
+        self, 
+        start_tx_hash: str, 
+        amount_SOL: float, 
+        max_depth: int = 10
+    ) -> List[TrackedTransaction]:
+        """
+        Track a chain of transactions with improved validation and logging.
+        
+        Args:
+            start_tx_hash (str): The starting transaction hash
+            amount_SOL (float): Amount of SOL to track
+            max_depth (int): Maximum depth of transaction chain
+            
+        Returns:
+            List[TrackedTransaction]: List of tracked transactions
+            
+        Raises:
+            ValueError: If input parameters are invalid
+            HTTPException: If transaction processing fails
+        """
+        # Validate input parameters
+        if not start_tx_hash:
+            raise ValueError("start_tx_hash cannot be empty")
+        if amount_SOL <= 0:
+            raise ValueError("amount_SOL must be positive")
+        if max_depth <= 0:
+            raise ValueError("max_depth must be positive")
+
         visited_signatures: Set[str] = set()
         queue = [(start_tx_hash, amount_SOL)]
         result_transactions = []
         
         logger.info(f"Starting transaction chain tracking for {start_tx_hash}")
         logger.debug(f"Parameters: amount_SOL={amount_SOL}, max_depth={max_depth}")
-    
+
+        try:
+            # Verify initial transaction exists
+            initial_tx = await self._get_transaction_with_retry(start_tx_hash)
+            if not initial_tx:
+                logger.error(f"Initial transaction {start_tx_hash} not found")
+                return []
+        except Exception as e:
+            logger.error(f"Failed to verify initial transaction: {e}")
+            return []
+
         while queue and len(result_transactions) < max_depth:
             current_tx_hash, remaining_amount = queue.pop(0)
             
@@ -311,10 +348,15 @@ class SolanaClient:
                 
             visited_signatures.add(current_tx_hash)
             logger.debug(f"Processing transaction {current_tx_hash} ({len(visited_signatures)}/{max_depth})")
-    
+
             try:
+                # Get transaction data with retry
                 tx_data = await self.parse_solana_transaction(current_tx_hash)
                 
+                if not tx_data["account_keys"]:
+                    logger.warning(f"No account keys found in transaction {current_tx_hash}")
+                    continue
+
                 # Process SOL transfers
                 incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
                 if incoming_SOL:
@@ -324,6 +366,10 @@ class SolanaClient:
                         from_wallet = tx_data["account_keys"][0] if tx_data["account_keys"] else "unknown"
                         to_wallet = incoming["wallet"]
                         transfer_amount = abs(incoming["amount_change"])
+                        
+                        if transfer_amount < 0.000001:  # Filter dust transfers
+                            logger.debug(f"Skipping dust transfer of {transfer_amount} SOL")
+                            continue
                         
                         logger.debug(f"Processing transfer: {transfer_amount} SOL from {from_wallet} to {to_wallet}")
                         
@@ -348,7 +394,7 @@ class SolanaClient:
                                         logger.debug(f"Added transaction {sig} to processing queue")
                             except Exception as e:
                                 logger.warning(f"Error fetching next transactions for {to_wallet}: {e}")
-    
+
                 # Process SPL transfers
                 if tx_data["transfers_SPL"]:
                     logger.info(f"Found {len(tx_data['transfers_SPL'])} SPL transfers in {current_tx_hash}")
@@ -357,6 +403,10 @@ class SolanaClient:
                         from_wallet = spl.get("from", "unknown")
                         to_wallet = spl.get("to", "unknown")
                         transfer_amount = spl.get("amount", 0.0)
+                        
+                        if not all([from_wallet, to_wallet, transfer_amount]):
+                            logger.warning(f"Invalid SPL transfer data in {current_tx_hash}")
+                            continue
                         
                         logger.debug(f"Processing SPL transfer: {transfer_amount} tokens from {from_wallet} to {to_wallet}")
                         
@@ -381,7 +431,7 @@ class SolanaClient:
                                         logger.debug(f"Added transaction {sig} to processing queue")
                             except Exception as e:
                                 logger.warning(f"Error fetching next SPL transactions for {to_wallet}: {e}")
-    
+
             except HTTPException as he:
                 logger.warning(f"Skipping tx {current_tx_hash} due to HTTPException: {he.detail}")
                 continue
@@ -389,57 +439,57 @@ class SolanaClient:
                 logger.error(f"Error processing transaction {current_tx_hash}: {e}")
                 continue
 
-    if not result_transactions:
-        logger.warning(
-            f"No transactions tracked for hash {start_tx_hash}. "
-            f"Queue processed: {len(visited_signatures)}, "
-            f"Max depth: {max_depth}"
-        )
-    else:
-        logger.info(
-            f"Tracked {len(result_transactions)} transactions in chain "
-            f"(max_depth={max_depth}, visited={len(visited_signatures)})"
-        )
+        if not result_transactions:
+            logger.warning(
+                f"No transactions tracked for hash {start_tx_hash}. "
+                f"Queue processed: {len(visited_signatures)}, "
+                f"Max depth: {max_depth}"
+            )
+        else:
+            logger.info(
+                f"Tracked {len(result_transactions)} transactions in chain "
+                f"(max_depth={max_depth}, visited={len(visited_signatures)})"
+            )
 
-    return result_transactions
-    def detect_scenarios(self, transactions: List[TrackedTransaction]) -> Dict[str, Dict]:
-        scenarios = []
-        details = {}
-        if any("Stake" in t.to_wallet for t in transactions):
-            scenarios.append(ScenarioType.delegated_staking)
-            details[ScenarioType.delegated_staking] = {"validator": "Solana Validator A"}
-        if any("Raydium" in t.to_wallet or "Orca" in t.to_wallet for t in transactions):
-            scenarios.append(ScenarioType.defi_deposit)
-            details[ScenarioType.defi_deposit] = {"protocol": "Raydium", "pool": "SOL-USDC"}
-        if any("NFTMarketplace" in t.to_wallet for t in transactions):
-            scenarios.append(ScenarioType.nft_investment)
-            details[ScenarioType.nft_investment] = {"marketplace": "MagicEden", "nft_id": "ME_123456"}
-        if any("USDC" in t.to_wallet or "StableCoin" in t.to_wallet for t in transactions):
-            scenarios.append(ScenarioType.converted_to_stablecoin)
-            details[ScenarioType.converted_to_stablecoin] = {"target_token": "USDC"}
-        if any("DonationWallet" in t.to_wallet for t in transactions):
-            scenarios.append(ScenarioType.donation_or_grant)
-            details[ScenarioType.donation_or_grant] = {"organization": "Solana Foundation"}
-
-        for tx in transactions:
-            for bridge_name, bridge_info in self.KNOWN_BRIDGES.items():
-                if any(prefix in tx.to_wallet for prefix in bridge_info["address_prefixes"]):
-                    scenarios.append(ScenarioType.cross_chain_bridge)
-                    details[ScenarioType.cross_chain_bridge] = {
-                        "protocol": bridge_info["protocol"],
-                        "target_chain": bridge_info["target_chain"],
-                        "bridge_address_used": tx.to_wallet,
-                        "tx_hash": tx.tx_hash
-                    }
-                    break
-
-        if any("MultiSig" in t.to_wallet for t in transactions):
-            scenarios.append(ScenarioType.multi_sig_storage)
-            details[ScenarioType.multi_sig_storage] = {"signers_required": 2}
-
-        if any(t.amount < 0.001 for t in transactions):
-            scenarios.append(ScenarioType.lost_or_dust)
-            details[ScenarioType.lost_or_dust] = {"threshold_sol": 0.001}
-
-        logger.info(f"Scenarios detected: {scenarios}, details: {details}")
-        return {"scenarios": scenarios, "details": details}
+        return result_transactions
+        def detect_scenarios(self, transactions: List[TrackedTransaction]) -> Dict[str, Dict]:
+            scenarios = []
+            details = {}
+            if any("Stake" in t.to_wallet for t in transactions):
+                scenarios.append(ScenarioType.delegated_staking)
+                details[ScenarioType.delegated_staking] = {"validator": "Solana Validator A"}
+            if any("Raydium" in t.to_wallet or "Orca" in t.to_wallet for t in transactions):
+                scenarios.append(ScenarioType.defi_deposit)
+                details[ScenarioType.defi_deposit] = {"protocol": "Raydium", "pool": "SOL-USDC"}
+            if any("NFTMarketplace" in t.to_wallet for t in transactions):
+                scenarios.append(ScenarioType.nft_investment)
+                details[ScenarioType.nft_investment] = {"marketplace": "MagicEden", "nft_id": "ME_123456"}
+            if any("USDC" in t.to_wallet or "StableCoin" in t.to_wallet for t in transactions):
+                scenarios.append(ScenarioType.converted_to_stablecoin)
+                details[ScenarioType.converted_to_stablecoin] = {"target_token": "USDC"}
+            if any("DonationWallet" in t.to_wallet for t in transactions):
+                scenarios.append(ScenarioType.donation_or_grant)
+                details[ScenarioType.donation_or_grant] = {"organization": "Solana Foundation"}
+    
+            for tx in transactions:
+                for bridge_name, bridge_info in self.KNOWN_BRIDGES.items():
+                    if any(prefix in tx.to_wallet for prefix in bridge_info["address_prefixes"]):
+                        scenarios.append(ScenarioType.cross_chain_bridge)
+                        details[ScenarioType.cross_chain_bridge] = {
+                            "protocol": bridge_info["protocol"],
+                            "target_chain": bridge_info["target_chain"],
+                            "bridge_address_used": tx.to_wallet,
+                            "tx_hash": tx.tx_hash
+                        }
+                        break
+    
+            if any("MultiSig" in t.to_wallet for t in transactions):
+                scenarios.append(ScenarioType.multi_sig_storage)
+                details[ScenarioType.multi_sig_storage] = {"signers_required": 2}
+    
+            if any(t.amount < 0.001 for t in transactions):
+                scenarios.append(ScenarioType.lost_or_dust)
+                details[ScenarioType.lost_or_dust] = {"threshold_sol": 0.001}
+    
+            logger.info(f"Scenarios detected: {scenarios}, details: {details}")
+            return {"scenarios": scenarios, "details": details}
