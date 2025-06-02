@@ -3,45 +3,33 @@ from typing import List, Set, Dict
 from solana.rpc.api import Client
 from solders.pubkey import Pubkey as PublicKey
 from solders.signature import Signature
-from solana.rpc.types import TxOpts
 from datetime import datetime
 import base58
 import logging
 import asyncio
-import traceback
 from functools import wraps
 from app.models.schemas import (
     TransactionTrackRequest,
     TransactionTrackResponse,
     TrackedTransaction,
     ScenarioType,
-    FinalStatusEnum,
+    FinalStatusEnum
 )
 
-# Improved logger configuration
 logger = logging.getLogger(__name__)
-if not logger.hasHandlers():
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s]: %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
 
 def handle_rpc_errors(func):
-    """Decorator to handle RPC errors consistently and with better logging."""
+    """Decorator to handle RPC errors consistently."""
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
         except ValueError as ve:
-            logger.error(f"ValueError in {func.__name__}: {ve!r}\n{traceback.format_exc()}")
+            logger.error(f"Value error in {func.__name__}: {str(ve)}")
             raise HTTPException(status_code=400, detail=str(ve))
-        except HTTPException as he:
-            logger.error(f"HTTPException in {func.__name__}: {he.detail!r}\n{traceback.format_exc()}")
-            raise
         except Exception as e:
-            logger.error(f"Exception in {func.__name__}: {e!r}\n{traceback.format_exc()}")
-            raise HTTPException(status_code=500, detail=f"Internal error in {func.__name__}: {str(e)}")
+            logger.error(f"Error in {func.__name__}: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
     return wrapper
 
 class SolanaClient:
@@ -62,90 +50,28 @@ class SolanaClient:
         }
 
     def _convert_to_signature(self, signature_str: str) -> Signature:
-        """Convert string signature to Solana Signature object."""
         try:
-            sig = Signature.from_string(signature_str)
-            logger.debug(f"Signature converted directly: {signature_str} -> {sig}")
-            return sig
+            return Signature.from_string(signature_str)
         except Exception:
             try:
                 decoded = base58.b58decode(signature_str)
-                sig = Signature.from_bytes(decoded)
-                logger.debug(f"Signature converted from base58: {signature_str} -> {sig}")
-                return sig
+                return Signature.from_bytes(decoded)
             except Exception as e:
-                logger.error(f"Failed to convert signature '{signature_str}': {e!r}\n{traceback.format_exc()}")
+                logger.error(f"Failed to convert signature '{signature_str}': {e}")
                 raise ValueError(f"Invalid signature format: {str(e)}")
 
     @handle_rpc_errors
-    async def parse_solana_transaction(self, tx_signature: str) -> dict:
-        """Parse Solana transaction details."""
-        tx_resp = await self.get_transaction(tx_signature)
-        if not hasattr(tx_resp, "value") or tx_resp.value is None:
+    async def get_transaction(self, tx_signature: str):
+        """Get transaction details from Solana blockchain."""
+        signature = self._convert_to_signature(tx_signature)
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, self.client.get_transaction, signature, "json", 0)
+        if response is None or getattr(response, "value", None) is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Transaction {tx_signature} not found"
             )
-        # Defensive unpacking:
-        tx_value = tx_resp.value
-        # Try the most common case
-        meta = getattr(tx_value, "meta", None)
-        transaction = getattr(tx_value, "transaction", None)
-        # In some Solders versions, tx_value might be a tuple or have .some or .unwrap()
-        if meta is None or transaction is None:
-            # Try to extract from Option-wrapped (Some/None) fields
-            if hasattr(tx_value, "unwrap"):
-                tx_value = tx_value.unwrap()
-                meta = getattr(tx_value, "meta", None)
-                transaction = getattr(tx_value, "transaction", None)
-        if meta is None or transaction is None:
-            logger.error(f"Transaction response missing meta/transaction for: {tx_signature} ({tx_value})")
-            raise HTTPException(status_code=500, detail="Malformed transaction response")
-
-        try:
-            message = transaction.transaction.message
-            account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
-        except Exception as e:
-            logger.error(f"Error extracting transaction message: {e}")
-            raise HTTPException(status_code=500, detail="Malformed transaction message")
-
-        # Extract timestamp if possible
-        try:
-            block_time = getattr(meta, "block_time", None)
-            timestamp = datetime.utcfromtimestamp(block_time).isoformat() if block_time else None
-        except Exception:
-            timestamp = None
-
-        # Find all SOL transfers
-        transfers_SOL = []
-        try:
-            pre_balances = getattr(meta, "pre_balances", [])
-            post_balances = getattr(meta, "post_balances", [])
-            for i, post_balance in enumerate(post_balances):
-                change = (post_balance - pre_balances[i]) / 1e9  # Lamports to SOL
-                if change != 0:
-                    transfers_SOL.append({
-                        "wallet": account_keys[i] if i < len(account_keys) else "unknown",
-                        "amount_change": change
-                    })
-        except Exception as e:
-            logger.warning(f"Error parsing SOL transfers: {e}")
-
-        # SPL Token Transfers
-        transfers_SPL = []
-        logs = getattr(meta, "log_messages", []) or []
-        if self.is_spl_token_transfer(logs):
-            spl_data = self.parse_spl_token_data(logs)
-            transfers_SPL.append(spl_data)
-
-        logger.debug(f"Parsed tx {tx_signature}: SOL={transfers_SOL}, SPL={transfers_SPL}")
-        return {
-            "tx_hash": tx_signature,
-            "account_keys": account_keys,
-            "transfers_SOL": transfers_SOL,
-            "transfers_SPL": transfers_SPL,
-            "timestamp": timestamp,
-        }
+        return response
 
     def is_spl_token_transfer(self, logs: List[str]) -> bool:
         return any(
@@ -167,7 +93,7 @@ class SolanaClient:
                         amount = float(parts[-2])
                         token_data.update({"from": from_wallet, "to": to_wallet, "amount": amount})
                     except Exception as e:
-                        logger.warning(f"Error parsing SPL token data from log '{log}': {e!r}\n{traceback.format_exc()}")
+                        logger.warning(f"Error parsing SPL token data from log '{log}': {e}")
         return token_data
 
     @handle_rpc_errors
@@ -185,7 +111,7 @@ class SolanaClient:
             message = tx.transaction.message
             account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
         except Exception as e:
-            logger.error(f"Error extracting transaction/meta/message: {e!r}\n{traceback.format_exc()}")
+            logger.error(f"Error extracting transaction/meta/message: {e}")
             raise HTTPException(status_code=500, detail="Malformed transaction response")
 
         try:
@@ -205,9 +131,8 @@ class SolanaClient:
                         "amount_change": change
                     })
         except Exception as e:
-            logger.warning(f"Error parsing SOL transfers: {e!r}\n{traceback.format_exc()}")
+            logger.warning(f"Error parsing SOL transfers: {e}")
 
-        # SPL Token Transfers
         transfers_SPL = []
         logs = getattr(meta, "log_messages", []) or []
         if self.is_spl_token_transfer(logs):
@@ -237,7 +162,7 @@ class SolanaClient:
             logger.debug(f"Next transactions for wallet {wallet_address}: {sigs}")
             return sigs
         except Exception as e:
-            logger.error(f"Error fetching wallet history for {wallet_address}: {e!r}\n{traceback.format_exc()}")
+            logger.error(f"Error fetching wallet history for {wallet_address}: {e}")
             raise
 
     @handle_rpc_errors
@@ -258,10 +183,9 @@ class SolanaClient:
                 logger.warning(f"Skipping tx {current_tx_hash} due to HTTPException: {he.detail}")
                 continue
             except Exception as e:
-                logger.error(f"Error parsing transaction {current_tx_hash}: {e!r}\n{traceback.format_exc()}")
+                logger.error(f"Error parsing transaction {current_tx_hash}: {e}")
                 continue
 
-            # Find sender and receiver with positive change (SOL)
             incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
             for incoming in incoming_SOL:
                 from_wallet = tx_data["account_keys"][0] if tx_data["account_keys"] else "unknown"
@@ -283,9 +207,8 @@ class SolanaClient:
                             if sig not in visited_signatures:
                                 queue.append((sig, transfer_amount))
                     except Exception as e:
-                        logger.warning(f"Error fetching next transactions for {to_wallet}: {e!r}\n{traceback.format_exc()}")
+                        logger.warning(f"Error fetching next transactions for {to_wallet}: {e}")
 
-            # Handle SPL tokens if present
             for spl in tx_data["transfers_SPL"]:
                 from_wallet = spl.get("from", "unknown")
                 to_wallet = spl.get("to", "unknown")
@@ -306,7 +229,7 @@ class SolanaClient:
                             if sig not in visited_signatures:
                                 queue.append((sig, transfer_amount))
                     except Exception as e:
-                        logger.warning(f"Error fetching next SPL transactions for {to_wallet}: {e!r}\n{traceback.format_exc()}")
+                        logger.warning(f"Error fetching next SPL transactions for {to_wallet}: {e}")
 
         logger.info(f"Tracked {len(result_transactions)} transactions in chain (max_depth={max_depth})")
         return result_transactions
