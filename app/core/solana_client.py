@@ -183,91 +183,164 @@ class SolanaClient:
             logger.error(f"Error parsing transaction {tx_signature}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
     
-        def _extract_transaction_data(self, tx_value) -> Optional[Any]:
-            """Extract transaction data handling different response formats."""
+    def _extract_transaction_data(self, tx_value) -> Optional[Any]:
+        """Extract transaction data handling different response formats."""
+        if hasattr(tx_value, "transaction"):
+            tx = tx_value.transaction
+            if hasattr(tx, "transaction"):
+                return tx.transaction
+            elif hasattr(tx, "value"):
+                return tx.value
+            return tx
+        return None
+
+    def _extract_message_data(self, transaction) -> Optional[Any]:
+        """Extract message data from transaction."""
+        if hasattr(transaction, "message"):
+            return transaction.message
+        elif isinstance(transaction, dict) and "message" in transaction:
+            return transaction["message"]
+        return None
+
+    def _parse_account_keys(self, message) -> List[str]:
+        """Parse account keys from message data."""
+        if hasattr(message, "account_keys"):
+            return [str(key) for key in message.account_keys]
+        elif isinstance(message, dict) and "accountKeys" in message:
+            return message["accountKeys"]
+        return []
+
+    def _fallback_account_keys(self, tx_value) -> List[str]:
+        """Fallback method to extract account keys from raw transaction."""
+        try:
             if hasattr(tx_value, "transaction"):
-                tx = tx_value.transaction
-                if hasattr(tx, "transaction"):
-                    return tx.transaction
-                elif hasattr(tx, "value"):
-                    return tx.value
-                return tx
-            return None
-    
-        def _extract_message_data(self, transaction) -> Optional[Any]:
-            """Extract message data from transaction."""
-            if hasattr(transaction, "message"):
-                return transaction.message
-            elif isinstance(transaction, dict) and "message" in transaction:
-                return transaction["message"]
-            return None
-    
-        def _parse_account_keys(self, message) -> List[str]:
-            """Parse account keys from message data."""
-            if hasattr(message, "account_keys"):
-                return [str(key) for key in message.account_keys]
-            elif isinstance(message, dict) and "accountKeys" in message:
-                return message["accountKeys"]
+                raw_message = tx_value.transaction.message
+                if hasattr(raw_message, "account_keys"):
+                    return [str(key) for key in raw_message.account_keys]
             return []
-    
-        def _fallback_account_keys(self, tx_value) -> List[str]:
-            """Fallback method to extract account keys from raw transaction."""
-            try:
-                if hasattr(tx_value, "transaction"):
-                    raw_message = tx_value.transaction.message
-                    if hasattr(raw_message, "account_keys"):
-                        return [str(key) for key in raw_message.account_keys]
-                return []
-            except Exception as e:
-                logger.warning(f"Fallback account keys extraction failed: {e}")
-                return []
-    
-        def _extract_meta_data(self, tx_value) -> Optional[Any]:
-            """Extract metadata handling different response formats."""
-            if hasattr(tx_value, "meta"):
-                return tx_value.meta
-            elif isinstance(tx_value, dict) and "meta" in tx_value:
-                return tx_value["meta"]
-            return None
-    
-        def _parse_transfer_data(self, meta, account_keys: List[str]) -> dict:
-            """Parse transfer data from transaction metadata."""
+        except Exception as e:
+            logger.warning(f"Fallback account keys extraction failed: {e}")
+            return []
+
+    def _extract_meta_data(self, tx_value) -> Optional[Any]:
+        """Extract metadata handling different response formats."""
+        if hasattr(tx_value, "meta"):
+            return tx_value.meta
+        elif isinstance(tx_value, dict) and "meta" in tx_value:
+            return tx_value["meta"]
+        return None
+
+    def _parse_transfer_data(self, meta, account_keys: List[str]) -> dict:
+        """Parse transfer data from transaction metadata."""
+        result = {
+            "transfers_SOL": [],
+            "transfers_SPL": []
+        }
+
+        try:
+            pre_balances = getattr(meta, "pre_balances", [])
+            post_balances = getattr(meta, "post_balances", [])
+
+            # Parse SOL transfers
+            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                change = (post - pre) / 1e9  # Lamports to SOL
+                if change != 0 and i < len(account_keys):
+                    result["transfers_SOL"].append({
+                        "wallet": account_keys[i],
+                        "amount_change": change
+                    })
+
+            # Parse SPL token transfers from logs
+            logs = getattr(meta, "log_messages", []) or []
+            if self.is_spl_token_transfer(logs):
+                spl_data = self.parse_spl_token_data(logs)
+                if spl_data:
+                    result["transfers_SPL"].append(spl_data)
+
+        except Exception as e:
+            logger.warning(f"Error parsing transfer data: {e}")
+
+        return result
+
+    def _fallback_transfer_data(self, tx_value) -> dict:
+        """Fallback method to extract basic transfer data."""
+        return {
+            "transfers_SOL": [],
+            "transfers_SPL": []
+        }
+
+    async def parse_solana_transaction(self, tx_signature: str) -> dict:
+        """
+        Parse a Solana transaction with improved error handling and support for different formats.
+        
+        Args:
+            tx_signature (str): The transaction signature to parse
+            
+        Returns:
+            dict: Parsed transaction data including transfers and metadata
+            
+        Raises:
+            HTTPException: If transaction cannot be found or parsed
+        """
+        try:
+            tx_resp = await self.get_transaction(tx_signature)
+            if not hasattr(tx_resp, "value") or tx_resp.value is None:
+                logger.error(f"Transaction response missing value for: {tx_signature}")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Transaction {tx_signature} not found"
+                )
+
+            tx_value = tx_resp.value
+            
+            # Initialize result structure
             result = {
+                "tx_hash": tx_signature,
+                "account_keys": [],
                 "transfers_SOL": [],
-                "transfers_SPL": []
+                "transfers_SPL": [],
+                "timestamp": None,
             }
-    
+
+            # Extract timestamp
             try:
-                pre_balances = getattr(meta, "pre_balances", [])
-                post_balances = getattr(meta, "post_balances", [])
-    
-                # Parse SOL transfers
-                for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-                    change = (post - pre) / 1e9  # Lamports to SOL
-                    if change != 0 and i < len(account_keys):
-                        result["transfers_SOL"].append({
-                            "wallet": account_keys[i],
-                            "amount_change": change
-                        })
-    
-                # Parse SPL token transfers from logs
-                logs = getattr(meta, "log_messages", []) or []
-                if self.is_spl_token_transfer(logs):
-                    spl_data = self.parse_spl_token_data(logs)
-                    if spl_data:
-                        result["transfers_SPL"].append(spl_data)
-    
+                block_time = getattr(tx_value, "block_time", None)
+                if block_time:
+                    result["timestamp"] = datetime.utcfromtimestamp(block_time).isoformat()
+            except Exception as e:
+                logger.warning(f"Error parsing block time: {e}")
+
+            # Parse transaction data with fallback handling
+            try:
+                transaction = self._extract_transaction_data(tx_value)
+                if transaction is None:
+                    raise ValueError("Could not extract transaction data")
+
+                # Extract message data
+                message = self._extract_message_data(transaction)
+                if message:
+                    result["account_keys"] = self._parse_account_keys(message)
+            except Exception as e:
+                logger.warning(f"Error parsing transaction data: {e}")
+                # Fallback to raw message if available
+                result["account_keys"] = self._fallback_account_keys(tx_value)
+
+            # Parse transfer data
+            try:
+                meta = self._extract_meta_data(tx_value)
+                if meta:
+                    result.update(self._parse_transfer_data(meta, result["account_keys"]))
             except Exception as e:
                 logger.warning(f"Error parsing transfer data: {e}")
-    
+                # Fallback to basic transfer data
+                result.update(self._fallback_transfer_data(tx_value))
+
+            logger.debug(f"Parsed transaction {tx_signature}: {result}")
             return result
-    
-        def _fallback_transfer_data(self, tx_value) -> dict:
-            """Fallback method to extract basic transfer data."""
-            return {
-                "transfers_SOL": [],
-                "transfers_SPL": []
-            }
+
+        except Exception as e:
+            logger.error(f"Error parsing transaction {tx_signature}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
     @handle_rpc_errors
     async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
