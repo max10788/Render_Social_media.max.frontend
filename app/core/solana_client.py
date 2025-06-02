@@ -1,5 +1,5 @@
+from typing import List, Set, Dict, Any, Optional  # Add Optional to imports
 from fastapi import HTTPException
-from typing import List, Set, Dict, Any
 from solana.rpc.api import Client
 from solders.pubkey import Pubkey as PublicKey
 from solders.signature import Signature
@@ -18,9 +18,8 @@ from app.models.schemas import (
 import os
 from dotenv import load_dotenv
 
-# Lade Umgebungsvariablen aus .env Datei
+# Load environment variables
 load_dotenv()
-
 logger = logging.getLogger(__name__)
 
 def handle_rpc_errors(func):
@@ -39,7 +38,6 @@ def handle_rpc_errors(func):
 
 class SolanaClient:
     def __init__(self, rpc_url: str = None): 
-        # Verwendet Umgebungsvariable oder Fallback-URL
         self.rpc_url = rpc_url or os.getenv("SOLANA_RPC_URL", "https://api.devnet.solana.com")
         self.client = Client(self.rpc_url)
         self.KNOWN_BRIDGES = {
@@ -54,7 +52,7 @@ class SolanaClient:
                 "protocol": "Allbridge"
             }
         }
-        
+
     def _convert_to_signature(self, signature_str: str) -> Signature:
         try:
             return Signature.from_string(signature_str)
@@ -66,123 +64,6 @@ class SolanaClient:
                 logger.error(f"Failed to convert signature '{signature_str}': {e}")
                 raise ValueError(f"Invalid signature format: {str(e)}")
 
-    @handle_rpc_errors
-    async def get_transaction(self, tx_signature: str):
-        """Get transaction details from Solana blockchain."""
-        signature = self._convert_to_signature(tx_signature)
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: self.client.get_transaction(
-                signature,
-                "json",
-                0,
-                max_supported_transaction_version=0    # <-- NEU!
-            )
-        )
-        if response is None or getattr(response, "value", None) is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Transaction {tx_signature} not found"
-            )
-        return response
-
-    def is_spl_token_transfer(self, logs: List[str]) -> bool:
-        return any(
-            "transfer" in log and "TokenkegQfeZyiNwAJbNbGKL67dsAqYh6UPjvF9ME8k8eX5" in log 
-            for log in logs or []
-        )
-
-    def parse_spl_token_data(self, logs: List[str]) -> dict:
-        token_data = {"token_symbol": "Unknown", "amount": 0.0, "decimals": 9, "mint_address": None}
-        for log in logs or []:
-            if "Program log:" in log:
-                continue
-            if "transfer" in log:
-                parts = log.split()
-                if len(parts) > 3:
-                    try:
-                        from_wallet = parts[2]
-                        to_wallet = parts[4]
-                        amount = float(parts[-2])
-                        token_data.update({"from": from_wallet, "to": to_wallet, "amount": amount})
-                    except Exception as e:
-                        logger.warning(f"Error parsing SPL token data from log '{log}': {e}")
-        return token_data
-
-    async def parse_solana_transaction(self, tx_signature: str) -> dict:
-        """
-        Parse a Solana transaction with improved error handling and support for different formats.
-        
-        Args:
-            tx_signature (str): The transaction signature to parse
-            
-        Returns:
-            dict: Parsed transaction data including transfers and metadata
-            
-        Raises:
-            HTTPException: If transaction cannot be found or parsed
-        """
-        try:
-            tx_resp = await self.get_transaction(tx_signature)
-            if not hasattr(tx_resp, "value") or tx_resp.value is None:
-                logger.error(f"Transaction response missing value for: {tx_signature}")
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Transaction {tx_signature} not found"
-                )
-    
-            tx_value = tx_resp.value
-            
-            # Initialize result structure
-            result = {
-                "tx_hash": tx_signature,
-                "account_keys": [],
-                "transfers_SOL": [],
-                "transfers_SPL": [],
-                "timestamp": None,
-            }
-    
-            # Extract timestamp
-            try:
-                block_time = getattr(tx_value, "block_time", None)
-                if block_time:
-                    result["timestamp"] = datetime.utcfromtimestamp(block_time).isoformat()
-            except Exception as e:
-                logger.warning(f"Error parsing block time: {e}")
-    
-            # Parse transaction data with fallback handling
-            try:
-                transaction = self._extract_transaction_data(tx_value)
-                if transaction is None:
-                    raise ValueError("Could not extract transaction data")
-    
-                # Extract message data
-                message = self._extract_message_data(transaction)
-                if message:
-                    result["account_keys"] = self._parse_account_keys(message)
-            except Exception as e:
-                logger.warning(f"Error parsing transaction data: {e}")
-                # Fallback to raw message if available
-                result["account_keys"] = self._fallback_account_keys(tx_value)
-    
-            # Parse transfer data
-            try:
-                meta = self._extract_meta_data(tx_value)
-                if meta:
-                    result.update(self._parse_transfer_data(meta, result["account_keys"]))
-            except Exception as e:
-                logger.warning(f"Error parsing transfer data: {e}")
-                # Fallback to basic transfer data
-                result.update(self._fallback_transfer_data(tx_value))
-    
-            logger.debug(f"Parsed transaction {tx_signature}: {result}")
-            return result
-    
-        except Exception as e:
-            logger.error(f"Error parsing transaction {tx_signature}: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-    
     def _extract_transaction_data(self, tx_value) -> Optional[Any]:
         """Extract transaction data handling different response formats."""
         if hasattr(tx_value, "transaction"):
@@ -269,19 +150,52 @@ class SolanaClient:
             "transfers_SPL": []
         }
 
+    def is_spl_token_transfer(self, logs: List[str]) -> bool:
+        return any(
+            "transfer" in log and "TokenkegQfeZyiNwAJbNbGKL67dsAqYh6UPjvF9ME8k8eX5" in log 
+            for log in logs or []
+        )
+
+    def parse_spl_token_data(self, logs: List[str]) -> dict:
+        token_data = {"token_symbol": "Unknown", "amount": 0.0, "decimals": 9, "mint_address": None}
+        for log in logs or []:
+            if "Program log:" in log:
+                continue
+            if "transfer" in log:
+                parts = log.split()
+                if len(parts) > 3:
+                    try:
+                        from_wallet = parts[2]
+                        to_wallet = parts[4]
+                        amount = float(parts[-2])
+                        token_data.update({"from": from_wallet, "to": to_wallet, "amount": amount})
+                    except Exception as e:
+                        logger.warning(f"Error parsing SPL token data from log '{log}': {e}")
+        return token_data
+
+    @handle_rpc_errors
+    async def get_transaction(self, tx_signature: str):
+        """Get transaction details from Solana blockchain."""
+        signature = self._convert_to_signature(tx_signature)
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: self.client.get_transaction(
+                signature,
+                "json",
+                0,
+                max_supported_transaction_version=0
+            )
+        )
+        if response is None or getattr(response, "value", None) is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Transaction {tx_signature} not found"
+            )
+        return response
+
     async def parse_solana_transaction(self, tx_signature: str) -> dict:
-        """
-        Parse a Solana transaction with improved error handling and support for different formats.
-        
-        Args:
-            tx_signature (str): The transaction signature to parse
-            
-        Returns:
-            dict: Parsed transaction data including transfers and metadata
-            
-        Raises:
-            HTTPException: If transaction cannot be found or parsed
-        """
+        """Parse a Solana transaction with improved error handling and support for different formats."""
         try:
             tx_resp = await self.get_transaction(tx_signature)
             if not hasattr(tx_resp, "value") or tx_resp.value is None:
@@ -292,8 +206,6 @@ class SolanaClient:
                 )
 
             tx_value = tx_resp.value
-            
-            # Initialize result structure
             result = {
                 "tx_hash": tx_signature,
                 "account_keys": [],
@@ -302,7 +214,6 @@ class SolanaClient:
                 "timestamp": None,
             }
 
-            # Extract timestamp
             try:
                 block_time = getattr(tx_value, "block_time", None)
                 if block_time:
@@ -310,29 +221,24 @@ class SolanaClient:
             except Exception as e:
                 logger.warning(f"Error parsing block time: {e}")
 
-            # Parse transaction data with fallback handling
             try:
                 transaction = self._extract_transaction_data(tx_value)
                 if transaction is None:
                     raise ValueError("Could not extract transaction data")
 
-                # Extract message data
                 message = self._extract_message_data(transaction)
                 if message:
                     result["account_keys"] = self._parse_account_keys(message)
             except Exception as e:
                 logger.warning(f"Error parsing transaction data: {e}")
-                # Fallback to raw message if available
                 result["account_keys"] = self._fallback_account_keys(tx_value)
 
-            # Parse transfer data
             try:
                 meta = self._extract_meta_data(tx_value)
                 if meta:
                     result.update(self._parse_transfer_data(meta, result["account_keys"]))
             except Exception as e:
                 logger.warning(f"Error parsing transfer data: {e}")
-                # Fallback to basic transfer data
                 result.update(self._fallback_transfer_data(tx_value))
 
             logger.debug(f"Parsed transaction {tx_signature}: {result}")
@@ -342,63 +248,6 @@ class SolanaClient:
             logger.error(f"Error parsing transaction {tx_signature}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    @handle_rpc_errors
-    async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
-        """Track a chain of transactions starting from a given hash."""
-        visited_signatures: Set[str] = set()
-        queue = [(start_tx_hash, amount_SOL)]
-        result_transactions = []
-
-        while queue and len(result_transactions) < max_depth:
-            current_tx_hash, remaining_amount = queue.pop(0)
-            if current_tx_hash in visited_signatures:
-                continue
-            visited_signatures.add(current_tx_hash)
-            tx_data = await self.parse_solana_transaction(current_tx_hash)
-
-            # Find sender and receiver with positive change (SOL)
-            incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
-            for incoming in incoming_SOL:
-                from_wallet = tx_data["account_keys"][0]
-                to_wallet = incoming["wallet"]
-                transfer_amount = abs(incoming["amount_change"])
-                tracked_tx = TrackedTransaction(
-                    tx_hash=current_tx_hash,
-                    from_wallet=from_wallet,
-                    to_wallet=to_wallet,
-                    amount=transfer_amount,
-                    timestamp=tx_data["timestamp"],
-                    value_in_target_currency=None,
-                )
-                result_transactions.append(tracked_tx)
-                # Follow recursively
-                if len(result_transactions) < max_depth:
-                    next_signatures = await self.get_next_transactions(to_wallet, limit=1)
-                    for sig in next_signatures:
-                        queue.append((sig, transfer_amount))
-
-            # Handle SPL tokens if present
-            for spl in tx_data["transfers_SPL"]:
-                from_wallet = spl["from"]
-                to_wallet = spl["to"]
-                transfer_amount = spl["amount"]
-                tracked_tx = TrackedTransaction(
-                    tx_hash=current_tx_hash,
-                    from_wallet=from_wallet or "unknown",
-                    to_wallet=to_wallet or "unknown",
-                    amount=transfer_amount,
-                    timestamp=tx_data["timestamp"],
-                    value_in_target_currency=None,
-                )
-                result_transactions.append(tracked_tx)
-                # Follow recursively
-                if len(result_transactions) < max_depth:
-                    next_signatures = await self.get_next_transactions(to_wallet, limit=1)
-                    for sig in next_signatures:
-                        queue.append((sig, transfer_amount))
-
-        return result_transactions  # This return statement was likely misplaced
-    
     @handle_rpc_errors
     async def get_next_transactions(self, wallet_address: str, limit: int = 1) -> List[str]:
         try:
@@ -418,6 +267,7 @@ class SolanaClient:
 
     @handle_rpc_errors
     async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
+        """Track a chain of transactions starting from a given hash."""
         visited_signatures: Set[str] = set()
         queue = [(start_tx_hash, amount_SOL)]
         result_transactions = []
@@ -427,6 +277,7 @@ class SolanaClient:
             if current_tx_hash in visited_signatures:
                 logger.debug(f"Signature {current_tx_hash} already visited")
                 continue
+
             visited_signatures.add(current_tx_hash)
             try:
                 tx_data = await self.parse_solana_transaction(current_tx_hash)
@@ -437,6 +288,7 @@ class SolanaClient:
                 logger.error(f"Error parsing transaction {current_tx_hash}: {e}")
                 continue
 
+            # Process SOL transfers
             incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
             for incoming in incoming_SOL:
                 from_wallet = tx_data["account_keys"][0] if tx_data["account_keys"] else "unknown"
@@ -460,6 +312,7 @@ class SolanaClient:
                     except Exception as e:
                         logger.warning(f"Error fetching next transactions for {to_wallet}: {e}")
 
+            # Process SPL token transfers
             for spl in tx_data["transfers_SPL"]:
                 from_wallet = spl.get("from", "unknown")
                 to_wallet = spl.get("to", "unknown")
