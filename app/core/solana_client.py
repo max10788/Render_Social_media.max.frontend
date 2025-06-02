@@ -65,7 +65,15 @@ class SolanaClient:
         """Get transaction details from Solana blockchain."""
         signature = self._convert_to_signature(tx_signature)
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, self.client.get_transaction, signature, "json", 0)
+        response = await loop.run_in_executor(
+            None,
+            lambda: self.client.get_transaction(
+                signature,
+                "json",
+                0,
+                max_supported_transaction_version=0    # <-- NEU!
+            )
+        )
         if response is None or getattr(response, "value", None) is None:
             raise HTTPException(
                 status_code=404,
