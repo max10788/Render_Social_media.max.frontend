@@ -113,14 +113,21 @@ class SolanaClient:
                 status_code=404,
                 detail=f"Transaction {tx_signature} not found"
             )
+        tx_value = tx_resp.value
+
+        # Defensive: check if meta and transaction exist
+        meta = getattr(tx_value, "meta", None)
+        transaction = getattr(tx_value, "transaction", None)
+        if meta is None or transaction is None:
+            logger.error(f"Transaction response missing meta/transaction for: {tx_signature} ({tx_value})")
+            raise HTTPException(status_code=500, detail="Malformed transaction response")
+
         try:
-            tx = tx_resp.value.transaction
-            meta = tx_resp.value.meta
-            message = tx.transaction.message
+            message = transaction.transaction.message
             account_keys = [str(pk) for pk in getattr(message, "account_keys", [])]
         except Exception as e:
-            logger.error(f"Error extracting transaction/meta/message: {e}")
-            raise HTTPException(status_code=500, detail="Malformed transaction response")
+            logger.error(f"Error extracting transaction message: {e}")
+            raise HTTPException(status_code=500, detail="Malformed transaction message")
 
         try:
             timestamp = datetime.utcfromtimestamp(meta.block_time).isoformat()
