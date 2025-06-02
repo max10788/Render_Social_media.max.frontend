@@ -115,9 +115,17 @@ class SolanaClient:
             )
         tx_value = tx_resp.value
 
-        # Defensive: check if meta and transaction exist
+        # Defensive: handle Option/Some-wrapped meta and transaction
         meta = getattr(tx_value, "meta", None)
         transaction = getattr(tx_value, "transaction", None)
+
+        # Unwrap meta if it has .value (Option/Some)
+        if meta is not None and hasattr(meta, "value"):
+            meta = meta.value
+        # Unwrap transaction if it has .value (Option/Some)
+        if transaction is not None and hasattr(transaction, "value"):
+            transaction = transaction.value
+
         if meta is None or transaction is None:
             logger.error(f"Transaction response missing meta/transaction for: {tx_signature} ({tx_value})")
             raise HTTPException(status_code=500, detail="Malformed transaction response")
