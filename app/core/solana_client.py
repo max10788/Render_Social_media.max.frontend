@@ -170,6 +170,63 @@ async def parse_solana_transaction(self, tx_signature: str) -> dict:
     }
 
     @handle_rpc_errors
+    async def track_transaction_chain(self, start_tx_hash: str, amount_SOL: float, max_depth: int = 10) -> List[TrackedTransaction]:
+        """Track a chain of transactions starting from a given hash."""
+        visited_signatures: Set[str] = set()
+        queue = [(start_tx_hash, amount_SOL)]
+        result_transactions = []
+
+        while queue and len(result_transactions) < max_depth:
+            current_tx_hash, remaining_amount = queue.pop(0)
+            if current_tx_hash in visited_signatures:
+                continue
+            visited_signatures.add(current_tx_hash)
+            tx_data = await self.parse_solana_transaction(current_tx_hash)
+
+            # Find sender and receiver with positive change (SOL)
+            incoming_SOL = [t for t in tx_data["transfers_SOL"] if t["amount_change"] > 0]
+            for incoming in incoming_SOL:
+                from_wallet = tx_data["account_keys"][0]
+                to_wallet = incoming["wallet"]
+                transfer_amount = abs(incoming["amount_change"])
+                tracked_tx = TrackedTransaction(
+                    tx_hash=current_tx_hash,
+                    from_wallet=from_wallet,
+                    to_wallet=to_wallet,
+                    amount=transfer_amount,
+                    timestamp=tx_data["timestamp"],
+                    value_in_target_currency=None,
+                )
+                result_transactions.append(tracked_tx)
+                # Follow recursively
+                if len(result_transactions) < max_depth:
+                    next_signatures = await self.get_next_transactions(to_wallet, limit=1)
+                    for sig in next_signatures:
+                        queue.append((sig, transfer_amount))
+
+            # Handle SPL tokens if present
+            for spl in tx_data["transfers_SPL"]:
+                from_wallet = spl["from"]
+                to_wallet = spl["to"]
+                transfer_amount = spl["amount"]
+                tracked_tx = TrackedTransaction(
+                    tx_hash=current_tx_hash,
+                    from_wallet=from_wallet or "unknown",
+                    to_wallet=to_wallet or "unknown",
+                    amount=transfer_amount,
+                    timestamp=tx_data["timestamp"],
+                    value_in_target_currency=None,
+                )
+                result_transactions.append(tracked_tx)
+                # Follow recursively
+                if len(result_transactions) < max_depth:
+                    next_signatures = await self.get_next_transactions(to_wallet, limit=1)
+                    for sig in next_signatures:
+                        queue.append((sig, transfer_amount))
+
+        return result_transactions
+    
+    @handle_rpc_errors
     async def get_next_transactions(self, wallet_address: str, limit: int = 1) -> List[str]:
         try:
             pubkey = PublicKey.from_string(wallet_address)
