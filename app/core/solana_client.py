@@ -115,6 +115,61 @@ class SolanaClient:
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    async def _get_transaction_with_retry(self, tx_signature: str, retries: int = 3, delay: float = 1.0):
+    """
+    Fetch transaction with retries and improved error handling.
+    
+    Args:
+        tx_signature (str): The transaction signature to fetch
+        retries (int): Number of retry attempts (default: 3)
+        delay (float): Base delay between retries in seconds (default: 1.0)
+        
+    Returns:
+        dict: Transaction data if found
+        
+    Raises:
+        HTTPException: If transaction cannot be fetched after retries
+    """
+    last_error = None
+    
+    try:
+        # Validate signature first - if invalid, fail fast
+        signature = self._convert_to_signature(tx_signature)
+    except ValueError as ve:
+        logger.error(f"Invalid signature format: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
+    
+    for attempt in range(retries):
+        try:
+            response = self.client.get_transaction(
+                signature,
+                "json",
+                0,
+                max_supported_transaction_version=0
+            )
+            
+            if response and getattr(response, "result", None):
+                return response.result
+                
+            logger.warning(f"Attempt {attempt + 1}: Transaction {tx_signature} not found")
+            
+        except Exception as e:
+            last_error = e
+            logger.error(f"Attempt {attempt + 1} failed: {e}")
+            
+            if attempt < retries - 1:
+                # Exponential backoff
+                wait_time = delay * (2 ** attempt)
+                logger.info(f"Retrying in {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+                
+    error_msg = f"Failed to fetch transaction {tx_signature} after {retries} attempts"
+    if last_error:
+        error_msg += f": {str(last_error)}"
+        
+    logger.error(error_msg)
+    raise HTTPException(status_code=404, detail=error_msg)
+
     def _extract_transaction_data(self, tx_value) -> Optional[Any]:
         """Extract transaction data handling different response formats."""
         if hasattr(tx_value, "transaction"):
