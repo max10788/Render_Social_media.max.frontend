@@ -58,15 +58,62 @@ class SolanaClient:
         }
 
     def _convert_to_signature(self, signature_str: str) -> Signature:
+        """
+        Convert string signature to Solana Signature object with improved validation.
+        
+        Args:
+            signature_str (str): The signature string to convert
+            
+        Returns:
+            Signature: The converted Solana signature object
+            
+        Raises:
+            ValueError: If signature format is invalid
+        """
+        if not signature_str:
+            raise ValueError("Signature cannot be empty")
+            
+        # Remove any whitespace
+        signature_str = signature_str.strip()
+        
+        # Try different conversion methods
+        errors = []
+        
+        # Method 1: Direct conversion
         try:
             return Signature.from_string(signature_str)
-        except Exception:
-            try:
-                decoded = base58.b58decode(signature_str)
+        except Exception as e:
+            errors.append(f"Direct conversion failed: {str(e)}")
+        
+        # Method 2: Base58 decode
+        try:
+            decoded = base58.b58decode(signature_str)
+            if len(decoded) == 64:  # Valid Solana signature length
                 return Signature.from_bytes(decoded)
-            except Exception as e:
-                logger.error(f"Failed to convert signature '{signature_str}': {e}")
-                raise ValueError(f"Invalid signature format: {str(e)}")
+            errors.append(f"Invalid decoded length: {len(decoded)}")
+        except Exception as e:
+            errors.append(f"Base58 decode failed: {str(e)}")
+        
+        # Method 3: Try normalizing and retrying
+        try:
+            # Remove any non-base58 characters and try again
+            normalized = ''.join(c for c in signature_str if c in '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
+            if normalized != signature_str:
+                try:
+                    return Signature.from_string(normalized)
+                except Exception as e:
+                    errors.append(f"Normalized conversion failed: {str(e)}")
+        except Exception as e:
+            errors.append(f"Normalization failed: {str(e)}")
+    
+        # If all methods fail, raise detailed error
+        error_msg = (
+            f"Invalid signature format: {signature_str}\n"
+            f"Attempted conversions failed:\n"
+            f"{chr(10).join(f'- {err}' for err in errors)}"
+        )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
     def _extract_transaction_data(self, tx_value) -> Optional[Any]:
         """Extract transaction data handling different response formats."""
