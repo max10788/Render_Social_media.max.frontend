@@ -59,37 +59,80 @@ class SolanaClient:
 
     def _convert_to_signature(self, signature_str: str) -> Signature:
         """
-        Convert string signature to Solana Signature object with robust validation.
+        Convert string signature to Solana Signature object with enhanced validation.
+        
+        Args:
+            signature_str (str): The signature string to convert
+            
+        Returns:
+            Signature: The converted Solana signature object
+            
+        Raises:
+            ValueError: If signature format is invalid
         """
         if not signature_str:
             raise ValueError("Empty signature provided")
-    
+            
         # Clean the input
         signature_str = signature_str.strip()
         
+        # Try multiple conversion methods with better error handling
+        errors = []
+        
+        # Method 1: Base58 decode and validate length
         try:
-            # First try: direct base58 decode and conversion
             decoded = base58.b58decode(signature_str)
             if len(decoded) == 64:
-                return Signature.from_bytes(decoded)
-                
-            # Second try: direct string conversion
-            return Signature.from_string(signature_str)
-                
+                sig = Signature.from_bytes(decoded)
+                if sig:  # Verify signature was created successfully
+                    return sig
         except Exception as e:
-            # Attempt signature normalization
-            try:
-                normalized = ''.join(c for c in signature_str 
-                                   if c in '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
-                decoded = base58.b58decode(normalized)
-                if len(decoded) == 64:
-                    return Signature.from_bytes(decoded)
-            except Exception as norm_error:
-                raise ValueError(
-                    f"Invalid signature format: {signature_str}\n"
-                    f"Original error: {str(e)}\n"
-                    f"Normalization error: {str(norm_error)}"
-                )
+            errors.append(f"Base58 decode failed: {str(e)}")
+    
+        # Method 2: Try using from_string directly
+        try:
+            sig = Signature.from_string(signature_str)
+            if sig:  # Verify signature was created successfully
+                return sig
+        except Exception as e:
+            errors.append(f"Direct string conversion failed: {str(e)}")
+    
+        # Method 3: Try normalizing base58 characters
+        try:
+            # Remove any characters that aren't valid base58
+            base58_chars = set('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
+            normalized = ''.join(c for c in signature_str if c in base58_chars)
+            
+            if normalized != signature_str:
+                # Try both methods with normalized string
+                try:
+                    decoded = base58.b58decode(normalized)
+                    if len(decoded) == 64:
+                        sig = Signature.from_bytes(decoded)
+                        if sig:
+                            return sig
+                except Exception:
+                    pass
+    
+                try:
+                    sig = Signature.from_string(normalized)
+                    if sig:
+                        return sig
+                except Exception:
+                    pass
+                    
+        except Exception as e:
+            errors.append(f"Normalization attempt failed: {str(e)}")
+    
+        # If all methods fail, raise detailed error
+        error_msg = (
+            f"Failed to convert signature: {signature_str}\n"
+            f"Attempted conversions failed:\n"
+            f"{chr(10).join(f'- {err}' for err in errors)}\n"
+            f"Expected format: Base58 encoded string of 64 bytes"
+        )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
     
     async def _get_transaction_with_retry(self, tx_signature: str, retries: int = 3, delay: float = 1.0):
         """
