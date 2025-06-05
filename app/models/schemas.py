@@ -42,15 +42,6 @@ class AnalyzeRequest(BaseModel):
     end_date: str = Field(...)
     tweet_limit: Optional[int] = Field(1000, ge=10, le=5000)
 
-
-class CorrelationResult(BaseModel):
-    correlation_score: float
-    price_sentiment_correlation: float
-    volume_mentions_correlation: float
-    daily_correlations: dict
-    correlation_details: dict
-
-
 class AnalyzeResponse(BaseModel):
     analysis_id: int
     blockchain: str
