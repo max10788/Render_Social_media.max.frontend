@@ -22,7 +22,7 @@ from app.core.blockchain_api import fetch_on_chain_data
 from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback, CryptoTransaction
 from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
-from app.core.solana_tracker.service import TransactionService
+from app.core.solana_tracker.services.transaction_service.py import TransactionService
 from app.core.solana_tracker.models.scenario import ScenarioType
 from app.models.schemas import (
     AnalyzeRequest, 
