@@ -4,9 +4,9 @@ import logging
 import asyncio
 from decimal import Decimal
 
-from models.transaction import TrackedTransaction, TransactionDetail
-from repositories.solana_repository import SolanaRepository
-from utils.retry_utils import retry_with_exponential_backoff
+from app.core.solana_tracker.models.transaction import TrackedTransaction, TransactionDetail
+from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
+from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
 
 logger = logging.getLogger(__name__)
 
