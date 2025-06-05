@@ -58,37 +58,38 @@ class SolanaClient:
         }
 
     def _convert_to_signature(self, signature_str: str) -> Signature:
+        """
+        Convert string signature to Solana Signature object with improved validation.
+        """
         if not signature_str:
             raise ValueError("Signature cannot be empty")
             
         # Remove any whitespace
         signature_str = signature_str.strip()
         
-        errors = []
-        
-        # Method 1: Direct conversion
         try:
-            return Signature.from_string(signature_str)
+            # First try: direct bytes conversion
+            try:
+                decoded = base58.b58decode(signature_str)
+                if len(decoded) == 64:  # Valid Solana signature length
+                    return Signature.from_bytes(decoded)
+            except Exception as e:
+                logger.debug(f"Base58 decode attempt failed: {e}")
+                
+            # Second try: direct string conversion
+            try:
+                return Signature.from_string(signature_str)
+            except Exception as e:
+                logger.debug(f"Direct string conversion failed: {e}")
+                
+            # Final try: normalized string
+            normalized = ''.join(c for c in signature_str if c.isalnum())
+            return Signature.from_string(normalized)
+                
         except Exception as e:
-            errors.append(f"Direct conversion failed: {str(e)}")
-        
-        # Method 2: Base58 decode
-        try:
-            decoded = base58.b58decode(signature_str)
-            if len(decoded) == 64:  # Valid Solana signature length
-                return Signature.from_bytes(decoded)
-            errors.append(f"Invalid decoded length: {len(decoded)}")
-        except Exception as e:
-            errors.append(f"Base58 decode failed: {str(e)}")
-        
-        # Raise detailed error if all methods fail
-        error_msg = (
-            f"Invalid signature format: {signature_str}\n"
-            f"Attempted conversions failed:\n"
-            f"{chr(10).join(f'- {err}' for err in errors)}"
-        )
-        logger.error(error_msg)
-        raise ValueError(error_msg)
+            error_msg = f"Invalid signature format: {signature_str}. Error: {str(e)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
     
     async def _get_transaction_with_retry(self, tx_signature: str, retries: int = 3, delay: float = 1.0):
         """
