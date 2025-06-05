@@ -5,8 +5,8 @@ from decimal import Decimal
 import asyncio
 from dataclasses import dataclass
 
-from models.transaction import TrackedTransaction
-from models.scenario import (
+from app.core.solana_tracker.models.transaction import TrackedTransaction
+from app.core.solana_tracker.models.scenario import (
     ScenarioType,
     ScenarioConfig,
     DetectedScenario,
