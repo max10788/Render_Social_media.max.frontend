@@ -62,7 +62,7 @@ class SolanaClient:
         Convert string signature to Solana Signature object with enhanced validation.
         
         Args:
-            signature_str (str): The signature string to convert
+            signature_str: The signature string to convert
             
         Returns:
             Signature: The converted Solana signature object
@@ -72,64 +72,59 @@ class SolanaClient:
         """
         if not signature_str:
             raise ValueError("Empty signature provided")
-            
+    
         # Clean the input
         signature_str = signature_str.strip()
         
-        # Try multiple conversion methods with better error handling
-        errors = []
-        
-        # Method 1: Base58 decode and validate length
+        # Define valid base58 characters
+        base58_chars = set('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
+    
+        # Try multiple methods in sequence
+        methods_tried = []
+    
+        # Method 1: Try raw bytes conversion after base58 decode
         try:
             decoded = base58.b58decode(signature_str)
-            if len(decoded) == 64:
-                sig = Signature.from_bytes(decoded)
-                if sig:  # Verify signature was created successfully
+            if len(decoded) == 64:  # Solana signatures are 64 bytes
+                raw_bytes = bytes(decoded)
+                sig = Signature.from_bytes(raw_bytes)
+                if sig:
                     return sig
+            methods_tried.append("Base58 decode")
         except Exception as e:
-            errors.append(f"Base58 decode failed: {str(e)}")
+            methods_tried.append(f"Base58 decode failed: {str(e)}")
     
-        # Method 2: Try using from_string directly
+        # Method 2: Direct string conversion
         try:
             sig = Signature.from_string(signature_str)
-            if sig:  # Verify signature was created successfully
+            if sig:
                 return sig
+            methods_tried.append("Direct string conversion")
         except Exception as e:
-            errors.append(f"Direct string conversion failed: {str(e)}")
+            methods_tried.append(f"String conversion failed: {str(e)}")
     
-        # Method 3: Try normalizing base58 characters
+        # Method 3: Clean and normalize the signature
         try:
-            # Remove any characters that aren't valid base58
-            base58_chars = set('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
-            normalized = ''.join(c for c in signature_str if c in base58_chars)
+            # Remove any invalid characters
+            clean_sig = ''.join(c for c in signature_str if c in base58_chars)
             
-            if normalized != signature_str:
-                # Try both methods with normalized string
-                try:
-                    decoded = base58.b58decode(normalized)
-                    if len(decoded) == 64:
-                        sig = Signature.from_bytes(decoded)
-                        if sig:
-                            return sig
-                except Exception:
-                    pass
-    
-                try:
-                    sig = Signature.from_string(normalized)
-                    if sig:
-                        return sig
-                except Exception:
-                    pass
-                    
+            # Try base58 decode again with cleaned string
+            decoded = base58.b58decode(clean_sig)
+            if len(decoded) == 64:
+                raw_bytes = bytes(decoded)
+                sig = Signature.from_bytes(raw_bytes)
+                if sig:
+                    return sig
+            methods_tried.append("Normalized conversion")
         except Exception as e:
-            errors.append(f"Normalization attempt failed: {str(e)}")
+            methods_tried.append(f"Normalization failed: {str(e)}")
     
-        # If all methods fail, raise detailed error
+        # If all methods fail, raise a detailed error
         error_msg = (
             f"Failed to convert signature: {signature_str}\n"
-            f"Attempted conversions failed:\n"
-            f"{chr(10).join(f'- {err}' for err in errors)}\n"
-            f"Expected format: Base58 encoded string of 64 bytes"
+            f"Length: {len(signature_str)} chars\n"
+            f"Methods tried:\n"
+            + "\n".join(f"- {method}" for method in methods_tried)
         )
         logger.error(error_msg)
         raise ValueError(error_msg)
@@ -309,6 +304,7 @@ class SolanaClient:
                 lambda: self.client.get_transaction(
                     signature,
                     encoding="json",
+                    commitment="confirmed",  # Add commitment level
                     max_supported_transaction_version=0
                 )
             )
