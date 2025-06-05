@@ -58,18 +58,6 @@ class SolanaClient:
         }
 
     def _convert_to_signature(self, signature_str: str) -> Signature:
-        """
-        Convert string signature to Solana Signature object with improved validation.
-        
-        Args:
-            signature_str (str): The signature string to convert
-            
-        Returns:
-            Signature: The converted Solana signature object
-            
-        Raises:
-            ValueError: If signature format is invalid
-        """
         if not signature_str:
             raise ValueError("Signature cannot be empty")
             
@@ -93,17 +81,6 @@ class SolanaClient:
         except Exception as e:
             errors.append(f"Base58 decode failed: {str(e)}")
         
-        # Method 3: Normalize and retry
-        try:
-            normalized = ''.join(c for c in signature_str if c in '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
-            if normalized != signature_str:
-                try:
-                    return Signature.from_string(normalized)
-                except Exception as e:
-                    errors.append(f"Normalized conversion failed: {str(e)}")
-        except Exception as e:
-            errors.append(f"Normalization failed: {str(e)}")
-        
         # Raise detailed error if all methods fail
         error_msg = (
             f"Invalid signature format: {signature_str}\n"
@@ -112,7 +89,7 @@ class SolanaClient:
         )
         logger.error(error_msg)
         raise ValueError(error_msg)
-
+    
     async def _get_transaction_with_retry(self, tx_signature: str, retries: int = 3, delay: float = 1.0):
         """
         Fetch transaction with retries and improved error handling.
