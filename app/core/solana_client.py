@@ -59,37 +59,37 @@ class SolanaClient:
 
     def _convert_to_signature(self, signature_str: str) -> Signature:
         """
-        Convert string signature to Solana Signature object with improved validation.
+        Convert string signature to Solana Signature object with robust validation.
         """
         if not signature_str:
-            raise ValueError("Signature cannot be empty")
-            
-        # Remove any whitespace
+            raise ValueError("Empty signature provided")
+    
+        # Clean the input
         signature_str = signature_str.strip()
         
         try:
-            # First try: direct bytes conversion
-            try:
-                decoded = base58.b58decode(signature_str)
-                if len(decoded) == 64:  # Valid Solana signature length
-                    return Signature.from_bytes(decoded)
-            except Exception as e:
-                logger.debug(f"Base58 decode attempt failed: {e}")
+            # First try: direct base58 decode and conversion
+            decoded = base58.b58decode(signature_str)
+            if len(decoded) == 64:
+                return Signature.from_bytes(decoded)
                 
             # Second try: direct string conversion
-            try:
-                return Signature.from_string(signature_str)
-            except Exception as e:
-                logger.debug(f"Direct string conversion failed: {e}")
-                
-            # Final try: normalized string
-            normalized = ''.join(c for c in signature_str if c.isalnum())
-            return Signature.from_string(normalized)
+            return Signature.from_string(signature_str)
                 
         except Exception as e:
-            error_msg = f"Invalid signature format: {signature_str}. Error: {str(e)}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
+            # Attempt signature normalization
+            try:
+                normalized = ''.join(c for c in signature_str 
+                                   if c in '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
+                decoded = base58.b58decode(normalized)
+                if len(decoded) == 64:
+                    return Signature.from_bytes(decoded)
+            except Exception as norm_error:
+                raise ValueError(
+                    f"Invalid signature format: {signature_str}\n"
+                    f"Original error: {str(e)}\n"
+                    f"Normalization error: {str(norm_error)}"
+                )
     
     async def _get_transaction_with_retry(self, tx_signature: str, retries: int = 3, delay: float = 1.0):
         """
