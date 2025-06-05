@@ -11,11 +11,11 @@ from models.transaction import (
     SolanaTransaction,
     TransactionBatch
 )
-from repositories.solana_repository import SolanaRepository
-from repositories.cache_repository import CacheRepository
-from services.chain_tracker import ChainTracker
-from services.scenario_detector import ScenarioDetector
-from utils.retry_utils import retry_with_exponential_backoff
+from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
+from app.core.solana_tracker.repositories.cache_repository import CacheRepository
+from app.core.solana_tracker.services.chain_tracker import ChainTracker
+from app.core.solana_tracker.services.scenario_detector import ScenarioDetector
+from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
 
 logger = logging.getLogger(__name__)
 
