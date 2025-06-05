@@ -258,23 +258,26 @@ class SolanaClient:
     @handle_rpc_errors
     async def get_transaction(self, tx_signature: str):
         """Get transaction details from Solana blockchain."""
-        signature = self._convert_to_signature(tx_signature)
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
-            None,
-            lambda: self.client.get_transaction(
-                signature,
-                "json",
-                0,
-                max_supported_transaction_version=0
+        try:
+            signature = self._convert_to_signature(tx_signature)
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: self.client.get_transaction(
+                    signature,
+                    encoding="json",
+                    max_supported_transaction_version=0
+                )
             )
-        )
-        if response is None or getattr(response, "value", None) is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Transaction {tx_signature} not found"
-            )
-        return response
+            if response is None or not hasattr(response, "value"):
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Transaction {tx_signature} not found"
+                )
+            return response
+        except ValueError as ve:
+            logger.error(f"Invalid signature format: {ve}")
+            raise HTTPException(status_code=400, detail=str(ve))
 
     async def parse_solana_transaction(self, tx_signature: str) -> dict:
         """Parse a Solana transaction with improved validation and logging."""
