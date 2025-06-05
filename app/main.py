@@ -3,51 +3,76 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.endpoints import router as api_router  # Importieren Sie den API-Router
-
+from app.api.endpoints import router as api_router
+from app.core.config import Settings, get_settings
+from app.core.database import init_db
+from contextlib import asynccontextmanager
 import logging
+
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle manager for FastAPI application."""
+    # Startup
+    settings = get_settings()
+    init_db()  # Initialize database
+    logger.info(f"Starting {settings.PROJECT_NAME}")
+    yield
+    # Shutdown
+    logger.info(f"Shutting down {settings.PROJECT_NAME}")
 
-# CORS konfigurieren (optional, falls benötigt)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Erlaubt alle Ursprünge
-    allow_credentials=True,
-    allow_methods=["*"],  # Erlaubt alle HTTP-Methoden
-    allow_headers=["*"],  # Erlaubt alle Header
+app = FastAPI(
+    title="Solana Transaction Tracker",
+    description="Enterprise-grade Solana transaction tracking and analysis system",
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-# Mounten der statischen Dateien (CSS, JS, Bilder)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Laden der HTML-Templates
+# Static files and templates
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# API-Router integrieren
-app.include_router(api_router, prefix="/api/v1", tags=["API"])
+# API Router
+app.include_router(
+    api_router,
+    prefix="/api/v1",
+    tags=["API"]
+)
 
-# Route für die Startseite
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    """
-    Zeigt die Startseite der Anwendung an.
-    """
-    return templates.TemplateResponse("index.html", {"request": request})
+    """Application root endpoint."""
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request}
+    )
 
-# Optional: Health-Check-Endpunkt für Monitoring
-@app.get("/health", response_model=dict)
+@app.get("/health")
 async def health_check():
-    """
-    Einfacher Health-Check-Endpunkt, um den Status der Anwendung zu überprüfen.
-    """
-    return {"status": "ok"}
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "version": "1.0.0"
+    }
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled exception: {exc}")
+    """Global exception handler."""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"message": "An unexpected error occurred. Please try again later."},
+        content={
+            "error": "Internal Server Error",
+            "detail": str(exc) if app.debug else "An unexpected error occurred"
+        }
     )
