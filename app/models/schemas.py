@@ -120,26 +120,6 @@ class TransactionTrackResponse(BaseModel):
     target_currency: str
     detected_scenarios: List[ScenarioType] = []
     scenario_details: Dict[ScenarioType, Dict] = {}
-    
-class AnalyzeRequest(BaseModel):
-    """
-    Anfrage-Schema für Blockchain- und Social-Media-Analyse.
-    """
-    blockchain: BlockchainEnum = Field(..., description="Die zu analysierende Blockchain")
-    contract_address: Optional[str] = Field(
-        None, description="Adresse des Smart Contracts (optional, je nach Analyse-Typ)"
-    )
-    twitter_username: Optional[str] = Field(
-        None, description="Twitter-Username (optional, für Social-Media-Analysen)"
-    )
-    keywords: List[str] = Field(
-        ..., min_items=1, description="Liste von Such-Keywords für Tweets"
-    )
-    start_date: date = Field(..., description="Startdatum für die Analyse (YYYY-MM-DD)")
-    end_date: date = Field(..., description="Enddatum für die Analyse (YYYY-MM-DD, >= start_date)")
-    tweet_limit: Optional[int] = Field(
-        1000, ge=10, le=5000, description="Maximale Anzahl der zu analysierenden Tweets (10-5000, Standard: 1000)"
-    )
 
     @validator('end_date')
     def end_date_must_be_after_start_date(cls, v, values):
