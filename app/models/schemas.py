@@ -6,7 +6,6 @@ from datetime import date, datetime
 from typing_extensions import Literal
 
 # --- ENUMS ---
-
 class BlockchainEnum(str, Enum):
     ethereum = "ethereum"
     binance = "binance"
@@ -30,9 +29,24 @@ class FinalStatusEnum(str, Enum):
     returned_to_known_wallet = "returned_to_known_wallet"
     tracking_limit_reached = "tracking_limit_reached"
 
+# --- BASE MODELS ---
+class CorrelationResult(BaseModel):
+    """Schema für die Korrelationsergebnisse."""
+    correlation_score: float = Field(..., description="Gesamtkorrelationswert zwischen -1 und 1")
+    price_sentiment_correlation: float = Field(..., description="Korrelation zwischen Preis und Sentiment")
+    volume_mentions_correlation: float = Field(..., description="Korrelation zwischen Handelsvolumen und Erwähnungen")
+    daily_correlations: Dict[str, Dict[str, float]] = Field(..., description="Tägliche Korrelationswerte")
+    correlation_details: Dict[str, Any] = Field(..., description="Detaillierte Korrelationsinformationen")
 
-# --- MODELLE ---
+class TrackedTransaction(BaseModel):
+    tx_hash: str
+    from_wallet: str
+    to_wallet: str
+    amount: float
+    timestamp: str
+    value_in_target_currency: Optional[float] = None
 
+# --- REQUEST MODELS ---
 class AnalyzeRequest(BaseModel):
     blockchain: BlockchainEnum = Field(..., description="Die zu analysierende Blockchain")
     contract_address: Optional[str] = Field(None)
@@ -42,25 +56,18 @@ class AnalyzeRequest(BaseModel):
     end_date: str = Field(...)
     tweet_limit: Optional[int] = Field(1000, ge=10, le=5000)
 
-class AnalyzeResponse(BaseModel):
-    analysis_id: int
-    blockchain: str
-    contract_address: str
-    keywords: List[str]
-    start_date: str
-    end_date: str
-    sentiment_score: float
-    correlation_results: CorrelationResult
-    tweets_analyzed: int
-    blockchain_data_points: int
-    created_at: datetime
-
-
-class FeedbackRequest(BaseModel):
-    tweet_id: str
-    transaction_id: str
-    label: bool
-
+    @validator('contract_address')
+    def validate_contract_address(cls, v, values):
+        if v is None:
+            return v
+        blockchain = values.get('blockchain')
+        if blockchain in [BlockchainEnum.ethereum, BlockchainEnum.binance, BlockchainEnum.polygon]:
+            if not (v.startswith('0x') and len(v) == 42):
+                raise ValueError(f'{blockchain}-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein')
+        elif blockchain == BlockchainEnum.solana:
+            if len(v) != 44:
+                raise ValueError('Solana-Adressen müssen 44 Zeichen lang sein')
+        return v
 
 class TransactionTrackRequest(BaseModel):
     start_tx_hash: str = Field(..., description="Initial transaction hash to track from", min_length=64, max_length=88)
@@ -91,67 +98,12 @@ class TransactionTrackRequest(BaseModel):
             }
         }
 
+class FeedbackRequest(BaseModel):
+    tweet_id: str
+    transaction_id: str
+    label: bool
 
-class TrackedTransaction(BaseModel):
-    tx_hash: str
-    from_wallet: str
-    to_wallet: str
-    amount: float
-    timestamp: str
-    value_in_target_currency: Optional[float] = None
-
-
-class TransactionTrackResponse(BaseModel):
-    status: str
-    total_transactions_tracked: int
-    tracked_transactions: List[TrackedTransaction]
-    final_status: FinalStatusEnum
-    final_wallet_address: Optional[str] = None
-    remaining_amount: Optional[float] = None
-    target_currency: str
-    detected_scenarios: List[ScenarioType] = []
-    scenario_details: Dict[ScenarioType, Dict] = {}
-
-    @validator('end_date')
-    def end_date_must_be_after_start_date(cls, v, values):
-        if 'start_date' in values and v < values['start_date']:
-            raise ValueError('end_date muss nach start_date liegen')
-        return v
-
-    @validator('contract_address')
-    def validate_contract_address(cls, v, values):
-        if v is None:
-            return v
-        blockchain = values.get('blockchain')
-        if blockchain in [BlockchainEnum.ethereum, BlockchainEnum.binance, BlockchainEnum.polygon]:
-            if not (v.startswith('0x') and len(v) == 42):
-                raise ValueError(f'{blockchain}-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein')
-        elif blockchain == BlockchainEnum.solana:
-            if len(v) != 44:
-                raise ValueError('Solana-Adressen müssen 44 Zeichen lang sein')
-        return v
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "blockchain": "ethereum",
-                "contract_address": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
-                "twitter_username": "uniswap",  # ohne @
-                "keywords": ["Uniswap", "UNI", "DEX"],
-                "start_date": "2023-01-01",
-                "end_date": "2023-01-31",
-                "tweet_limit": 200
-            }
-        }
-
-class CorrelationResult(BaseModel):
-    """Schema für die Korrelationsergebnisse."""
-    correlation_score: float = Field(..., description="Gesamtkorrelationswert zwischen -1 und 1")
-    price_sentiment_correlation: float = Field(..., description="Korrelation zwischen Preis und Sentiment")
-    volume_mentions_correlation: float = Field(..., description="Korrelation zwischen Handelsvolumen und Erwähnungen")
-    daily_correlations: dict[str, dict[str, float]] = Field(..., description="Tägliche Korrelationswerte")
-    correlation_details: dict[str, Any] = Field(..., description="Detaillierte Korrelationsinformationen")
-
+# --- RESPONSE MODELS ---
 class AnalyzeResponse(BaseModel):
     """Schema für die Antwort der Analyse."""
     analysis_id: int = Field(..., description="ID der gespeicherten Analyse")
@@ -195,4 +147,13 @@ class AnalyzeResponse(BaseModel):
             }
         }
 
-
+class TransactionTrackResponse(BaseModel):
+    status: str
+    total_transactions_tracked: int
+    tracked_transactions: List[TrackedTransaction]
+    final_status: FinalStatusEnum
+    final_wallet_address: Optional[str] = None
+    remaining_amount: Optional[float] = None
+    target_currency: str
+    detected_scenarios: List[ScenarioType] = []
+    scenario_details: Dict[ScenarioType, Dict] = {}
