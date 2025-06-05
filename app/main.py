@@ -3,28 +3,28 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.endpoints import router as api_router
-from app.core.config import Settings, get_settings
-from app.core.database import init_db
 from contextlib import asynccontextmanager
 import logging
+
+from app.api.endpoints import router as api_router
+from app.api.endpoints.solana import router as solana_router
+from app.core.config import Settings, get_settings
+from app.core.database import init_db
 
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for FastAPI application."""
-    # Startup
     settings = get_settings()
-    init_db()  # Initialize database
+    init_db()
     logger.info(f"Starting {settings.PROJECT_NAME}")
     yield
-    # Shutdown
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
 
 app = FastAPI(
-    title="Solana Transaction Tracker",
-    description="Enterprise-grade Solana transaction tracking and analysis system",
+    title="Social Media & Blockchain Analysis",
+    description="Enterprise-grade social media and blockchain analysis system",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -42,12 +42,9 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# API Router
-app.include_router(
-    api_router,
-    prefix="/api/v1",
-    tags=["API"]
-)
+# Include both existing and new routers
+app.include_router(api_router, prefix="/api/v1", tags=["Social Analysis"])
+app.include_router(solana_router, prefix="/api/v1/solana", tags=["Solana Tracking"])
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -62,7 +59,11 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "services": {
+            "social_analysis": "active",
+            "blockchain_tracking": "active"
+        }
     }
 
 @app.exception_handler(Exception)
