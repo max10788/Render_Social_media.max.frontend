@@ -191,7 +191,7 @@ class SignatureValidator:
         except SignatureError:
             return False
             
-    def get_valid_signatures(self) -> Set[str]:
+    def get_valid_signatures(self) -> set[str]:
         """Get set of validated signatures."""
         return self._valid_signatures.copy()
         
