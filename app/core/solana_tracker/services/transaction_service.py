@@ -5,7 +5,7 @@ from decimal import Decimal
 import asyncio
 from functools import lru_cache
 
-from models.transaction import (
+from app.core.solana_tracker.models.transaction import (
     TransactionDetail, 
     TrackedTransaction, 
     SolanaTransaction,
