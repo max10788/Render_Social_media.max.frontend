@@ -14,6 +14,7 @@ import uuid
 from fastapi.staticfiles import StaticFiles
 from typing import List, Dict
 import aiohttp
+from textblob import TextBlob
 
 # Interne Module importieren
 from app.core.twitter_api import TwitterClient
@@ -21,7 +22,8 @@ from app.core.blockchain_api import fetch_on_chain_data
 from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback, CryptoTransaction
 from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
-from textblob import TextBlob
+from app.core.solana_tracker.service import TransactionService
+from app.core.solana_tracker.models.scenario import ScenarioType
 from app.models.schemas import (
     AnalyzeRequest, 
     AnalyzeResponse, 
@@ -285,31 +287,16 @@ async def track_transactions(request: TransactionTrackRequest):
     try:
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
         
-        # Initialize Solana client
-        solana_client = SolanaClient(os.getenv("SOLANA_RPC_URL", "https://api.devnet.solana.com"))
+        service = TransactionService()
         
-        # Validate transaction exists
-        try:
-            tx_info = await solana_client.get_transaction(request.start_tx_hash)
-            if not tx_info:
-                raise HTTPException(
-                    status_code=404, 
-                    detail="Start transaction not found"
-                )
-        except ValueError as ve:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid transaction signature: {str(ve)}"
-            )
-
         # Track transaction chain
-        tracked_transactions = await solana_client.track_transaction_chain(
+        tracking_result = await service.track_transaction_chain(
             start_tx_hash=request.start_tx_hash,
-            amount_SOL=request.amount,
+            amount=request.amount,
             max_depth=request.num_transactions
         )
 
-        if not tracked_transactions:
+        if not tracking_result:
             logger.warning(f"No transactions found in chain starting from {request.start_tx_hash}")
             return TransactionTrackResponse(
                 status="complete",
@@ -324,35 +311,35 @@ async def track_transactions(request: TransactionTrackRequest):
             )
 
         # Detect scenarios
-        scenarios = solana_client.detect_scenarios(tracked_transactions)
+        scenarios = await service.detect_scenarios(tracking_result)
         
         # Determine final status
         final_status = FinalStatusEnum.still_in_same_wallet
-        if len(tracked_transactions) >= request.num_transactions:
+        if len(tracking_result) >= request.num_transactions:
             final_status = FinalStatusEnum.tracking_limit_reached
-        elif tracked_transactions[-1].to_wallet == tracked_transactions[0].from_wallet:
+        elif tracking_result[-1].to_wallet == tracking_result[0].from_wallet:
             final_status = FinalStatusEnum.returned_to_known_wallet
 
         logger.info(
-            f"Successfully tracked {len(tracked_transactions)} transactions "
+            f"Successfully tracked {len(tracking_result)} transactions "
             f"with {len(scenarios.get('scenarios', []))} detected scenarios"
         )
 
         return TransactionTrackResponse(
             status="complete",
-            total_transactions_tracked=len(tracked_transactions),
-            tracked_transactions=tracked_transactions,
+            total_transactions_tracked=len(tracking_result),
+            tracked_transactions=tracking_result,
             final_status=final_status,
-            final_wallet_address=tracked_transactions[-1].to_wallet if tracked_transactions else None,
-            remaining_amount=tracked_transactions[-1].amount if tracked_transactions else request.amount,
+            final_wallet_address=tracking_result[-1].to_wallet if tracking_result else None,
+            remaining_amount=tracking_result[-1].amount if tracking_result else request.amount,
             target_currency=request.target_currency,
             detected_scenarios=scenarios.get("scenarios", []),
             scenario_details=scenarios.get("details", {})
         )
 
-    except HTTPException as he:
-        # Re-raise HTTP exceptions
-        raise he
+    except ValueError as ve:
+        logger.error(f"Validation error: {str(ve)}")
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Error tracking transactions: {str(e)}")
         raise HTTPException(
