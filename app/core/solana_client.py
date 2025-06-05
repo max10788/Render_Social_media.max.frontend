@@ -76,7 +76,6 @@ class SolanaClient:
         # Remove any whitespace
         signature_str = signature_str.strip()
         
-        # Try different conversion methods
         errors = []
         
         # Method 1: Direct conversion
@@ -94,9 +93,8 @@ class SolanaClient:
         except Exception as e:
             errors.append(f"Base58 decode failed: {str(e)}")
         
-        # Method 3: Try normalizing and retrying
+        # Method 3: Normalize and retry
         try:
-            # Remove any non-base58 characters and try again
             normalized = ''.join(c for c in signature_str if c in '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
             if normalized != signature_str:
                 try:
@@ -105,8 +103,8 @@ class SolanaClient:
                     errors.append(f"Normalized conversion failed: {str(e)}")
         except Exception as e:
             errors.append(f"Normalization failed: {str(e)}")
-    
-        # If all methods fail, raise detailed error
+        
+        # Raise detailed error if all methods fail
         error_msg = (
             f"Invalid signature format: {signature_str}\n"
             f"Attempted conversions failed:\n"
