@@ -157,7 +157,7 @@ class ScenarioDetector:
         self,
         transactions: List[TrackedTransaction],
         rules: Dict[str, Any]
-    ) -> Tuple[float, Set[str]]:
+    ) -> tuple[float, set[str]]:
         """Detect staking pattern."""
         confidence = 0.0
         matched_txs = set()
