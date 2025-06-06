@@ -5,7 +5,7 @@ import json
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import aioredis
+import redis
 
 logger = logging.getLogger(__name__)
 
