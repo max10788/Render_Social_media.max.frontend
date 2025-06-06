@@ -6,8 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
-from app.api.endpoints import router as api_router
-from app.api.endpoints.solana import router as solana_router
+from app.api.endpoints import router as api_router  # Import nur den Haupt-Router
 from app.core.config import Settings, get_settings
 from app.core.database import init_db
 
@@ -42,9 +41,8 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# Include both existing and new routers
-app.include_router(api_router, prefix="/api/v1", tags=["Social Analysis"])
-app.include_router(solana_router, prefix="/api/v1/solana", tags=["Solana Tracking"])
+# Include router
+app.include_router(api_router, prefix="/api/v1", tags=["API"])
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
