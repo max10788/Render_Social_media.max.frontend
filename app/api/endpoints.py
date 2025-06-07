@@ -24,6 +24,7 @@ from app.core.database import get_db, init_db
 from app.core.feature_engineering import extract_features, generate_labels
 from app.core.solana_tracker.services.transaction_service import TransactionService
 from app.core.solana_tracker.models.scenario import ScenarioType
+from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.models.schemas import (
     AnalyzeRequest, 
     AnalyzeResponse, 
@@ -281,13 +282,27 @@ def get_crypto_service() -> CryptoTrackingService:
 # track-transaction
 #--------------------------i
 
+# Dependency für SolanaRepository
+def get_solana_repository():
+    """Get Solana repository instance."""
+    settings = get_settings()
+    return SolanaRepository(settings.SOLANA_RPC_URL)
+
+# Dependency für TransactionService
+def get_transaction_service(
+    repo: SolanaRepository = Depends(get_solana_repository)
+) -> TransactionService:
+    """Get transaction service instance."""
+    return TransactionService(solana_repository=repo)
+
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
-async def track_transactions(request: TransactionTrackRequest):
+async def track_transactions(
+    request: TransactionTrackRequest,
+    service: TransactionService = Depends(get_transaction_service)
+):
     """Track a chain of transactions with improved validation."""
     try:
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
-        
-        service = TransactionService()
         
         # Track transaction chain
         tracking_result = await service.track_transaction_chain(
@@ -346,7 +361,6 @@ async def track_transactions(request: TransactionTrackRequest):
             status_code=500,
             detail=f"Failed to track transactions: {str(e)}"
         )
-        
 #--------------------------i
 # ML-basierte Analyse
 #--------------------------i
