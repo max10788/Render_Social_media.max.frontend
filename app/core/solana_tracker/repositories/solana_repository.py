@@ -8,6 +8,7 @@ from solders.pubkey import Pubkey
 from solders.signature import Signature
 import base58
 import aiohttp
+from decimal import Decimal
 
 from app.core.solana_tracker.models.transaction import SolanaTransaction, TransactionDetail, TransactionBatch
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
@@ -238,18 +239,19 @@ class SolanaRepository:
                     if change != 0:
                         transfers.append(Transfer(
                             from_address=account_keys[i],
-                            amount=abs(change),
+                            to_address=account_keys[i+1] if i+1 < len(account_keys) else None,
+                            amount=Decimal(str(abs(change))),
                             direction="out" if change < 0 else "in"
                         ))
 
             # Create SolanaTransaction instance with all required fields
             solana_tx = SolanaTransaction(
                 tx_hash=signature,
+                timestamp=timestamp,
                 block_time=block_time,
                 success=meta.get("err") is None,
                 signatures=tx_value.get("transaction", {}).get("signatures", []),
-                fee=meta.get("fee", 0),
-                timestamp=timestamp
+                fee=Decimal(str(meta.get("fee", 0))) / Decimal("1000000000")  # Convert lamports to SOL
             )
 
             return TransactionDetail(
