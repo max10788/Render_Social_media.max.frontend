@@ -236,21 +236,27 @@ class SolanaRepository:
                 if i < len(account_keys):
                     change = (post - pre) / 1e9  # Convert lamports to SOL
                     if change != 0:
-                        transfers.append({
-                            "from_address": account_keys[i],
-                            "amount": abs(change),
-                            "direction": "out" if change < 0 else "in"
-                        })
+                        transfers.append(Transfer(
+                            from_address=account_keys[i],
+                            amount=abs(change),
+                            direction="out" if change < 0 else "in"
+                        ))
+
+            # Create SolanaTransaction instance with all required fields
+            solana_tx = SolanaTransaction(
+                tx_hash=signature,
+                block_time=block_time,
+                success=meta.get("err") is None,
+                signatures=tx_value.get("transaction", {}).get("signatures", []),
+                fee=meta.get("fee", 0),
+                timestamp=timestamp
+            )
 
             return TransactionDetail(
                 signature=signature,
                 timestamp=timestamp,
                 transfers=transfers,
-                transaction=SolanaTransaction(
-                    tx_hash=signature,
-                    block_time=block_time,
-                    success=meta.get("err") is None
-                )
+                transaction=solana_tx
             )
             
         except Exception as e:
