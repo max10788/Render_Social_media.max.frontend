@@ -46,41 +46,57 @@ class TransactionInstruction(BaseModel):
 
 class SolanaTransaction(TransactionBase):
     """Complete Solana transaction model."""
-    fee: Decimal = Field(..., ge=0)
+    fee: Decimal = Field(default=0, ge=0)  # Made optional with default
     success: bool = True
     error_message: Optional[str] = None
     block_number: Optional[int] = None
+    block_time: Optional[int] = None  # Added block_time
     instructions: List[TransactionInstruction] = []
-    signatures: List[str] = Field(..., min_items=1)
+    signatures: List[str] = Field(default_factory=list)  # Made optional with default
     recent_blockhash: Optional[str] = None
+
+    class Config:
+        json_encoders = {
+            Decimal: str
+        }
 
 class Transfer(BaseModel):
     """Transfer details within a transaction."""
-    from_address: str = Field(..., min_length=32)
-    to_address: str = Field(..., min_length=32)
-    amount: TransferAmount
-    token_info: Optional[TokenInfo] = None
+    from_address: str
+    to_address: Optional[str] = None  # Made optional
+    amount: Decimal = Field(..., ge=0)
+    direction: str = Field(..., regex="^(in|out)$")
+
+    class Config:
+        json_encoders = {
+            Decimal: str
+        }
 
 class TrackedTransaction(TransactionBase):
     """Transaction with tracking information."""
-    from_wallet: str = Field(..., min_length=32)
-    to_wallet: str = Field(..., min_length=32)
+    from_wallet: str
+    to_wallet: str
     amount: Decimal = Field(..., ge=0)
     value_in_target_currency: Optional[Decimal] = None
     
     class Config:
         json_encoders = {
-            Decimal: lambda v: str(v)
+            Decimal: str
         }
 
 class TransactionDetail(BaseModel):
     """Detailed transaction information including transfers."""
-    transaction: SolanaTransaction
+    signature: str
+    timestamp: datetime
     transfers: List[Transfer]
-    logs: Optional[List[str]] = None
-    
+    transaction: SolanaTransaction
+
     class Config:
         arbitrary_types_allowed = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            Decimal: str
+        }
 
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
@@ -93,3 +109,9 @@ class TransactionBatch(BaseModel):
         if len(v) > 1000:
             raise ValueError("Batch size cannot exceed 1000 transactions")
         return v
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            Decimal: str
+        }
