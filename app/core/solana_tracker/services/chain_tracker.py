@@ -3,6 +3,8 @@ from datetime import datetime
 import logging
 import asyncio
 from decimal import Decimal
+import base58
+import json
 
 from app.core.solana_tracker.models.transaction import TrackedTransaction, TransactionDetail
 from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
@@ -20,6 +22,25 @@ class ChainTracker:
     ):
         self.solana_repo = solana_repository
         self.min_amount = min_amount
+
+    def validate_transaction_signature(self, signature: str) -> bool:
+        """
+        Validate Solana transaction signature format.
+        
+        Args:
+            signature: Transaction signature to validate
+            
+        Returns:
+            bool: True if valid, False otherwise
+        """
+        try:
+            # Sollte base58 decodierbar sein
+            decoded = base58.b58decode(signature)
+            # Solana Signaturen sind 64 Bytes lang
+            return len(decoded) == 64
+        except Exception as e:
+            logger.error(f"Invalid signature format: {e}")
+            return False
         
     async def track_chain(
         self,
@@ -38,6 +59,11 @@ class ChainTracker:
         Returns:
             List[TrackedTransaction]: Chain of tracked transactions
         """
+        # Validate signature format first
+        if not self.validate_transaction_signature(start_tx_hash):
+            logger.error(f"Invalid transaction signature format: {start_tx_hash}")
+            return []
+            
         visited_signatures: Set[str] = set()
         result_transactions: List[TrackedTransaction] = []
         processing_queue: List[Tuple[str, Optional[Decimal]]] = [(start_tx_hash, amount)]
@@ -45,10 +71,14 @@ class ChainTracker:
         logger.info(f"Starting chain tracking from {start_tx_hash}")
         
         try:
-            # Verify initial transaction exists
+            # Verify initial transaction exists with detailed logging
             initial_tx = await self._get_transaction_safe(start_tx_hash)
+            
             if not initial_tx:
                 logger.error(f"Initial transaction {start_tx_hash} not found")
+                # Log RPC response for debugging
+                response = await self.solana_repo.get_raw_transaction(start_tx_hash)
+                logger.debug(f"RPC Response: {json.dumps(response, indent=2)}")
                 return []
                 
             while processing_queue and len(result_transactions) < max_depth:
@@ -60,13 +90,15 @@ class ChainTracker:
                 visited_signatures.add(current_tx_hash)
                 logger.debug(f"Processing transaction {current_tx_hash}")
                 
-                # Process current transaction
+                # Process current transaction with detailed logging
                 tracked_tx = await self._process_transaction(
                     current_tx_hash,
                     remaining_amount
                 )
                 
                 if tracked_tx:
+                    logger.info(f"Successfully processed transaction: {tracked_tx.tx_hash}")
+                    logger.debug(f"Transaction details: {tracked_tx}")
                     result_transactions.append(tracked_tx)
                     
                     # Find next transactions in chain
@@ -75,10 +107,16 @@ class ChainTracker:
                         remaining_amount
                     )
                     
+                    # Log found next transactions
+                    logger.debug(f"Found {len(next_txs)} next transactions")
+                    
                     # Add new transactions to processing queue
                     for tx_hash, amount in next_txs:
                         if tx_hash not in visited_signatures:
                             processing_queue.append((tx_hash, amount))
+                            logger.debug(f"Added transaction {tx_hash} to queue")
+                else:
+                    logger.warning(f"Failed to process transaction {current_tx_hash}")
                             
             logger.info(
                 f"Chain tracking complete: {len(result_transactions)} transactions found"
@@ -96,7 +134,12 @@ class ChainTracker:
     ) -> Optional[TransactionDetail]:
         """Safely fetch transaction with retries."""
         try:
-            return await self.solana_repo.get_transaction(tx_hash)
+            tx_detail = await self.solana_repo.get_transaction(tx_hash)
+            if tx_detail:
+                logger.debug(f"Successfully retrieved transaction {tx_hash}")
+                return tx_detail
+            logger.warning(f"Transaction {tx_hash} not found")
+            return None
         except Exception as e:
             logger.error(f"Error fetching transaction {tx_hash}: {e}")
             return None
