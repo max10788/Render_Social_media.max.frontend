@@ -314,11 +314,14 @@ async def track_transactions(
     try:
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
         
-        # Track transaction chain
-        tracking_result = await service.track_transaction_chain(
+        # Convert amount to Decimal for the chain tracker
+        amount = Decimal(str(request.amount))
+        
+        # Track transaction chain using ChainTracker's track_chain method
+        tracking_result = await service.chain_tracker.track_chain(
             start_tx_hash=request.start_tx_hash,
-            amount=request.amount,
-            max_depth=request.num_transactions
+            max_depth=request.num_transactions,
+            amount=amount
         )
 
         if not tracking_result:
