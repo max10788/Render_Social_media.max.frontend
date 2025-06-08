@@ -1,5 +1,4 @@
-
-from typing import Protocol, List, Optional, AsyncIterator
+from typing import Protocol, List, Optional, AsyncIterator, Dict
 from datetime import datetime
 import logging
 from abc import ABC, abstractmethod
@@ -8,6 +7,7 @@ from solana.rpc.api import Client
 from solders.pubkey import Pubkey
 from solders.signature import Signature
 import base58
+import aiohttp
 
 from app.core.solana_tracker.models.transaction import SolanaTransaction, TransactionDetail, TransactionBatch
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
@@ -43,9 +43,16 @@ class SolanaRepository:
     """Implementation of Solana blockchain repository."""
     
     def __init__(self, rpc_url: str, max_retries: int = 3):
+        self.rpc_url = rpc_url
         self.client = Client(rpc_url)
         self.max_retries = max_retries
         self._connection_checked = False
+        self._session: Optional[aiohttp.ClientSession] = None
+
+    async def _ensure_session(self):
+        """Ensure aiohttp session exists."""
+        if not self._session:
+            self._session = aiohttp.ClientSession()
 
     async def _ensure_connection(self) -> None:
         """Ensure RPC connection is available."""
@@ -68,6 +75,48 @@ class SolanaRepository:
         if not response:
             raise ConnectionError("Solana RPC endpoint is not responding")
         return True
+
+    async def _make_rpc_call(self, method: str, params: List) -> Dict:
+        """Make RPC call to Solana network."""
+        await self._ensure_session()
+        try:
+            async with self._session.post(
+                self.rpc_url,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": method,
+                    "params": params
+                }
+            ) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"RPC error: {response.status} - {error_text}")
+                    return {"error": f"RPC error: {response.status}"}
+                    
+                return await response.json()
+                
+        except Exception as e:
+            logger.error(f"RPC call failed: {e}")
+            return {"error": str(e)}
+
+    async def get_raw_transaction(self, tx_hash: str) -> Dict:
+        """
+        Get raw transaction response for debugging.
+        
+        Args:
+            tx_hash: Transaction signature to fetch
+            
+        Returns:
+            Dict: Raw RPC response
+        """
+        return await self._make_rpc_call(
+            "getTransaction",
+            [
+                tx_hash,
+                {"encoding": "json", "commitment": "confirmed"}
+            ]
+        )
 
     async def get_transaction(self, signature: str) -> Optional[TransactionDetail]:
         """
@@ -93,21 +142,18 @@ class SolanaRepository:
             raise
             
         try:
-            loop = asyncio.get_running_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.get_transaction(
-                    Signature.from_string(validated_sig),
-                    encoding="json",
-                    max_supported_transaction_version=0
-                )
-            )
+            response = await self.get_raw_transaction(validated_sig)
             
-            if not response or not response.value:
+            if "error" in response:
+                logger.error(f"Error fetching transaction {signature}: {response['error']}")
+                return None
+                
+            result = response.get("result")
+            if not result:
                 logger.debug(f"No transaction found for signature: {signature}")
                 return None
                 
-            return await self._parse_transaction_response(response.value)
+            return await self._parse_transaction_response(result)
             
         except Exception as e:
             logger.error(f"Error fetching transaction {signature}: {e}")
@@ -129,38 +175,29 @@ class SolanaRepository:
             
         Returns:
             TransactionBatch: Batch of transactions
-            
-        Raises:
-            ValueError: If address is invalid
-            ConnectionError: If RPC connection fails
         """
         await self._ensure_connection()
         
         try:
-            pubkey = Pubkey.from_string(address)
-            loop = asyncio.get_running_loop()
-            
-            # Prepare parameters for signature fetch
-            params = {"limit": limit}
+            params = [address, {"limit": limit}]
             if before:
-                params["before"] = validate_signature(before)
+                params[1]["before"] = validate_signature(before)
                 
-            # Fetch signatures
-            signatures_response = await loop.run_in_executor(
-                None,
-                lambda: self.client.get_signatures_for_address(
-                    pubkey,
-                    **params
-                )
+            response = await self._make_rpc_call(
+                "getSignaturesForAddress",
+                params
             )
             
-            if not signatures_response or not signatures_response.value:
+            if "error" in response:
+                logger.error(f"Error fetching transactions for {address}: {response['error']}")
                 return TransactionBatch(transactions=[], total_count=0)
                 
-            # Fetch transactions for signatures
+            result = response.get("result", [])
+            
+            # Fetch full transaction details
             transactions = []
-            for sig_info in signatures_response.value:
-                tx = await self.get_transaction(sig_info.signature.to_string())
+            for sig_info in result:
+                tx = await self.get_transaction(sig_info["signature"])
                 if tx:
                     transactions.append(tx)
                     
@@ -170,39 +207,71 @@ class SolanaRepository:
                 start_index=0
             )
             
-        except ValueError as ve:
-            logger.error(f"Invalid address format: {ve}")
-            raise
         except Exception as e:
             logger.error(f"Error fetching transactions for {address}: {e}")
             raise
 
-    async def _parse_transaction_response(self, tx_value: dict) -> TransactionDetail:
+    async def _parse_transaction_response(self, tx_value: dict) -> Optional[TransactionDetail]:
         """Parse raw transaction response into TransactionDetail model."""
-        # Implementation of transaction parsing logic
-        # This would include parsing of:
-        # - Transaction metadata
-        # - Instructions
-        # - Account updates
-        # - Token transfers
-        # This is a placeholder for the actual implementation
-        pass
+        try:
+            # Extract basic transaction information
+            signature = tx_value.get("transaction", {}).get("signatures", [""])[0]
+            message = tx_value.get("transaction", {}).get("message", {})
+            meta = tx_value.get("meta", {})
+            
+            # Get timestamp
+            block_time = tx_value.get("blockTime", 0)
+            timestamp = datetime.fromtimestamp(block_time) if block_time else datetime.utcnow()
+            
+            # Extract account keys
+            account_keys = message.get("accountKeys", [])
+            
+            # Extract pre and post balances
+            pre_balances = meta.get("preBalances", [])
+            post_balances = meta.get("postBalances", [])
+            
+            # Calculate transfers
+            transfers = []
+            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                if i < len(account_keys):
+                    change = (post - pre) / 1e9  # Convert lamports to SOL
+                    if change != 0:
+                        transfers.append({
+                            "from_address": account_keys[i],
+                            "amount": abs(change),
+                            "direction": "out" if change < 0 else "in"
+                        })
+
+            return TransactionDetail(
+                signature=signature,
+                timestamp=timestamp,
+                transfers=transfers,
+                transaction=SolanaTransaction(
+                    tx_hash=signature,
+                    block_time=block_time,
+                    success=meta.get("err") is None
+                )
+            )
+            
+        except Exception as e:
+            logger.error(f"Error parsing transaction response: {e}")
+            return None
 
     async def get_recent_blockhash(self) -> str:
         """Get recent blockhash for transaction construction."""
         await self._ensure_connection()
         
         try:
-            loop = asyncio.get_running_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.get_recent_blockhash()
+            response = await self._make_rpc_call(
+                "getRecentBlockhash",
+                []
             )
             
-            if not response or not response.value:
-                raise ValueError("Could not fetch recent blockhash")
+            if "error" in response:
+                raise ValueError(f"Could not fetch recent blockhash: {response['error']}")
                 
-            return response.value.blockhash.to_string()
+            result = response.get("result", {})
+            return result.get("value", {}).get("blockhash")
             
         except Exception as e:
             logger.error(f"Error fetching recent blockhash: {e}")
@@ -213,17 +282,22 @@ class SolanaRepository:
         await self._ensure_connection()
         
         try:
-            loop = asyncio.get_running_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.get_minimum_balance_for_rent_exemption(size)
+            response = await self._make_rpc_call(
+                "getMinimumBalanceForRentExemption",
+                [size]
             )
             
-            if not response or not response.value:
-                raise ValueError("Could not fetch minimum balance")
+            if "error" in response:
+                raise ValueError(f"Could not fetch minimum balance: {response['error']}")
                 
-            return response.value
+            return response.get("result", 0)
             
         except Exception as e:
             logger.error(f"Error fetching minimum balance: {e}")
             raise
+
+    async def close(self):
+        """Close aiohttp session."""
+        if self._session:
+            await self._session.close()
+            self._session = None
