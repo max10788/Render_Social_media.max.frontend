@@ -42,6 +42,7 @@ from app.core.solana_client import SolanaClient
 from app.core.ethereum_client import EthereumClient
 from app.core.exchange_rate import CoinGeckoExchangeRate
 from app.core.cache import InMemoryCache
+from app.core.config import get_settings, Settings
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
@@ -282,11 +283,20 @@ def get_crypto_service() -> CryptoTrackingService:
 # track-transaction
 #--------------------------i
 
+# Dependency für die Settings
+def get_app_settings() -> Settings:
+    return get_settings()
+
 # Dependency für SolanaRepository
-def get_solana_repository():
+def get_solana_repository(
+    settings: Settings = Depends(get_app_settings)
+) -> SolanaRepository:
     """Get Solana repository instance."""
-    settings = get_settings()
-    return SolanaRepository(settings.SOLANA_RPC_URL)
+    rpc_url = settings.SOLANA_RPC_URL or os.getenv(
+        "SOLANA_RPC_URL",
+        "https://api.devnet.solana.com"
+    )
+    return SolanaRepository(rpc_url)
 
 # Dependency für TransactionService
 def get_transaction_service(
