@@ -9,12 +9,21 @@ from solders.signature import Signature
 import base58
 import aiohttp
 from decimal import Decimal
+from dataclasses import dataclass
 
 from app.core.solana_tracker.models.transaction import SolanaTransaction, TransactionDetail, TransactionBatch
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
 from app.core.solana_tracker.utils.signature_utils import validate_signature
 
 logger = logging.getLogger(__name__)
+
+@dataclass
+class Transfer:
+    """Represents a transfer of SOL between addresses."""
+    from_address: str
+    to_address: Optional[str]
+    amount: Decimal
+    direction: str  # "in" or "out"
 
 class SolanaRepositoryProtocol(Protocol):
     """Protocol defining the interface for Solana blockchain interaction."""
