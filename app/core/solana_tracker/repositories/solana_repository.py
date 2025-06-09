@@ -8,6 +8,7 @@ from solders.pubkey import Pubkey
 from solders.signature import Signature
 import base58
 import aiohttp
+import json
 from decimal import Decimal
 from dataclasses import dataclass
 
@@ -21,14 +22,6 @@ from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_bac
 from app.core.solana_tracker.utils.signature_utils import validate_signature
 
 logger = logging.getLogger(__name__)
-
-@dataclass
-class Transfer:
-    """Represents a transfer of SOL between addresses."""
-    from_address: str
-    to_address: Optional[str]
-    amount: Decimal
-    direction: str  # "in" or "out"
 
 class SolanaRepositoryProtocol(Protocol):
     """Protocol defining the interface for Solana blockchain interaction."""
@@ -71,7 +64,8 @@ class SolanaRepository:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
-        await self.close()
+        if hasattr(self, 'close'):
+            await self.close()
 
     async def _ensure_session(self):
         """Ensure aiohttp session exists."""
@@ -100,7 +94,6 @@ class SolanaRepository:
             raise ConnectionError("Solana RPC endpoint is not responding")
         return True
 
-    
     async def _make_rpc_call(self, method: str, params: List) -> Dict:
         """Make RPC call to Solana network."""
         await self._ensure_session()
@@ -188,6 +181,66 @@ class SolanaRepository:
             logger.error(f"Error fetching transaction {signature}: {e}")
             raise
 
+    async def _parse_transaction_response(self, tx_value: dict) -> Optional[TransactionDetail]:
+        """Parse raw transaction response into TransactionDetail model."""
+        try:
+            # Extract basic transaction information
+            signature = tx_value.get("transaction", {}).get("signatures", [""])[0]
+            message = tx_value.get("transaction", {}).get("message", {})
+            meta = tx_value.get("meta", {})
+            
+            # Get timestamp
+            block_time = tx_value.get("blockTime", 0)
+            timestamp = datetime.fromtimestamp(block_time) if block_time else datetime.utcnow()
+            
+            # Extract account keys
+            account_keys = message.get("accountKeys", [])
+            
+            # Extract pre and post balances
+            pre_balances = meta.get("preBalances", [])
+            post_balances = meta.get("postBalances", [])
+            
+            # Calculate transfers with proper validation
+            transfers = []
+            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                if i < len(account_keys):
+                    change = Decimal(str(post - pre)) / Decimal("1000000000")  # Convert lamports to SOL
+                    if change != 0:
+                        try:
+                            transfer = Transfer(
+                                from_address=account_keys[i],
+                                to_address=account_keys[i+1] if i+1 < len(account_keys) else None,
+                                amount=abs(change),
+                                direction="out" if change < 0 else "in"
+                            )
+                            transfers.append(transfer)
+                        except Exception as e:
+                            logger.error(f"Failed to create Transfer object: {e}")
+                            continue
+
+            # Create SolanaTransaction instance with proper validation
+            solana_tx = SolanaTransaction(
+                tx_hash=signature,
+                timestamp=timestamp,
+                block_time=block_time,
+                success=meta.get("err") is None,
+                signatures=tx_value.get("transaction", {}).get("signatures", []),
+                fee=Decimal(str(meta.get("fee", 0))) / Decimal("1000000000"),  # Convert lamports to SOL
+                instructions=[]  # Add empty instructions list
+            )
+
+            return TransactionDetail(
+                signature=signature,
+                timestamp=timestamp,
+                transfers=transfers,
+                transaction=solana_tx
+            )
+            
+        except Exception as e:
+            logger.error(f"Error parsing transaction response: {e}")
+            logger.debug(f"Raw transaction value: {json.dumps(tx_value, indent=2)}")
+            return None
+
     async def get_transactions_for_address(
         self,
         address: str,
@@ -240,67 +293,6 @@ class SolanaRepository:
             logger.error(f"Error fetching transactions for {address}: {e}")
             raise
 
-async def _parse_transaction_response(self, tx_value: dict) -> Optional[TransactionDetail]:
-    """Parse raw transaction response into TransactionDetail model."""
-    try:
-        # Extract basic transaction information
-        signature = tx_value.get("transaction", {}).get("signatures", [""])[0]
-        message = tx_value.get("transaction", {}).get("message", {})
-        meta = tx_value.get("meta", {})
-        
-        # Get timestamp
-        block_time = tx_value.get("blockTime", 0)
-        timestamp = datetime.fromtimestamp(block_time) if block_time else datetime.utcnow()
-        
-        # Extract account keys
-        account_keys = message.get("accountKeys", [])
-        
-        # Extract pre and post balances
-        pre_balances = meta.get("preBalances", [])
-        post_balances = meta.get("postBalances", [])
-        
-        # Calculate transfers with proper validation
-        transfers = []
-        for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-            if i < len(account_keys):
-                change = Decimal(str(post - pre)) / Decimal("1000000000")  # Convert lamports to SOL
-                if change != 0:
-                    try:
-                        transfer = Transfer(
-                            from_address=account_keys[i],
-                            to_address=account_keys[i+1] if i+1 < len(account_keys) else None,
-                            amount=abs(change),
-                            direction="out" if change < 0 else "in"
-                        )
-                        transfers.append(transfer)
-                    except Exception as e:
-                        logger.error(f"Failed to create Transfer object: {e}")
-                        continue
-
-        # Create SolanaTransaction instance with proper validation
-        solana_tx = SolanaTransaction(
-            tx_hash=signature,
-            timestamp=timestamp,
-            block_time=block_time,
-            success=meta.get("err") is None,
-            signatures=tx_value.get("transaction", {}).get("signatures", []),
-            fee=Decimal(str(meta.get("fee", 0))) / Decimal("1000000000"),  # Convert lamports to SOL
-            instructions=[]  # Add empty instructions list
-        )
-
-        return TransactionDetail(
-            signature=signature,
-            timestamp=timestamp,
-            transfers=transfers,
-            transaction=solana_tx
-        )
-        
-    except Exception as e:
-        logger.error(f"Error parsing transaction response: {e}")
-        logger.debug(f"Raw transaction value: {json.dumps(tx_value, indent=2)}")
-        return None
-
-    
     async def get_recent_blockhash(self) -> str:
         """Get recent blockhash for transaction construction."""
         await self._ensure_connection()
@@ -341,7 +333,7 @@ async def _parse_transaction_response(self, tx_value: dict) -> Optional[Transact
             raise
 
     async def close(self):
-        """Close aiohttp session."""
-        if self._session and not self._session.closed:
+        """Close aiohttp session and cleanup resources."""
+        if hasattr(self, '_session') and self._session and not self._session.closed:
             await self._session.close()
             self._session = None
