@@ -209,8 +209,8 @@ class SolanaRepository:
             pre_balances = meta.get("preBalances", [])
             post_balances = meta.get("postBalances", [])
             
-            # Detect special scenarios
-            scenario = self._detect_transaction_scenario(
+            # Detect scenario first
+            scenario = await self._detect_transaction_scenario(
                 program_ids=program_ids,
                 pre_balances=pre_balances,
                 post_balances=post_balances,
@@ -231,7 +231,7 @@ class SolanaRepository:
                                 amount=abs(change),
                                 direction="out" if change < 0 else "in",
                                 scenario_type=scenario.type if scenario else None,
-                                scenario_description=scenario.description if scenario else None
+                                scenario_description=scenario.details.user_message if scenario else None
                             )
                             transfers.append(transfer)
                         except Exception as e:
@@ -263,14 +263,21 @@ class SolanaRepository:
             logger.error(f"Error parsing transaction response: {e}")
             logger.debug(f"Raw transaction value: {json.dumps(tx_value, indent=2)}")
             return None
+    
+    def _is_program_id(self, address: str) -> bool:
+        """Check if address is likely a program ID."""
+        # Program IDs are usually longer than 32 chars and start with specific patterns
+        return len(address) >= 32 and not address.startswith("1111")
 
     @dataclass
-    class TransactionScenario:
-        """Local representation of transaction scenario."""
-        type: str
-        description: str
-        final: bool
-        metadata: Dict[str, Any] = None
+    class Transfer:
+        """Represents a transfer of SOL between addresses."""
+        from_address: str
+        to_address: Optional[str]
+        amount: Decimal
+        direction: str  # "in" or "out"
+        scenario_type: Optional[str] = None
+        scenario_description: Optional[str] = None
     
     async def _detect_transaction_scenario(
         self,
@@ -294,7 +301,7 @@ class SolanaRepository:
             
             current_time = datetime.utcnow().isoformat()
             
-            # Case 1: Burned tokens
+            # Case 1: Check for burned tokens
             if any(addr.startswith("1111") and addr != SYSTEM_PROGRAM for addr in account_keys):
                 return DetectedScenario(
                     type=ScenarioType.burned,
@@ -313,8 +320,8 @@ class SolanaRepository:
                     detection_rules_matched=["burn_address_pattern"],
                     user_message="Tokens were permanently burned and cannot be recovered."
                 )
-            
-            # Case 2: Staking
+                
+            # Case 2: Check for staking
             if STAKE_PROGRAM in program_ids:
                 return DetectedScenario(
                     type=ScenarioType.delegated_staking,
