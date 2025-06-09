@@ -159,7 +159,7 @@ class ChainTracker:
         try:
             # Extract SOL transfers
             for transfer in tx_detail.transfers:
-                if transfer.amount >= self.min_amount:
+                if transfer.amount >= self.min_amount:  # Remove .amount access
                     transfers.append({
                         "from": transfer.from_address,
                         "to": transfer.to_address,
@@ -171,7 +171,7 @@ class ChainTracker:
         except Exception as e:
             logger.error(f"Error extracting transfers: {e}")
             return []
-
+            
     async def _find_next_transactions(
         self,
         tracked_tx: TrackedTransaction,
