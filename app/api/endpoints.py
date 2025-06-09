@@ -311,69 +311,118 @@ async def track_transactions(
     request: TransactionTrackRequest,
     service: TransactionService = Depends(get_transaction_service)
 ):
-    """Track a chain of transactions with improved validation."""
+    """
+    Track a chain of transactions and detect scenarios.
+    
+    Args:
+        request: Transaction tracking request containing start_tx_hash and parameters
+        service: Transaction service instance
+        
+    Returns:
+        TransactionTrackResponse with tracking results and detected scenarios
+    """
     try:
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
         
-        # Convert amount to Decimal for the chain tracker
-        amount = Decimal(str(request.amount))
+        # Convert amount to Decimal if provided
+        amount = Decimal(str(request.amount)) if request.amount is not None else None
         
-        # Track transaction chain using ChainTracker's track_chain method
-        tracking_result = await service.chain_tracker.track_chain(
+        # Track transaction chain
+        tracking_result = await service.analyze_transaction_chain(
             start_tx_hash=request.start_tx_hash,
             max_depth=request.num_transactions,
+            target_currency=request.target_currency,
             amount=amount
         )
 
-        if not tracking_result:
+        if not tracking_result.get("transactions"):
             logger.warning(f"No transactions found in chain starting from {request.start_tx_hash}")
             return TransactionTrackResponse(
                 status="complete",
                 total_transactions_tracked=0,
                 tracked_transactions=[],
-                final_status=FinalStatusEnum.still_in_same_wallet,
+                final_status=FinalStatusEnum.no_transactions_found,
                 final_wallet_address=None,
                 remaining_amount=request.amount,
                 target_currency=request.target_currency,
                 detected_scenarios=[],
-                scenario_details={}
+                scenario_details={
+                    "user_message": "No transactions found or transaction not accessible",
+                    "suggestion": "Verify the transaction hash and ensure it exists on the blockchain"
+                }
             )
 
-        # Detect scenarios
-        scenarios = await service.detect_scenarios(tracking_result)
-        
-        # Determine final status
+        # Extract scenarios and transactions from result
+        scenarios = tracking_result.get("scenarios", [])
+        transactions = tracking_result.get("transactions", [])
+        statistics = tracking_result.get("statistics", {})
+
+        # Determine final status based on scenarios
         final_status = FinalStatusEnum.still_in_same_wallet
-        if len(tracking_result) >= request.num_transactions:
-            final_status = FinalStatusEnum.tracking_limit_reached
-        elif tracking_result[-1].to_wallet == tracking_result[0].from_wallet:
-            final_status = FinalStatusEnum.returned_to_known_wallet
+        for scenario in scenarios:
+            if scenario.type == ScenarioType.burned:
+                final_status = FinalStatusEnum.permanently_lost
+            elif scenario.type == ScenarioType.delegated_staking:
+                final_status = FinalStatusEnum.staked
+            elif scenario.type == ScenarioType.cross_chain_bridge:
+                final_status = FinalStatusEnum.bridged_to_other_chain
+            elif scenario.type == ScenarioType.converted_to_stablecoin:
+                final_status = FinalStatusEnum.converted_to_stable
+
+        # Get final transaction details
+        final_tx = transactions[-1] if transactions else None
+        final_wallet = final_tx.to_wallet if final_tx else None
+        final_amount = final_tx.amount if final_tx else request.amount
 
         logger.info(
-            f"Successfully tracked {len(tracking_result)} transactions "
-            f"with {len(scenarios.get('scenarios', []))} detected scenarios"
+            f"Successfully tracked {len(transactions)} transactions with "
+            f"{len(scenarios)} detected scenarios"
         )
+
+        # Prepare detailed scenario information
+        scenario_details = {}
+        for scenario in scenarios:
+            scenario_details[scenario.type] = {
+                "description": scenario.details.user_message,
+                "confidence": scenario.confidence,
+                "is_terminal": scenario.details.is_terminal,
+                "can_be_recovered": scenario.details.can_be_recovered,
+                "user_action_required": scenario.details.user_action_required,
+                "suggested_actions": scenario.next_steps if scenario.next_steps else []
+            }
 
         return TransactionTrackResponse(
             status="complete",
-            total_transactions_tracked=len(tracking_result),
-            tracked_transactions=tracking_result,
+            total_transactions_tracked=len(transactions),
+            tracked_transactions=transactions,
             final_status=final_status,
-            final_wallet_address=tracking_result[-1].to_wallet if tracking_result else None,
-            remaining_amount=tracking_result[-1].amount if tracking_result else request.amount,
+            final_wallet_address=final_wallet,
+            remaining_amount=final_amount,
             target_currency=request.target_currency,
-            detected_scenarios=scenarios.get("scenarios", []),
-            scenario_details=scenarios.get("details", {})
+            detected_scenarios=scenarios,
+            scenario_details=scenario_details,
+            statistics=statistics
         )
 
     except ValueError as ve:
         logger.error(f"Validation error: {str(ve)}")
-        raise HTTPException(status_code=400, detail=str(ve))
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Invalid request parameters",
+                "message": str(ve),
+                "suggestion": "Please verify the transaction hash and parameters"
+            }
+        )
     except Exception as e:
         logger.error(f"Error tracking transactions: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to track transactions: {str(e)}"
+            detail={
+                "error": "Transaction tracking failed",
+                "message": str(e),
+                "suggestion": "Please try again later or contact support"
+            }
         )
 #--------------------------i
 # ML-basierte Analyse
