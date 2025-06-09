@@ -59,6 +59,15 @@ class SolanaRepository:
         self._connection_checked = False
         self._session: Optional[aiohttp.ClientSession] = None
 
+    async def __aenter__(self):
+        """Async context manager entry."""
+        await self._ensure_session()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.close()
+
     async def _ensure_session(self):
         """Ensure aiohttp session exists."""
         if not self._session:
@@ -86,10 +95,15 @@ class SolanaRepository:
             raise ConnectionError("Solana RPC endpoint is not responding")
         return True
 
+    
     async def _make_rpc_call(self, method: str, params: List) -> Dict:
         """Make RPC call to Solana network."""
         await self._ensure_session()
         try:
+            # Add maxSupportedTransactionVersion parameter to fix version compatibility error
+            if method == "getTransaction":
+                params[1]["maxSupportedTransactionVersion"] = 0
+
             async with self._session.post(
                 self.rpc_url,
                 json={
@@ -315,6 +329,6 @@ class SolanaRepository:
 
     async def close(self):
         """Close aiohttp session."""
-        if self._session:
+        if self._session and not self._session.closed:
             await self._session.close()
             self._session = None
