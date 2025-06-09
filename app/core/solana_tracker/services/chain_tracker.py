@@ -50,16 +50,7 @@ class ChainTracker:
     ) -> List[TrackedTransaction]:
         """
         Track a chain of transactions starting from a given hash.
-        
-        Args:
-            start_tx_hash: Starting transaction hash
-            max_depth: Maximum depth to track
-            amount: Amount to track (optional)
-            
-        Returns:
-            List[TrackedTransaction]: Chain of tracked transactions
         """
-        # Validate signature format first
         if not self.validate_transaction_signature(start_tx_hash):
             logger.error(f"Invalid transaction signature format: {start_tx_hash}")
             return []
@@ -71,62 +62,38 @@ class ChainTracker:
         logger.info(f"Starting chain tracking from {start_tx_hash}")
         
         try:
-            # Verify initial transaction exists with detailed logging
-            initial_tx = await self._get_transaction_safe(start_tx_hash)
-            
-            if not initial_tx:
-                logger.error(f"Initial transaction {start_tx_hash} not found")
-                # Log RPC response for debugging
-                response = await self.solana_repo.get_raw_transaction(start_tx_hash)
-                logger.debug(f"RPC Response: {json.dumps(response, indent=2)}")
-                return []
+            async with self.solana_repo as repo:  # Use context manager for proper cleanup
+                initial_tx = await self._get_transaction_safe(start_tx_hash)
                 
-            while processing_queue and len(result_transactions) < max_depth:
-                current_tx_hash, remaining_amount = processing_queue.pop(0)
-                
-                if current_tx_hash in visited_signatures:
-                    continue
+                if not initial_tx:
+                    logger.error(f"Initial transaction {start_tx_hash} not found")
+                    response = await repo.get_raw_transaction(start_tx_hash)
+                    logger.debug(f"RPC Response: {json.dumps(response, indent=2)}")
+                    return []
                     
-                visited_signatures.add(current_tx_hash)
-                logger.debug(f"Processing transaction {current_tx_hash}")
-                
-                # Process current transaction with detailed logging
-                tracked_tx = await self._process_transaction(
-                    current_tx_hash,
-                    remaining_amount
-                )
-                
-                if tracked_tx:
-                    logger.info(f"Successfully processed transaction: {tracked_tx.tx_hash}")
-                    logger.debug(f"Transaction details: {tracked_tx}")
-                    result_transactions.append(tracked_tx)
+                while processing_queue and len(result_transactions) < max_depth:
+                    current_tx_hash, remaining_amount = processing_queue.pop(0)
                     
-                    # Find next transactions in chain
-                    next_txs = await self._find_next_transactions(
-                        tracked_tx,
-                        remaining_amount
-                    )
+                    if current_tx_hash in visited_signatures:
+                        continue
+                        
+                    visited_signatures.add(current_tx_hash)
+                    tracked_tx = await self._process_transaction(current_tx_hash, remaining_amount)
                     
-                    # Log found next transactions
-                    logger.debug(f"Found {len(next_txs)} next transactions")
-                    
-                    # Add new transactions to processing queue
-                    for tx_hash, amount in next_txs:
-                        if tx_hash not in visited_signatures:
-                            processing_queue.append((tx_hash, amount))
-                            logger.debug(f"Added transaction {tx_hash} to queue")
-                else:
-                    logger.warning(f"Failed to process transaction {current_tx_hash}")
-                            
-            logger.info(
-                f"Chain tracking complete: {len(result_transactions)} transactions found"
-            )
+                    if tracked_tx:
+                        result_transactions.append(tracked_tx)
+                        next_txs = await self._find_next_transactions(tracked_tx, remaining_amount)
+                        
+                        for tx_hash, amount in next_txs:
+                            if tx_hash not in visited_signatures:
+                                processing_queue.append((tx_hash, amount))
+                                
             return result_transactions
-            
+                
         except Exception as e:
             logger.error(f"Error tracking transaction chain: {e}")
-            raise
-
+            return []
+        
     @retry_with_exponential_backoff(max_retries=3)
     async def _get_transaction_safe(
         self,
