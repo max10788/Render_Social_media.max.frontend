@@ -11,7 +11,12 @@ import aiohttp
 from decimal import Decimal
 from dataclasses import dataclass
 
-from app.core.solana_tracker.models.transaction import SolanaTransaction, TransactionDetail, TransactionBatch
+from app.core.solana_tracker.models.transaction import (
+    SolanaTransaction, 
+    TransactionDetail, 
+    TransactionBatch,
+    Transfer
+)
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
 from app.core.solana_tracker.utils.signature_utils import validate_signature
 
