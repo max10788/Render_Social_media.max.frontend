@@ -1,4 +1,4 @@
-from typing import Protocol, List, Optional, AsyncIterator, Dict
+from typing import Protocol, List, Optional, AsyncIterator, Dict, Any
 from datetime import datetime
 import logging
 from abc import ABC, abstractmethod
@@ -17,6 +17,13 @@ from app.core.solana_tracker.models.transaction import (
     TransactionDetail, 
     TransactionBatch,
     Transfer
+)
+from app.core.solana_tracker.models.scenario import (
+    ScenarioType,
+    ScenarioDetails,
+    DetectedScenario,
+    ScenarioRule,
+    AmountThreshold
 )
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
 from app.core.solana_tracker.utils.signature_utils import validate_signature
@@ -256,6 +263,14 @@ class SolanaRepository:
             logger.debug(f"Raw transaction value: {json.dumps(tx_value, indent=2)}")
             return None
 
+    @dataclass
+    class TransactionScenario:
+        """Local representation of transaction scenario."""
+        type: str
+        description: str
+        final: bool
+        metadata: Dict[str, Any] = None
+    
     async def _detect_transaction_scenario(
         self,
         program_ids: List[str],
@@ -271,13 +286,14 @@ class SolanaRepository:
             Optional[DetectedScenario]: Detected scenario or None
         """
         try:
-            # Known program IDs and addresses
+            # Known program IDs
             STAKE_PROGRAM = "Stake11111111111111111111111111111111111111"
             TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPE8839dhk8qSu5v3LwRK4"
             SYSTEM_PROGRAM = "11111111111111111111111111111111"
-            SPL_MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
             
-            # Case 1: Check for burned tokens
+            current_time = datetime.utcnow().isoformat()
+            
+            # Case 1: Burned tokens
             if any(addr.startswith("1111") and addr != SYSTEM_PROGRAM for addr in account_keys):
                 return DetectedScenario(
                     type=ScenarioType.burned,
@@ -285,7 +301,7 @@ class SolanaRepository:
                     details=ScenarioDetails(
                         type=ScenarioType.burned,
                         confidence_score=1.0,
-                        detection_time=datetime.utcnow().isoformat(),
+                        detection_time=current_time,
                         relevant_addresses=[addr for addr in account_keys if addr.startswith("1111")],
                         metadata={
                             "is_terminal": True,
@@ -296,8 +312,8 @@ class SolanaRepository:
                     detection_rules_matched=["burn_address_pattern"],
                     user_message="Tokens were permanently burned and cannot be recovered."
                 )
-                
-            # Case 2: Check for staking
+            
+            # Case 2: Staking
             if STAKE_PROGRAM in program_ids:
                 return DetectedScenario(
                     type=ScenarioType.delegated_staking,
@@ -305,13 +321,12 @@ class SolanaRepository:
                     details=ScenarioDetails(
                         type=ScenarioType.delegated_staking,
                         confidence_score=0.9,
-                        detection_time=datetime.utcnow().isoformat(),
+                        detection_time=current_time,
                         relevant_addresses=account_keys,
                         metadata={
                             "is_terminal": False,
                             "can_be_recovered": True,
-                            "expected_duration": "until unstaked",
-                            "user_action_required": False
+                            "expected_duration": "until unstaked"
                         }
                     ),
                     related_transactions=[],
@@ -319,7 +334,7 @@ class SolanaRepository:
                     user_message="Funds are staked and earning rewards. You can unstake them later."
                 )
                 
-            # Case 3: Check for dust amounts
+            # Case 3: Dust amounts
             total_change = sum(post - pre for post, pre in zip(post_balances, pre_balances))
             if abs(total_change) < 1000:  # Less than 0.000001 SOL
                 return DetectedScenario(
@@ -328,7 +343,7 @@ class SolanaRepository:
                     details=ScenarioDetails(
                         type=ScenarioType.lost_or_dust,
                         confidence_score=1.0,
-                        detection_time=datetime.utcnow().isoformat(),
+                        detection_time=current_time,
                         relevant_addresses=[],
                         metadata={
                             "is_terminal": True,
@@ -341,7 +356,7 @@ class SolanaRepository:
                     user_message="Amount is too small to be economically recovered (dust)."
                 )
                 
-            # Case 4: Check for failed transaction
+            # Case 4: Failed transaction
             if meta.get("err"):
                 return DetectedScenario(
                     type=ScenarioType.failed_transaction,
@@ -349,7 +364,7 @@ class SolanaRepository:
                     details=ScenarioDetails(
                         type=ScenarioType.failed_transaction,
                         confidence_score=1.0,
-                        detection_time=datetime.utcnow().isoformat(),
+                        detection_time=current_time,
                         relevant_addresses=account_keys,
                         metadata={
                             "is_terminal": True,
@@ -361,33 +376,13 @@ class SolanaRepository:
                     detection_rules_matched=["transaction_error"],
                     user_message=f"Transaction failed to execute: {meta['err']}"
                 )
-                
-            # Case 5: Check for smart contract interaction
-            if len(program_ids) > 1:
-                return DetectedScenario(
-                    type=ScenarioType.smart_contract_interaction,
-                    confidence=0.8,
-                    details=ScenarioDetails(
-                        type=ScenarioType.smart_contract_interaction,
-                        confidence_score=0.8,
-                        detection_time=datetime.utcnow().isoformat(),
-                        relevant_addresses=program_ids,
-                        metadata={
-                            "is_terminal": False,
-                            "programs_involved": program_ids,
-                            "can_be_recovered": True
-                        }
-                    ),
-                    related_transactions=[],
-                    detection_rules_matched=["multiple_program_interaction"],
-                    user_message="Funds are involved in smart contract operations."
-                )
     
             return None
             
         except Exception as e:
             logger.error(f"Error detecting transaction scenario: {e}")
             return None
+
     
     def _is_program_id(self, address: str) -> bool:
         """Check if address is likely a program ID."""
