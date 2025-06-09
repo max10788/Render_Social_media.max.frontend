@@ -3,6 +3,23 @@ from typing import Dict, List, Optional, Union, Any
 from pydantic import BaseModel, Field
 from decimal import Decimal
 
+__all__ = [
+    'ScenarioType',
+    'AddressPattern',
+    'AmountThreshold',
+    'DeFiProtocol',
+    'BridgeInfo',
+    'ScenarioDetails',
+    'ScenarioRule',
+    'StakingRule',
+    'DeFiRule',
+    'BridgeRule',
+    'NFTRule',
+    'ScenarioConfig',
+    'DetectedScenario',
+    'ScenarioAnalysis'
+]
+
 class ScenarioType(str, Enum):
     """Types of scenarios that can be detected."""
     # Investment/Storage Scenarios
@@ -75,26 +92,11 @@ class ScenarioDetails(BaseModel):
     detection_time: str
     relevant_addresses: List[str]
     metadata: Dict[str, Union[str, int, float, bool]]
-    is_terminal: bool = Field(
-        default=False, 
-        description="Indicates if this scenario represents an end state"
-    )
-    expected_duration: Optional[str] = Field(
-        default=None,
-        description="Expected duration if temporary (e.g. '14 days' for staking)"
-    )
-    can_be_recovered: bool = Field(
-        default=True,
-        description="Indicates if funds can be recovered/accessed later"
-    )
-    user_action_required: bool = Field(
-        default=False,
-        description="Indicates if user action is needed to proceed"
-    )
-    risk_level: str = Field(
-        default="low",
-        regex="^(low|medium|high|critical)$"
-    )
+    is_terminal: bool = Field(default=False)
+    expected_duration: Optional[str] = None
+    can_be_recovered: bool = Field(default=True)
+    user_action_required: bool = Field(default=False)
+    risk_level: str = Field(default="low")
 
 class ScenarioRule(BaseModel):
     """Base class for scenario detection rules."""
@@ -108,6 +110,38 @@ class ScenarioRule(BaseModel):
     is_terminal: bool = False
     metadata_requirements: Optional[Dict[str, Any]] = None
 
+class StakingRule(ScenarioRule):
+    """Rules for detecting staking operations."""
+    type: ScenarioType = ScenarioType.delegated_staking
+    validator_addresses: List[str]
+    min_stake_amount: Decimal
+
+class DeFiRule(ScenarioRule):
+    """Rules for detecting DeFi operations."""
+    type: ScenarioType = ScenarioType.defi_deposit
+    protocols: List[DeFiProtocol]
+    min_transaction_amount: Decimal
+
+class BridgeRule(ScenarioRule):
+    """Rules for detecting cross-chain bridges."""
+    type: ScenarioType = ScenarioType.cross_chain_bridge
+    bridges: List[BridgeInfo]
+
+class NFTRule(ScenarioRule):
+    """Rules for detecting NFT transactions."""
+    type: ScenarioType = ScenarioType.nft_investment
+    marketplace_addresses: List[str]
+    marketplace_program_ids: List[str]
+
+class ScenarioConfig(BaseModel):
+    """Configuration for scenario detection."""
+    rules: List[ScenarioRule]
+    max_depth: int = Field(default=10, ge=1, le=100)
+    min_confidence: float = Field(default=0.8, ge=0.0, le=1.0)
+    
+    class Config:
+        use_enum_values = True
+
 class DetectedScenario(BaseModel):
     """Result of scenario detection."""
     type: ScenarioType
@@ -115,13 +149,8 @@ class DetectedScenario(BaseModel):
     details: ScenarioDetails
     related_transactions: List[str]
     detection_rules_matched: List[str]
-    user_message: str = Field(
-        description="Human-readable explanation for the user"
-    )
-    next_steps: Optional[List[str]] = Field(
-        default=None,
-        description="Suggested actions for the user"
-    )
+    user_message: str = Field(default="")
+    next_steps: Optional[List[str]] = None
     
     class Config:
         use_enum_values = True
@@ -132,14 +161,7 @@ class DetectedScenario(BaseModel):
     @property
     def is_terminal(self) -> bool:
         """Check if this scenario represents an end state."""
-        TERMINAL_SCENARIOS = {
-            ScenarioType.burned,
-            ScenarioType.lost_or_dust,
-            ScenarioType.failed_transaction,
-            ScenarioType.blacklisted_address,
-            ScenarioType.sanctioned_address
-        }
-        return self.type in TERMINAL_SCENARIOS
+        return self.details.is_terminal
 
 class ScenarioAnalysis(BaseModel):
     """Complete analysis of detected scenarios."""
