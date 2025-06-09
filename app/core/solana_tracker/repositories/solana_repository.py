@@ -256,65 +256,131 @@ class SolanaRepository:
             logger.debug(f"Raw transaction value: {json.dumps(tx_value, indent=2)}")
             return None
 
-    def _detect_transaction_scenario(
+    async def _detect_transaction_scenario(
         self,
         program_ids: List[str],
         pre_balances: List[int],
         post_balances: List[int],
         account_keys: List[str],
         meta: Dict
-    ) -> Optional[TransactionScenario]:
+    ) -> Optional[DetectedScenario]:
         """
         Detect special transaction scenarios.
         
         Returns:
-            Optional[TransactionScenario]: Detected scenario or None
+            Optional[DetectedScenario]: Detected scenario or None
         """
-        # Known program IDs
-        STAKE_PROGRAM = "Stake11111111111111111111111111111111111111"
-        TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPE8839dhk8qSu5v3LwRK4"
-        BURN_ADDRESS = "1111111111111111111111111111111111111111"
-        
         try:
-            # Case 1: Tokens sent to burn address
-            if BURN_ADDRESS in account_keys:
-                return TransactionScenario(
-                    type="burned",
-                    description="Tokens were permanently removed from circulation",
-                    final=True
+            # Known program IDs and addresses
+            STAKE_PROGRAM = "Stake11111111111111111111111111111111111111"
+            TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPE8839dhk8qSu5v3LwRK4"
+            SYSTEM_PROGRAM = "11111111111111111111111111111111"
+            SPL_MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
+            
+            # Case 1: Check for burned tokens
+            if any(addr.startswith("1111") and addr != SYSTEM_PROGRAM for addr in account_keys):
+                return DetectedScenario(
+                    type=ScenarioType.burned,
+                    confidence=1.0,
+                    details=ScenarioDetails(
+                        type=ScenarioType.burned,
+                        confidence_score=1.0,
+                        detection_time=datetime.utcnow().isoformat(),
+                        relevant_addresses=[addr for addr in account_keys if addr.startswith("1111")],
+                        metadata={
+                            "is_terminal": True,
+                            "can_be_recovered": False
+                        }
+                    ),
+                    related_transactions=[],
+                    detection_rules_matched=["burn_address_pattern"],
+                    user_message="Tokens were permanently burned and cannot be recovered."
                 )
                 
-            # Case 2: Staking transaction
+            # Case 2: Check for staking
             if STAKE_PROGRAM in program_ids:
-                return TransactionScenario(
-                    type="staked",
-                    description="Funds are locked in staking",
-                    final=False
+                return DetectedScenario(
+                    type=ScenarioType.delegated_staking,
+                    confidence=0.9,
+                    details=ScenarioDetails(
+                        type=ScenarioType.delegated_staking,
+                        confidence_score=0.9,
+                        detection_time=datetime.utcnow().isoformat(),
+                        relevant_addresses=account_keys,
+                        metadata={
+                            "is_terminal": False,
+                            "can_be_recovered": True,
+                            "expected_duration": "until unstaked",
+                            "user_action_required": False
+                        }
+                    ),
+                    related_transactions=[],
+                    detection_rules_matched=["stake_program_interaction"],
+                    user_message="Funds are staked and earning rewards. You can unstake them later."
                 )
                 
-            # Case 3: Very small amount (dust)
+            # Case 3: Check for dust amounts
             total_change = sum(post - pre for post, pre in zip(post_balances, pre_balances))
             if abs(total_change) < 1000:  # Less than 0.000001 SOL
-                return TransactionScenario(
-                    type="dust",
-                    description="Transaction involves negligible amount (dust)",
-                    final=True
+                return DetectedScenario(
+                    type=ScenarioType.lost_or_dust,
+                    confidence=1.0,
+                    details=ScenarioDetails(
+                        type=ScenarioType.lost_or_dust,
+                        confidence_score=1.0,
+                        detection_time=datetime.utcnow().isoformat(),
+                        relevant_addresses=[],
+                        metadata={
+                            "is_terminal": True,
+                            "can_be_recovered": False,
+                            "amount": str(total_change / 1000000000)
+                        }
+                    ),
+                    related_transactions=[],
+                    detection_rules_matched=["dust_amount"],
+                    user_message="Amount is too small to be economically recovered (dust)."
                 )
                 
-            # Case 4: Smart contract interaction
-            if len(program_ids) > 1:
-                return TransactionScenario(
-                    type="smart_contract",
-                    description="Funds are involved in smart contract interaction",
-                    final=False
-                )
-                
-            # Case 5: Failed transaction
+            # Case 4: Check for failed transaction
             if meta.get("err"):
-                return TransactionScenario(
-                    type="failed",
-                    description="Transaction failed to execute",
-                    final=True
+                return DetectedScenario(
+                    type=ScenarioType.failed_transaction,
+                    confidence=1.0,
+                    details=ScenarioDetails(
+                        type=ScenarioType.failed_transaction,
+                        confidence_score=1.0,
+                        detection_time=datetime.utcnow().isoformat(),
+                        relevant_addresses=account_keys,
+                        metadata={
+                            "is_terminal": True,
+                            "error": str(meta["err"]),
+                            "can_be_recovered": False
+                        }
+                    ),
+                    related_transactions=[],
+                    detection_rules_matched=["transaction_error"],
+                    user_message=f"Transaction failed to execute: {meta['err']}"
+                )
+                
+            # Case 5: Check for smart contract interaction
+            if len(program_ids) > 1:
+                return DetectedScenario(
+                    type=ScenarioType.smart_contract_interaction,
+                    confidence=0.8,
+                    details=ScenarioDetails(
+                        type=ScenarioType.smart_contract_interaction,
+                        confidence_score=0.8,
+                        detection_time=datetime.utcnow().isoformat(),
+                        relevant_addresses=program_ids,
+                        metadata={
+                            "is_terminal": False,
+                            "programs_involved": program_ids,
+                            "can_be_recovered": True
+                        }
+                    ),
+                    related_transactions=[],
+                    detection_rules_matched=["multiple_program_interaction"],
+                    user_message="Funds are involved in smart contract operations."
                 )
     
             return None
