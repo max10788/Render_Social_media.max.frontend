@@ -255,10 +255,10 @@ class SolanaRepository:
             post_balances = meta.get("postBalances", [])
             
             # Calculate transfers
-            transfers = []
+            transfers: List[Transfer] = []
             for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
                 if i < len(account_keys):
-                    change = (post - pre) / 1e9  # Convert lamports to SOL
+                    change = Decimal(str((post - pre))) / Decimal("1000000000")  # Convert lamports to SOL
                     if change != 0:
                         transfers.append(Transfer(
                             from_address=account_keys[i],
@@ -266,7 +266,7 @@ class SolanaRepository:
                             amount=Decimal(str(abs(change))),
                             direction="out" if change < 0 else "in"
                         ))
-
+    
             # Create SolanaTransaction instance with all required fields
             solana_tx = SolanaTransaction(
                 tx_hash=signature,
@@ -276,7 +276,7 @@ class SolanaRepository:
                 signatures=tx_value.get("transaction", {}).get("signatures", []),
                 fee=Decimal(str(meta.get("fee", 0))) / Decimal("1000000000")  # Convert lamports to SOL
             )
-
+    
             return TransactionDetail(
                 signature=signature,
                 timestamp=timestamp,
