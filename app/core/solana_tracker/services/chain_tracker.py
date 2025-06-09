@@ -192,11 +192,11 @@ class ChainTracker:
         try:
             # Extract SOL transfers
             for transfer in tx_detail.transfers:
-                if transfer.amount.amount >= self.min_amount:
+                if transfer.amount >= self.min_amount:
                     transfers.append({
                         "from": transfer.from_address,
                         "to": transfer.to_address,
-                        "amount": transfer.amount.amount
+                        "amount": transfer.amount
                     })
             
             return transfers
