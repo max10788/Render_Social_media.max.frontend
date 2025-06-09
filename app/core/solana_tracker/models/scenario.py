@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 from pydantic import BaseModel, Field
 from decimal import Decimal
 
@@ -41,19 +41,32 @@ class ScenarioType(str, Enum):
     failed_transaction = "failed_transaction"
     pending_validation = "pending_validation"
     returned_to_origin = "returned_to_origin"
-    
-    # Governance/DAO
-    dao_vote_escrow = "dao_vote_escrow"
-    governance_deposit = "governance_deposit"
-    
-    # Time-based Scenarios
-    time_locked = "time_locked"
-    vesting_schedule = "vesting_schedule"
-    
-    # Security/Risk Scenarios
-    suspicious_activity = "suspicious_activity"
-    blacklisted_address = "blacklisted_address"
-    sanctioned_address = "sanctioned_address"
+
+class AddressPattern(BaseModel):
+    """Pattern matching for addresses."""
+    prefix: Optional[str] = None
+    suffix: Optional[str] = None
+    exact: Optional[str] = None
+    contains: Optional[List[str]] = None
+
+class AmountThreshold(BaseModel):
+    """Amount-based detection rules."""
+    min_amount: Optional[Decimal] = None
+    max_amount: Optional[Decimal] = None
+    dust_threshold: Optional[Decimal] = Field(default=Decimal('0.000001'))
+
+class DeFiProtocol(BaseModel):
+    """DeFi protocol identification."""
+    name: str
+    addresses: List[str]
+    program_id: Optional[str] = None
+
+class BridgeInfo(BaseModel):
+    """Cross-chain bridge information."""
+    name: str
+    address_patterns: List[AddressPattern]
+    target_chain: str
+    protocol: str
 
 class ScenarioDetails(BaseModel):
     """Detailed information about detected scenario."""
@@ -128,13 +141,12 @@ class DetectedScenario(BaseModel):
         }
         return self.type in TERMINAL_SCENARIOS
 
-    def get_user_guidance(self) -> str:
-        """Get user-friendly guidance based on scenario type."""
-        guidance_map = {
-            ScenarioType.delegated_staking: "Funds are staked and earning rewards. Check validator performance.",
-            ScenarioType.lost_or_dust: "Amount too small to recover due to transaction fees.",
-            ScenarioType.burned: "Tokens have been permanently removed from circulation.",
-            ScenarioType.time_locked: "Funds are locked until the specified time period.",
-            # Add more guidance messages...
-        }
-        return guidance_map.get(self.type, "No specific guidance available for this scenario.")
+class ScenarioAnalysis(BaseModel):
+    """Complete analysis of detected scenarios."""
+    scenarios: List[DetectedScenario]
+    analysis_duration: float
+    total_transactions_analyzed: int
+    detection_timestamp: str
+    
+    class Config:
+        arbitrary_types_allowed = True
