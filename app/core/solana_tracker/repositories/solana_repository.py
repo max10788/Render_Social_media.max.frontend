@@ -193,47 +193,62 @@ class SolanaRepository:
             block_time = tx_value.get("blockTime", 0)
             timestamp = datetime.fromtimestamp(block_time) if block_time else datetime.utcnow()
             
-            # Extract account keys
+            # Extract account keys and program IDs
             account_keys = message.get("accountKeys", [])
+            program_ids = [key for key in account_keys if self._is_program_id(key)]
             
             # Extract pre and post balances
             pre_balances = meta.get("preBalances", [])
             post_balances = meta.get("postBalances", [])
             
-            # Calculate transfers with proper validation
+            # Detect special scenarios
+            scenario = self._detect_transaction_scenario(
+                program_ids=program_ids,
+                pre_balances=pre_balances,
+                post_balances=post_balances,
+                account_keys=account_keys,
+                meta=meta
+            )
+            
+            # Calculate transfers with scenario context
             transfers = []
             for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
                 if i < len(account_keys):
-                    change = Decimal(str(post - pre)) / Decimal("1000000000")  # Convert lamports to SOL
+                    change = Decimal(str(post - pre)) / Decimal("1000000000")
                     if change != 0:
                         try:
                             transfer = Transfer(
                                 from_address=account_keys[i],
                                 to_address=account_keys[i+1] if i+1 < len(account_keys) else None,
                                 amount=abs(change),
-                                direction="out" if change < 0 else "in"
+                                direction="out" if change < 0 else "in",
+                                scenario_type=scenario.type if scenario else None,
+                                scenario_description=scenario.description if scenario else None
                             )
                             transfers.append(transfer)
                         except Exception as e:
                             logger.error(f"Failed to create Transfer object: {e}")
                             continue
-
-            # Create SolanaTransaction instance with proper validation
+    
+            # Create SolanaTransaction instance
             solana_tx = SolanaTransaction(
                 tx_hash=signature,
                 timestamp=timestamp,
                 block_time=block_time,
                 success=meta.get("err") is None,
                 signatures=tx_value.get("transaction", {}).get("signatures", []),
-                fee=Decimal(str(meta.get("fee", 0))) / Decimal("1000000000"),  # Convert lamports to SOL
-                instructions=[]  # Add empty instructions list
+                fee=Decimal(str(meta.get("fee", 0))) / Decimal("1000000000"),
+                scenario=scenario,
+                instructions=[],
+                program_ids=program_ids
             )
-
+    
             return TransactionDetail(
                 signature=signature,
                 timestamp=timestamp,
                 transfers=transfers,
-                transaction=solana_tx
+                transaction=solana_tx,
+                scenario=scenario
             )
             
         except Exception as e:
@@ -241,6 +256,78 @@ class SolanaRepository:
             logger.debug(f"Raw transaction value: {json.dumps(tx_value, indent=2)}")
             return None
 
+    def _detect_transaction_scenario(
+        self,
+        program_ids: List[str],
+        pre_balances: List[int],
+        post_balances: List[int],
+        account_keys: List[str],
+        meta: Dict
+    ) -> Optional[TransactionScenario]:
+        """
+        Detect special transaction scenarios.
+        
+        Returns:
+            Optional[TransactionScenario]: Detected scenario or None
+        """
+        # Known program IDs
+        STAKE_PROGRAM = "Stake11111111111111111111111111111111111111"
+        TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPE8839dhk8qSu5v3LwRK4"
+        BURN_ADDRESS = "1111111111111111111111111111111111111111"
+        
+        try:
+            # Case 1: Tokens sent to burn address
+            if BURN_ADDRESS in account_keys:
+                return TransactionScenario(
+                    type="burned",
+                    description="Tokens were permanently removed from circulation",
+                    final=True
+                )
+                
+            # Case 2: Staking transaction
+            if STAKE_PROGRAM in program_ids:
+                return TransactionScenario(
+                    type="staked",
+                    description="Funds are locked in staking",
+                    final=False
+                )
+                
+            # Case 3: Very small amount (dust)
+            total_change = sum(post - pre for post, pre in zip(post_balances, pre_balances))
+            if abs(total_change) < 1000:  # Less than 0.000001 SOL
+                return TransactionScenario(
+                    type="dust",
+                    description="Transaction involves negligible amount (dust)",
+                    final=True
+                )
+                
+            # Case 4: Smart contract interaction
+            if len(program_ids) > 1:
+                return TransactionScenario(
+                    type="smart_contract",
+                    description="Funds are involved in smart contract interaction",
+                    final=False
+                )
+                
+            # Case 5: Failed transaction
+            if meta.get("err"):
+                return TransactionScenario(
+                    type="failed",
+                    description="Transaction failed to execute",
+                    final=True
+                )
+    
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error detecting transaction scenario: {e}")
+            return None
+    
+    def _is_program_id(self, address: str) -> bool:
+        """Check if address is likely a program ID."""
+        # Program IDs are usually longer than 32 chars and start with specific patterns
+        return len(address) >= 32 and not address.startswith("1111")
+    
     async def get_transactions_for_address(
         self,
         address: str,
