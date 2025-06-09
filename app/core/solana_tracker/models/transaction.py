@@ -46,14 +46,11 @@ class TransactionInstruction(BaseModel):
 
 class SolanaTransaction(TransactionBase):
     """Complete Solana transaction model."""
-    fee: Decimal = Field(default=0, ge=0)  # Made optional with default
+    fee: Decimal = Field(default=0, ge=0)
     success: bool = True
     error_message: Optional[str] = None
-    block_number: Optional[int] = None
-    block_time: Optional[int] = None  # Added block_time
-    instructions: List[TransactionInstruction] = []
-    signatures: List[str] = Field(default_factory=list)  # Made optional with default
-    recent_blockhash: Optional[str] = None
+    block_time: Optional[int] = None
+    signatures: List[str] = Field(default_factory=list)
 
     class Config:
         json_encoders = {
@@ -63,7 +60,7 @@ class SolanaTransaction(TransactionBase):
 class Transfer(BaseModel):
     """Transfer details within a transaction."""
     from_address: str
-    to_address: Optional[str] = None  # Made optional
+    to_address: Optional[str] = None
     amount: Decimal = Field(..., ge=0)
     direction: str = Field(..., regex="^(in|out)$")
 
@@ -103,7 +100,7 @@ class TransactionBatch(BaseModel):
     transactions: List[TransactionDetail]
     total_count: int
     start_index: int = 0
-    
+
     @validator('transactions')
     def validate_batch_size(cls, v):
         if len(v) > 1000:
