@@ -13,52 +13,53 @@ export class API {
         }
     }
 
-    async function trackTransactions() {
-        try {
+    async trackTransactions() {
+        return this.safeApiCall(async () => {
             // Show loading state
             document.getElementById('transactionTree').innerHTML = 
                 '<div class="loading">Loading transaction data...</div>';
-    
-            const response = await fetch('/api/v1/track-transactions', {
+
+            const formData = {
+                start_tx_hash: document.getElementById('startTx').value,
+                target_currency: document.getElementById('targetCurrency').value,
+                num_transactions: parseInt(document.getElementById('numTransactions').value),
+                amount: parseFloat(document.getElementById('amount')?.value || '0')
+            };
+
+            const response = await fetch(`${this.baseUrl}/track-transactions`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    start_tx_hash: document.getElementById('startTx').value,
-                    target_currency: document.getElementById('targetCurrency').value,
-                    num_transactions: parseInt(document.getElementById('numTransactions').value),
-                    amount: parseFloat(document.getElementById('amount').value || '0')
-                })
+                body: JSON.stringify(formData)
             });
-    
+
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
             }
-    
+
             const data = await response.json();
             
             if (data.status === 'no_chain_found') {
                 throw new Error('No transaction chain found');
             }
-    
-            updateTransactionInfo(data);
+
+            // Update UI with results
+            await this.updateUI(data);
             
-            // Update visualization if we have transaction data
-            if (data.transactions && data.transactions.length > 0) {
-                await visualizeTransactionPath(data);
-            }
-    
-        } catch (error) {
-            console.error('Error:', error);
-            document.getElementById('transactionTree').innerHTML = `
-                <div class="error-message">
-                    <h3>Error</h3>
-                    <p>${error.message}</p>
-                </div>`;
-                
-            // Clear info panels on error
-            updateTransactionInfo({});
+            return data;
+        });
+    }
+
+    async updateUI(data) {
+        // Update transaction info
+        updateTransactionInfo(data);
+        
+        // Update visualization if we have transaction data
+        if (data.transactions && data.transactions.length > 0) {
+            await visualizeTransactionPath(data);
         }
     }
 
@@ -101,5 +102,17 @@ export class API {
             }
             return response.json();
         });
+    }
+
+    handleError(error) {
+        console.error('Error:', error);
+        document.getElementById('transactionTree').innerHTML = `
+            <div class="error-message">
+                <h3>Error</h3>
+                <p>${error.message}</p>
+            </div>`;
+            
+        // Clear info panels on error
+        updateTransactionInfo({});
     }
 }
