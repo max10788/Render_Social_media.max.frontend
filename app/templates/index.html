@@ -278,56 +278,54 @@
         }
     
         function updateTransactionInfo(data) {
-            const startInfoDiv = document.getElementById('startInfo');
-            const txStatsDiv = document.getElementById('txStats');
-            const conversionInfoDiv = document.getElementById('conversionInfo');
-            if (data.tracked_transactions && data.tracked_transactions.length > 0) {
-                const firstTx = data.tracked_transactions[0];
-                startInfoDiv.innerHTML = `
-                    <div class="transaction-item">
-                        <span>Start-Wallet:</span>
-                        <span class="transaction-value">${firstTx.from_wallet}</span>
-                    </div>
-                    <div class="transaction-item">
-                        <span>Ziel-Wallet:</span>
-                        <span class="transaction-value">${firstTx.to_wallet}</span>
-                    </div>
-                    <div class="transaction-item">
-                        <span>Transaktions-ID:</span>
-                        <span class="transaction-value">${firstTx.tx_hash}</span>
-                    </div>
-                `;
-                const totalValue = data.tracked_transactions.reduce((sum, tx) => sum + tx.amount, 0);
-                const exchangeRate = 130;
-                txStatsDiv.innerHTML = `
-                    <div class="transaction-item">
-                        <span>Anzahl verfolgt:</span>
-                        <span class="transaction-value">${data.total_transactions_tracked}</span>
-                    </div>
-                    <div class="transaction-item">
-                        <span>Gesamtwert:</span>
-                        <span class="transaction-value">${totalValue.toFixed(4)} SOL</span>
-                    </div>
-                    <div class="transaction-item">
-                        <span>Status:</span>
-                        <span class="transaction-value">${data.final_status.replace('_', ' ')}</span>
-                    </div>
-                `;
-                conversionInfoDiv.innerHTML = `
-                    <div class="transaction-item">
-                        <span>Zielwährung:</span>
-                        <span class="transaction-value">${data.target_currency}</span>
-                    </div>
-                    <div class="transaction-item">
-                        <span>Wechselkurs (SOL → ${data.target_currency}):</span>
-                        <span class="transaction-value">${exchangeRate} ${data.target_currency}/SOL</span>
-                    </div>
-                    <div class="transaction-item">
-                        <span>Wert in Zielwährung:</span>
-                        <span class="transaction-value">${(totalValue * exchangeRate).toFixed(2)} ${data.target_currency}</span>
-                    </div>
-                `;
+            // Safely get nested properties
+            const getNestedValue = (obj, path, defaultValue = '-') => {
+                return path.split('.').reduce((current, key) => 
+                    (current && current[key] !== undefined) ? current[key] : defaultValue, obj);
+            };
+        
+            // Update Start Information
+            document.getElementById('sourceWallet').textContent = 
+                getNestedValue(data, 'transactions.0.from_wallet');
+            document.getElementById('targetWallet').textContent = 
+                getNestedValue(data, 'transactions.0.to_wallet');
+            document.getElementById('startHash').textContent = 
+                getNestedValue(data, 'transactions.0.tx_hash');
+        
+            // Update Transaction Statistics
+            document.getElementById('txCount').textContent = 
+                getNestedValue(data, 'statistics.total_transactions', '0');
+            document.getElementById('totalValue').textContent = 
+                `${getNestedValue(data, 'statistics.total_amount', '0')} SOL`;
+            document.getElementById('finalStatus').textContent = 
+                getNestedValue(data, 'scenarios.0.type', 'Unknown');
+        
+            // Update Conversion Information
+            const targetCurrency = document.getElementById('targetCurrency').value;
+            document.getElementById('targetCurrencyDisplay').textContent = targetCurrency;
+            // Add proper exchange rate handling
+            const exchangeRate = getNestedValue(data, 'statistics.exchange_rate', '0');
+            document.getElementById('exchangeRate').textContent = 
+                `${exchangeRate} ${targetCurrency}/SOL`;
+            
+            const totalAmount = parseFloat(getNestedValue(data, 'statistics.total_amount', '0'));
+            const convertedValue = totalAmount * parseFloat(exchangeRate);
+            document.getElementById('convertedValue').textContent = 
+                `${convertedValue.toFixed(2)} ${targetCurrency}`;
+        
+            // Show success message if we have data
+            if (data.transactions && data.transactions.length > 0) {
+                showSuccessMessage('Transaction data loaded successfully');
             }
+        }
+        
+        // Add helper function for success messages
+        function showSuccessMessage(message) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'success-message';
+            resultDiv.textContent = message;
+            document.querySelector('.visualization').prepend(resultDiv);
+            setTimeout(() => resultDiv.remove(), 3000);
         }
 
         function initializeTransactionGraph() {
