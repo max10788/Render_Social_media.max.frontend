@@ -1,53 +1,60 @@
-// Globale Konstanten
+// Global constants
 const API_BASE_URL = '/api/v1';
-const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price'; 
+const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price';
 
 let transactionGraph;
+let dashboardState;
 
-/**
- * Sendet eine Analyseanfrage an die API
- */
-async function submitAnalysis(event) {
-    event.preventDefault();
-    const blockchain = document.getElementById('blockchain').value.toLowerCase();
-    const contractAddress = document.getElementById('contract_address').value.trim();
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dashboard state
+    dashboardState = new DashboardState();
+    
+    // Initialize transaction graph
+    const container = document.getElementById('transactionTree');
+    transactionGraph = new TransactionGraph('#transactionTree', {
+        width: container.clientWidth,
+        height: 600,
+        nodeRadius: 8,
+        linkDistance: 120
+    });
 
-    if (!contractAddress) {
-        showErrorInResult('Contract-Adresse ist erforderlich.');
-        return;
-    }
+    // Add event listener for the track button
+    document.getElementById('trackButton').addEventListener('click', trackTransactions);
 
-    if (["ethereum", "binance", "polygon"].includes(blockchain)) {
-        if (!contractAddress.startsWith('0x') || contractAddress.length !== 42) {
-            showErrorInResult(`${blockchain}-Adressen müssen mit 0x beginnen und 42 Zeichen lang sein.`);
-            return;
-        }
-    } else if (blockchain === "solana") {
-        if (contractAddress.length !== 44) {
-            showErrorInResult('Solana-Adressen müssen 44 Zeichen lang sein.');
-            return;
-        }
-    }
+    // Add form submission handler
+    document.getElementById('analysisForm').addEventListener('submit', submitAnalysis);
+});
 
+async function trackTransactions() {
     try {
-        const formData = {
-            blockchain: blockchain,
-            contract_address: contractAddress,
-            twitter_username: document.getElementById('twitter_username').value.trim(),
-            keywords: document.getElementById('keywords').value.split(',').map(k => k.trim()).filter(Boolean),
-            start_date: document.getElementById('start_date').value,
-            end_date: document.getElementById('end_date').value,
-            tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
-        };
+        // Show loading state
+        document.getElementById('transactionTree').innerHTML = 
+            '<div class="loading">Loading transaction data...</div>';
 
-        const resultDiv = document.getElementById('result');
-        resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
+        // Get form values
+        const startTxHash = document.getElementById('startTx').value;
+        const targetCurrency = document.getElementById('targetCurrency').value;
+        const numTransactions = document.getElementById('numTransactions').value;
+        const amount = document.getElementById('amount')?.value;
 
-        const response = await fetch(`${API_BASE_URL}/analyze/rule-based`, {
+        // Validate input
+        if (!startTxHash) {
+            throw new Error('Please enter a transaction hash');
+        }
+
+        // Make API call
+        const response = await fetch(`${API_BASE_URL}/track-transactions`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(formData)
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                start_tx_hash: startTxHash,
+                target_currency: targetCurrency,
+                num_transactions: parseInt(numTransactions),
+                amount: amount ? parseFloat(amount) : null
+            })
         });
 
         if (!response.ok) {
@@ -56,54 +63,52 @@ async function submitAnalysis(event) {
         }
 
         const data = await response.json();
-        const jobId = data.job_id;
+        
+        if (data.status === 'no_chain_found') {
+            throw new Error('No transaction chain found');
+        }
 
-        resultDiv.innerHTML = `
-            <h3>Analyse erfolgreich gestartet!</h3>
-            <p><strong>Job-ID:</strong> ${jobId}</p>
-            <p><strong>Status:</strong> ${data.status}</p>
-        `;
+        // Update UI with results
+        updateTransactionInfo(data);
+        
+        // Update visualization
+        if (data.transactions && data.transactions.length > 0) {
+            await visualizeTransactionPath(data);
+        }
 
-        pollAnalysisStatus(jobId);
+        // Show success message
+        showSuccessMessage('Transaction data loaded successfully');
+
     } catch (error) {
-        console.error('Error submitting analysis:', error);
-        showErrorInResult(`Fehler beim Starten der Analyse: ${error.message}`);
+        console.error('Error:', error);
+        document.getElementById('transactionTree').innerHTML = `
+            <div class="error-message">
+                <h3>Error</h3>
+                <p>${error.message}</p>
+            </div>`;
+            
+        // Clear info panels on error
+        updateTransactionInfo({});
     }
 }
 
-/**
- * Überwacht den Status einer laufenden Analyse
- */
-async function pollAnalysisStatus(jobId) {
-    const resultDiv = document.getElementById('result');
-    let attempts = 0;
-    const maxAttempts = 30;
-    const interval = setInterval(async () => {
-        try {
-            attempts++;
-            const response = await fetch(`/api/v1/analysis/status/${jobId}`);
-            const status = await response.json();
+function visualizeTransactionPath(data) {
+    if (!transactionGraph) {
+        console.error('Transaction graph not initialized');
+        return;
+    }
 
-            if (status.status === 'Completed') {
-                clearInterval(interval);
-                displayResults(status);
-                visualizeTransactionsFromAnalysis(status);
-            } else if (status.status.startsWith('Failed')) {
-                clearInterval(interval);
-                throw new Error(status.error || 'Analyse fehlgeschlagen');
-            } else if (attempts >= maxAttempts) {
-                clearInterval(interval);
-                throw new Error('Zeitüberschreitung bei der Analyse');
-            } else {
-                resultDiv.innerHTML = `
-                    <h3>Analyse läuft...</h3>
-                    <p>Status: ${status.status}</p>
-                    <p>Fortschritt: ${Math.round((attempts / maxAttempts) * 100)}%</p>
-                `;
-            }
-        } catch (error) {
-            clearInterval(interval);
-            resultDiv.innerHTML = `<div class="error-message"><h3>Fehler</h3><p>${error.message}</p></div>`;
-        }
-    }, 2000);
+    const nodes = data.transactions.map(tx => ({
+        id: tx.from_wallet,
+        value: tx.amount,
+        type: 'wallet'
+    }));
+
+    const links = data.transactions.map(tx => ({
+        source: tx.from_wallet,
+        target: tx.to_wallet,
+        value: tx.amount
+    }));
+
+    transactionGraph.updateGraph({ nodes, links });
 }
