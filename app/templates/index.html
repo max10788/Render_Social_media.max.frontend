@@ -5,34 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto-Flow: Unified Analysis Dashboard</title>
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/transaction-graph.css">
-    <link rel="stylesheet" href="/static/css/transaction-viewer.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css"/>
+    <!-- CSS Stylesheets -->
+    <link rel="stylesheet" href="/static/css/style.css"> <!-- Hauptdesign des Dashboards -->
+    <link rel="stylesheet" href="/static/css/transaction-graph.css"> <!-- Stil für Transaktionsgraphen -->
+    <link rel="stylesheet" href="/static/css/transaction-viewer.css"> <!-- Zusätzliche Darstellungsoptionen -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css"/>  <!-- Icons -->
 
-    <!-- JS Bibliotheken -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3-force-cluster@0.1.2/dist/d3-force-cluster.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3-context-menu@2.1.0/d3-context-menu.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js"></script>
+    <!-- JavaScript Libraries -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>  <!-- D3.js für Visualisierungen -->
+    <script src="https://cdn.jsdelivr.net/npm/d3-force-cluster@0.1.2/dist/d3-force-cluster.min.js"></script>  <!-- Erweiterung für Cluster -->
+    <script src="https://cdn.jsdelivr.net/npm/d3-context-menu@2.1.0/d3-context-menu.min.js"></script>  <!-- Kontextmenü für Graphen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>  <!-- Chart.js für Diagramme -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>  <!-- Zeitformatierung -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js"></script>  <!-- Deutsche Lokalisierung -->
 
-    <!-- Eigene JS-Module -->
-    <script src="/static/js/transaction-graph.js"></script>
-    <script src="/static/js/modules/API.js" type="module"></script>
-    <script src="/static/js/modules/TransactionGraph.js" type="module"></script>
-    <script src="/static/js/modules/DashboardState.js" type="module"></script>
+    <!-- Eigene JS Module -->
+    <script src="/static/js/transaction-graph.js"></script> <!-- Hauptmodul für den Graph -->
+    <script src="/static/js/modules/API.js" type="module"></script> <!-- API-Interaktion -->
+    <script src="/static/js/modules/TransactionGraph.js" type="module"></script> <!-- Logik für den Graphen -->
+    <script src="/static/js/modules/DashboardState.js" type="module"></script> <!-- Zustandsmanagement -->
+
+    <!-- Skript-Bereich -->
     <script>
-        const API_BASE_URL = '/api/v1';
-        const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price  ';
-        let transactionGraph;
-    
+        // Globale Konstanten
+        const API_BASE_URL = '/api/v1'; // Basis-URL der Backend-API
+        const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price';  // Kurs-API
+
+        let transactionGraph; // Variable zur Speicherung des Graphen
+
+        /**
+         * Sendet eine Analyseanfrage an die API
+         */
         async function submitAnalysis(event) {
-            event.preventDefault();
+            event.preventDefault(); // Verhindert Seitenneuladen
             const blockchain = document.getElementById('blockchain').value.toLowerCase();
             const contractAddress = document.getElementById('contract_address').value.trim();
+
+            // Validierung der Contract-Adresse
             if (!contractAddress) {
                 showErrorInResult('Contract-Adresse ist erforderlich.');
                 return;
@@ -48,7 +57,9 @@
                     return;
                 }
             }
+
             try {
+                // Sammlung aller Formulardaten
                 const formData = {
                     blockchain: blockchain,
                     contract_address: contractAddress,
@@ -58,9 +69,12 @@
                     end_date: document.getElementById('end_date').value,
                     tweet_limit: parseInt(document.getElementById('tweet_limit').value, 10)
                 };
+
                 const resultDiv = document.getElementById('result');
                 resultDiv.style.display = 'block';
                 resultDiv.innerHTML = '<h3>Analyse wird gestartet...</h3>';
+
+                // API-Aufruf zum Starten der Analyse
                 const response = await fetch(`${API_BASE_URL}/analyze/rule-based`, {
                     method: 'POST',
                     headers: {
@@ -69,24 +83,32 @@
                     },
                     body: JSON.stringify(formData)
                 });
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
+
                 const data = await response.json();
                 const jobId = data.job_id;
+
+                // Erfolgsmeldung anzeigen
                 resultDiv.innerHTML = `
                     <h3>Analyse erfolgreich gestartet!</h3>
                     <p><strong>Job-ID:</strong> ${jobId}</p>
                     <p><strong>Status:</strong> ${data.status}</p>
                 `;
-                pollAnalysisStatus(jobId);
+
+                pollAnalysisStatus(jobId); // Warte auf Abschluss der Analyse
             } catch (error) {
                 console.error('Error submitting analysis:', error);
                 showErrorInResult(`Fehler beim Starten der Analyse: ${error.message}`);
             }
         }
-    
+
+        /**
+         * Überwacht den Status einer laufenden Analyse
+         */
         async function pollAnalysisStatus(jobId) {
             const resultDiv = document.getElementById('result');
             let attempts = 0;
@@ -96,6 +118,7 @@
                     attempts++;
                     const response = await fetch(`/api/v1/analysis/status/${jobId}`);
                     const status = await response.json();
+
                     if (status.status === 'Completed') {
                         clearInterval(interval);
                         displayResults(status);
@@ -119,7 +142,10 @@
                 }
             }, 2000);
         }
-    
+
+        /**
+         * Zeigt die Ergebnisse der Analyse an
+         */
         function displayResults(status) {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = `
@@ -156,14 +182,11 @@
             `;
         }
 
-        // Füge dies zur DOMContentLoaded Event-Listener-Funktion hinzu
+        // Initialisiert den Transaktionsgraphen
         document.addEventListener('DOMContentLoaded', function() {
-            // Bestehender Code...
-            
-            // Initialisiere den Graph
             initializeTransactionGraph();
-            
-            // Handle Window Resize
+
+            // Behandelt Größenänderungen des Fensters
             let resizeTimeout;
             window.addEventListener('resize', function() {
                 clearTimeout(resizeTimeout);
@@ -180,7 +203,10 @@
                 }, 250);
             });
         });
-    
+
+        /**
+         * Kopiert Text in die Zwischenablage
+         */
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 const toast = document.createElement('div');
@@ -190,11 +216,10 @@
                 setTimeout(() => toast.remove(), 2000);
             });
         }
-    
-        function createSVGTreeFromSOLTransaction(tx, targetCurrency) {
-            return `<svg><text x="10" y="20">SOL Visualisierung nicht implementiert</text></svg>`;
-        }
-    
+
+        /**
+         * Zeigt eine Fehlermeldung an
+         */
         function showErrorInResult(message) {
             document.getElementById('result').innerHTML = `
                 <div class="error-message">
@@ -203,22 +228,25 @@
                 </div>
             `;
         }
-    
+
+        /**
+         * Beginnt mit dem Tracking von Transaktionen
+         */
         async function trackTransactions() {
             const startTx = document.getElementById('startTx').value;
             const targetCurrency = document.getElementById('targetCurrency').value.toUpperCase();
             const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
             const amount = parseFloat(document.getElementById('amount')?.value || "1.0");
-            
+
             if (!startTx) {
                 showErrorInResult('Bitte geben Sie eine Starttransaktion ein.');
                 return;
             }
-        
+
             showLoading();
-            
+
             try {
-                // First, make the API call to get the transaction data
+                // API-Aufruf zum Abrufen von Transaktionsdaten
                 const response = await fetch(`${API_BASE_URL}/track-transactions`, {
                     method: 'POST',
                     headers: {
@@ -232,35 +260,37 @@
                         num_transactions: numTransactions
                     })
                 });
-        
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
-        
+
                 const data = await response.json();
-        
-                // Initialize or update the graph visualization
+
+                // Graph initialisieren oder aktualisieren
                 if (!transactionGraph) {
                     initializeTransactionGraph();
                 }
-        
-                // Update the graph with the new data
+
+                // Visualisiere die Transaktionen
                 await transactionGraph.visualizeTransactions(startTx, {
-                    targetCurrency: targetCurrency,
-                    numTransactions: numTransactions,
-                    data: data // Pass the API response data to the visualization
+                    target_currency: targetCurrency,
+                    num_transactions: numTransactions,
+                    data: data
                 });
-        
-                // Update other UI elements
+
+                // UI aktualisieren
                 updateTransactionInfo(data);
-        
             } catch (error) {
                 console.error('Fehler beim Tracking:', error);
                 showErrorInResult(`Fehler beim Tracking: ${error.message}`);
             }
         }
-    
+
+        /**
+         * Holt Wechselkurse von CoinGecko
+         */
         async function getExchangeRate(from, to) {
             try {
                 const res = await fetch(`${COINGECKO_API_URL}?ids=${from}&vs_currencies=${to}`);
@@ -271,55 +301,53 @@
                 return null;
             }
         }
-    
+
+        /**
+         * Zeigt Ladeanimation an
+         */
         function showLoading() {
             const container = document.getElementById('transactionTree');
             container.innerHTML = '<p>Lade Transaktionspfad...</p>';
         }
-    
+
+        /**
+         * Aktualisiert Informationsbereiche mit neuen Daten
+         */
         function updateTransactionInfo(data) {
-            // Safely get nested properties
             const getNestedValue = (obj, path, defaultValue = '-') => {
                 return path.split('.').reduce((current, key) => 
                     (current && current[key] !== undefined) ? current[key] : defaultValue, obj);
             };
-        
-            // Update Start Information
-            document.getElementById('sourceWallet').textContent = 
-                getNestedValue(data, 'transactions.0.from_wallet');
-            document.getElementById('targetWallet').textContent = 
-                getNestedValue(data, 'transactions.0.to_wallet');
-            document.getElementById('startHash').textContent = 
-                getNestedValue(data, 'transactions.0.tx_hash');
-        
-            // Update Transaction Statistics
-            document.getElementById('txCount').textContent = 
-                getNestedValue(data, 'statistics.total_transactions', '0');
-            document.getElementById('totalValue').textContent = 
-                `${getNestedValue(data, 'statistics.total_amount', '0')} SOL`;
-            document.getElementById('finalStatus').textContent = 
-                getNestedValue(data, 'scenarios.0.type', 'Unknown');
-        
-            // Update Conversion Information
+
+            // Startinformationen
+            document.getElementById('sourceWallet').textContent = getNestedValue(data, 'transactions.0.from_wallet');
+            document.getElementById('targetWallet').textContent = getNestedValue(data, 'transactions.0.to_wallet');
+            document.getElementById('startHash').textContent = getNestedValue(data, 'transactions.0.tx_hash');
+
+            // Statistiken
+            document.getElementById('txCount').textContent = getNestedValue(data, 'statistics.total_transactions', '0');
+            document.getElementById('totalValue').textContent = `${getNestedValue(data, 'statistics.total_amount', '0')} SOL`;
+            document.getElementById('finalStatus').textContent = getNestedValue(data, 'scenarios.0.type', 'Unknown');
+
+            // Konvertierung
             const targetCurrency = document.getElementById('targetCurrency').value;
             document.getElementById('targetCurrencyDisplay').textContent = targetCurrency;
-            // Add proper exchange rate handling
+
             const exchangeRate = getNestedValue(data, 'statistics.exchange_rate', '0');
-            document.getElementById('exchangeRate').textContent = 
-                `${exchangeRate} ${targetCurrency}/SOL`;
-            
+            document.getElementById('exchangeRate').textContent = `${exchangeRate} ${targetCurrency}/SOL`;
+
             const totalAmount = parseFloat(getNestedValue(data, 'statistics.total_amount', '0'));
             const convertedValue = totalAmount * parseFloat(exchangeRate);
-            document.getElementById('convertedValue').textContent = 
-                `${convertedValue.toFixed(2)} ${targetCurrency}`;
-        
-            // Show success message if we have data
+            document.getElementById('convertedValue').textContent = `${convertedValue.toFixed(2)} ${targetCurrency}`;
+
             if (data.transactions && data.transactions.length > 0) {
-                showSuccessMessage('Transaction data loaded successfully');
+                showSuccessMessage('Transaktionsdaten wurden erfolgreich geladen');
             }
         }
-        
-        // Add helper function for success messages
+
+        /**
+         * Zeigt Erfolgsnachricht an
+         */
         function showSuccessMessage(message) {
             const resultDiv = document.createElement('div');
             resultDiv.className = 'success-message';
@@ -328,6 +356,9 @@
             setTimeout(() => resultDiv.remove(), 3000);
         }
 
+        /**
+         * Initialisiert den Transaktionsgraphen
+         */
         function initializeTransactionGraph() {
             transactionGraph = new TransactionGraph('#transactionTree', {
                 width: document.getElementById('transactionTree').clientWidth,
@@ -336,75 +367,18 @@
                 linkDistance: 120
             });
         }
-        
-        async function visualizeTransactionPath(data) {
-            const container = document.getElementById('transactionTree');
 
-            if (!transactionGraph) {
-                initializeTransactionGraph();
-            }
-            
-            // Initialize the transaction graph
-            const graph = new TransactionGraph('#transactionTree', {
-                width: container.clientWidth,
-                height: 600,
-                margin: { top: 20, right: 20, bottom: 30, left: 40 },
-                nodeRadius: 8,
-                linkDistance: 150,
-                colors: {
-                    node: {
-                        default: "#69b3a2",
-                        source: "#2ca02c",
-                        target: "#ff7f0e",
-                        exchange: "#9467bd",
-                        bridge: "#e377c2"
-                    },
-                    link: {
-                        default: "#999",
-                        highlighted: "#ff7f0e"
-                    }
-                }
-            });
-
-            // Visualize the transactions
-            await graph.visualizeTransactions(data.tracked_transactions[0].tx_hash, {
-                targetCurrency: document.getElementById('targetCurrency').value,
-                numTransactions: parseInt(document.getElementById('numTransactions').value, 10)
-            });
-
-            // Add resize handler
-            const resizeObserver = new ResizeObserver(entries => {
-                for (let entry of entries) {
-                    if (entry.contentBoxSize) {
-                        graph.resize(entry.contentBoxSize[0].inlineSize, 600);
-                    }
-                }
-            });
-
-            resizeObserver.observe(container);
-        }
-
-        // Add new helper functions
+        /**
+         * Verkürzt Adressen für bessere Lesbarkeit
+         */
         function shortenAddress(address, length = 8) {
             if (!address) return '';
             return `${address.substring(0, length)}...${address.substring(address.length - length)}`;
         }
 
-        // Update the existing updateTransactionInfo function
-        function updateTransactionInfo(data) {
-            // Existing code...
-            
-            // Add new transaction metrics
-            if (data.tracked_transactions && data.tracked_transactions.length > 0) {
-                // Calculate additional metrics
-                const metrics = calculateTransactionMetrics(data.tracked_transactions);
-                
-                // Update metrics display
-                displayTransactionMetrics(metrics);
-            }
-        }
-
-        // Add new metric calculation function
+        /**
+         * Berechnet zusätzliche Metriken aus den Transaktionsdaten
+         */
         function calculateTransactionMetrics(transactions) {
             return {
                 totalVolume: transactions.reduce((sum, tx) => sum + tx.amount, 0),
@@ -417,7 +391,9 @@
             };
         }
 
-        // Add new metrics display function
+        /**
+         * Zeigt berechnete Metriken an
+         */
         function displayTransactionMetrics(metrics) {
             const metricsContainer = document.createElement('div');
             metricsContainer.className = 'metrics-container';
@@ -439,7 +415,6 @@
                     <p>${metrics.transactionCount}</p>
                 </div>
             `;
-
             const existingMetrics = document.querySelector('.metrics-container');
             if (existingMetrics) {
                 existingMetrics.replaceWith(metricsContainer);
@@ -447,14 +422,10 @@
                 document.getElementById('txStats').appendChild(metricsContainer);
             }
         }
-    
-        document.addEventListener('DOMContentLoaded', function () {
-            initializeTabs();
-            initTransactionTracker();
-            initSocialAnalysis();
-            initializeDates();
-        });
-    
+
+        /**
+         * Initialisiert Tabs
+         */
         function initializeTabs() {
             const tabs = document.querySelectorAll('.tab');
             tabs.forEach(tab => {
@@ -467,7 +438,10 @@
                 });
             });
         }
-    
+
+        /**
+         * Setzt Standard-Datumsangaben
+         */
         function initializeDates() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('start_date').value = today;
@@ -475,7 +449,10 @@
             tomorrow.setDate(tomorrow.getDate() + 1);
             document.getElementById('end_date').value = tomorrow.toISOString().split('T')[0];
         }
-    
+
+        /**
+         * Initialisiert den Transaktions-Tracker
+         */
         function initTransactionTracker() {
             document.getElementById('trackButton').addEventListener('click', trackTransactions);
             document.getElementById('startTx').addEventListener('input', function (e) {
@@ -490,10 +467,21 @@
                 }
             });
         }
-    
+
+        /**
+         * Prüft ob ein Transaktions-Hash gültig ist
+         */
         function validateTransactionHash(hash) {
             return /^0x[a-fA-F0-9]{64}$/.test(hash) || /^[1-9A-HJ-NP-Za-km-z]{43,90}$/.test(hash);
         }
+
+        // Initialisierung bei DOM-Laden
+        document.addEventListener('DOMContentLoaded', function () {
+            initializeTabs();
+            initTransactionTracker();
+            initSocialAnalysis();
+            initializeDates();
+        });
     </script>
 </head>
 <body>
