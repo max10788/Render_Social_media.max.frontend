@@ -26,6 +26,11 @@ export class API {
                 amount: parseFloat(document.getElementById('amount')?.value || '0')
             };
 
+            // Validate input
+            if (!formData.start_tx_hash) {
+                throw new Error('Please enter a transaction hash');
+            }
+
             const response = await fetch(`${this.baseUrl}/track-transactions`, {
                 method: 'POST',
                 headers: {
@@ -54,12 +59,17 @@ export class API {
     }
 
     async updateUI(data) {
-        // Update transaction info
-        updateTransactionInfo(data);
-        
-        // Update visualization if we have transaction data
-        if (data.transactions && data.transactions.length > 0) {
-            await visualizeTransactionPath(data);
+        try {
+            // Update transaction info
+            updateTransactionInfo(data);
+            
+            // Update visualization if we have transaction data
+            if (data.transactions && data.transactions.length > 0) {
+                await visualizeTransactionPath(data);
+            }
+        } catch (error) {
+            console.error('Error updating UI:', error);
+            throw error;
         }
     }
 
