@@ -16,20 +16,32 @@ export class API {
     async trackTransactions() {
         return this.safeApiCall(async () => {
             // Show loading state
-            document.getElementById('transactionTree').innerHTML = 
-                '<div class="loading">Loading transaction data...</div>';
+            const transactionTree = document.getElementById('transactionTree');
+            if (transactionTree) {
+                transactionTree.innerHTML = '<div class="loading">Loading transaction data...</div>';
+            }
+
+            // Get form values
+            const startTx = document.getElementById('startTx');
+            const targetCurrency = document.getElementById('targetCurrency');
+            const numTransactions = document.getElementById('numTransactions');
+
+            if (!startTx || !targetCurrency || !numTransactions) {
+                throw new Error('Required form elements not found');
+            }
 
             const formData = {
-                start_tx_hash: document.getElementById('startTx').value,
-                target_currency: document.getElementById('targetCurrency').value,
-                num_transactions: parseInt(document.getElementById('numTransactions').value),
-                amount: parseFloat(document.getElementById('amount')?.value || '0')
+                start_tx_hash: startTx.value,
+                target_currency: targetCurrency.value,
+                num_transactions: parseInt(numTransactions.value)
             };
 
             // Validate input
             if (!formData.start_tx_hash) {
                 throw new Error('Please enter a transaction hash');
             }
+
+            console.log('Sending request with data:', formData); // Debug log
 
             const response = await fetch(`${this.baseUrl}/track-transactions`, {
                 method: 'POST',
@@ -40,20 +52,20 @@ export class API {
                 body: JSON.stringify(formData)
             });
 
+            console.log('Response status:', response.status); // Debug log
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
+            console.log('Received data:', data); // Debug log
             
             if (data.status === 'no_chain_found') {
                 throw new Error('No transaction chain found');
             }
 
-            // Update UI with results
-            await this.updateUI(data);
-            
             return data;
         });
     }
