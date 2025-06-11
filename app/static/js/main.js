@@ -23,11 +23,63 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add event listener for the track button
-    document.getElementById('trackButton').addEventListener('click', handleTrackButtonClick);
+    const trackButton = document.getElementById('trackButton');
+    if (trackButton) {
+        trackButton.addEventListener('click', handleTrackButtonClick);
+        console.log('Track button listener added'); // Debug log
+    } else {
+        console.error('Track button not found');
+    }
 
-    // Add form submission handler
-    document.getElementById('analysisForm').addEventListener('submit', handleAnalysisSubmit);
+    // Add form submission handler for analysis form
+    const analysisForm = document.getElementById('analysisForm');
+    if (analysisForm) {
+        analysisForm.addEventListener('submit', handleAnalysisSubmit);
+    }
 });
+
+async function handleTrackButtonClick(event) {
+    event.preventDefault();
+    console.log('Track button clicked'); // Debug log
+
+    try {
+        // Show loading state
+        dashboardState.setLoading(true);
+        
+        // Call API to track transactions
+        const result = await api.trackTransactions();
+        console.log('API result:', result); // Debug log
+
+        if (!result.success) {
+            throw new Error(result.error);
+        }
+
+        // Update transaction information
+        updateTransactionInfo(result.data);
+        
+        // Update visualization
+        if (result.data.transactions && result.data.transactions.length > 0) {
+            await visualizeTransactionPath(result.data);
+        }
+
+        // Show success message
+        showSuccessMessage('Transaction data loaded successfully');
+
+    } catch (error) {
+        console.error('Error tracking transactions:', error);
+        document.getElementById('transactionTree').innerHTML = `
+            <div class="error-message">
+                <h3>Error</h3>
+                <p>${error.message}</p>
+            </div>`;
+        
+        // Clear info panels on error
+        updateTransactionInfo({});
+    } finally {
+        // Reset loading state
+        dashboardState.setLoading(false);
+    }
+}
 
 async function handleAnalysisSubmit(event) {
     event.preventDefault();
