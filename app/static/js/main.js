@@ -2,10 +2,14 @@
 const API_BASE_URL = '/api/v1';
 const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price';
 
+let api;
 let transactionGraph;
 let dashboardState;
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize API
+    api = new API(API_BASE_URL);
+    
     // Initialize dashboard state
     dashboardState = new DashboardState();
     
@@ -19,13 +23,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add event listener for the track button
-    document.getElementById('trackButton').addEventListener('click', trackTransactions);
+    document.getElementById('trackButton').addEventListener('click', handleTrackButtonClick);
 
     // Add form submission handler
-    document.getElementById('analysisForm').addEventListener('submit', submitAnalysis);
+    document.getElementById('analysisForm').addEventListener('submit', handleAnalysisSubmit);
 });
 
-async function trackTransactions() {
+async function handleAnalysisSubmit(event) {
+    event.preventDefault();
     try {
         // Show loading state
         document.getElementById('transactionTree').innerHTML = 
@@ -109,6 +114,14 @@ function visualizeTransactionPath(data) {
         target: tx.to_wallet,
         value: tx.amount
     }));
+
+    // Add window resize handler
+window.addEventListener('resize', () => {
+    if (transactionGraph) {
+        const container = document.getElementById('transactionTree');
+        transactionGraph.resize(container.clientWidth, 600);
+    }
+});
 
     transactionGraph.updateGraph({ nodes, links });
 }
