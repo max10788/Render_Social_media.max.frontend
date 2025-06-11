@@ -24,37 +24,66 @@ function showLoading() {
 
 function updateTransactionInfo(data) {
     const getNestedValue = (obj, path, defaultValue = '-') =>
-        path.split('.').reduce((current, key) => current && current[key] !== undefined ? current[key] : defaultValue, obj);
+        path.split('.').reduce((current, key) => 
+            current && current[key] !== undefined ? current[key] : defaultValue, obj);
 
-    document.getElementById('sourceWallet').textContent = getNestedValue(data, 'transactions.0.from_wallet');
-    document.getElementById('targetWallet').textContent = getNestedValue(data, 'transactions.0.to_wallet');
-    document.getElementById('startHash').textContent = getNestedValue(data, 'transactions.0.tx_hash');
+    // Update wallet information
+    document.getElementById('sourceWallet').textContent = 
+        getNestedValue(data, 'transactions.0.from_wallet');
+    document.getElementById('targetWallet').textContent = 
+        getNestedValue(data, 'transactions.0.to_wallet');
+    document.getElementById('startHash').textContent = 
+        getNestedValue(data, 'transactions.0.tx_hash');
 
-    document.getElementById('txCount').textContent = getNestedValue(data, 'statistics.total_transactions', '0');
-    document.getElementById('totalValue').textContent = `${getNestedValue(data, 'statistics.total_amount', '0')} SOL`;
-    document.getElementById('finalStatus').textContent = getNestedValue(data, 'scenarios.0.type', 'Unknown');
+    // Update transaction statistics
+    document.getElementById('txCount').textContent = 
+        getNestedValue(data, 'statistics.total_transactions', '0');
+    document.getElementById('totalValue').textContent = 
+        `${getNestedValue(data, 'statistics.total_amount', '0')} SOL`;
+    document.getElementById('finalStatus').textContent = 
+        getNestedValue(data, 'scenarios.0.type', 'Unknown');
 
+    // Update conversion information
     const targetCurrency = document.getElementById('targetCurrency').value;
     document.getElementById('targetCurrencyDisplay').textContent = targetCurrency;
 
     const exchangeRate = getNestedValue(data, 'statistics.exchange_rate', '0');
-    document.getElementById('exchangeRate').textContent = `${exchangeRate} ${targetCurrency}/SOL`;
+    document.getElementById('exchangeRate').textContent = 
+        `${exchangeRate} ${targetCurrency}/SOL`;
 
     const totalAmount = parseFloat(getNestedValue(data, 'statistics.total_amount', '0'));
     const convertedValue = totalAmount * parseFloat(exchangeRate);
-    document.getElementById('convertedValue').textContent = `${convertedValue.toFixed(2)} ${targetCurrency}`;
-
-    if (data.transactions && data.transactions.length > 0) {
-        showSuccessMessage('Transaktionsdaten wurden erfolgreich geladen');
-    }
+    document.getElementById('convertedValue').textContent = 
+        `${convertedValue.toFixed(2)} ${targetCurrency}`;
 }
 
 function showSuccessMessage(message) {
-    const resultDiv = document.createElement('div');
-    resultDiv.className = 'success-message';
-    resultDiv.textContent = message;
-    document.querySelector('.visualization').prepend(resultDiv);
-    setTimeout(() => resultDiv.remove(), 3000);
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'success-message';
+    messageDiv.textContent = message;
+    
+    const container = document.querySelector('.visualization');
+    container.insertBefore(messageDiv, container.firstChild);
+    
+    setTimeout(() => messageDiv.remove(), 3000);
+}
+
+function showErrorInResult(message) {
+    const resultDiv = document.getElementById('result');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `
+        <div class="error-message">
+            <h3>Error</h3>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+function validateTransactionHash(hash) {
+    // Basic Solana transaction hash validation
+    const validFormat = /^[A-HJ-NP-Za-km-z1-9]*$/.test(hash);
+    const validLength = hash.length === 88;
+    return validFormat && validLength;
 }
 
 function shortenAddress(address, length = 8) {
