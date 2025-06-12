@@ -154,6 +154,96 @@ class SolanaRepository:
             ]
         )
 
+        @staticmethod
+    def extract_transfers_from_rpc_response(
+        rpc_tx: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract all SOL and SPL token transfers from a Solana RPC transaction response.
+        Returns:
+            List of dicts with: from_address, to_address, amount, currency, mint (optional), decimals
+        """
+        transfers = []
+
+        try:
+            # 1. SOL transfers (via pre-/postBalances)
+            meta = rpc_tx.get("meta", {})
+            message = rpc_tx.get("transaction", {}).get("message", {})
+            account_keys = message.get("accountKeys", [])
+            pre_balances = meta.get("preBalances", [])
+            post_balances = meta.get("postBalances", [])
+
+            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                diff = post - pre
+                if diff != 0:
+                    direction = "in" if diff > 0 else "out"
+                    transfers.append({
+                        "from_address": account_keys[i] if direction == "out" else None,
+                        "to_address": account_keys[i] if direction == "in" else None,
+                        "amount": abs(Decimal(diff) / Decimal(1_000_000_000)),
+                        "currency": "SOL",
+                        "decimals": 9,
+                    })
+
+            # 2. SPL Token transfers (from innerInstructions)
+            for inner in meta.get("innerInstructions", []):
+                for inst in inner.get("instructions", []):
+                    # Only parse if the instruction is a SPL token transfer
+                    try:
+                        program_id_index = inst.get("programIdIndex")
+                        if program_id_index is not None:
+                            # Map programIdIndex to account_keys
+                            program_id = account_keys[program_id_index]
+                            if program_id != TOKEN_PROGRAM_ID:
+                                continue
+                        else:
+                            continue
+
+                        data = inst.get("data")
+                        # SPL token transfer instructions start with 3, 12, 7 etc (base58 encoded)
+                        # Most wallet transfers use "transfer" (3) or "transferChecked" (12)
+                        if not data:
+                            continue
+
+                        # Parse base58 data if present
+                        from base58 import b58decode
+                        decoded = b58decode(data)
+                        if len(decoded) < 9:
+                            continue
+                        instruction_type = decoded[0]
+                        if instruction_type not in [3, 12]:  # transfer, transferChecked
+                            continue
+
+                        # Amount is bytes 1:9 as little-endian
+                        amount = int.from_bytes(decoded[1:9], "little")
+                        decimals = 9  # By default for SPL, but can be different
+
+                        accounts = inst.get("accounts", [])
+                        if len(accounts) < 2:
+                            continue
+
+                        from_addr = account_keys[accounts[0]]
+                        to_addr = account_keys[accounts[1]]
+                        mint_addr = None
+                        if instruction_type == 12 and len(accounts) > 3:
+                            mint_addr = account_keys[accounts[3]]
+
+                        transfers.append({
+                            "from_address": from_addr,
+                            "to_address": to_addr,
+                            "amount": Decimal(amount) / Decimal(10 ** decimals),
+                            "currency": "SPL",
+                            "decimals": decimals,
+                            "mint": mint_addr,
+                        })
+                    except Exception as ex:
+                        logger.debug(f"Failed to parse SPL transfer: {ex}")
+
+            return transfers
+        except Exception as e:
+            logger.error(f"Failed to extract transfers: {e}")
+            return []
+
     async def get_transaction(self, signature: str) -> Optional[TransactionDetail]:
         """
         Fetch transaction details by signature.
