@@ -1,12 +1,14 @@
 // Global constants
 const API_BASE_URL = '/api/v1';
-const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price';   
+const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price';
 
 let api;
 let transactionGraph;
 let dashboardState;
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded'); // Debug log
+    
     // Initialize API
     api = new API(API_BASE_URL);
     
@@ -22,19 +24,90 @@ document.addEventListener('DOMContentLoaded', function() {
         linkDistance: 120
     });
 
-    // Add event listener for the track button
+    // Track Button Event Listener
     const trackButton = document.getElementById('trackButton');
     if (trackButton) {
-        trackButton.addEventListener('click', handleTrackButtonClick);
+        trackButton.addEventListener('click', async function(e) {
+            e.preventDefault();
+            console.log('Track button clicked'); // Debug log
+
+            try {
+                // Show loading state
+                dashboardState.setLoading(true);
+                document.getElementById('loadingIndicator').style.display = 'block';
+                document.getElementById('transactionTree').innerHTML = '<div class="loading">Loading transaction data...</div>';
+                
+                // Get form values
+                const startTx = document.getElementById('startTx').value;
+                const targetCurrency = document.getElementById('targetCurrency').value;
+                const numTransactions = document.getElementById('numTransactions').value;
+
+                console.log('Form values:', { startTx, targetCurrency, numTransactions }); // Debug log
+
+                // Validate input
+                if (!startTx) {
+                    throw new Error('Please enter a transaction hash');
+                }
+
+                // Call API
+                const response = await fetch(`${API_BASE_URL}/track-transactions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        start_tx_hash: startTx,
+                        target_currency: targetCurrency,
+                        num_transactions: parseInt(numTransactions)
+                    })
+                });
+
+                console.log('Response status:', response.status); // Debug log
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Received data:', data); // Debug log
+
+                if (data.status === 'no_chain_found') {
+                    throw new Error('No transaction chain found');
+                }
+
+                // Update UI with results
+                updateTransactionInfo(data);
+                
+                // Update visualization
+                if (data.transactions && data.transactions.length > 0) {
+                    await visualizeTransactionPath(data);
+                }
+
+                // Show success message
+                showSuccessMessage('Transaction data loaded successfully');
+
+            } catch (error) {
+                console.error('Error tracking transactions:', error);
+                document.getElementById('transactionTree').innerHTML = `
+                    <div class="error-message">
+                        <h3>Error</h3>
+                        <p>${error.message}</p>
+                    </div>`;
+                
+                // Clear info panels on error
+                updateTransactionInfo({});
+            } finally {
+                // Hide loading indicator
+                document.getElementById('loadingIndicator').style.display = 'none';
+                // Reset loading state
+                dashboardState.setLoading(false);
+            }
+        });
         console.log('Track button listener added'); // Debug log
     } else {
         console.error('Track button not found');
-    }
-
-    // Add form submission handler for analysis form
-    const analysisForm = document.getElementById('analysisForm');
-    if (analysisForm) {
-        analysisForm.addEventListener('submit', handleAnalysisSubmit);
     }
 
     // Add window resize handler
@@ -46,117 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-async function handleTrackButtonClick(event) {
-    event.preventDefault();
-    console.log('Track button clicked'); // Debug log
-
-    try {
-        // Show loading state
-        dashboardState.setLoading(true);
-        
-        // Call API to track transactions
-        const result = await api.trackTransactions();
-        console.log('API result:', result); // Debug log
-
-        if (!result.success) {
-            throw new Error(result.error);
-        }
-
-        // Update transaction information
-        updateTransactionInfo(result.data);
-        
-        // Update visualization
-        if (result.data.transactions && result.data.transactions.length > 0) {
-            visualizeTransactionPath(result.data);
-        }
-
-        // Show success message
-        showSuccessMessage('Transaction data loaded successfully');
-
-    } catch (error) {
-        console.error('Error tracking transactions:', error);
-        document.getElementById('transactionTree').innerHTML = `
-            <div class="error-message">
-                <h3>Error</h3>
-                <p>${error.message}</p>
-            </div>`;
-        
-        // Clear info panels on error
-        updateTransactionInfo({});
-    } finally {
-        // Reset loading state
-        dashboardState.setLoading(false);
-    }
-}
-
-async function handleAnalysisSubmit(event) {
-    event.preventDefault();
-    try {
-        // Show loading state
-        document.getElementById('transactionTree').innerHTML = 
-            '<div class="loading">Loading transaction data...</div>';
-
-        // Get form values
-        const startTxHash = document.getElementById('startTx').value;
-        const targetCurrency = document.getElementById('targetCurrency').value;
-        const numTransactions = document.getElementById('numTransactions').value;
-        const amount = document.getElementById('amount')?.value;
-
-        // Validate input
-        if (!startTxHash) {
-            throw new Error('Please enter a transaction hash');
-        }
-
-        // Make API call
-        const response = await fetch(`${API_BASE_URL}/track-transactions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                start_tx_hash: startTxHash,
-                target_currency: targetCurrency,
-                num_transactions: parseInt(numTransactions),
-                amount: amount ? parseFloat(amount) : null
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        if (data.status === 'no_chain_found') {
-            throw new Error('No transaction chain found');
-        }
-
-        // Update UI with results
-        updateTransactionInfo(data);
-        
-        // Update visualization
-        if (data.transactions && data.transactions.length > 0) {
-            visualizeTransactionPath(data);
-        }
-
-        // Show success message
-        showSuccessMessage('Transaction data loaded successfully');
-
-    } catch (error) {
-        console.error('Error:', error);
-        document.getElementById('transactionTree').innerHTML = `
-            <div class="error-message">
-                <h3>Error</h3>
-                <p>${error.message}</p>
-            </div>`;
-            
-        // Clear info panels on error
-        updateTransactionInfo({});
-    }
-}
-
+// Make functions globally available
 window.updateTransactionInfo = function(data) {
     const getNestedValue = (obj, path, defaultValue = '-') =>
         path.split('.').reduce((current, key) => 
@@ -190,7 +153,7 @@ window.updateTransactionInfo = function(data) {
     const convertedValue = totalAmount * parseFloat(exchangeRate);
     document.getElementById('convertedValue').textContent = 
         `${convertedValue.toFixed(2)} ${targetCurrency}`;
-};
+}
 
 window.visualizeTransactionPath = function(data) {
     if (!transactionGraph) {
@@ -211,4 +174,4 @@ window.visualizeTransactionPath = function(data) {
     }));
 
     transactionGraph.updateGraph({ nodes, links });
-};
+}
