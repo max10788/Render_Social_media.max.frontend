@@ -22,7 +22,8 @@ function showLoading() {
     container.innerHTML = '<p>Lade Transaktionspfad...</p>';
 }
 
-function updateTransactionInfo(data) {
+// Make functions globally available
+window.updateTransactionInfo = function(data) {
     const getNestedValue = (obj, path, defaultValue = '-') =>
         path.split('.').reduce((current, key) => 
             current && current[key] !== undefined ? current[key] : defaultValue, obj);
@@ -57,15 +58,38 @@ function updateTransactionInfo(data) {
         `${convertedValue.toFixed(2)} ${targetCurrency}`;
 }
 
-function showSuccessMessage(message) {
+window.visualizeTransactionPath = function(data) {
+    if (!window.transactionGraph) {
+        console.error('Transaction graph not initialized');
+        return;
+    }
+
+    const nodes = data.transactions.map(tx => ({
+        id: tx.from_wallet,
+        value: tx.amount,
+        type: 'wallet'
+    }));
+
+    const links = data.transactions.map(tx => ({
+        source: tx.from_wallet,
+        target: tx.to_wallet,
+        value: tx.amount
+    }));
+
+    window.transactionGraph.updateGraph({ nodes, links });
+}
+
+
+window.showSuccessMessage = function(message) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'success-message';
     messageDiv.textContent = message;
     
     const container = document.querySelector('.visualization');
-    container.insertBefore(messageDiv, container.firstChild);
-    
-    setTimeout(() => messageDiv.remove(), 3000);
+    if (container) {
+        container.insertBefore(messageDiv, container.firstChild);
+        setTimeout(() => messageDiv.remove(), 3000);
+    }
 }
 
 function showErrorInResult(message) {
