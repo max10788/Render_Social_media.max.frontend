@@ -185,6 +185,68 @@
                 document.getElementById(tabId).classList.add('active');
             });
         });
-    <script>
+        
+    async function trackTransactions() {
+        // Collect input values
+        const startTx = document.getElementById('startTx').value.trim();
+        const targetCurrency = document.getElementById('targetCurrency').value;
+        const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
+    
+        // Build the request payload
+        const payload = {
+            start_tx_hash: startTx,
+            target_currency: targetCurrency,
+            num_transactions: numTransactions
+            // Add 'amount' if your backend expects it (and collect from input if needed)
+        };
+    
+        // UI feedback: show loading, hide errors
+        const tree = document.getElementById('transactionTree');
+        const errorContainer = document.getElementById('errorContainer');
+        tree.classList.add('loading');
+        errorContainer.style.display = 'none';
+        tree.innerHTML = '';
+    
+        try {
+            const response = await fetch('/api/track_transactions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+    
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.detail?.message || 'Fehler bei der Transaktionsverfolgung');
+            }
+    
+            const result = await response.json();
+    
+            // Populate UI with results
+            document.getElementById('sourceWallet').textContent = result.tracked_transactions[0]?.from_wallet || '-';
+            document.getElementById('targetWallet').textContent = result.final_wallet_address || '-';
+            document.getElementById('startHash').textContent = result.tracked_transactions[0]?.tx_hash || '-';
+            document.getElementById('txCount').textContent = result.total_transactions_tracked ?? '-';
+            document.getElementById('totalValue').textContent = result.statistics?.total_value ?? '-';
+            document.getElementById('finalStatus').textContent = result.final_status ?? '-';
+            document.getElementById('targetCurrencyDisplay').textContent = result.target_currency ?? '-';
+            document.getElementById('exchangeRate').textContent = result.statistics?.exchange_rate ?? '-';
+            document.getElementById('convertedValue').textContent = result.statistics?.converted_value ?? '-';
+    
+            // (Optional) Render the transaction tree visualization here, if desired.
+            tree.classList.remove('loading');
+            tree.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>'; // Replace with custom visualization
+    
+        } catch (err) {
+            errorContainer.textContent = err.message;
+            errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
+        }
+    }
+    
+    // Add event listener to the button
+    document.getElementById('trackButton').addEventListener('click', trackTransactions);
+    </script> 
 </body>
 </html>
