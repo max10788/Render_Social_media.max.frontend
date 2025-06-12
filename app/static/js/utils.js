@@ -1,11 +1,41 @@
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.textContent = 'In Zwischenablage kopiert!';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
-    });
+// Ersetze direkte clipboard API mit cross-browser Lösung
+async function copyToClipboard(text) {
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            // Fallback für ältere Browser
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+            } catch (err) {
+                console.error('Fallback: Copy to clipboard failed', err);
+                throw new Error('Copy to clipboard failed');
+            }
+            document.body.removeChild(textArea);
+        }
+        
+        showToast('In Zwischenablage kopiert!');
+    } catch (err) {
+        console.error('Copy failed', err);
+        showToast('Kopieren fehlgeschlagen', 'error');
+    }
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
 }
 
 function showErrorInResult(message) {
