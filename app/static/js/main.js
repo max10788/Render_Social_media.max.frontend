@@ -1,6 +1,6 @@
 // Global constants
 const API_BASE_URL = '/api/v1';
-const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price';
+const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price';   
 
 let api;
 let transactionGraph;
@@ -36,6 +36,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (analysisForm) {
         analysisForm.addEventListener('submit', handleAnalysisSubmit);
     }
+
+    // Add window resize handler
+    window.addEventListener('resize', () => {
+        if (transactionGraph) {
+            const container = document.getElementById('transactionTree');
+            transactionGraph.resize(container.clientWidth, 600);
+        }
+    });
 });
 
 async function handleTrackButtonClick(event) {
@@ -59,7 +67,7 @@ async function handleTrackButtonClick(event) {
         
         // Update visualization
         if (result.data.transactions && result.data.transactions.length > 0) {
-            await visualizeTransactionPath(result.data);
+            visualizeTransactionPath(result.data);
         }
 
         // Show success message
@@ -130,7 +138,7 @@ async function handleAnalysisSubmit(event) {
         
         // Update visualization
         if (data.transactions && data.transactions.length > 0) {
-            await visualizeTransactionPath(data);
+            visualizeTransactionPath(data);
         }
 
         // Show success message
@@ -149,7 +157,42 @@ async function handleAnalysisSubmit(event) {
     }
 }
 
-function visualizeTransactionPath(data) {
+window.updateTransactionInfo = function(data) {
+    const getNestedValue = (obj, path, defaultValue = '-') =>
+        path.split('.').reduce((current, key) => 
+            current && current[key] !== undefined ? current[key] : defaultValue, obj);
+
+    // Update wallet information
+    document.getElementById('sourceWallet').textContent = 
+        getNestedValue(data, 'transactions.0.from_wallet');
+    document.getElementById('targetWallet').textContent = 
+        getNestedValue(data, 'transactions.0.to_wallet');
+    document.getElementById('startHash').textContent = 
+        getNestedValue(data, 'transactions.0.tx_hash');
+
+    // Update transaction statistics
+    document.getElementById('txCount').textContent = 
+        getNestedValue(data, 'statistics.total_transactions', '0');
+    document.getElementById('totalValue').textContent = 
+        `${getNestedValue(data, 'statistics.total_amount', '0')} SOL`;
+    document.getElementById('finalStatus').textContent = 
+        getNestedValue(data, 'scenarios.0.type', 'Unknown');
+
+    // Update conversion information
+    const targetCurrency = document.getElementById('targetCurrency').value;
+    document.getElementById('targetCurrencyDisplay').textContent = targetCurrency;
+
+    const exchangeRate = getNestedValue(data, 'statistics.exchange_rate', '0');
+    document.getElementById('exchangeRate').textContent = 
+        `${exchangeRate} ${targetCurrency}/SOL`;
+
+    const totalAmount = parseFloat(getNestedValue(data, 'statistics.total_amount', '0'));
+    const convertedValue = totalAmount * parseFloat(exchangeRate);
+    document.getElementById('convertedValue').textContent = 
+        `${convertedValue.toFixed(2)} ${targetCurrency}`;
+};
+
+window.visualizeTransactionPath = function(data) {
     if (!transactionGraph) {
         console.error('Transaction graph not initialized');
         return;
@@ -167,13 +210,5 @@ function visualizeTransactionPath(data) {
         value: tx.amount
     }));
 
-    // Add window resize handler
-window.addEventListener('resize', () => {
-    if (transactionGraph) {
-        const container = document.getElementById('transactionTree');
-        transactionGraph.resize(container.clientWidth, 600);
-    }
-});
-
     transactionGraph.updateGraph({ nodes, links });
-}
+};
