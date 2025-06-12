@@ -42,7 +42,10 @@ export class API {
             }
 
             console.log('Sending request with data:', formData); // Debug log
-
+    
+            // Add validation
+            this.validateFormData(formData);
+            
             const response = await fetch(`${this.baseUrl}/track-transactions`, {
                 method: 'POST',
                 headers: {
