@@ -243,12 +243,12 @@
             tree.classList.remove('loading');
             tree.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>'; // Replace with custom visualization
     
-        } catch (err) {
-            errorContainer.textContent = err.message;
-            errorContainer.style.display = 'block';
-            tree.classList.remove('loading');
+            } catch (err) {
+                errorContainer.textContent = err.message;
+                errorContainer.style.display = 'block';
+                tree.classList.remove('loading');
+            }
         }
-    }
     
     // Add event listener to the button
     document.getElementById('trackButton').addEventListener('click', trackTransactions);
