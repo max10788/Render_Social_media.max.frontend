@@ -16,6 +16,8 @@ from typing import List, Dict
 import aiohttp
 from textblob import TextBlob
 from decimal import Decimal  # Add this import
+from app.api.endpoints import router as api_router
+app.include_router(api_router, prefix="/api")
 
 # Interne Module importieren
 from app.core.twitter_api import TwitterClient
