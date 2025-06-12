@@ -46,7 +46,7 @@ export class API {
             // Add validation
             this.validateFormData(formData);
             
-            const response = await fetch(`${this.baseUrl}/track-transactions`, {
+            const response = await fetch(`${this.baseUrl}/api/v1/track-transactions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
