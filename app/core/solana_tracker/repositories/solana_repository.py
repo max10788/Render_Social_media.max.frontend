@@ -110,22 +110,28 @@ class SolanaRepository:
             if method == "getTransaction":
                 params[1]["maxSupportedTransactionVersion"] = 0
 
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": method,
+                "params": params
+            }
+            logger.debug(f"RPC Request: {json.dumps(payload, indent=2)}")
+
             async with self._session.post(
                 self.rpc_url,
-                json={
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": method,
-                    "params": params
-                }
+                json=payload
             ) as response:
+                response_text = await response.text()
+                logger.info(f"RPC Response [{response.status}]: {response_text[:2000]}") # truncate long logs
                 if response.status != 200:
-                    error_text = await response.text()
-                    logger.error(f"RPC error: {response.status} - {error_text}")
+                    logger.error(f"RPC error: {response.status} - {response_text}")
                     return {"error": f"RPC error: {response.status}"}
-                    
-                return await response.json()
-                
+                try:
+                    return json.loads(response_text)
+                except Exception as e:
+                    logger.error(f"Error parsing RPC JSON response: {e}, raw response: {response_text}")
+                    return {"error": f"Error parsing RPC JSON response: {e}"}
         except Exception as e:
             logger.error(f"RPC call failed: {e}")
             return {"error": str(e)}
@@ -174,6 +180,8 @@ class SolanaRepository:
         try:
             response = await self.get_raw_transaction(validated_sig)
             
+            logger.debug(f"get_transaction raw response: {json.dumps(response, indent=2)[:2000]}")
+            
             if "error" in response:
                 logger.error(f"Error fetching transaction {signature}: {response['error']}")
                 return None
@@ -192,6 +200,7 @@ class SolanaRepository:
     async def _parse_transaction_response(self, tx_value: dict) -> Optional[TransactionDetail]:
         """Parse raw transaction response into TransactionDetail model."""
         try:
+            logger.debug(f"Parsing transaction response: {json.dumps(tx_value, indent=2)[:2000]}")
             # Extract basic transaction information
             signature = tx_value.get("transaction", {}).get("signatures", [""])[0]
             message = tx_value.get("transaction", {}).get("message", {})
@@ -261,7 +270,7 @@ class SolanaRepository:
             
         except Exception as e:
             logger.error(f"Error parsing transaction response: {e}")
-            logger.debug(f"Raw transaction value: {json.dumps(tx_value, indent=2)}")
+            logger.debug(f"Raw transaction value: {json.dumps(tx_value, indent=2)[:2000]}")
             return None
     
     def _is_program_id(self, address: str) -> bool:
@@ -425,6 +434,8 @@ class SolanaRepository:
                 "getSignaturesForAddress",
                 params
             )
+
+            logger.debug(f"get_transactions_for_address raw response: {json.dumps(response, indent=2)[:2000]}")
             
             if "error" in response:
                 logger.error(f"Error fetching transactions for {address}: {response['error']}")
@@ -458,6 +469,8 @@ class SolanaRepository:
                 "getRecentBlockhash",
                 []
             )
+
+            logger.debug(f"get_recent_blockhash raw response: {json.dumps(response, indent=2)[:2000]}")
             
             if "error" in response:
                 raise ValueError(f"Could not fetch recent blockhash: {response['error']}")
@@ -478,6 +491,8 @@ class SolanaRepository:
                 "getMinimumBalanceForRentExemption",
                 [size]
             )
+
+            logger.debug(f"get_minimum_balance_for_rent_exemption raw response: {json.dumps(response, indent=2)[:2000]}")
             
             if "error" in response:
                 raise ValueError(f"Could not fetch minimum balance: {response['error']}")
@@ -493,3 +508,4 @@ class SolanaRepository:
         if hasattr(self, '_session') and self._session and not self._session.closed:
             await self._session.close()
             self._session = None
+
