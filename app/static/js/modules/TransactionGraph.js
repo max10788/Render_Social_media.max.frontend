@@ -154,41 +154,49 @@ export class TransactionGraph {
     }
 
     updateSimulation(nodes, links) {
+        // Optimiere Simulation für große Datensätze
+        const nodeCount = nodes.length;
+        
+        // Anpassen der Kräfte basierend auf der Anzahl der Nodes
+        const chargeStrength = Math.min(-30, -200 / Math.log(nodeCount));
+        
         this.simulation
             .nodes(nodes)
             .force("link").links(links);
-
-        this.simulation.alpha(1).restart();
-
+            
+        this.simulation
+            .force("charge", d3.forceManyBody()
+                .strength(chargeStrength)
+                .distanceMax(200))
+            .force("collision", d3.forceCollide()
+                .radius(this.options.nodeRadius * 1.5))
+            .alpha(1)
+            .alphaDecay(0.02) // Langsameres Abklingen für stabilere Visualisierung
+            .restart();
+            
+        // Performance-Optimierung für das Rendering
+        let ticking = false;
         this.simulation.on("tick", () => {
-            this.links
-                .attr("x1", d => d.source.x)
-                .attr("y1", d => d.source.y)
-                .attr("x2", d => d.target.x)
-                .attr("y2", d => d.target.y);
-
-            this.nodes
-                .attr("cx", d => d.x)
-                .attr("cy", d => d.y);
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    this.updatePositions();
+                    ticking = false;
+                });
+                ticking = true;
+            }
         });
     }
 
-    drag() {
-        return d3.drag()
-            .on("start", (event, d) => {
-                if (!event.active) this.simulation.alphaTarget(0.3).restart();
-                d.fx = d.x;
-                d.fy = d.y;
-            })
-            .on("drag", (event, d) => {
-                d.fx = event.x;
-                d.fy = event.y;
-            })
-            .on("end", (event, d) => {
-                if (!event.active) this.simulation.alphaTarget(0);
-                d.fx = null;
-                d.fy = null;
-            });
+    updatePositions() {
+        this.links
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+    
+        this.nodes
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y);
     }
 
     showTooltip(event, d) {
