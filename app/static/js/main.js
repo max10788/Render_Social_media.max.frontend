@@ -1,120 +1,106 @@
 // Global constants
 const API_BASE_URL = '/api/v1';
-const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price'; 
+const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/price';
 
+// Global variables
 let api;
 let transactionGraph;
 let dashboardState;
 
-// Logging when script is loaded
-console.log('main.js loaded');
-
-// Track script load states
-const scriptsLoaded = {
-    api: false,
-    graph: false,
-    dashboard: false
+// Global error handler
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    console.error('Global error:', {
+        message: msg,
+        url: url,
+        line: lineNo,
+        column: columnNo,
+        error: error
+    });
+    return false;
 };
 
-function checkAllScriptsLoaded() {
-    if (Object.values(scriptsLoaded).every(loaded => loaded)) {
-        console.log('All scripts loaded, initializing...');
-        initializeApp();
-    }
-}
-
+// Initialize application
 function initializeApp() {
-    console.log('DOMContentLoaded event fired'); // Debug log
+    console.log('Initializing application...'); // Debug log
 
-    // Initialize API
     try {
+        // Initialize API
         api = new API(API_BASE_URL);
-        console.log('API initialized'); // Debug-Ausgabe
-    } catch (err) {
-        console.error('Failed to initialize API:', err);
-    }
-
-    // Initialize dashboard state
-    try {
+        console.log('API initialized'); // Debug log
+        
+        // Initialize dashboard state
         dashboardState = new DashboardState();
-        console.log('DashboardState initialized'); // Debug-Ausgabe
-    } catch (err) {
-        console.error('Failed to initialize DashboardState:', err);
-    }
-
-    // Initialize transaction graph
-    const container = document.getElementById('transactionTree');
-    if (container) {
-        try {
+        console.log('Dashboard state initialized'); // Debug log
+        
+        // Initialize transaction graph
+        const container = document.getElementById('transactionTree');
+        if (container) {
             transactionGraph = new TransactionGraph('#transactionTree', {
                 width: container.clientWidth,
                 height: 600,
                 nodeRadius: 8,
                 linkDistance: 120
             });
-            console.log('TransactionGraph initialized');
-        } catch (err) {
-            console.error('Failed to initialize TransactionGraph:', err);
+            console.log('Transaction graph initialized'); // Debug log
+        } else {
+            console.error('Transaction tree container not found');
         }
-    } else {
-        console.warn('TransactionGraph container not found');
+
+        // Set up event listeners
+        setupEventListeners();
+        
+    } catch (error) {
+        console.error('Error during initialization:', error);
     }
+}
 
-    // Überprüfe ob der Button existiert
+// Setup event listeners
+function setupEventListeners() {
+    console.log('Setting up event listeners...'); // Debug log
+
+    // Track button
     const trackButton = document.getElementById('trackButton');
-    console.log('Track button element:', trackButton); // Debug-Ausgabe
-
     if (trackButton) {
-        trackButton.addEventListener('click', async (event) => {
-            console.log('Track button clicked'); // Debug-Ausgabe
-            event.preventDefault();
-            handleTrackButtonClick(event);
-        });
-        console.log('Track button listener added'); // Debug-Ausgabe
+        trackButton.onclick = handleTrackButtonClick;
+        console.log('Track button listener added'); // Debug log
     } else {
         console.error('Track button not found');
     }
 
-    // Alternative Event Listener
-    document.querySelector('#trackButton')?.addEventListener('click', function(event) {
-        console.log('Track button clicked (alternative listener)');
-        handleTrackButtonClick(event);
-    });
+    // Analysis form
+    const analysisForm = document.getElementById('analysisForm');
+    if (analysisForm) {
+        analysisForm.onsubmit = handleAnalysisSubmit;
+        console.log('Analysis form listener added'); // Debug log
+    }
 
-    // Add window resize handler
-    window.addEventListener('resize', () => {
-        if (transactionGraph) {
-            const container = document.getElementById('transactionTree');
-            transactionGraph.resize(container.clientWidth, 600);
-        }
-    });
+    // Window resize handler
+    window.onresize = handleWindowResize;
+    console.log('Window resize handler added'); // Debug log
 }
 
-// Handle Track Button Click
+// Handle track button click
 async function handleTrackButtonClick(event) {
-    console.log('handleTrackButtonClick function called'); // Debug-Ausgabe
+    console.log('Track button clicked'); // Debug log
+    event.preventDefault();
 
     try {
-        // Show loading state
-        dashboardState.setLoading(true);
-        console.log('Loading state set to true'); // Debug-Ausgabe
-
-        document.getElementById('loadingIndicator').style.display = 'block';
-        document.getElementById('transactionTree').innerHTML = '<div class="loading">Loading transaction data...</div>';
-
-        // Get form values
+        // Validate form
         const startTx = document.getElementById('startTx').value;
         const targetCurrency = document.getElementById('targetCurrency').value;
         const numTransactions = document.getElementById('numTransactions').value;
 
-        console.log('Form values:', { startTx, targetCurrency, numTransactions }); // Debug-Ausgabe
+        console.log('Form values:', { startTx, targetCurrency, numTransactions }); // Debug log
 
-        // Validate input
         if (!startTx) {
             throw new Error('Please enter a transaction hash');
         }
 
-        // Call API
+        // Show loading state
+        dashboardState.setLoading(true);
+        document.getElementById('transactionTree').innerHTML = '<div class="loading">Loading transaction data...</div>';
+        
+        // Make API call
         const response = await fetch(`${API_BASE_URL}/track-transactions`, {
             method: 'POST',
             headers: {
@@ -128,7 +114,7 @@ async function handleTrackButtonClick(event) {
             })
         });
 
-        console.log('Response status:', response.status); // Debug log
+        console.log('API response status:', response.status); // Debug log
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -136,115 +122,90 @@ async function handleTrackButtonClick(event) {
         }
 
         const data = await response.json();
-        console.log('Received data:', data); // Debug log
+        console.log('API response data:', data); // Debug log
 
-        if (data.status === 'no_chain_found') {
-            throw new Error('No transaction chain found');
-        }
-
-        // Update UI with results
+        // Update UI
         updateTransactionInfo(data);
-
-        // Update visualization
-        if (data.transactions && data.transactions.length > 0) {
-            await visualizeTransactionPath(data);
-        }
-
-        // Show success message
+        await visualizeTransactionPath(data);
         showSuccessMessage('Transaction data loaded successfully');
 
     } catch (error) {
-        console.error('Error in handleTrackButtonClick:', error);
-        document.getElementById('transactionTree').innerHTML = `
-            <div class="error-message">
-                <h3>Error</h3>
-                <p>${error.message}</p>
-            </div>`;
-
-        // Clear info panels on error
-        updateTransactionInfo({});
+        console.error('Error tracking transactions:', error);
+        handleError(error);
     } finally {
-        // Hide loading indicator
-        document.getElementById('loadingIndicator').style.display = 'none';
-        // Reset loading state
         dashboardState.setLoading(false);
     }
 }
 
-// Make functions globally available
-window.updateTransactionInfo = function(data) {
-    const getNestedValue = (obj, path, defaultValue = '-') =>
-        path.split('.').reduce((current, key) =>
-            current && current[key] !== undefined ? current[key] : defaultValue, obj);
+// Handle analysis form submit
+async function handleAnalysisSubmit(event) {
+    console.log('Analysis form submitted'); // Debug log
+    event.preventDefault();
 
-    // Update wallet information
-    document.getElementById('sourceWallet').textContent =
-        getNestedValue(data, 'transactions.0.from_wallet');
-    document.getElementById('targetWallet').textContent =
-        getNestedValue(data, 'transactions.0.to_wallet');
-    document.getElementById('startHash').textContent =
-        getNestedValue(data, 'transactions.0.tx_hash');
+    try {
+        // Show loading state
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result').innerHTML = '<div class="loading">Processing analysis...</div>';
 
-    // Update transaction statistics
-    document.getElementById('txCount').textContent =
-        getNestedValue(data, 'statistics.total_transactions', '0');
-    document.getElementById('totalValue').textContent =
-        `${getNestedValue(data, 'statistics.total_amount', '0')} SOL`;
-    document.getElementById('finalStatus').textContent =
-        getNestedValue(data, 'scenarios.0.type', 'Unknown');
+        // Get form data
+        const formData = new FormData(event.target);
+        const data = Object.fromEntries(formData.entries());
+        console.log('Analysis form data:', data); // Debug log
 
-    // Update conversion information
-    const targetCurrency = document.getElementById('targetCurrency').value;
-    document.getElementById('targetCurrencyDisplay').textContent = targetCurrency;
+        // Make API call
+        const response = await fetch(`${API_BASE_URL}/analyze/rule-based`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
 
-    const exchangeRate = getNestedValue(data, 'statistics.exchange_rate', '0');
-    document.getElementById('exchangeRate').textContent =
-        `${exchangeRate} ${targetCurrency}/SOL`;
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
 
-    const totalAmount = parseFloat(getNestedValue(data, 'statistics.total_amount', '0'));
-    const convertedValue = totalAmount * parseFloat(exchangeRate);
-    document.getElementById('convertedValue').textContent =
-        `${convertedValue.toFixed(2)} ${targetCurrency}`;
-};
+        const result = await response.json();
+        console.log('Analysis result:', result); // Debug log
 
-window.visualizeTransactionPath = function(data) {
-    if (!transactionGraph) {
-        console.error('Transaction graph not initialized');
-        return;
+        // Display results
+        displayResults(result);
+
+    } catch (error) {
+        console.error('Error during analysis:', error);
+        showErrorInResult(error.message);
     }
+}
 
-    const nodes = data.transactions.map(tx => ({
-        id: tx.from_wallet,
-        value: tx.amount,
-        type: 'wallet'
-    }));
+// Handle window resize
+function handleWindowResize() {
+    if (transactionGraph) {
+        const container = document.getElementById('transactionTree');
+        transactionGraph.resize(container.clientWidth, 600);
+    }
+}
 
-    const links = data.transactions.map(tx => ({
-        source: tx.from_wallet,
-        target: tx.to_wallet,
-        value: tx.amount
-    }));
+// Handle error display
+function handleError(error) {
+    document.getElementById('transactionTree').innerHTML = `
+        <div class="error-message">
+            <h3>Error</h3>
+            <p>${error.message}</p>
+        </div>`;
+    
+    // Clear info panels
+    updateTransactionInfo({});
+}
 
-    transactionGraph.updateGraph({ nodes, links });
-};
+// Initialize when DOM is loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
 
-// Global error handler
-window.onerror = function(msg, url, lineNo, columnNo, error) {
-    console.error('Global error:', {
-        message: msg,
-        url: url,
-        lineNo: lineNo,
-        columnNo: columnNo,
-        error: error
-    });
-    return false; // Return false to let the browser's default handler run
-};
-
-// Trigger DOMContentLoaded manually after all scripts are loaded
-document.addEventListener('DOMContentLoaded', () => {
-    scriptsLoaded.dashboard = typeof DashboardState === 'function';
-    scriptsLoaded.graph = typeof TransactionGraph === 'function';
-    scriptsLoaded.api = typeof API === 'function';
-
-    checkAllScriptsLoaded();
-});
+// Make functions available globally
+window.handleTrackButtonClick = handleTrackButtonClick;
+window.handleAnalysisSubmit = handleAnalysisSubmit;
+window.displayResults = displayResults;
