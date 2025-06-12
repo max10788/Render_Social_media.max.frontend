@@ -52,13 +52,35 @@ export class TransactionGraph {
         this.updateGraph(data);
     }
 
+    // Füge Fehlerbehandlung für die Visualisierung hinzu
     updateGraph(data) {
-        const nodes = this.processNodes(data.tracked_transactions);
-        const links = this.processLinks(data.tracked_transactions);
-
-        this.updateNodes(nodes);
-        this.updateLinks(links);
-        this.updateSimulation(nodes, links);
+        try {
+            if (!data || !data.tracked_transactions) {
+                throw new Error('Invalid transaction data received');
+            }
+            
+            const nodes = this.processNodes(data.tracked_transactions);
+            const links = this.processLinks(data.tracked_transactions);
+    
+            if (nodes.length === 0) {
+                throw new Error('No nodes to display');
+            }
+    
+            this.updateNodes(nodes);
+            this.updateLinks(links);
+            this.updateSimulation(nodes, links);
+        } catch (error) {
+            console.error('Error updating graph:', error);
+            this.showError(error.message);
+        }
+    }
+    
+    showError(message) {
+        const container = d3.select(this.selector);
+        container.html('');
+        container.append('div')
+            .attr('class', 'error-message')
+            .html(`<h3>Visualisierungsfehler</h3><p>${message}</p>`);
     }
 
     processNodes(transactions) {
