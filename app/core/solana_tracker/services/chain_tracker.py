@@ -22,24 +22,16 @@ class ChainTracker:
     ):
         self.solana_repo = solana_repository
         self.min_amount = min_amount
+        logger.info("ChainTracker initialized with min_amount=%s", min_amount)
 
     def validate_transaction_signature(self, signature: str) -> bool:
-        """
-        Validate Solana transaction signature format.
-        
-        Args:
-            signature: Transaction signature to validate
-            
-        Returns:
-            bool: True if valid, False otherwise
-        """
         try:
-            # Sollte base58 decodierbar sein
             decoded = base58.b58decode(signature)
-            # Solana Signaturen sind 64 Bytes lang
-            return len(decoded) == 64
+            valid = len(decoded) == 64
+            logger.debug("Signature validation for '%s': %s", signature, valid)
+            return valid
         except Exception as e:
-            logger.error(f"Invalid signature format: {e}")
+            logger.error("Invalid signature format for '%s': %s", signature, e)
             return False
         
     async def track_chain(
@@ -48,50 +40,47 @@ class ChainTracker:
         max_depth: int = 10,
         amount: Optional[Decimal] = None
     ) -> List[TrackedTransaction]:
-        """
-        Track a chain of transactions starting from a given hash.
-        """
+        logger.info("Begin tracking chain from %s (max_depth=%d, amount=%s)", start_tx_hash, max_depth, amount)
         if not self.validate_transaction_signature(start_tx_hash):
-            logger.error(f"Invalid transaction signature format: {start_tx_hash}")
+            logger.error("Invalid transaction signature format: %s", start_tx_hash)
             return []
             
         visited_signatures: Set[str] = set()
         result_transactions: List[TrackedTransaction] = []
         processing_queue: List[Tuple[str, Optional[Decimal]]] = [(start_tx_hash, amount)]
         
-        logger.info(f"Starting chain tracking from {start_tx_hash}")
-        
         try:
-            async with self.solana_repo as repo:  # Use context manager for proper cleanup
+            async with self.solana_repo as repo:
                 initial_tx = await self._get_transaction_safe(start_tx_hash)
-                
                 if not initial_tx:
-                    logger.error(f"Initial transaction {start_tx_hash} not found")
+                    logger.error("Initial transaction %s not found", start_tx_hash)
                     response = await repo.get_raw_transaction(start_tx_hash)
-                    logger.debug(f"RPC Response: {json.dumps(response, indent=2)}")
+                    logger.debug("RPC Response for %s: %s", start_tx_hash, json.dumps(response, indent=2)[:1500])
                     return []
-                    
+                
                 while processing_queue and len(result_transactions) < max_depth:
                     current_tx_hash, remaining_amount = processing_queue.pop(0)
-                    
+                    logger.debug("Processing tx_hash=%s, remaining_amount=%s", current_tx_hash, remaining_amount)
                     if current_tx_hash in visited_signatures:
+                        logger.debug("Already visited tx_hash=%s, skipping", current_tx_hash)
                         continue
-                        
                     visited_signatures.add(current_tx_hash)
                     tracked_tx = await self._process_transaction(current_tx_hash, remaining_amount)
-                    
                     if tracked_tx:
+                        logger.info("Tracked transaction: %s", tracked_tx)
                         result_transactions.append(tracked_tx)
                         next_txs = await self._find_next_transactions(tracked_tx, remaining_amount)
-                        
+                        logger.debug("Found %d next transactions for tx_hash=%s", len(next_txs), current_tx_hash)
                         for tx_hash, amount in next_txs:
                             if tx_hash not in visited_signatures:
+                                logger.debug("Queueing next tx_hash=%s", tx_hash)
                                 processing_queue.append((tx_hash, amount))
-                                
+                    else:
+                        logger.warning("No valid tracked_tx found for %s", current_tx_hash)
+            logger.info("Chain tracking finished. Found %d transactions.", len(result_transactions))
             return result_transactions
-                
         except Exception as e:
-            logger.error(f"Error tracking transaction chain: {e}")
+            logger.error("Error tracking transaction chain from %s: %s", start_tx_hash, e, exc_info=True)
             return []
         
     @retry_with_exponential_backoff(max_retries=3)
@@ -99,16 +88,16 @@ class ChainTracker:
         self,
         tx_hash: str
     ) -> Optional[TransactionDetail]:
-        """Safely fetch transaction with retries."""
+        logger.debug("Fetching transaction safely for %s", tx_hash)
         try:
             tx_detail = await self.solana_repo.get_transaction(tx_hash)
             if tx_detail:
-                logger.debug(f"Successfully retrieved transaction {tx_hash}")
+                logger.debug("Successfully retrieved transaction %s", tx_hash)
                 return tx_detail
-            logger.warning(f"Transaction {tx_hash} not found")
+            logger.warning("Transaction %s not found", tx_hash)
             return None
         except Exception as e:
-            logger.error(f"Error fetching transaction {tx_hash}: {e}")
+            logger.error("Error fetching transaction %s: %s", tx_hash, e, exc_info=True)
             return None
 
     async def _process_transaction(
@@ -116,60 +105,58 @@ class ChainTracker:
         tx_hash: str,
         amount: Optional[Decimal]
     ) -> Optional[TrackedTransaction]:
-        """Process a single transaction in the chain."""
+        logger.debug("Processing transaction %s with amount filter %s", tx_hash, amount)
         tx_detail = await self._get_transaction_safe(tx_hash)
         if not tx_detail:
+            logger.warning("No tx_detail returned for %s", tx_hash)
             return None
             
         try:
-            # Extract transfer information
             transfers = self._extract_transfers(tx_detail)
+            logger.debug("Extracted %d transfers from %s", len(transfers), tx_hash)
             if not transfers:
+                logger.info("No valid transfers found in transaction %s", tx_hash)
                 return None
                 
-            # Filter by amount if specified
             if amount is not None:
                 transfers = [t for t in transfers if abs(t["amount"] - amount) <= self.min_amount]
-                
+                logger.debug("After amount filter: %d transfers remain", len(transfers))
             if not transfers:
+                logger.info("No transfers remaining after filtering by amount for %s", tx_hash)
                 return None
                 
-            # Create tracked transaction from largest transfer
             largest_transfer = max(transfers, key=lambda t: t["amount"])
+            logger.info("Largest transfer in %s: %s", tx_hash, largest_transfer)
             return TrackedTransaction(
                 tx_hash=tx_hash,
                 from_wallet=largest_transfer["from"],
                 to_wallet=largest_transfer["to"],
                 amount=largest_transfer["amount"],
                 timestamp=tx_detail.transaction.timestamp.isoformat(),
-                value_in_target_currency=None  # Would be set by exchange rate service
+                value_in_target_currency=None
             )
-            
         except Exception as e:
-            logger.error(f"Error processing transaction {tx_hash}: {e}")
+            logger.error("Error processing transaction %s: %s", tx_hash, e, exc_info=True)
             return None
 
     def _extract_transfers(
         self,
         tx_detail: TransactionDetail
     ) -> List[Dict]:
-        """Extract transfer information from transaction."""
         transfers = []
-        
         try:
-            # Extract SOL transfers
             for transfer in tx_detail.transfers:
-                if transfer.amount >= self.min_amount:  # Remove .amount access
+                logger.debug("Inspecting transfer: %s", transfer)
+                if transfer.amount >= self.min_amount:
                     transfers.append({
                         "from": transfer.from_address,
                         "to": transfer.to_address,
                         "amount": transfer.amount
                     })
-            
+            logger.debug("Transfer extraction complete: %d valid transfers", len(transfers))
             return transfers
-            
         except Exception as e:
-            logger.error(f"Error extracting transfers: {e}")
+            logger.error("Error extracting transfers: %s", e, exc_info=True)
             return []
             
     async def _find_next_transactions(
@@ -177,16 +164,14 @@ class ChainTracker:
         tracked_tx: TrackedTransaction,
         amount: Optional[Decimal]
     ) -> List[Tuple[str, Optional[Decimal]]]:
-        """Find next transactions in the chain."""
+        logger.debug("Looking for next transactions from wallet %s", tracked_tx.to_wallet)
         try:
             signatures = await self.solana_repo.get_transactions_for_address(
                 address=tracked_tx.to_wallet,
-                limit=5  # Limit to recent transactions
+                limit=5
             )
-            
             next_txs = []
             for tx in signatures.transactions:
-                # Skip if amount doesn't match (with tolerance)
                 if amount is not None:
                     transfers = self._extract_transfers(tx)
                     matching_transfers = [
@@ -194,12 +179,12 @@ class ChainTracker:
                         if abs(t["amount"] - amount) <= self.min_amount
                     ]
                     if not matching_transfers:
+                        logger.debug("Skipping tx %s: no matching transfer for amount %s", tx.transaction.tx_hash, amount)
                         continue
-                
+                logger.debug("Next transaction candidate: %s", tx.transaction.tx_hash)
                 next_txs.append((tx.transaction.tx_hash, amount))
-                
+            logger.info("Found %d next transactions for wallet %s", len(next_txs), tracked_tx.to_wallet)
             return next_txs
-            
         except Exception as e:
-            logger.error(f"Error finding next transactions: {e}")
+            logger.error("Error finding next transactions from %s: %s", tracked_tx.to_wallet, e, exc_info=True)
             return []
