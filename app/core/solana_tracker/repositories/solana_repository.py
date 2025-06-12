@@ -154,7 +154,7 @@ class SolanaRepository:
             ]
         )
 
-        @staticmethod
+    @staticmethod
     def extract_transfers_from_rpc_response(
         rpc_tx: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
