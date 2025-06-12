@@ -18,15 +18,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>   
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>   
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js"></script>   
-
-    <!-- Eigene JS Module -->
-    <script src="/static/js/modules/API.js"></script> 
-    <script src="/static/js/modules/TransactionGraph.js"></script> 
-    <script src="/static/js/modules/DashboardState.js"></script> 
-    <script src="/static/js/utils.js"></script>
-    <script src="/static/js/visualization.js"></script>
-    <script src="/static/js/main.js"></script>
-</head>>
+<head>
 <body>
     <div class="container">
         <div class="header">
@@ -193,6 +185,392 @@
                 document.getElementById(tabId).classList.add('active');
             });
         });
+    </script>
+    </script>
+        // ----- DashboardState.js -----
+        class DashboardState {
+            constructor() {
+                this.subscribers = new Set();
+                this.state = {
+                    currentTransaction: null,
+                    loading: false,
+                    error: null,
+                    metrics: {
+                        totalVolume: 0,
+                        averageAmount: 0,
+                        uniqueWallets: 0,
+                        transactionCount: 0
+                    },
+                    uiState: {
+                        activeTab: 'transaction-tracker',
+                        graphZoomLevel: 1,
+                        selectedTimeRange: '24h'
+                    }
+                };
+            }
+            subscribe(callback) {
+                this.subscribers.add(callback);
+                callback(this.state);
+                return () => this.subscribers.delete(callback);
+            }
+            setState(newState) {
+                this.state = {...this.state, ...newState};
+                this.notify();
+            }
+            setMetrics(metrics) {
+                this.setState({metrics: {...this.state.metrics, ...metrics}});
+            }
+            setError(error) {
+                this.setState({error, loading: false});
+            }
+            setLoading(loading) {
+                this.setState({loading});
+            }
+            clearError() {
+                this.setState({error: null});
+            }
+            notify() {
+                this.subscribers.forEach(callback => callback(this.state));
+            }
+        }
+        
+        // ----- TransactionGraph.js -----
+        class TransactionGraph {
+            constructor(selector, options = {}) {
+                this.selector = selector;
+                this.options = {
+                    width: options.width || 800,
+                    height: options.height || 600,
+                    nodeRadius: options.nodeRadius || 8,
+                    linkDistance: options.linkDistance || 120,
+                    colors: {
+                        node: {
+                            default: "#69b3a2",
+                            source: "#2ca02c",
+                            target: "#ff7f0e",
+                            exchange: "#9467bd",
+                            bridge: "#e377c2"
+                        },
+                        link: {
+                            default: "#999",
+                            highlighted: "#ff7f0e"
+                        },
+                        ...options.colors
+                    }
+                };
+                this.svg = d3.select(selector)
+                    .append("svg")
+                    .attr("width", this.options.width)
+                    .attr("height", this.options.height);
+        
+                this.simulation = d3.forceSimulation()
+                    .force("link", d3.forceLink().distance(this.options.linkDistance))
+                    .force("charge", d3.forceManyBody().strength(-200))
+                    .force("center", d3.forceCenter(this.options.width / 2, this.options.height / 2));
+        
+                this.initializeGraph();
+            }
+            initializeGraph() {
+                this.linksGroup = this.svg.append("g").attr("class", "links");
+                this.nodesGroup = this.svg.append("g").attr("class", "nodes");
+                this.tooltip = d3.select("body")
+                    .append("div")
+                    .attr("class", "transaction-tooltip")
+                    .style("opacity", 0);
+            }
+            updateGraph({nodes, links}) {
+                const nodeElements = this.nodesGroup.selectAll("circle").data(nodes, d => d.id);
+                nodeElements.exit().remove();
+                const nodeEnter = nodeElements.enter()
+                    .append("circle")
+                    .attr("r", this.options.nodeRadius)
+                    .attr("fill", d => this.getNodeColor(d))
+                    .call(this.drag());
+                this.nodes = nodeEnter.merge(nodeElements)
+                    .on("mouseover", (event, d) => this.showTooltip(event, d))
+                    .on("mouseout", () => this.hideTooltip());
+        
+                const linkElements = this.linksGroup.selectAll("line").data(links, d => `${d.source}-${d.target}`);
+                linkElements.exit().remove();
+                const linkEnter = linkElements.enter()
+                    .append("line")
+                    .attr("stroke", this.options.colors.link.default)
+                    .attr("stroke-width", d => Math.sqrt(d.value));
+                this.links = linkEnter.merge(linkElements);
+        
+                this.simulation
+                    .nodes(nodes)
+                    .force("link").links(links);
+        
+                this.simulation.alpha(1).restart();
+        
+                this.simulation.on("tick", () => {
+                    this.links
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+                    this.nodes
+                        .attr("cx", d => d.x)
+                        .attr("cy", d => d.y);
+                });
+            }
+            drag() {
+                return d3.drag()
+                    .on("start", (event, d) => {
+                        if (!event.active) this.simulation.alphaTarget(0.3).restart();
+                        d.fx = d.x;
+                        d.fy = d.y;
+                    })
+                    .on("drag", (event, d) => {
+                        d.fx = event.x;
+                        d.fy = event.y;
+                    })
+                    .on("end", (event, d) => {
+                        if (!event.active) this.simulation.alphaTarget(0);
+                        d.fx = null;
+                        d.fy = null;
+                    });
+            }
+            showTooltip(event, d) {
+                this.tooltip
+                    .style("opacity", 1)
+                    .html(`
+                        <div class="tooltip-header">${this.shortenAddress(d.id)}</div>
+                        <div class="tooltip-body">
+                            <div>Type: ${d.type}</div>
+                            <div>Value: ${d.value.toFixed(4)} SOL</div>
+                        </div>
+                    `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 10) + "px");
+            }
+            hideTooltip() { this.tooltip.style("opacity", 0); }
+            getNodeColor(node) {
+                if (node.type === 'exchange') return this.options.colors.node.exchange;
+                if (node.type === 'bridge') return this.options.colors.node.bridge;
+                return this.options.colors.node.default;
+            }
+            shortenAddress(address) {
+                return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+            }
+            resize(width, height) {
+                this.options.width = width;
+                this.options.height = height;
+                this.svg.attr("width", width).attr("height", height);
+                this.simulation
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .alpha(0.3).restart();
+            }
+        }
+        
+        // ----- utils.js -----
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = 'In Zwischenablage kopiert!';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            });
+        }
+        function updateTransactionInfo(data) {
+            const getNestedValue = (obj, path, defaultValue = '-') =>
+                path.split('.').reduce((current, key) => 
+                    current && current[key] !== undefined ? current[key] : defaultValue, obj);
+        
+            document.getElementById('sourceWallet').textContent = 
+                getNestedValue(data, 'transactions.0.from_wallet');
+            document.getElementById('targetWallet').textContent = 
+                getNestedValue(data, 'transactions.0.to_wallet');
+            document.getElementById('startHash').textContent = 
+                getNestedValue(data, 'transactions.0.tx_hash');
+            document.getElementById('txCount').textContent = 
+                getNestedValue(data, 'statistics.total_transactions', '0');
+            document.getElementById('totalValue').textContent = 
+                `${getNestedValue(data, 'statistics.total_amount', '0')} SOL`;
+            document.getElementById('finalStatus').textContent = 
+                getNestedValue(data, 'scenarios.0.type', 'Unknown');
+        
+            const targetCurrency = document.getElementById('targetCurrency').value;
+            document.getElementById('targetCurrencyDisplay').textContent = targetCurrency;
+            const exchangeRate = getNestedValue(data, 'statistics.exchange_rate', '0');
+            document.getElementById('exchangeRate').textContent = 
+                `${exchangeRate} ${targetCurrency}/SOL`;
+        
+            const totalAmount = parseFloat(getNestedValue(data, 'statistics.total_amount', '0'));
+            const convertedValue = totalAmount * parseFloat(exchangeRate);
+            document.getElementById('convertedValue').textContent = 
+                `${convertedValue.toFixed(2)} ${targetCurrency}`;
+        }
+        function showSuccessMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'success-message';
+            messageDiv.textContent = message;
+            const container = document.querySelector('.visualization');
+            container.insertBefore(messageDiv, container.firstChild);
+            setTimeout(() => messageDiv.remove(), 3000);
+        }
+        
+        // ----- main.js -----
+        const API_BASE_URL = '/api/v1';
+        let api, transactionGraph, dashboardState;
+        document.addEventListener('DOMContentLoaded', function() {
+            api = new API(API_BASE_URL);
+            dashboardState = new DashboardState();
+            const container = document.getElementById('transactionTree');
+            transactionGraph = new TransactionGraph('#transactionTree', {
+                width: container.clientWidth,
+                height: 600,
+                nodeRadius: 8,
+                linkDistance: 120
+            });
+        
+            const trackButton = document.getElementById('trackButton');
+            if (trackButton) {
+                trackButton.addEventListener('click', handleTrackButtonClick);
+            }
+            const analysisForm = document.getElementById('analysisForm');
+            if (analysisForm) {
+                analysisForm.addEventListener('submit', handleAnalysisSubmit);
+            }
+        });
+        async function handleTrackButtonClick(event) {
+            event.preventDefault();
+            try {
+                dashboardState.setLoading(true);
+                const result = await api.trackTransactions();
+                if (!result.success) throw new Error(result.error);
+                updateTransactionInfo(result.data);
+                if (result.data.transactions && result.data.transactions.length > 0) {
+                    await visualizeTransactionPath(result.data);
+                }
+                showSuccessMessage('Transaction data loaded successfully');
+            } catch (error) {
+                document.getElementById('transactionTree').innerHTML = `
+                    <div class="error-message">
+                        <h3>Error</h3>
+                        <p>${error.message}</p>
+                    </div>`;
+                updateTransactionInfo({});
+            } finally {
+                dashboardState.setLoading(false);
+            }
+        }
+        async function handleAnalysisSubmit(event) {
+            event.preventDefault();
+            try {
+                document.getElementById('transactionTree').innerHTML = 
+                    '<div class="loading">Loading transaction data...</div>';
+                const startTxHash = document.getElementById('startTx').value;
+                const targetCurrency = document.getElementById('targetCurrency').value;
+                const numTransactions = document.getElementById('numTransactions').value;
+                const amount = document.getElementById('amount')?.value;
+                if (!startTxHash) throw new Error('Please enter a transaction hash');
+                const response = await fetch(`${API_BASE_URL}/track-transactions`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json','Accept': 'application/json'},
+                    body: JSON.stringify({
+                        start_tx_hash: startTxHash,
+                        target_currency: targetCurrency,
+                        num_transactions: parseInt(numTransactions),
+                        amount: amount ? parseFloat(amount) : null
+                    })
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.status === 'no_chain_found') throw new Error('No transaction chain found');
+                updateTransactionInfo(data);
+                if (data.transactions && data.transactions.length > 0) {
+                    await visualizeTransactionPath(data);
+                }
+                showSuccessMessage('Transaction data loaded successfully');
+            } catch (error) {
+                document.getElementById('transactionTree').innerHTML = `
+                    <div class="error-message">
+                        <h3>Error</h3>
+                        <p>${error.message}</p>
+                    </div>`;
+                updateTransactionInfo({});
+            }
+        }
+        function visualizeTransactionPath(data) {
+            if (!transactionGraph) return;
+            const nodes = data.transactions.map(tx => ({
+                id: tx.from_wallet,
+                value: tx.amount,
+                type: 'wallet'
+            }));
+            const links = data.transactions.map(tx => ({
+                source: tx.from_wallet,
+                target: tx.to_wallet,
+                value: tx.amount
+            }));
+            window.addEventListener('resize', () => {
+                if (transactionGraph) {
+                    const container = document.getElementById('transactionTree');
+                    transactionGraph.resize(container.clientWidth, 600);
+                }
+            });
+            transactionGraph.updateGraph({ nodes, links });
+        }
+        
+        // ----- API.js (ohne export/import) -----
+        class API {
+            constructor(baseUrl) {
+                this.baseUrl = baseUrl;
+            }
+            async safeApiCall(apiFunc) {
+                try {
+                    const result = await apiFunc();
+                    return { success: true, data: result };
+                } catch (error) {
+                    return { success: false, error: error.message };
+                }
+            }
+            async trackTransactions() {
+                return this.safeApiCall(async () => {
+                    const transactionTree = document.getElementById('transactionTree');
+                    if (transactionTree) {
+                        transactionTree.innerHTML = '<div class="loading">Loading transaction data...</div>';
+                    }
+                    const startTx = document.getElementById('startTx');
+                    const targetCurrency = document.getElementById('targetCurrency');
+                    const numTransactions = document.getElementById('numTransactions');
+                    if (!startTx || !targetCurrency || !numTransactions) {
+                        throw new Error('Required form elements not found');
+                    }
+                    const formData = {
+                        start_tx_hash: startTx.value,
+                        target_currency: targetCurrency.value,
+                        num_transactions: parseInt(numTransactions.value)
+                    };
+                    if (!formData.start_tx_hash) {
+                        throw new Error('Please enter a transaction hash');
+                    }
+                    const response = await fetch(`${this.baseUrl}/track-transactions`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    if (data.status === 'no_chain_found') {
+                        throw new Error('No transaction chain found');
+                    }
+                    return data;
+                });
+            }
+        }
     </script>
 </body>
 </html>
