@@ -1,7 +1,6 @@
 export class API {
     constructor(baseUrl) {
         this.baseUrl = baseUrl;
-        this.visualizeTransactionPath = null; // Will be set from main.js
     }
 
     async safeApiCall(apiFunc) {
