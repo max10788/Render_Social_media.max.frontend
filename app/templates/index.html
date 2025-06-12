@@ -40,6 +40,25 @@
             <div class="controls">
                 <div class="control-item">
                     <label for="startTx">Starttransaktion:</label>
+                    <input type="text" id="startTx" ...>
+                </div>
+                <div class="control-item">
+                    <label for="targetCurrency">Zielwährung:</label>
+                    <select id="targetCurrency">...</select>
+                </div>
+                <div class="control-item">
+                    <label for="numTransactions">Anzahl Transaktionen:</label>
+                    <input type="number" id="numTransactions" ...>
+                </div>
+                <div class="control-item">
+                    <label for="amount">Betrag:</label>
+                    <input type="number" id="amount" step="any" min="0.000000001" placeholder="Betrag (z.B. 1.5)" style="width: 100%;">
+                </div>
+                <div class="control-item">
+                    <button id="trackButton" ...>Transaktionen verfolgen</button>
+                </div>
+                <div class="control-item">
+                    <label for="startTx">Starttransaktion:</label>
                     <input type="text" id="startTx" placeholder="Transaktions-Hash eingeben" style="width: 100%;">
                 </div>
                 <div class="control-item">
