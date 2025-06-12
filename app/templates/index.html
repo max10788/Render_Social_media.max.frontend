@@ -187,25 +187,30 @@
         });
         
     async function trackTransactions() {
-        // Collect input values
         const startTx = document.getElementById('startTx').value.trim();
         const targetCurrency = document.getElementById('targetCurrency').value;
         const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
+        const amount = parseFloat(document.getElementById('amount').value); // <-- NEW
     
-        // Build the request payload
-        const payload = {
-            start_tx_hash: startTx,
-            target_currency: targetCurrency,
-            num_transactions: numTransactions
-            // Add 'amount' if your backend expects it (and collect from input if needed)
-        };
-    
-        // UI feedback: show loading, hide errors
         const tree = document.getElementById('transactionTree');
         const errorContainer = document.getElementById('errorContainer');
         tree.classList.add('loading');
         errorContainer.style.display = 'none';
         tree.innerHTML = '';
+    
+        if (isNaN(amount) || amount <= 0) {
+            errorContainer.textContent = 'Please enter a valid amount greater than zero.';
+            errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
+            return;
+        }
+    
+        const payload = {
+            start_tx_hash: startTx,
+            target_currency: targetCurrency,
+            amount: amount,
+            num_transactions: numTransactions
+        };
     
         try {
             const response = await fetch('/api/track-transactions', {
