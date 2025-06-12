@@ -187,24 +187,46 @@
         });
         
     async function trackTransactions() {
+        // Collect input values
         const startTx = document.getElementById('startTx').value.trim();
         const targetCurrency = document.getElementById('targetCurrency').value;
         const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
-        const amount = parseFloat(document.getElementById('amount').value); // <-- NEW
+        const amount = parseFloat(document.getElementById('amount').value);
     
+        // UI feedback: show loading, hide errors
         const tree = document.getElementById('transactionTree');
         const errorContainer = document.getElementById('errorContainer');
         tree.classList.add('loading');
         errorContainer.style.display = 'none';
         tree.innerHTML = '';
     
+        // Input validation
+        if (!startTx || startTx.length < 64) {
+            errorContainer.textContent = 'Please enter a valid transaction hash (min. 64 characters).';
+            errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
+            return;
+        }
+        if (!["USD", "EUR", "GBP", "JPY", "SOL", "ETH"].includes(targetCurrency)) {
+            errorContainer.textContent = 'Please select a valid target currency.';
+            errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
+            return;
+        }
         if (isNaN(amount) || amount <= 0) {
             errorContainer.textContent = 'Please enter a valid amount greater than zero.';
             errorContainer.style.display = 'block';
             tree.classList.remove('loading');
             return;
         }
+        if (isNaN(numTransactions) || numTransactions < 1 || numTransactions > 100) {
+            errorContainer.textContent = 'Please enter a valid number of transactions (1-100).';
+            errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
+            return;
+        }
     
+        // Build the request payload
         const payload = {
             start_tx_hash: startTx,
             target_currency: targetCurrency,
@@ -222,18 +244,22 @@
             });
     
             if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.detail?.message || 'Fehler bei der Transaktionsverfolgung');
+                let errMsg = 'Fehler bei der Transaktionsverfolgung.';
+                try {
+                    const data = await response.json();
+                    errMsg = data.detail?.message || data.detail || errMsg;
+                } catch (e) { /* ignore JSON parse errors */ }
+                throw new Error(errMsg);
             }
     
             const result = await response.json();
     
-            // Populate UI with results
+            // Populate UI with results (update IDs as needed for your HTML)
             document.getElementById('sourceWallet').textContent = result.tracked_transactions[0]?.from_wallet || '-';
             document.getElementById('targetWallet').textContent = result.final_wallet_address || '-';
             document.getElementById('startHash').textContent = result.tracked_transactions[0]?.tx_hash || '-';
             document.getElementById('txCount').textContent = result.total_transactions_tracked ?? '-';
-            document.getElementById('totalValue').textContent = result.statistics?.total_value ?? '-';
+            document.getElementById('totalValue').textContent = result.statistics?.total_amount ?? '-';
             document.getElementById('finalStatus').textContent = result.final_status ?? '-';
             document.getElementById('targetCurrencyDisplay').textContent = result.target_currency ?? '-';
             document.getElementById('exchangeRate').textContent = result.statistics?.exchange_rate ?? '-';
@@ -241,14 +267,14 @@
     
             // (Optional) Render the transaction tree visualization here, if desired.
             tree.classList.remove('loading');
-            tree.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>'; // Replace with custom visualization
+            tree.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
     
-            } catch (err) {
-                errorContainer.textContent = err.message;
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-            }
+        } catch (err) {
+            errorContainer.textContent = err.message;
+            errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
         }
+    }
     
     // Add event listener to the button
     document.getElementById('trackButton').addEventListener('click', trackTransactions);
