@@ -1,6 +1,7 @@
 export class API {
     constructor(baseUrl) {
         this.baseUrl = baseUrl;
+        this.visualizeTransactionPath = null; // Will be set from main.js
     }
 
     async safeApiCall(apiFunc) {
@@ -66,6 +67,9 @@ export class API {
                 throw new Error('No transaction chain found');
             }
 
+            // Update UI immediately after receiving data
+            await this.updateUI(data);
+
             return data;
         });
     }
@@ -73,18 +77,43 @@ export class API {
     async updateUI(data) {
         try {
             // Update transaction info
-            updateTransactionInfo(data);
+            if (typeof window.updateTransactionInfo === 'function') {
+                window.updateTransactionInfo(data);
+            } else {
+                console.error('updateTransactionInfo function not found');
+            }
             
             // Update visualization if we have transaction data
             if (data.transactions && data.transactions.length > 0) {
-                await visualizeTransactionPath(data);
+                if (typeof window.visualizeTransactionPath === 'function') {
+                    await window.visualizeTransactionPath(data);
+                } else {
+                    console.error('visualizeTransactionPath function not found');
+                }
             }
         } catch (error) {
             console.error('Error updating UI:', error);
-            throw error;
+            this.handleError(error);
         }
     }
 
+    handleError(error) {
+        console.error('Error:', error);
+        const transactionTree = document.getElementById('transactionTree');
+        if (transactionTree) {
+            transactionTree.innerHTML = `
+                <div class="error-message">
+                    <h3>Error</h3>
+                    <p>${error.message}</p>
+                </div>`;
+        }
+            
+        // Clear info panels on error
+        if (typeof window.updateTransactionInfo === 'function') {
+            window.updateTransactionInfo({});
+        }
+    }
+    
     async getExchangeRate(from, to) {
         return this.safeApiCall(async () => {
             const response = await fetch(`${COINGECKO_API_URL}?ids=${from}&vs_currencies=${to}`);
