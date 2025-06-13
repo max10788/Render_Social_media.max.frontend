@@ -284,7 +284,7 @@ class SolanaRepository:
             extracted_transfers = self.extract_transfers_from_rpc_response(result)
             if extracted_transfers:
                 logger.info(
-                    f"Extracted transfers for signature {signature}: {json.dumps(extracted_transfers, indent=2)[:2000]}"
+                    f"Extracted transfers for signature {signature}: {json.dumps(extracted_transfers, indent=2, default=str)[:2000]}"
                 )
             else:
                 logger.info(
@@ -297,7 +297,7 @@ class SolanaRepository:
         except Exception as e:
             logger.error(f"Error fetching transaction {signature}: {e}")
             raise
-
+        
     async def _parse_transaction_response(self, tx_value: dict) -> Optional[TransactionDetail]:
         """Parse raw transaction response into TransactionDetail model."""
         try:
