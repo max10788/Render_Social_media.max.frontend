@@ -247,42 +247,53 @@ class SolanaRepository:
     async def get_transaction(self, signature: str) -> Optional[TransactionDetail]:
         """
         Fetch transaction details by signature.
-        
+    
         Args:
             signature: Transaction signature to fetch
-            
+    
         Returns:
             Optional[TransactionDetail]: Transaction details if found
-            
+    
         Raises:
             ValueError: If signature is invalid
             ConnectionError: If RPC connection fails
         """
         await self._ensure_connection()
-        
+    
         # Validate signature format
         try:
             validated_sig = validate_signature(signature)
         except ValueError as e:
             logger.error(f"Invalid signature format: {e}")
             raise
-            
+    
         try:
             response = await self.get_raw_transaction(validated_sig)
-            
             logger.debug(f"get_transaction raw response: {json.dumps(response, indent=2)[:2000]}")
-            
+    
             if "error" in response:
                 logger.error(f"Error fetching transaction {signature}: {response['error']}")
                 return None
-                
+    
             result = response.get("result")
             if not result:
                 logger.debug(f"No transaction found for signature: {signature}")
                 return None
-                
+    
+            # --- EXTRACT AND LOG TRANSFERS ---
+            extracted_transfers = self.extract_transfers_from_rpc_response(result)
+            if extracted_transfers:
+                logger.info(
+                    f"Extracted transfers for signature {signature}: {json.dumps(extracted_transfers, indent=2)[:2000]}"
+                )
+            else:
+                logger.info(
+                    f"No transfers extracted for signature {signature}."
+                )
+            # --- END LOG ---
+    
             return await self._parse_transaction_response(result)
-            
+    
         except Exception as e:
             logger.error(f"Error fetching transaction {signature}: {e}")
             raise
