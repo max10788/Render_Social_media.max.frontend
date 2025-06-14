@@ -142,13 +142,25 @@ class TransactionService:
             for i in range(1, len(transactions)):
                 t1 = transactions[i-1].timestamp
                 t2 = transactions[i].timestamp
-                # Falls t1/t2 ein String ist, umwandeln, sonst direkt nutzen
+                # Ensure timestamps are datetime objects for calculation
                 if isinstance(t1, str):
-                    t1 = datetime.fromisoformat(t1)
+                    t1 = datetime.fromisoformat(t1.replace('Z', '+00:00'))
                 if isinstance(t2, str):
-                    t2 = datetime.fromisoformat(t2)
+                    t2 = datetime.fromisoformat(t2.replace('Z', '+00:00'))
                 time_diffs.append((t2 - t1).total_seconds())
-            logger.debug("Statistics: total_amount=%s, unique_addresses=%d, avg_time=%.2f", total_amount, len(unique_addresses), sum(time_diffs)/len(time_diffs) if time_diffs else 0)
+            
+            # Ensure timestamps are converted to ISO format strings
+            first_timestamp = transactions[0].timestamp
+            last_timestamp = transactions[-1].timestamp
+            if isinstance(first_timestamp, datetime):
+                first_timestamp = first_timestamp.isoformat()
+            if isinstance(last_timestamp, datetime):
+                last_timestamp = last_timestamp.isoformat()
+                
+            logger.debug("Statistics: total_amount=%s, unique_addresses=%d, avg_time=%.2f",
+                        total_amount, len(unique_addresses),
+                        sum(time_diffs)/len(time_diffs) if time_diffs else 0)
+            
             return {
                 "total_transactions": len(transactions),
                 "total_amount": float(total_amount),
@@ -156,8 +168,8 @@ class TransactionService:
                 "average_time_between_tx": (
                     sum(time_diffs) / len(time_diffs) if time_diffs else 0
                 ),
-                "first_tx_timestamp": transactions[0].timestamp,
-                "last_tx_timestamp": transactions[-1].timestamp
+                "first_tx_timestamp": first_timestamp,
+                "last_tx_timestamp": last_timestamp
             }
         except Exception as e:
             logger.error("Error calculating chain statistics: %s", e, exc_info=True)
