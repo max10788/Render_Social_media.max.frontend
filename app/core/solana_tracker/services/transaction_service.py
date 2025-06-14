@@ -140,8 +140,13 @@ class TransactionService:
                 unique_addresses.add(tx.to_wallet)
             time_diffs = []
             for i in range(1, len(transactions)):
-                t1 = datetime.fromisoformat(transactions[i-1].timestamp)
-                t2 = datetime.fromisoformat(transactions[i].timestamp)
+                t1 = transactions[i-1].timestamp
+                t2 = transactions[i].timestamp
+                # Falls t1/t2 ein String ist, umwandeln, sonst direkt nutzen
+                if isinstance(t1, str):
+                    t1 = datetime.fromisoformat(t1)
+                if isinstance(t2, str):
+                    t2 = datetime.fromisoformat(t2)
                 time_diffs.append((t2 - t1).total_seconds())
             logger.debug("Statistics: total_amount=%s, unique_addresses=%d, avg_time=%.2f", total_amount, len(unique_addresses), sum(time_diffs)/len(time_diffs) if time_diffs else 0)
             return {
