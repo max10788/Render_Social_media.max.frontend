@@ -81,7 +81,15 @@ class TrackedTransaction(TransactionBase):
             Decimal: str,
             datetime: lambda v: v.isoformat()  # Add this line
         }
-        
+
+    @validator('timestamp', pre=True)
+    def validate_timestamp(cls, v):
+        """Ensure timestamp is converted to ISO format string."""
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return v
+
+
 class TransactionDetail(BaseModel):
     """Detailed transaction information including transfers."""
     signature: str
