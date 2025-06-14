@@ -78,9 +78,10 @@ class TrackedTransaction(TransactionBase):
     
     class Config:
         json_encoders = {
-            Decimal: str
+            Decimal: str,
+            datetime: lambda v: v.isoformat()  # Add this line
         }
-
+        
 class TransactionDetail(BaseModel):
     """Detailed transaction information including transfers."""
     signature: str
