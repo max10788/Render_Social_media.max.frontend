@@ -44,39 +44,63 @@ class ChainTracker:
         if not self.validate_transaction_signature(start_tx_hash):
             logger.error("Invalid transaction signature format: %s", start_tx_hash)
             return []
-            
-        visited_signatures: Set[str] = set()
         result_transactions: List[TrackedTransaction] = []
-        processing_queue: List[Tuple[str, Optional[Decimal]]] = [(start_tx_hash, amount)]
-        
+        visited_addresses: Set[str] = set()
         try:
             async with self.solana_repo as repo:
-                initial_tx = await self._get_transaction_safe(start_tx_hash)
-                if not initial_tx:
+                # 1. Hole erste Transaktion
+                tx_detail = await self._get_transaction_safe(start_tx_hash)
+                if not tx_detail:
                     logger.error("Initial transaction %s not found", start_tx_hash)
-                    response = await repo.get_raw_transaction(start_tx_hash)
-                    logger.debug("RPC Response for %s: %s", start_tx_hash, json.dumps(response, indent=2)[:1500])
                     return []
-                
-                while processing_queue and len(result_transactions) < max_depth:
-                    current_tx_hash, remaining_amount = processing_queue.pop(0)
-                    logger.debug("Processing tx_hash=%s, remaining_amount=%s", current_tx_hash, remaining_amount)
-                    if current_tx_hash in visited_signatures:
-                        logger.debug("Already visited tx_hash=%s, skipping", current_tx_hash)
-                        continue
-                    visited_signatures.add(current_tx_hash)
-                    tracked_tx = await self._process_transaction(current_tx_hash, remaining_amount)
-                    if tracked_tx:
-                        logger.info("Tracked transaction: %s", tracked_tx)
-                        result_transactions.append(tracked_tx)
-                        next_txs = await self._find_next_transactions(tracked_tx, remaining_amount)
-                        logger.debug("Found %d next transactions for tx_hash=%s", len(next_txs), current_tx_hash)
-                        for tx_hash, amount in next_txs:
-                            if tx_hash not in visited_signatures:
-                                logger.debug("Queueing next tx_hash=%s", tx_hash)
-                                processing_queue.append((tx_hash, amount))
-                    else:
-                        logger.warning("No valid tracked_tx found for %s", current_tx_hash)
+                transfers = self._extract_transfers(tx_detail)
+                if not transfers:
+                    logger.warning("No valid transfers in initial tx %s", start_tx_hash)
+                    return []
+                # 2. Nehme Empfänger-Adresse des größten Transfers als Startpunkt
+                main_transfer = max(transfers, key=lambda t: t["amount"])
+                current_wallet = main_transfer["to"]
+                result_transactions.append(TrackedTransaction(
+                    tx_hash=tx_detail.signature,
+                    from_wallet=main_transfer["from"],
+                    to_wallet=current_wallet,
+                    amount=main_transfer["amount"],
+                    timestamp=tx_detail.transaction.timestamp.isoformat(),
+                    value_in_target_currency=None
+                ))
+                for depth in range(1, max_depth):
+                    if not current_wallet or current_wallet in visited_addresses:
+                        logger.info("End of chain reached at depth=%d", depth)
+                        break
+                    visited_addresses.add(current_wallet)
+                    # Prüfe aktuellen Kontostand (nur SOL, für SPL extra RPC nötig!)
+                    sol_balance = await repo._make_rpc_call(
+                        "getBalance", [current_wallet]
+                    )
+                    logger.info(f"Wallet {current_wallet} SOL balance: {sol_balance.get('result', {}).get('value', 0)}")
+                    # Ggf. hier auch SPL-Token prüfen!
+                    # Finde nächste outgoing Transactions
+                    txs_for_addr = await repo.get_transactions_for_address(current_wallet, limit=10)
+                    found_next = False
+                    for tx in txs_for_addr.transactions:
+                        tx_transfers = self._extract_transfers(tx)
+                        out_transfers = [t for t in tx_transfers if t["from"] == current_wallet and t["amount"] >= self.min_amount]
+                        if out_transfers:
+                            next_transfer = max(out_transfers, key=lambda t: t["amount"])
+                            result_transactions.append(TrackedTransaction(
+                                tx_hash=tx.signature,
+                                from_wallet=current_wallet,
+                                to_wallet=next_transfer["to"],
+                                amount=next_transfer["amount"],
+                                timestamp=tx.transaction.timestamp.isoformat(),
+                                value_in_target_currency=None
+                            ))
+                            current_wallet = next_transfer["to"]
+                            found_next = True
+                            break  # Nimm nur den ersten relevanten Outflow
+                    if not found_next:
+                        logger.info(f"No outgoing transfer found from {current_wallet}, chain ends here.")
+                        break
             logger.info("Chain tracking finished. Found %d transactions.", len(result_transactions))
             return result_transactions
         except Exception as e:
