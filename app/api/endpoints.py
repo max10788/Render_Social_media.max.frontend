@@ -313,21 +313,12 @@ async def track_transactions(
 ):
     """
     Track a chain of transactions and detect scenarios.
-    
-    Args:
-        request: Transaction tracking request containing start_tx_hash and parameters
-        service: Transaction service instance
-        
-    Returns:
-        TransactionTrackResponse with tracking results and detected scenarios
     """
     try:
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
-        
-        # Convert amount to Decimal if provided
+
         amount = Decimal(str(request.amount)) if request.amount is not None else None
-        
-        # Track transaction chain
+
         tracking_result = await service.analyze_transaction_chain(
             start_tx_hash=request.start_tx_hash,
             max_depth=request.num_transactions,
@@ -335,7 +326,6 @@ async def track_transactions(
             amount=amount
         )
 
-        # --- NEW: Handle no-data cases clearly for user and log! ---
         if (
             not tracking_result.get("transactions") and
             tracking_result.get("status") in {"no_chain_found", "no_data"}
@@ -358,14 +348,11 @@ async def track_transactions(
                     "suggestion": "Überprüfen Sie die Transaktions-ID und versuchen Sie es ggf. erneut."
                 }
             )
-        # --- END NEW ---
 
-        # Extract scenarios and transactions from result
         scenarios = tracking_result.get("scenarios", [])
         transactions = tracking_result.get("transactions", [])
         statistics = tracking_result.get("statistics", {})
 
-        # Determine final status based on scenarios
         final_status = FinalStatusEnum.still_in_same_wallet
         for scenario in scenarios:
             if scenario.type == ScenarioType.burned:
@@ -377,7 +364,6 @@ async def track_transactions(
             elif scenario.type == ScenarioType.converted_to_stablecoin:
                 final_status = FinalStatusEnum.converted_to_stable
 
-        # Get final transaction details
         final_tx = transactions[-1] if transactions else None
         final_wallet = final_tx.to_wallet if final_tx else None
         final_amount = final_tx.amount if final_tx else request.amount
@@ -387,27 +373,27 @@ async def track_transactions(
             f"{len(scenarios)} detected scenarios"
         )
 
-        # Prepare detailed scenario information
         scenario_details = {}
         for scenario in scenarios:
             scenario_details[scenario.type] = {
-                "description": scenario.details.user_message,
+                "description": getattr(scenario.details, "user_message", ""),
                 "confidence": scenario.confidence,
-                "is_terminal": scenario.details.is_terminal,
-                "can_be_recovered": scenario.details.can_be_recovered,
-                "user_action_required": scenario.details.user_action_required,
-                "suggested_actions": scenario.next_steps if scenario.next_steps else []
+                "is_terminal": getattr(scenario.details, "is_terminal", False),
+                "can_be_recovered": getattr(scenario.details, "can_be_recovered", True),
+                "user_action_required": getattr(scenario.details, "user_action_required", False),
+                "suggested_actions": getattr(scenario, "next_steps", []) or []
             }
 
+        # Gib die Models direkt an das Response-Model zurück!
         return TransactionTrackResponse(
             status="complete",
             total_transactions_tracked=len(transactions),
-            tracked_transactions=transactions,
+            tracked_transactions=transactions,           # <--- Liste von TrackedTransaction
             final_status=final_status,
             final_wallet_address=final_wallet,
             remaining_amount=final_amount,
             target_currency=request.target_currency,
-            detected_scenarios=scenarios,
+            detected_scenarios=scenarios,                 # <--- Liste von DetectedScenario
             scenario_details=scenario_details,
             statistics=statistics
         )
@@ -432,6 +418,7 @@ async def track_transactions(
                 "suggestion": "Please try again later oder kontaktieren Sie den Support"
             }
         )
+        
 #--------------------------i
 # ML-basierte Analyse
 #--------------------------i
