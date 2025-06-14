@@ -88,11 +88,11 @@ class ChainTracker:
                         if out_transfers:
                             next_transfer = max(out_transfers, key=lambda t: t["amount"])
                             result_transactions.append(TrackedTransaction(
-                                tx_hash=tx.signature,
-                                from_wallet=current_wallet,
-                                to_wallet=next_transfer["to"],
-                                amount=next_transfer["amount"],
-                                timestamp=tx.transaction.timestamp.isoformat(),
+                                tx_hash=tx_detail.signature,
+                                from_wallet=main_transfer["from"],
+                                to_wallet=current_wallet,
+                                amount=main_transfer["amount"],
+                                timestamp=tx_detail.transaction.timestamp,  # <-- datetime, NICHT .isoformat()!
                                 value_in_target_currency=None
                             ))
                             current_wallet = next_transfer["to"]
