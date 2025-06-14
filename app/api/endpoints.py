@@ -335,10 +335,14 @@ async def track_transactions(
             amount=amount
         )
 
-        if not tracking_result.get("transactions"):
-            logger.warning(f"No transactions found in chain starting from {request.start_tx_hash}")
+        # --- NEW: Handle no-data cases clearly for user and log! ---
+        if (
+            not tracking_result.get("transactions") and
+            tracking_result.get("status") in {"no_chain_found", "no_data"}
+        ):
+            logger.warning(f"No transactions found or accessible in chain starting from {request.start_tx_hash}")
             return TransactionTrackResponse(
-                status="complete",
+                status="no_data",
                 total_transactions_tracked=0,
                 tracked_transactions=[],
                 final_status=FinalStatusEnum.no_transactions_found,
@@ -347,10 +351,14 @@ async def track_transactions(
                 target_currency=request.target_currency,
                 detected_scenarios=[],
                 scenario_details={
-                    "user_message": "No transactions found or transaction not accessible",
-                    "suggestion": "Verify the transaction hash and ensure it exists on the blockchain"
+                    "user_message": (
+                        "Für die angegebene Transaktion konnten keine Daten abgerufen werden. "
+                        "Bitte prüfen Sie, ob die Transaktions-ID korrekt ist und ob die Transaktion auf der Blockchain existiert."
+                    ),
+                    "suggestion": "Überprüfen Sie die Transaktions-ID und versuchen Sie es ggf. erneut."
                 }
             )
+        # --- END NEW ---
 
         # Extract scenarios and transactions from result
         scenarios = tracking_result.get("scenarios", [])
@@ -421,7 +429,7 @@ async def track_transactions(
             detail={
                 "error": "Transaction tracking failed",
                 "message": str(e),
-                "suggestion": "Please try again later or contact support"
+                "suggestion": "Please try again later oder kontaktieren Sie den Support"
             }
         )
 #--------------------------i
