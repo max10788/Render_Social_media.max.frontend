@@ -112,8 +112,9 @@ class TransactionService:
 
             return {
                 "status": "success",
-                "transactions": [tx.dict() for tx in tracked_txs],
-                "scenarios": [s.dict() for s in scenarios] if scenarios else [],
+                # Gib immer Pydantic-Modelle weiter, NICHT .dict():
+                "transactions": tracked_txs,
+                "scenarios": scenarios if scenarios else [],
                 "statistics": stats,
                 "analysis_timestamp": datetime.utcnow().isoformat()
             }
@@ -121,7 +122,7 @@ class TransactionService:
         except Exception as e:
             logger.error("Error analyzing transaction chain from %s: %s", start_tx_hash, e, exc_info=True)
             raise
-
+            
     async def _calculate_chain_statistics(
         self,
         transactions: List[TrackedTransaction]
