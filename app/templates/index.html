@@ -18,7 +18,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>   
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>   
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js"></script>   
-    <script type="module" src="/static/js/visualization.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script type="module" src="/static/js/visualization.js"></script
 <head>
 <body>
     <div class="container">
@@ -260,8 +261,14 @@
                 throw new Error(errMsg);
             }
     
+            // In your trackTransactions function:
             const result = await response.json();
-            window.updateTransactionVisualization(result.tracked_transactions);
+            if (window.updateTransactionVisualization) {
+                console.log('Updating visualization with data:', result);
+                window.updateTransactionVisualization(result);
+            } else {
+                console.error('Visualization update function not found');
+            }
     
             // Populate UI with results (update IDs as needed for your HTML)
             document.getElementById('sourceWallet').textContent = result.tracked_transactions[0]?.from_wallet || '-';
