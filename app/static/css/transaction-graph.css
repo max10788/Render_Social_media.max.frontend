@@ -1,33 +1,33 @@
-/* Main container styles */
 .transaction-graph {
     background-color: #fff;
     border: 1px solid #ddd;
     border-radius: 4px;
     width: 100%;
     height: 600px;
+    min-height: 600px;
+    position: relative;
+    overflow: hidden;
+}
+
+.visualization {
+    width: 100%;
+    height: 600px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     margin: 20px 0;
     position: relative;
 }
 
-.nodes circle {
-    stroke: #fff;
-    stroke-width: 1.5px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.nodes circle:hover {
-    stroke: #000;
-    stroke-width: 2px;
+#transactionTree {
+    width: 100%;
+    height: 100%;
+    min-height: 600px;
 }
 
 .node {
     cursor: pointer;
-    transition: opacity 0.3s;
-}
-
-.node:hover {
-    opacity: 0.8;
 }
 
 .node.wallet .node-shape {
@@ -42,73 +42,33 @@
     stroke-width: 2px;
 }
 
-.node.highlighted .node-shape {
-    stroke: #e74c3c;
-    stroke-width: 3px;
-}
-
-/* Link styles */
-.links line {
-    stroke-opacity: 0.6;
-    transition: all 0.3s ease;
-}
-
 .link {
     stroke: #95a5a6;
     stroke-width: 2px;
     stroke-opacity: 0.6;
-    transition: all 0.3s ease;
     marker-end: url(#arrowhead);
 }
 
-.link:hover {
-    stroke-width: 3px;
-}
-
-.link.highlighted {
-    stroke: #e74c3c;
-    stroke-width: 3px;
-    stroke-opacity: 1;
-}
-
-/* Label styles */
 .node-label {
-    fill: #2c3e50;
     font-family: monospace;
     font-size: 12px;
-    text-anchor: middle;
+    fill: #2c3e50;
     pointer-events: none;
 }
 
-/* Tooltip styles */
 .transaction-tooltip {
     position: absolute;
     padding: 10px;
-    font-family: Arial, sans-serif;
-    font-size: 12px;
     background: rgba(255, 255, 255, 0.95);
     border: 1px solid #ddd;
     border-radius: 4px;
-    pointer-events: none;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    pointer-events: none;
     z-index: 1000;
 }
 
-.tooltip-header {
-    font-weight: bold;
-    margin-bottom: 4px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid #ddd;
-}
-
-.tooltip-body {
-    line-height: 1.4;
-}
-
-/* Loading state */
 .loading {
     position: relative;
-    min-height: 200px;
 }
 
 .loading::after {
@@ -117,15 +77,12 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 16px;
-    color: #666;
     background: rgba(255, 255, 255, 0.9);
     padding: 10px 20px;
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Error message */
 .error-message {
     color: #721c24;
     background-color: #f8d7da;
@@ -134,112 +91,16 @@
     padding: 1rem;
     margin: 1rem 0;
     text-align: center;
-    animation: fadeIn 0.3s ease;
 }
 
-/* Scenario list */
-.scenario-list {
-    margin-top: 20px;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 4px;
+.arrowhead {
+    fill: #95a5a6;
 }
 
-.scenario-item {
-    margin-bottom: 15px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #dee2e6;
-}
-
-.scenario-item:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-.scenario-item h4 {
-    margin: 0 0 8px 0;
-    color: #2c3e50;
-}
-
-.scenario-item p {
-    margin: 0;
-    color: #6c757d;
-    font-size: 14px;
-    line-height: 1.4;
-}
-
-/* Value-based node coloring */
-.node.high-value .node-shape {
-    fill: #e74c3c;
-}
-
-.node.medium-value .node-shape {
-    fill: #f39c12;
-}
-
-.node.low-value .node-shape {
-    fill: #2ecc71;
-}
-
-/* Animation */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-#transactionTree svg {
+/* Ensure SVG container is visible */
+svg.transaction-graph {
     display: block;
     width: 100%;
     height: 100%;
     min-height: 600px;
-}
-
-/* Add some spacing for the visualization */
-.visualization {
-    margin: 20px 0;
-    padding: 20px;
-    background: #fff;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Legend */
-.legend {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 10px;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-    font-size: 12px;
-}
-
-.legend-item {
-    margin: 5px 0;
-    display: flex;
-    align-items: center;
-}
-
-.legend-color {
-    width: 12px;
-    height: 12px;
-    margin-right: 5px;
-    border-radius: 2px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .transaction-graph {
-        min-height: 400px;
-    }
-
-    .node-label {
-        font-size: 10px;
-    }
-
-    .tooltip-body {
-        font-size: 11px;
-    }
 }
