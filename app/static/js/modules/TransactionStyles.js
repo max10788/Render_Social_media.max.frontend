@@ -1,101 +1,104 @@
-export const theme = {
-    colors: {
-        primary: '#34c3ff',
-        secondary: '#2ecc71',
-        accent: '#e74c3c',
-        neutral: '#95a5a6',
-        background: '#ffffff',
-        text: '#2c3e50'
-    },
-    nodes: {
-        wallet: {
-            radius: 30,
-            fill: '#34c3ff',
-            stroke: '#2980b9',
-            strokeWidth: 2,
-            labelColor: '#2c3e50',
-            fontSize: '12px'
-        },
-        transaction: {
-            radius: 20,
-            fill: '#2ecc71',
-            stroke: '#27ae60',
-            strokeWidth: 2,
-            labelColor: '#2c3e50',
-            fontSize: '10px'
-        }
-    },
-    links: {
-        normal: {
-            stroke: '#95a5a6',
-            strokeWidth: 2,
-            opacity: 0.6
-        },
-        highlighted: {
-            stroke: '#e74c3c',
-            strokeWidth: 3,
-            opacity: 1
-        }
-    },
-    animation: {
-        duration: 300,
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
-    }
-};
-
-// Generate CSS styles
+// TransactionStyles.js - Styling and theme configuration
 export const generateCSS = () => `
     .transaction-graph {
-        background-color: ${theme.colors.background};
+        background-color: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
     }
 
     .node {
         cursor: pointer;
+        transition: all 0.3s ease;
     }
 
     .node.wallet .node-shape {
-        fill: ${theme.nodes.wallet.fill};
-        stroke: ${theme.nodes.wallet.stroke};
-        stroke-width: ${theme.nodes.wallet.strokeWidth}px;
+        fill: #34c3ff;
+        stroke: #2980b9;
+        stroke-width: 2px;
     }
 
     .node.transaction .node-shape {
-        fill: ${theme.nodes.transaction.fill};
-        stroke: ${theme.nodes.transaction.stroke};
-        stroke-width: ${theme.nodes.transaction.strokeWidth}px;
+        fill: #2ecc71;
+        stroke: #27ae60;
+        stroke-width: 2px;
+    }
+
+    .node.highlighted .node-shape {
+        stroke: #e74c3c;
+        stroke-width: 3px;
     }
 
     .node-label {
-        fill: ${theme.colors.text};
+        fill: #2c3e50;
         font-size: 12px;
+        font-family: monospace;
         text-anchor: middle;
         pointer-events: none;
     }
 
     .link {
-        stroke: ${theme.links.normal.stroke};
-        stroke-width: ${theme.links.normal.strokeWidth}px;
-        opacity: ${theme.links.normal.opacity};
+        stroke: #95a5a6;
+        stroke-width: 2px;
+        stroke-opacity: 0.6;
+        transition: all 0.3s ease;
     }
 
     .link.highlighted {
-        stroke: ${theme.links.highlighted.stroke};
-        stroke-width: ${theme.links.highlighted.strokeWidth}px;
-        opacity: ${theme.links.highlighted.opacity};
+        stroke: #e74c3c;
+        stroke-width: 3px;
+        stroke-opacity: 1;
     }
 
     .arrowhead {
-        fill: ${theme.links.normal.stroke};
+        fill: #95a5a6;
     }
 
-    .tooltip {
+    .transaction-tooltip {
         position: absolute;
         padding: 8px;
-        background: ${theme.colors.background};
-        border: 1px solid ${theme.colors.neutral};
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid #ddd;
         border-radius: 4px;
         pointer-events: none;
-        font-size: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         z-index: 1000;
+        transition: opacity 0.3s ease;
+    }
+
+    .tooltip-header {
+        font-weight: bold;
+        margin-bottom: 4px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .tooltip-body {
+        line-height: 1.4;
+    }
+
+    .loading {
+        position: relative;
+    }
+
+    .loading::after {
+        content: 'Loading...';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 16px;
+        color: #666;
+    }
+
+    .error-message {
+        color: #721c24;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 4px;
+        padding: 1rem;
+        margin: 1rem 0;
+        text-align: center;
     }
 `;
