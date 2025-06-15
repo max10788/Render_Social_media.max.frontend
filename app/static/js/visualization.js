@@ -19,7 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const tree = document.getElementById('transactionTree');
         const errorContainer = document.getElementById('errorContainer');
         
-        // Clear previous errors
+        // Clear previous content and errors
+        tree.innerHTML = '';
         errorContainer.style.display = 'none';
         tree.classList.remove('loading');
 
@@ -33,8 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Transform data if needed
-            const processedData = data.tracked_transactions.map(tx => ({
+            // Process transactions
+            const transactions = data.tracked_transactions;
+            const processedData = transactions.map(tx => ({
                 tx_hash: tx.tx_hash,
                 from_wallet: tx.from_wallet,
                 to_wallet: tx.to_wallet,
@@ -42,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 timestamp: tx.timestamp
             }));
 
-            console.log('Processed data:', processedData);
+            console.log('Processed data for visualization:', processedData);
 
             // Update the visualization
             graph.update(processedData);
@@ -53,17 +55,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 `${processedData[0].amount.toFixed(4)} SOL`;
             document.getElementById('sourceWallet').textContent = data.tracked_transactions[0].from_wallet;
             document.getElementById('targetWallet').textContent = data.final_wallet_address;
-            document.getElementById('finalStatus').textContent = data.final_status;
-            document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
+            
+            // Update status with more accurate description
+            const status = data.tracked_transactions.length > 1 ? 
+                'funds_transferred' : 
+                'single_transfer';
+            document.getElementById('finalStatus').textContent = status;
 
-            // Remove loading state
-            tree.classList.remove('loading');
+            document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
 
         } catch (err) {
             console.error('Error updating visualization:', err);
             errorContainer.textContent = `Error displaying transactions: ${err.message}`;
             errorContainer.style.display = 'block';
-            tree.classList.remove('loading');
         }
     };
 
