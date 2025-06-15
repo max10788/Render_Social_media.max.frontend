@@ -93,4 +93,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         graph.simulation.alpha(0.3).restart();
     });
+
+    // Listen for node clicks
+    document.getElementById('transactionTree').addEventListener('nodeClick', (event) => {
+        const node = event.detail.node;
+        console.log('Node clicked:', node);
+        // Add any custom handling for node clicks
+    });
 });
