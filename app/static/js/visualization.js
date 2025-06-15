@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Update function for new transaction data
-    window.updateTransactionVisualization = (transactions) => {
+    window.updateTransactionVisualization = (data) => {
         const tree = document.getElementById('transactionTree');
         const errorContainer = document.getElementById('errorContainer');
         
@@ -23,57 +23,49 @@ document.addEventListener('DOMContentLoaded', () => {
         errorContainer.style.display = 'none';
         tree.classList.remove('loading');
 
-        if (!transactions || transactions.length === 0) {
-            errorContainer.textContent = 'No transaction data available';
-            errorContainer.style.display = 'block';
-            return;
-        }
-
         try {
             // Log the incoming data for debugging
-            console.log('Received transaction data:', transactions);
+            console.log('Received transaction data:', data);
+
+            if (!data || !data.tracked_transactions || data.tracked_transactions.length === 0) {
+                errorContainer.textContent = 'No transaction data available';
+                errorContainer.style.display = 'block';
+                return;
+            }
 
             // Transform data if needed
-            const processedData = transactions.map(tx => ({
-                tx_hash: tx.tx_hash || tx.signature,
-                from_wallet: tx.from_wallet || tx.from_address,
-                to_wallet: tx.to_wallet || tx.to_address,
-                amount: parseFloat(tx.amount || '0'),
-                timestamp: new Date(tx.timestamp).toISOString()
+            const processedData = data.tracked_transactions.map(tx => ({
+                tx_hash: tx.tx_hash,
+                from_wallet: tx.from_wallet,
+                to_wallet: tx.to_wallet,
+                amount: parseFloat(tx.amount),
+                timestamp: tx.timestamp
             }));
+
+            console.log('Processed data:', processedData);
 
             // Update the visualization
             graph.update(processedData);
 
-            // Update statistics display
-            updateStatistics(transactions);
+            // Update statistics panel
+            document.getElementById('txCount').textContent = data.total_transactions_tracked;
+            document.getElementById('totalValue').textContent = 
+                `${processedData[0].amount.toFixed(4)} SOL`;
+            document.getElementById('sourceWallet').textContent = data.tracked_transactions[0].from_wallet;
+            document.getElementById('targetWallet').textContent = data.final_wallet_address;
+            document.getElementById('finalStatus').textContent = data.final_status;
+            document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
+
+            // Remove loading state
+            tree.classList.remove('loading');
+
         } catch (err) {
             console.error('Error updating visualization:', err);
             errorContainer.textContent = `Error displaying transactions: ${err.message}`;
             errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
         }
     };
-
-    // Update statistics panel
-    function updateStatistics(transactions) {
-        if (!transactions.length) return;
-
-        const stats = {
-            totalAmount: transactions.reduce((sum, tx) => sum + parseFloat(tx.amount || 0), 0),
-            count: transactions.length,
-            firstTx: transactions[0],
-            lastTx: transactions[transactions.length - 1]
-        };
-
-        // Update UI elements
-        document.getElementById('txCount').textContent = stats.count;
-        document.getElementById('totalValue').textContent = 
-            `${stats.totalAmount.toFixed(4)} SOL`;
-        document.getElementById('sourceWallet').textContent = 
-            stats.firstTx.from_wallet || stats.firstTx.from_address || '-';
-        document.getElementById('targetWallet').textContent = 
-            stats.lastTx.to_wallet || stats.lastTx.to_address || '-';
-    }
 
     // Handle window resize
     window.addEventListener('resize', () => {
@@ -98,6 +90,5 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('transactionTree').addEventListener('nodeClick', (event) => {
         const node = event.detail.node;
         console.log('Node clicked:', node);
-        // Add any custom handling for node clicks
     });
 });
