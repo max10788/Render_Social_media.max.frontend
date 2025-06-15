@@ -1,3 +1,4 @@
+// TransactionGraph.js - Main visualization class
 export class TransactionGraph {
     constructor(containerId, options = {}) {
         this.container = d3.select(containerId);
@@ -38,7 +39,8 @@ export class TransactionGraph {
             .force('link', d3.forceLink().id(d => d.id).distance(this.options.linkDistance))
             .force('charge', d3.forceManyBody().strength(-500))
             .force('center', d3.forceCenter(this.options.width / 2, this.options.height / 2))
-            .force('collision', d3.forceCollide().radius(this.options.nodeRadius * 1.5));
+            .force('collision', d3.forceCollide().radius(this.options.nodeRadius * 1.5))
+            .on('tick', () => this._ticked());
 
         // Create arrow marker definition
         this.svg.append('defs').append('marker')
@@ -56,6 +58,11 @@ export class TransactionGraph {
         // Initialize containers for links and nodes
         this.linksGroup = this.graphGroup.append('g').attr('class', 'links');
         this.nodesGroup = this.graphGroup.append('g').attr('class', 'nodes');
+
+        // Add tooltip
+        this.tooltip = d3.select('body').append('div')
+            .attr('class', 'transaction-tooltip')
+            .style('opacity', 0);
     }
 
     update(data) {
@@ -149,9 +156,9 @@ export class TransactionGraph {
         const nodeGroups = enter.append('g')
             .attr('class', d => `node ${d.type}`)
             .call(d3.drag()
-                .on('start', this._dragstarted.bind(this))
-                .on('drag', this._dragged.bind(this))
-                .on('end', this._dragended.bind(this)));
+                .on('start', (event) => this._dragstarted(event))
+                .on('drag', (event) => this._dragged(event))
+                .on('end', (event) => this._dragended(event)));
 
         // Add different shapes based on node type
         nodeGroups.each(function(d) {
@@ -173,6 +180,12 @@ export class TransactionGraph {
             .text(d => this._formatLabel(d))
             .attr('class', 'node-label');
 
+        // Add hover behavior
+        nodeGroups
+            .on('mouseover', (event, d) => this._showTooltip(event, d))
+            .on('mouseout', () => this._hideTooltip())
+            .on('click', (event, d) => this._handleNodeClick(event, d));
+
         return nodeGroups;
     }
 
@@ -181,6 +194,42 @@ export class TransactionGraph {
             return `${node.id.substring(0, 4)}...${node.id.substring(node.id.length - 4)}`;
         }
         return `${node.amount.toFixed(2)}`;
+    }
+
+    _showTooltip(event, d) {
+        const content = d.type === 'wallet' 
+            ? `Wallet: ${d.id}<br>Transactions: ${d.transactions.length}`
+            : `Amount: ${d.amount.toFixed(4)} SOL<br>Time: ${new Date(d.timestamp).toLocaleString()}`;
+
+        this.tooltip
+            .style('opacity', 1)
+            .html(`<div class="tooltip-header">${d.type.toUpperCase()}</div>
+                  <div class="tooltip-body">${content}</div>`)
+            .style('left', (event.pageX + 10) + 'px')
+            .style('top', (event.pageY - 10) + 'px');
+    }
+
+    _hideTooltip() {
+        this.tooltip.style('opacity', 0);
+    }
+
+    _handleNodeClick(event, d) {
+        // Highlight connected nodes and links
+        this.nodes.classed('highlighted', n => 
+            n === d || this._isConnected(d, n));
+        this.links.classed('highlighted', l => 
+            l.source === d || l.target === d);
+
+        // Dispatch custom event
+        this.container.node().dispatchEvent(new CustomEvent('nodeClick', {
+            detail: { node: d }
+        }));
+    }
+
+    _isConnected(a, b) {
+        return this.links.data().some(l => 
+            (l.source === a && l.target === b) || 
+            (l.source === b && l.target === a));
     }
 
     _updateNodes(update) {
@@ -224,14 +273,15 @@ export class TransactionGraph {
         event.subject.fy = null;
     }
 
-    // Force simulation tick function
     _ticked() {
+        // Update link positions
         this.links
             .attr('x1', d => d.source.x)
             .attr('y1', d => d.source.y)
             .attr('x2', d => d.target.x)
             .attr('y2', d => d.target.y);
 
+        // Update node positions
         this.nodes
             .attr('transform', d => `translate(${d.x},${d.y})`);
     }
