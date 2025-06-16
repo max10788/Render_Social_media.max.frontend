@@ -6,6 +6,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+class MetricsConfig:
+    """Metrics configuration."""
+    METRICS_WINDOW_SIZE = 3600  # 1 hour
+    ALERT_THRESHOLD = 0.1  # 10%
+
+class SolanaConfig:
+    FALLBACK_RPC_URLS = os.getenv('SOLANA_FALLBACK_RPC_URLS', '').split(',')
+    RATE_LIMIT_RATE = int(os.getenv('SOLANA_RATE_LIMIT_RATE', '50'))
+    RATE_LIMIT_CAPACITY = int(os.getenv('SOLANA_RATE_LIMIT_CAPACITY', '100'))
+    HEALTH_CHECK_INTERVAL = int(os.getenv('SOLANA_HEALTH_CHECK_INTERVAL', '60'))
+
 class Settings(BaseSettings):
     # Existing Settings
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./crypto_tracker.db")
