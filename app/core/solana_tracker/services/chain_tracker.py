@@ -9,6 +9,7 @@ import json
 from app.core.solana_tracker.models.transaction import TrackedTransaction, TransactionDetail
 from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
+from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
 
 def log_rpc_json(method: str, params: list, response: dict):
     # Truncate very long responses for readability
@@ -23,7 +24,7 @@ class ChainTracker:
     
     def __init__(
         self,
-        solana_repository: SolanaRepository,
+        solana_repository: SolanaRepository,EnhancedSolanaRepository
         min_amount: Decimal = Decimal("0.000001")
     ):
         self.solana_repo = solana_repository
