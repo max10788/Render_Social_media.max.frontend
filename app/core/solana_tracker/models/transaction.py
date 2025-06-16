@@ -276,7 +276,7 @@ class EnhancedTransactionProcessor:
         """Stop services."""
         await self.endpoint_manager.stop()
 
-    async def process_transaction(self, tx_hash: str) -> Dict[str, Any]:
+    async def process_transaction(self, tx_hash: str) -> dict[str, Any]:
         """Process transaction with rate limiting and failover."""
         await self.rate_limiter.wait()
         
