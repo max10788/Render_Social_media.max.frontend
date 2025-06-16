@@ -2,7 +2,7 @@ from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
-from app.core.models.schema import RateLimitConfig, EndpointMetrics, RpcError
+from app.models.schema import RateLimitConfig, EndpointMetrics, RpcError
 
 class RateLimiter:
     """Rate limiter using token bucket algorithm."""
