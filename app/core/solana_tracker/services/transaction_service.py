@@ -25,7 +25,7 @@ class TransactionService:
     
     def __init__(
         self,
-        solana_repository: EnhancedSolanaRepository,  # Typ geändert
+        solana_repository: SolanaRepository,EnhancedSolanaRepository
         cache_repository: Optional[CacheRepository] = None,
         chain_tracker: Optional[ChainTracker] = None,
         scenario_detector: Optional[ScenarioDetector] = None
