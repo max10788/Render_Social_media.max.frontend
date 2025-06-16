@@ -4,6 +4,7 @@ from datetime import date
 from enum import Enum
 from datetime import date, datetime
 from typing_extensions import Literal
+from decimal import Decimal
 
 # --- ENUMS ---
 class BlockchainEnum(str, Enum):
