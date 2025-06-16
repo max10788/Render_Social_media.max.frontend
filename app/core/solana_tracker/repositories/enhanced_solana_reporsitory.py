@@ -5,7 +5,7 @@ import aiohttp
 from datetime import datetime
 from decimal import Decimal
 
-from app.core.solana_tracker.repositories import SolanaRepository
+from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.core.solana_tracker.repositories.utils.rpc_endpoint_manager import RpcEndpointManager
 from app.core.solana_tracker.repositories.utils.enhanced_retry_utils import (
     enhanced_retry_with_backoff,
