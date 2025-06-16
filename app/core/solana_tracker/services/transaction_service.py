@@ -11,21 +11,17 @@ from app.core.solana_tracker.models.transaction import (
     SolanaTransaction,
     TransactionBatch
 )
-from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
+from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
 from app.core.solana_tracker.repositories.cache_repository import CacheRepository
 from app.core.solana_tracker.services.chain_tracker import ChainTracker
 from app.core.solana_tracker.services.scenario_detector import ScenarioDetector
-from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
-from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
 
 logger = logging.getLogger(__name__)
 
 class TransactionService:
-    """Core business logic for transaction processing and analysis."""
-    
     def __init__(
         self,
-        solana_repository: SolanaRepository,EnhancedSolanaRepository
+        solana_repository: EnhancedSolanaRepository,
         cache_repository: Optional[CacheRepository] = None,
         chain_tracker: Optional[ChainTracker] = None,
         scenario_detector: Optional[ScenarioDetector] = None
@@ -34,7 +30,7 @@ class TransactionService:
         self.cache = cache_repository
         self.chain_tracker = chain_tracker or ChainTracker(solana_repository)
         self.scenario_detector = scenario_detector or ScenarioDetector()
-        logger.info("TransactionService initialized with solana_repository=%s, cache_repository=%s, chain_tracker=%s, scenario_detector=%s", solana_repository, cache_repository, chain_tracker, scenario_detector)
+        logger.info("TransactionService initialized")
         
     async def get_transaction_details(
         self,
