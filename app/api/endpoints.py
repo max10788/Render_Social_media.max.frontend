@@ -43,7 +43,7 @@ from app.core.solana_client import SolanaClient
 from app.core.ethereum_client import EthereumClient
 from app.core.exchange_rate import CoinGeckoExchangeRate
 from app.core.cache import InMemoryCache
-from app.core.config import get_settings, Settings
+from app.core.config import get_settings, Settings, MetricsConfig
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
