@@ -157,3 +157,40 @@ class TransactionTrackResponse(BaseModel):
     target_currency: str
     detected_scenarios: List[ScenarioType] = []
     scenario_details: Dict[ScenarioType, Dict] = {}
+
+class RateLimitConfig(BaseModel):
+    rate: int = Field(default=50, description="Requests per second")
+    capacity: int = Field(default=100, description="Burst capacity")
+    window: float = Field(default=1.0, description="Time window in seconds")
+
+class EndpointMetrics(BaseModel):
+    url: str
+    healthy: bool = True
+    total_requests: int = 0
+    success_requests: int = 0
+    failed_requests: int = 0
+    rate_limited_requests: int = 0
+    last_check: datetime = Field(default_factory=datetime.utcnow)
+    average_response_time: float = 0.0
+
+class TransactionRequest(BaseModel):
+    tx_hash: str
+    max_depth: Optional[int] = 10
+    amount: Optional[Decimal] = None
+
+class MetricsResponse(BaseModel):
+    endpoint: str
+    total_requests: int
+    rate_limited_requests: int
+    success_rate: float
+    average_response_time: float
+    last_rate_limit: Optional[datetime]
+
+class HealthCheckResponse(BaseModel):
+    status: str
+    endpoints: List[EndpointMetrics]
+
+class RpcError(BaseModel):
+    code: int
+    message: str
+    data: Optional[Dict] = None
