@@ -8,7 +8,7 @@ from decimal import Decimal
 from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
 from app.core.solana_tracker.utils.enhanced_retry_utils import (
-    enhanced_retry_with_backoff,
+    EnhancedRetryError,
     RateLimitBackoff
 )
 from app.core.solana_reporsitory.utils.rate_limit_metrics import RateLimitMonitor
