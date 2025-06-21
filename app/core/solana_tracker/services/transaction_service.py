@@ -15,6 +15,7 @@ from app.core.solana_tracker.repositories.enhanced_solana_repository import Enha
 from app.core.solana_tracker.repositories.cache_repository import CacheRepository
 from app.core.solana_tracker.services.chain_tracker import ChainTracker
 from app.core.solana_tracker.services.scenario_detector import ScenarioDetector
+from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
 
 logger = logging.getLogger(__name__)
 
