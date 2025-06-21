@@ -34,6 +34,7 @@ class ScenarioType(str, Enum):
     # Conversion/Exchange Scenarios
     converted_to_stablecoin = "converted_to_stablecoin"
     swapped_to_other_token = "swapped_to_other_token"
+    token_swap = "token_swap"  # <---- ADD THIS LINE
     cross_chain_bridge = "cross_chain_bridge"
     otc_trade = "otc_trade"
     
