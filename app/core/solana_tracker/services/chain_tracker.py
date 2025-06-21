@@ -217,7 +217,7 @@ class ChainTracker:
         try:
             for transfer in tx_detail.transfers:
                 logger.debug("Inspecting transfer: %s", transfer)
-                if transfer.amount >= self.min_amount:
+                if transfer.amount >= self.MIN_AMOUNT:  # <-- FIXED HERE!
                     transfers.append({
                         "from": transfer.from_address,
                         "to": transfer.to_address,
