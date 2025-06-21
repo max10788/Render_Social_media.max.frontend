@@ -14,15 +14,42 @@ class BlockchainEnum(str, Enum):
     solana = "solana"
 
 class ScenarioType(str, Enum):
+    """Types of scenarios that can be detected."""
+    # Investment/Storage Scenarios
     delegated_staking = "delegated_staking"
+    liquid_staking = "liquid_staking"
     defi_deposit = "defi_deposit"
     nft_investment = "nft_investment"
-    converted_to_stablecoin = "converted_to_stablecoin"
-    donation_or_grant = "donation_or_grant"
-    cross_chain_bridge = "cross_chain_bridge"
     multi_sig_storage = "multi_sig_storage"
+    cold_storage = "cold_storage"
+    hardware_wallet = "hardware_wallet"
+    
+    # Conversion/Exchange Scenarios
+    converted_to_stablecoin = "converted_to_stablecoin"
+    swapped_to_other_token = "swapped_to_other_token"
+    cross_chain_bridge = "cross_chain_bridge"
+    otc_trade = "otc_trade"
+    
+    # DeFi Activity Scenarios
+    lending_deposit = "lending_deposit"
+    liquidity_provision = "liquidity_provision"
+    yield_farming = "yield_farming"
     flash_loan_arbitrage = "flash_loan_arbitrage"
+    
+    # Program Interaction Scenarios
+    smart_contract_interaction = "smart_contract_interaction"
+    program_owned_account = "program_owned_account"
+    program_derived_address = "program_derived_address"
+    
+    # Special Cases
+    donation_or_grant = "donation_or_grant"
     lost_or_dust = "lost_or_dust"
+    burned = "burned"
+    frozen = "frozen"
+    
+    # Transaction Status
+    failed_transaction = "failed_transaction"
+    pending_validation = "pending_validation"
     returned_to_origin = "returned_to_origin"
 
 class FinalStatusEnum(str, Enum):
