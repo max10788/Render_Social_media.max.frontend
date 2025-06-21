@@ -41,7 +41,6 @@ class ScenarioDetector:
         
     def _load_patterns(self):
         self.patterns = [
-
         ScenarioPattern(
             type=ScenarioType.token_swap,
             confidence_threshold=0.8,
