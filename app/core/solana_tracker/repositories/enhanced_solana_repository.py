@@ -52,12 +52,6 @@ class EnhancedSolanaRepository(SolanaRepository):
         """Stop services."""
         await self.endpoint_manager.stop()
         
-    @enhanced_retry_with_backoff(
-        max_retries=3,
-        base_delay=1.0,
-        max_delay=10.0,
-        jitter=True
-    )
     async def _make_rpc_call(self, method: str, params: List) -> Dict:
         """Enhanced RPC call with rate limiting and failover."""
         await self.rate_limiter.wait()  # Wait for rate limit token
