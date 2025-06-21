@@ -42,20 +42,20 @@ class ScenarioDetector:
     def _load_patterns(self):
         self.patterns = [
         ScenarioPattern(
-            type=ScenarioType.token_swap,
-            confidence_threshold=0.8,
+            type=ScenarioType.defi_deposit,
+            confidence_threshold=0.85,
             pattern_rules={
-                "program_ids": [
-                    "SwaPp5j7pN5kQ8WQb1Zq1s3M1wB7gZtG7Zxw3UoKnE2",   # SPL Token Swap example
-                    "9xQeWvG816bUx9EPa2Giof8kEgbk4Y7wD6SD8P9rw1VU", # Serum DEX
-                    "5quB8dpW5z2GQbqk1rN6kXG5n1w9Y6k4n7f1q9Wg5m6A", # Orca (example)
-                ],
-                "min_amount": Decimal("0.001"),
-                "require_in_and_out": True,
-                "allowed_token_mints": [
-                    "So11111111111111111111111111111111111111112",  # SOL
-                    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", # USDC
-                    "Es9vMFrzaCER6jG7aBE3LhG6eGq3DH4qFf6YV9HgQhqu", # USDT
+                "protocols": [
+                    DeFiProtocol(
+                        name="Raydium",
+                        addresses=["RaydiumProtocolv2........."],
+                        program_id="RaYdIuMpRoGrAmId..."
+                    ),
+                    DeFiProtocol(
+                        name="Orca",
+                        addresses=["OrcaProtocolAddressHere"],
+                        program_id="OrcAProdgraMID..."
+                    )
                 ]
             }
         ),
@@ -80,22 +80,18 @@ class ScenarioDetector:
                 "protocols": [
                     DeFiProtocol(
                         name="Raydium",
-                        addresses=[
-                            "RaydiumProtocolv2.........",
-                        ],
+                        addresses=["RaydiumProtocolv2........."],
                         program_id="RaYdIuMpRoGrAmId..."
                     ),
                     DeFiProtocol(
                         name="Orca",
-                        addresses=[
-                            "OrcaProtocolAddressHere",
-                        ],
+                        addresses=["OrcaProtocolAddressHere"],
                         program_id="OrcAProdgraMID..."
                     )
                 ]
             }
         ),
-
+            
         # 💰 CONVERTED TO STABLECOIN
         ScenarioPattern(
             type=ScenarioType.converted_to_stablecoin,
