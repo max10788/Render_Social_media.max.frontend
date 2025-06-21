@@ -25,7 +25,8 @@ class ChainTracker:
     def __init__(
         self,
         solana_repository: SolanaRepository,EnhancedSolanaRepository
-        min_amount: Decimal = Decimal("0.000001")
+        self.min_amount = Decimal('0.000001')  # Corrected syntax
+        self.last_update = datetime.utcnow()
     ):
         self.solana_repo = solana_repository
         self.min_amount = min_amount
