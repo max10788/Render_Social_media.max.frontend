@@ -40,36 +40,207 @@ class ScenarioDetector:
         )
         
     def _load_patterns(self):
-        """Load scenario detection patterns."""
-        self.patterns = [
-            ScenarioPattern(
-                type=ScenarioType.delegated_staking,
-                confidence_threshold=0.9,
-                pattern_rules={
-                    "program_ids": [
-                        "Stake11111111111111111111111111111111111111",
-                    ],
-                    "min_amount": Decimal("0.1"),
-                    "lock_period": timedelta(days=1)
-                }
-            ),
-            ScenarioPattern(
-                type=ScenarioType.defi_deposit,
-                confidence_threshold=0.85,
-                pattern_rules={
-                    "protocols": [
-                        DeFiProtocol(
-                            name="Raydium",
-                            addresses=[
-                                "RaydiumProtocolv2.........",
-                            ],
-                            program_id="RaYdIuMpRoGrAmId..."
-                        )
-                    ]
-                }
-            ),
-            # Add more patterns...
-        ]
+    self.patterns = [
+        # 🧱 STAKING
+        ScenarioPattern(
+            type=ScenarioType.delegated_staking,
+            confidence_threshold=0.9,
+            pattern_rules={
+                "program_ids": [
+                    "Stake11111111111111111111111111111111111111",
+                ],
+                "min_amount": Decimal("0.1"),
+                "lock_period": timedelta(days=1)
+            }
+        ),
+
+        # 💸 DEFI DEPOSIT
+        ScenarioPattern(
+            type=ScenarioType.defi_deposit,
+            confidence_threshold=0.85,
+            pattern_rules={
+                "protocols": [
+                    DeFiProtocol(
+                        name="Raydium",
+                        addresses=[
+                            "RaydiumProtocolv2.........",
+                        ],
+                        program_id="RaYdIuMpRoGrAmId..."
+                    ),
+                    DeFiProtocol(
+                        name="Orca",
+                        addresses=[
+                            "OrcaProtocolAddressHere",
+                        ],
+                        program_id="OrcAProdgraMID..."
+                    )
+                ]
+            }
+        ),
+
+        # 💰 CONVERTED TO STABLECOIN
+        ScenarioPattern(
+            type=ScenarioType.converted_to_stablecoin,
+            confidence_threshold=0.8,
+            pattern_rules={
+                "token_mints": [
+                    "USDCTokenMintAddress",
+                    "USDCTokenMintAddress2"
+                ]
+            }
+        ),
+
+        # 🔄 TOKEN SWAP
+        ScenarioPattern(
+            type=ScenarioType.token_swap,
+            confidence_threshold=0.85,
+            pattern_rules={
+                "protocols": [
+                    DeFiProtocol(name="Raydium", program_id="RaYdIuMpRoGrAmId..."),
+                    DeFiProtocol(name="Orca", program_id="OrcAProdgraMID...")
+                ],
+                "min_token_change": 2
+            }
+        ),
+
+        # 💸 LARGE TRANSFER
+        ScenarioPattern(
+            type=ScenarioType.large_transfer,
+            confidence_threshold=0.9,
+            pattern_rules={
+                "min_amount": Decimal("1000"),  # z.B. 1000 SOL
+                "token_mints": ["SOL"]
+            }
+        ),
+
+        # 🎨 NFT MINTING
+        ScenarioPattern(
+            type=ScenarioType.nft_minting,
+            confidence_threshold=0.85,
+            pattern_rules={
+                "program_ids": [
+                    "metaqbxxUerdq28cj1R5qbkaUP8vQV7cD1EmE6Z7eDnQR",
+                    "hausg4Fw6G8sQ8j1JpD7D6wye7XosVhWf9nJ1J3kKcb"
+                ],
+                "token_creators": [
+                    "MagicEdenNFTCreator",
+                    "DigitalEyesNFTCreator"
+                ]
+            }
+        ),
+
+        # 🔗 CROSS-CHAIN BRIDGE
+        ScenarioPattern(
+            type=ScenarioType.cross_chain_bridge,
+            confidence_threshold=0.9,
+            pattern_rules={
+                "program_ids": [
+                    "worm2Zo1PCxwEw3dZ1B3Le9jr8F77od55LBF38rQkbPS",
+                    "AL1QR1Fg8Dq8kqZ36vjrnj3VcwfQx1QGLayBkkejJ2Dv"
+                ],
+                "bridge_addresses": [
+                    "wormholeBridgeAddressHere",
+                    "alligatorBridgeAddressHere"
+                ]
+            }
+        ),
+
+        # 💹 LIQUIDITY PROVISION
+        ScenarioPattern(
+            type=ScenarioType.liquidity_provision,
+            confidence_threshold=0.8,
+            pattern_rules={
+                "protocols": [
+                    DeFiProtocol(name="Raydium", program_id="RaYdIuMpRoGrAmId..."),
+                    DeFiProtocol(name="Saber", program_id="SabERD2wReHk1VkX8jiwG1Lg5D7i6g8TgPnr6f5qncu")
+                ],
+                "token_mints": ["new_token_mint_address"]
+            }
+        ),
+
+        # 📈 ARBITRAGE TRADE
+        ScenarioPattern(
+            type=ScenarioType.arbitrage_trade,
+            confidence_threshold=0.85,
+            pattern_rules={
+                "protocols": [
+                    DeFiProtocol(name="Raydium"),
+                    DeFiProtocol(name="Orca")
+                ],
+                "max_time_between_swaps": timedelta(seconds=30),
+                "min_token_changes": 2,
+                "swap_count_threshold": 2
+            }
+        ),
+
+        # 🧑‍⚖️ GOVERNANCE PARTICIPATION
+        ScenarioPattern(
+            type=ScenarioType.governance_participation,
+            confidence_threshold=0.8,
+            pattern_rules={
+                "program_ids": [
+                    "govER5LthmsenD3FwKn6Pd71AWkK1iNkdj1VfdpX7u2uvew"
+                ],
+                "actions": ["vote_cast", "proposal_created"]
+            }
+        ),
+
+        # 🧼 WASH TRADING
+        ScenarioPattern(
+            type=ScenarioType.wash_trading,
+            confidence_threshold=0.75,
+            pattern_rules={
+                "protocols": [
+                    DeFiProtocol(name="Raydium"),
+                    DeFiProtocol(name="Orca")
+                ],
+                "same_user_involved": True,
+                "time_window": timedelta(minutes=5),
+                "token_pair": ["SOL", "FakeTokenMint"]
+            }
+        ),
+
+        # ⛏️ MINING / REWARD CLAIM
+        ScenarioPattern(
+            type=ScenarioType.reward_claim,
+            confidence_threshold=0.8,
+            pattern_rules={
+                "protocols": [
+                    DeFiProtocol(name="Marinade", program_id="MarBms51wcof8x6fEyJwgG1aoC56WZ8aD2w8wELThb9"),
+                    DeFiProtocol(name="Lido", program_id="Lido111111111111111111111111111111111111111")
+                ],
+                "reward_type": ["stake_rewards", "liquidity_rewards"]
+            }
+        ),
+
+        # 🚀 TOKEN LAUNCH
+        ScenarioPattern(
+            type=ScenarioType.token_launch,
+            confidence_threshold=0.75,
+            pattern_rules={
+                "program_ids": [
+                    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+                    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+                ],
+                "new_token_creation": True,
+                "liquidity_added": True
+            }
+        ),
+
+        # 🧯 FLASHLOAN
+        ScenarioPattern(
+            type=ScenarioType.flashloan_usage,
+            confidence_threshold=0.8,
+            pattern_rules={
+                "protocols": [
+                    DeFiProtocol(name="Solend", program_id="SLND11111111111111111111111111111111111111"),
+                    DeFiProtocol(name="MarginFi", program_id="MrginF5iygv9sp813z7FGpsCL24eq1Z8Gp9az89ueSWf")
+                ],
+                "flashloan_amount_threshold": Decimal("1000000"),
+                "repaid_within_same_block": True
+            }
+        )
+    ]
 
     async def detect_scenarios(
         self,
