@@ -122,13 +122,12 @@ class ChainTracker:
                         if not tx_hash:
                             continue
                         next_tx_detail = await self._get_transaction_safe(tx_hash)
-                        # Die Methode _get_transaction_safe ruft get_transaction, welches bereits NUR JSON loggt!
                         if not next_tx_detail:
                             continue
                         tx_transfers = self._extract_transfers(next_tx_detail)
                         out_transfers = [
                             t for t in tx_transfers
-                            if t["from"] == current_wallet and t["amount"] >= self.min_amount
+                            if t["from"] == current_wallet and t["amount"] >= self.MIN_AMOUNT   # <-- FIXED
                         ]
                         if out_transfers:
                             next_transfer = max(out_transfers, key=lambda t: t["amount"])
