@@ -40,7 +40,7 @@ class ScenarioDetector:
         )
         
     def _load_patterns(self):
-    self.patterns = [
+        self.patterns = [
         # 🧱 STAKING
         ScenarioPattern(
             type=ScenarioType.delegated_staking,
