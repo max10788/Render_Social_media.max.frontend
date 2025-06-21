@@ -20,17 +20,29 @@ def log_rpc_json(method: str, params: list, response: dict):
 logger = logging.getLogger(__name__)
 
 class ChainTracker:
-    """Service for tracking chains of related transactions."""
+    """Chain tracking service for monitoring blockchain activity."""
     
-    def __init__(
-        self,
-        solana_repository: SolanaRepository,EnhancedSolanaRepository
-        self.min_amount = Decimal('0.000001')  # Corrected syntax
+    # Class level constants
+    MIN_AMOUNT = Decimal('0.000001')
+    
+    def __init__(self):
+        """Initialize the chain tracker."""
         self.last_update = datetime.utcnow()
-    ):
-        self.solana_repo = solana_repository
-        self.min_amount = min_amount
-        logger.info("ChainTracker initialized with min_amount=%s", min_amount)
+        self.active = False
+        
+    async def start(self):
+        """Start the chain tracker."""
+        self.active = True
+        logger.info("Chain tracker started")
+    
+    async def stop(self):
+        """Stop the chain tracker."""
+        self.active = False
+        logger.info("Chain tracker stopped")
+    
+    def get_min_amount(self) -> Decimal:
+        """Get minimum tracking amount."""
+        return self.MIN_AMOUNT
 
     def validate_transaction_signature(self, signature: str) -> bool:
         try:
