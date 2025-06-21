@@ -45,28 +45,20 @@ class ScenarioDetector:
             type=ScenarioType.token_swap,
             confidence_threshold=0.8,
             pattern_rules={
-                # Häufig verwendete Token Swap-Programm-IDs auf Solana
                 "program_ids": [
-                    # SPL Token Swap
-                    "SwaPp5j7pN5kQ8WQb1Zq1s3M1wB7gZtG7Zxw3UoKnE2",  # classic token swap
-                    "9xQeWvG816bUx9EPa2Giof8kEgbk4Y7wD6SD8P9rw1VU",  # Serum DEX
-                    "5quB8dpW5z2GQbqk1rN6kXG5n1w9Y6k4n7f1q9Wg5m6A",  # Orca (Beispiel)
-                    # Füge hier weitere relevante Programm-IDs hinzu!
+                    "SwaPp5j7pN5kQ8WQb1Zq1s3M1wB7gZtG7Zxw3UoKnE2",   # SPL Token Swap example
+                    "9xQeWvG816bUx9EPa2Giof8kEgbk4Y7wD6SD8P9rw1VU", # Serum DEX
+                    "5quB8dpW5z2GQbqk1rN6kXG5n1w9Y6k4n7f1q9Wg5m6A", # Orca (example)
                 ],
-                # Optional: Mindestanzahl an ausgetauschten Token (nicht Dust)
                 "min_amount": Decimal("0.001"),
-                # Optional: Schwellenwert, wie viel zwischen from- und to-token gewechselt wurde (z.B. beide Werte vorhanden)
                 "require_in_and_out": True,
-                # Optional: Erlaubte Token Mints (nur für bekannte Token Swaps)
                 "allowed_token_mints": [
                     "So11111111111111111111111111111111111111112",  # SOL
-                    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",  # USDC
-                    "Es9vMFrzaCER6jG7aBE3LhG6eGq3DH4qFf6YV9HgQhqu",  # USDT
-                    # Füge weitere relevante Token Mints hinzu!
+                    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", # USDC
+                    "Es9vMFrzaCER6jG7aBE3LhG6eGq3DH4qFf6YV9HgQhqu", # USDT
                 ]
             }
-        )
-            
+        ),
         # 🧱 STAKING
         ScenarioPattern(
             type=ScenarioType.delegated_staking,
