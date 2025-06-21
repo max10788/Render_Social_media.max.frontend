@@ -9,7 +9,8 @@ from app.core.solana_tracker.repositories.solana_repository import SolanaReposit
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
 from app.core.solana_tracker.utils.enhanced_retry_utils import (
     EnhancedRetryError,
-    RateLimitBackoff
+    RateLimitBackoff,
+    enhanced_retry_with_backoff
 )
 from app.core.solana_tracker.utils.rate_limit_metrics import RateLimitMonitor
 
