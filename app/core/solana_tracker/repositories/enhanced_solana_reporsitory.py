@@ -11,7 +11,7 @@ from app.core.solana_tracker.utils.enhanced_retry_utils import (
     EnhancedRetryError,
     RateLimitBackoff
 )
-from app.core.solana_tracker.utils.rate_limit_metrics import RateLimitMonitor
+from app.core.solana_tracker.utils.enhanced_retry_utils import enhanced_retry_with_backoff
 
 logger = logging.getLogger(__name__)
 
