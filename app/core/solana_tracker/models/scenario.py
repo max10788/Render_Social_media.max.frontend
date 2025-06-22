@@ -39,7 +39,6 @@ class ScenarioType(str, Enum):
     cross_chain_bridge = "cross_chain_bridge"
     otc_trade = "otc_trade"
     arbitrage_trade = "arbitrage_trade"
-
     
     # DeFi Activity Scenarios
     lending_deposit = "lending_deposit"
