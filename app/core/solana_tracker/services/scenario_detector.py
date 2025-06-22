@@ -48,16 +48,21 @@ class ScenarioDetector:
                 "protocols": [
                     DeFiProtocol(
                         name="Raydium",
-                        program_id="RaYdIuMpRoGrAmId...",  # Placeholder für den tatsächlichen Program ID auf Solana
+                        program_id="RaYdIuMpRoGrAmId...",  # Solana Program ID
                         addresses=[
-                            "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",  # SPL-Token-Adresse auf Solana [[2]]
-                            "0x5245C0249e5EEB2A0838266800471Fd32Adb1089"   # ERC-20-Token-Adresse auf Ethereum [[1]]
+                            "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",  # SPL-Token auf Solana [[2]]
+                            "0x5245C0249e5EEB2A0838266800471Fd32Adb1089"   # ERC-20-Token auf Ethereum [[1]]
                         ]
                     ),
                     DeFiProtocol(
                         name="Orca",
-                        addresses=["OrcaProtocolAddressHere"],
-                        program_id="OrcAProdgraMID..."
+                        program_id="OrcAProdgraMID...",
+                        addresses=["orcaEyt5fJZdo11ix8i8re9DpoX6Jvc9coEdidczDhdw2EM"]  # Orca Pool Address [[2]]
+                    ),
+                    DeFiProtocol(
+                        name="Serum",
+                        program_id="srmqPvYK1E2qUg5g8cK1dGg7upobewFJx7Wf7166HMA",
+                        addresses=["SRMuAp9dh8v5gj8sHjrnCK7Uoek43Wcgyh4V1t8Jq7pD7L2"]  # Serum Token [[2]]
                     )
                 ]
             }
