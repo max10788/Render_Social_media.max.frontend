@@ -79,6 +79,13 @@ class AmountThreshold(BaseModel):
     max_amount: Optional[Decimal] = None
     dust_threshold: Optional[Decimal] = Field(default=Decimal('0.000001'))
 
+class LargeDepositRule(BaseModel):
+    protocol_name: str
+    min_deposit_amount: float
+    allowed_tokens: Optional[List[str]] = None
+    excluded_addresses: Optional[List[str]] = None
+    confidence_score: float = 0.8
+
 class DeFiProtocol(BaseModel):
     name: str
     program_id: str
