@@ -12,7 +12,8 @@ from app.core.solana_tracker.models.scenario import (
     DetectedScenario,
     ScenarioDetails,
     DeFiProtocol,
-    BridgeInfo
+    BridgeInfo,
+    LargeDepositRule
 )
 
 logger = logging.getLogger(__name__)
