@@ -441,21 +441,6 @@ class ScenarioDetector:
             }
         ),
 
-        # 📈 ARBITRAGE TRADE
-        ScenarioPattern(
-            type=ScenarioType.arbitrage_trade,
-            confidence_threshold=0.85,
-            pattern_rules={
-                "protocols": [
-                    DeFiProtocol(name="Raydium"),
-                    DeFiProtocol(name="Orca")
-                ],
-                "max_time_between_swaps": timedelta(seconds=30),
-                "min_token_changes": 2,
-                "swap_count_threshold": 2
-            }
-        ),
-
         # 🧑‍⚖️ GOVERNANCE PARTICIPATION
         ScenarioPattern(
             type=ScenarioType.governance_participation,
