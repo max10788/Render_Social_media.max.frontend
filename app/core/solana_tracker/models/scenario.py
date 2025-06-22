@@ -75,11 +75,10 @@ class AmountThreshold(BaseModel):
     dust_threshold: Optional[Decimal] = Field(default=Decimal('0.000001'))
 
 class DeFiProtocol(BaseModel):
-    """DeFi protocol identification."""
     name: str
     addresses: List[str]
     program_id: Optional[str] = None
-
+    
 class BridgeInfo(BaseModel):
     """Cross-chain bridge information."""
     name: str
