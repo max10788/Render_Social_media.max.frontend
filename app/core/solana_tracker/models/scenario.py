@@ -66,6 +66,20 @@ class ScenarioType(str, Enum):
     amm_pool_liquidity_addition = "amm_pool_liquidity_addition"  # ✅ Für AMM-Liquiditätseinlage (z.B. Raydium)
     raydium_swap = "raydium_swap"  # ✅ Spezielles Swap-Szenario für Raydium [[2]]
 
+    # Special Cases
+    donation_or_grant = "donation_or_grant"
+    lost_or_dust = "lost_or_dust"
+    burned = "burned"
+    frozen = "frozen"
+
+    # ✅ Füge hier deinen neuen Wert hinzu:
+    nft_minting = "nft_minting"
+    nft_sale = "nft_sale"
+    nft_transfer = "nft_transfer"
+    nft_listing = "nft_listing"
+    nft_bid = "nft_bid"
+    nft_collection_launch = "nft_collection_launch"
+
 class AddressPattern(BaseModel):
     """Pattern matching for addresses."""
     prefix: Optional[str] = None
