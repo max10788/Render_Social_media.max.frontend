@@ -42,6 +42,32 @@ class ScenarioDetector:
     def _load_patterns(self):
         self.patterns = [
         ScenarioPattern(
+            type=ScenarioType.large_transfer,  # Siehe vorheriger Enum-Ausbau
+            confidence_threshold=0.9,
+            pattern_rules={
+                "deposit_patterns": [
+                    {
+                        "protocol": DeFiProtocol(
+                            name="Raydium",
+                            program_id="RaYdIuMpRoGrAmId...",  # Raydium AMM Program ID
+                            addresses=[
+                                "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",  # SPL-Token Adresse [[2]]
+                                "orcaEyt5fJZdo11ix8i8re9DpoX6Jvc9coEdidczDhdw2EM"  # Alternative LP Token Adresse
+                            ]
+                        ),
+                        "rule": LargeDepositRule(
+                            protocol_name="Raydium",
+                            min_deposit_amount=10000,  # z.B. 10.000 USD Äquivalent
+                            allowed_tokens=["SOL", "USDC", "RAY"],
+                            excluded_addresses=["exchange_wallet_1", "staking_pool_xyz"],
+                            confidence_score=0.92
+                        )
+                    }
+                ],
+                "description": "Erkennt große Liquiditätseinlagen in Raydium-Pools mit hohem USD-Volumen."
+            }
+        ),
+        ScenarioPattern(
             type=ScenarioType.defi_deposit,
             confidence_threshold=0.85,
             pattern_rules={
