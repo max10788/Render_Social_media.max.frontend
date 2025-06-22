@@ -48,8 +48,11 @@ class ScenarioDetector:
                 "protocols": [
                     DeFiProtocol(
                         name="Raydium",
-                        addresses=["RaydiumProtocolv2........."],
-                        program_id="RaYdIuMpRoGrAmId..."
+                        program_id="RaYdIuMpRoGrAmId...",  # Placeholder für den tatsächlichen Program ID auf Solana
+                        addresses=[
+                            "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",  # SPL-Token-Adresse auf Solana [[2]]
+                            "0x5245C0249e5EEB2A0838266800471Fd32Adb1089"   # ERC-20-Token-Adresse auf Ethereum [[1]]
+                        ]
                     ),
                     DeFiProtocol(
                         name="Orca",
