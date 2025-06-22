@@ -62,18 +62,14 @@ class ScenarioType(str, Enum):
     pending_validation = "pending_validation"
     returned_to_origin = "returned_to_origin"
 
-    # 🔥 Neu hinzugefügt:
-    large_transfer = "large_transfer"  # ✅ Für große Transfers [[3]]
-    amm_pool_liquidity_addition = "amm_pool_liquidity_addition"  # ✅ Für AMM-Liquiditätseinlage (z.B. Raydium)
-    raydium_swap = "raydium_swap"  # ✅ Spezielles Swap-Szenario für Raydium [[2]]
-
-    # ✅ Füge hier deinen neuen Wert hinzu:
+    # Neue Einträge aus ScenarioPatterns
+    large_transfer = "large_transfer"
     nft_minting = "nft_minting"
-    nft_sale = "nft_sale"
-    nft_transfer = "nft_transfer"
-    nft_listing = "nft_listing"
-    nft_bid = "nft_bid"
-    nft_collection_launch = "nft_collection_launch"
+    governance_participation = "governance_participation"
+    wash_trading = "wash_trading"
+    reward_claim = "reward_claim"
+    token_launch = "token_launch"
+    flashloan_usage = "flashloan_usage"
 
 class AddressPattern(BaseModel):
     """Pattern matching for addresses."""
