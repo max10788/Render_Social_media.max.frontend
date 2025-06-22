@@ -35,7 +35,7 @@ class ScenarioType(str, Enum):
     # Conversion/Exchange Scenarios
     converted_to_stablecoin = "converted_to_stablecoin"
     swapped_to_other_token = "swapped_to_other_token"
-    token_swap = "token_swap"  # ✅ Hinzugefügt!
+    token_swap = "token_swap"
     cross_chain_bridge = "cross_chain_bridge"
     otc_trade = "otc_trade"
     
@@ -60,6 +60,11 @@ class ScenarioType(str, Enum):
     failed_transaction = "failed_transaction"
     pending_validation = "pending_validation"
     returned_to_origin = "returned_to_origin"
+
+    # 🔥 Neu hinzugefügt:
+    large_transfer = "large_transfer"  # ✅ Für große Transfers [[3]]
+    amm_pool_liquidity_addition = "amm_pool_liquidity_addition"  # ✅ Für AMM-Liquiditätseinlage (z.B. Raydium)
+    raydium_swap = "raydium_swap"  # ✅ Spezielles Swap-Szenario für Raydium [[2]]
 
 class AddressPattern(BaseModel):
     """Pattern matching for addresses."""
