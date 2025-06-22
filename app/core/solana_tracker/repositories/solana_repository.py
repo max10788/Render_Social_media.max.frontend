@@ -25,6 +25,10 @@ from app.core.solana_tracker.models.scenario import (
     ScenarioRule,
     ScenarioConfig,
     AmountThreshold
+    DeFiProtocol,
+    LargeDepositRule,
+    ScenarioPattern,
+    ScenarioDetector
 )
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
 from app.core.solana_tracker.utils.signature_utils import validate_signature
