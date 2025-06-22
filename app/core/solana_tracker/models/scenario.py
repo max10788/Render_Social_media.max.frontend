@@ -78,6 +78,12 @@ class DeFiProtocol(BaseModel):
     name: str
     addresses: List[str]
     program_id: Optional[str] = None
+
+    @validator('addresses')
+    def must_have_at_least_one_address(cls, v):
+        if not v:
+            raise ValueError('at least one address is required')
+        return v
     
 class BridgeInfo(BaseModel):
     """Cross-chain bridge information."""
