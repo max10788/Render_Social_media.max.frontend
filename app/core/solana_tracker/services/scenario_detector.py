@@ -43,18 +43,24 @@ class ScenarioDetector:
     def _load_patterns(self):
         self.patterns = [
         ScenarioPattern(
-            type=ScenarioType.liquid_staking,
+            type=ScenarioType.token_swap,
             confidence_threshold=0.85,
             pattern_rules={
                 "protocols": [
-                    DeFiProtocol(name="Marinade", program_id="MarBms51wcof8x6fEyJwgG1aoC56WZ8aD2w8wELThb9"),
-                    DeFiProtocol(name="Lido", program_id="Lido111111111111111111111111111111111111111")
+                    DeFiProtocol(
+                        name="Raydium",
+                        program_id="RaYdIuMpRoGrAmId...",  # ✅ Hinzugefügt
+                        addresses=["RaydiumProtocolAddressHere"]
+                    ),
+                    DeFiProtocol(
+                        name="Orca",
+                        program_id="OrcAProdgraMID...",  # ✅ Hinzugefügt
+                        addresses=["OrcaProtocolAddressHere"]
+                    )
                 ],
-                "token_mints": ["mSOL", "stSOL"],
-                "description": "Erkennt Liquid Staking-Aktivitäten über Stake-Token wie mSOL oder stSOL."
+                "min_token_change": 2
             }
         ),
-    
         # 2. NFT Investment
         ScenarioPattern(
             type=ScenarioType.nft_investment,
