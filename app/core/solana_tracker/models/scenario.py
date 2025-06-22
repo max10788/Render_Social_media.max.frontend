@@ -76,8 +76,8 @@ class AmountThreshold(BaseModel):
 
 class DeFiProtocol(BaseModel):
     name: str
-    addresses: List[str]
-    program_id: Optional[str] = None
+    program_id: str
+    addresses: Optional[List[str]] = None  # oder default-Wert
     
 class BridgeInfo(BaseModel):
     """Cross-chain bridge information."""
