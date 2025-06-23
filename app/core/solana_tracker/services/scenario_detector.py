@@ -515,7 +515,7 @@ class ScenarioDetector:
             logger.error(f"Error detecting pattern {pattern.type}: {e}")
             return None
 
- def _detect_staking(
+    def _detect_staking(
         self,
         transactions: List[TrackedTransaction],
         rules: Dict[str, Any]
@@ -534,6 +534,7 @@ class ScenarioDetector:
                     if tx.amount >= rules["min_amount"]:
                         confidence = 0.9
                         matched_txs.add(tx.tx_hash)
+    
             return confidence, matched_txs
         except Exception as e:
             logger.error(f"Error in staking detection: {e}")
