@@ -3,49 +3,53 @@ from typing import Dict, List, Optional, Union, Any
 from pydantic import BaseModel, Field
 from decimal import Decimal
 
-__all__ = [
-    'ScenarioType',
-    'AddressPattern',
-    'AmountThreshold',
-    'DeFiProtocol',
-    'BridgeInfo',
-    'ScenarioDetails',
-    'ScenarioRule',
-    'StakingRule',
-    'DeFiRule',
-    'BridgeRule',
-    'NFTRule',
-    'ScenarioConfig',
-    'DetectedScenario',
-    'ScenarioAnalysis'
-]
+all = ['ScenarioType', 'AddressPattern', 'AmountThreshold', 'DeFiProtocol', 'BridgeInfo',
+       'ScenarioDetails', 'ScenarioRule', 'StakingRule', 'DeFiRule', 'BridgeRule', 'NFTRule',
+       'ScenarioConfig', 'DetectedScenario', 'ScenarioAnalysis']
 
-class ScenarioType:
-    token_swap = "token_swap"
+class ScenarioType(str, Enum):
+    # Investment/Storage Scenarios
+    delegated_staking = "delegated_staking"
+    liquid_staking = "liquid_staking"
+    defi_deposit = "defi_deposit"
     nft_investment = "nft_investment"
     multi_sig_storage = "multi_sig_storage"
     cold_storage = "cold_storage"
     hardware_wallet = "hardware_wallet"
+
+    # Conversion/Exchange Scenarios
+    converted_to_stablecoin = "converted_to_stablecoin"
     swapped_to_other_token = "swapped_to_other_token"
+    token_swap = "token_swap"
+    cross_chain_bridge = "cross_chain_bridge"
+    otc_trade = "otc_trade"
+    arbitrage_trade = "arbitrage_trade"
+
+    # DeFi Activity Scenarios
+    lending_deposit = "lending_deposit"
+    liquidity_provision = "liquidity_provision"
     yield_farming = "yield_farming"
     flash_loan_arbitrage = "flash_loan_arbitrage"
+
+    # Program Interaction Scenarios
     smart_contract_interaction = "smart_contract_interaction"
     program_owned_account = "program_owned_account"
     program_derived_address = "program_derived_address"
+
+    # Special Cases
     donation_or_grant = "donation_or_grant"
     lost_or_dust = "lost_or_dust"
     burned = "burned"
     frozen = "frozen"
+
+    # Transaction Status
     failed_transaction = "failed_transaction"
     pending_validation = "pending_validation"
     returned_to_origin = "returned_to_origin"
+
+    # Neue Einträge aus ScenarioPatterns
     large_transfer = "large_transfer"
-    defi_deposit = "defi_deposit"
-    delegated_staking = "delegated_staking"
-    converted_to_stablecoin = "converted_to_stablecoin"
     nft_minting = "nft_minting"
-    cross_chain_bridge = "cross_chain_bridge"
-    liquidity_provision = "liquidity_provision"
     governance_participation = "governance_participation"
     wash_trading = "wash_trading"
     reward_claim = "reward_claim"
@@ -65,26 +69,18 @@ class AmountThreshold(BaseModel):
     max_amount: Optional[Decimal] = None
     dust_threshold: Optional[Decimal] = Field(default=Decimal('0.000001'))
 
-class DeFiProtocol:
-    def __init__(self, name, program_id=None, addresses=None):
-        self.name = name
-        self.program_id = program_id
-        self.addresses = addresses if addresses else []
+class LargeDepositRule(BaseModel):
+    protocol_name: str
+    min_deposit_amount: float
+    allowed_tokens: Optional[List[str]] = None
+    excluded_addresses: Optional[List[str]] = None
+    confidence_score: float = 0.8
 
-class ScenarioPattern:
-    def __init__(self, type, confidence_threshold, pattern_rules):
-        self.type = type
-        self.confidence_threshold = confidence_threshold
-        self.pattern_rules = pattern_rules
+class DeFiProtocol(BaseModel):
+    name: str
+    program_id: str
+    addresses: Optional[List[str]] = None
 
-class LargeDepositRule:
-    def __init__(self, protocol_name, min_deposit_amount, allowed_tokens, excluded_addresses, confidence_score):
-        self.protocol_name = protocol_name
-        self.min_deposit_amount = min_deposit_amount
-        self.allowed_tokens = allowed_tokens
-        self.excluded_addresses = excluded_addresses
-        self.confidence_score = confidence_score
-    
 class BridgeInfo(BaseModel):
     """Cross-chain bridge information."""
     name: str
@@ -104,6 +100,9 @@ class ScenarioDetails(BaseModel):
     can_be_recovered: bool = Field(default=True)
     user_action_required: bool = Field(default=False)
     risk_level: str = Field(default="low")
+
+    class Config:
+        arbitrary_types_allowed = True
 
 class ScenarioRule(BaseModel):
     """Base class for scenario detection rules."""
@@ -145,9 +144,6 @@ class ScenarioConfig(BaseModel):
     rules: List[ScenarioRule]
     max_depth: int = Field(default=10, ge=1, le=100)
     min_confidence: float = Field(default=0.8, ge=0.0, le=1.0)
-    
-    class Config:
-        use_enum_values = True
 
 class DetectedScenario(BaseModel):
     """Result of scenario detection."""
@@ -158,7 +154,7 @@ class DetectedScenario(BaseModel):
     detection_rules_matched: List[str]
     user_message: str = Field(default="")
     next_steps: Optional[List[str]] = None
-    
+
     class Config:
         use_enum_values = True
         json_encoders = {
@@ -176,6 +172,6 @@ class ScenarioAnalysis(BaseModel):
     analysis_duration: float
     total_transactions_analyzed: int
     detection_timestamp: str
-    
+
     class Config:
         arbitrary_types_allowed = True
