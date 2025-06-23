@@ -442,35 +442,31 @@ class ScenarioDetector:
     ) -> List[DetectedScenario]:
         """
         Detect scenarios in a chain of transactions.
-        
+
         Args:
             transactions: List of tracked transactions
-            
+
         Returns:
             List[DetectedScenario]: Detected scenarios with details
         """
         if not transactions:
             return []
-            
+
         detected_scenarios: List[DetectedScenario] = []
-        
+
         try:
             # Process each pattern
             for pattern in self.patterns:
                 scenario = await self._detect_pattern(pattern, transactions)
                 if scenario:
                     detected_scenarios.append(scenario)
-                    
+
             # Post-process scenarios
             detected_scenarios = self._resolve_conflicts(detected_scenarios)
-            
             logger.info(
-                f"Detected {len(detected_scenarios)} scenarios in "
-                f"{len(transactions)} transactions"
+                f"Detected {len(detected_scenarios)} scenarios in {len(transactions)} transactions"
             )
-            
             return detected_scenarios
-            
         except Exception as e:
             logger.error(f"Error detecting scenarios: {e}")
             return []
@@ -484,7 +480,7 @@ class ScenarioDetector:
         try:
             confidence = 0.0
             matched_txs: Set[str] = set()
-            
+
             if pattern.type == ScenarioType.delegated_staking:
                 confidence, matched_txs = self._detect_staking(
                     transactions,
@@ -495,8 +491,9 @@ class ScenarioDetector:
                     transactions,
                     pattern.pattern_rules
                 )
+
             # Add more pattern detections...
-            
+
             if confidence >= pattern.confidence_threshold:
                 return DetectedScenario(
                     type=pattern.type,
@@ -511,14 +508,12 @@ class ScenarioDetector:
                         f"{pattern.type.value}_pattern"
                     ]
                 )
-                
             return None
-            
         except Exception as e:
             logger.error(f"Error detecting pattern {pattern.type}: {e}")
             return None
 
-    def _detect_staking(
+ def _detect_staking(
         self,
         transactions: List[TrackedTransaction],
         rules: Dict[str, Any]
@@ -526,7 +521,6 @@ class ScenarioDetector:
         """Detect staking pattern."""
         confidence = 0.0
         matched_txs = set()
-        
         try:
             for tx in transactions:
                 # Check for staking program
@@ -538,9 +532,7 @@ class ScenarioDetector:
                     if tx.amount >= rules["min_amount"]:
                         confidence = 0.9
                         matched_txs.add(tx.tx_hash)
-                        
             return confidence, matched_txs
-            
         except Exception as e:
             logger.error(f"Error in staking detection: {e}")
             return 0.0, set()
@@ -553,7 +545,6 @@ class ScenarioDetector:
         """Detect DeFi interaction pattern."""
         confidence = 0.0
         matched_txs = set()
-        
         try:
             for tx in transactions:
                 for protocol in rules["protocols"]:
@@ -563,13 +554,11 @@ class ScenarioDetector:
                     ):
                         confidence = 0.85
                         matched_txs.add(tx.tx_hash)
-                        
             return confidence, matched_txs
-            
         except Exception as e:
             logger.error(f"Error in DeFi detection: {e}")
             return 0.0, set()
-
+            
     def _create_scenario_details(
         self,
         scenario_type: ScenarioType,
@@ -582,10 +571,9 @@ class ScenarioDetector:
                 tx for tx in transactions
                 if tx.tx_hash in matched_txs
             ]
-            
             return ScenarioDetails(
                 type=scenario_type,
-                confidence_score=0.9,  # Could be calculated based on patterns
+                confidence_score=0.9, # Could be calculated based on patterns
                 detection_time=datetime.utcnow().isoformat(),
                 relevant_addresses=[
                     tx.to_wallet for tx in relevant_txs
@@ -595,7 +583,6 @@ class ScenarioDetector:
                     relevant_txs
                 )
             )
-            
         except Exception as e:
             logger.error(f"Error creating scenario details: {e}")
             return ScenarioDetails(
@@ -605,6 +592,7 @@ class ScenarioDetector:
                 relevant_addresses=[],
                 metadata={}
             )
+            
 
     def _create_scenario_metadata(
         self,
@@ -621,9 +609,7 @@ class ScenarioDetector:
                     "last_stake": max(tx.timestamp for tx in transactions)
                 }
             # Add more scenario metadata...
-            
             return {}
-            
         except Exception as e:
             logger.error(f"Error creating scenario metadata: {e}")
             return {}
@@ -635,19 +621,15 @@ class ScenarioDetector:
         """Resolve conflicts between detected scenarios."""
         if not scenarios:
             return []
-            
         # Sort by confidence
         scenarios.sort(key=lambda s: s.confidence, reverse=True)
-        
         # Remove overlapping scenarios with lower confidence
         resolved = []
         used_txs = set()
-        
         for scenario in scenarios:
             # Check if scenario shares too many transactions with higher confidence scenarios
             overlap = len(set(scenario.related_transactions) & used_txs)
             if overlap / len(scenario.related_transactions) < 0.5:
                 resolved.append(scenario)
                 used_txs.update(scenario.related_transactions)
-                
         return resolved
