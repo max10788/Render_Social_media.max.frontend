@@ -2,10 +2,11 @@ from enum import Enum
 from typing import Dict, List, Optional, Union, Any
 from pydantic import BaseModel, Field
 from decimal import Decimal
+from dataclasses import dataclass
 
 all = ['ScenarioType', 'AddressPattern', 'AmountThreshold', 'DeFiProtocol', 'BridgeInfo',
        'ScenarioDetails', 'ScenarioRule', 'StakingRule', 'DeFiRule', 'BridgeRule', 'NFTRule',
-       'ScenarioConfig', 'DetectedScenario', 'ScenarioAnalysis']
+       'ScenarioConfig', 'DetectedScenario', 'ScenarioAnalysis', 'ScenarioPattern']
 
 class ScenarioType(str, Enum):
     # Investment/Storage Scenarios
@@ -175,3 +176,10 @@ class ScenarioAnalysis(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+@dataclass
+class ScenarioPattern:
+    """Pattern definition for scenario detection."""
+    type: ScenarioType
+    confidence_threshold: float
+    pattern_rules: Dict[str, Any]
