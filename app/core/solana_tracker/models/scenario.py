@@ -20,51 +20,32 @@ __all__ = [
     'ScenarioAnalysis'
 ]
 
-class ScenarioType(str, Enum):
-    """Types of scenarios that can be detected."""
-    
-    # Investment/Storage Scenarios
-    delegated_staking = "delegated_staking"
-    liquid_staking = "liquid_staking"
-    defi_deposit = "defi_deposit"
+class ScenarioType:
+    token_swap = "token_swap"
     nft_investment = "nft_investment"
     multi_sig_storage = "multi_sig_storage"
     cold_storage = "cold_storage"
     hardware_wallet = "hardware_wallet"
-    
-    # Conversion/Exchange Scenarios
-    converted_to_stablecoin = "converted_to_stablecoin"
     swapped_to_other_token = "swapped_to_other_token"
-    token_swap = "token_swap"
-    cross_chain_bridge = "cross_chain_bridge"
-    otc_trade = "otc_trade"
-    arbitrage_trade = "arbitrage_trade"
-    
-    # DeFi Activity Scenarios
-    lending_deposit = "lending_deposit"
-    liquidity_provision = "liquidity_provision"
     yield_farming = "yield_farming"
     flash_loan_arbitrage = "flash_loan_arbitrage"
-    
-    # Program Interaction Scenarios
     smart_contract_interaction = "smart_contract_interaction"
     program_owned_account = "program_owned_account"
     program_derived_address = "program_derived_address"
-    
-    # Special Cases
     donation_or_grant = "donation_or_grant"
     lost_or_dust = "lost_or_dust"
     burned = "burned"
     frozen = "frozen"
-    
-    # Transaction Status
     failed_transaction = "failed_transaction"
     pending_validation = "pending_validation"
     returned_to_origin = "returned_to_origin"
-
-    # Neue Einträge aus ScenarioPatterns
     large_transfer = "large_transfer"
+    defi_deposit = "defi_deposit"
+    delegated_staking = "delegated_staking"
+    converted_to_stablecoin = "converted_to_stablecoin"
     nft_minting = "nft_minting"
+    cross_chain_bridge = "cross_chain_bridge"
+    liquidity_provision = "liquidity_provision"
     governance_participation = "governance_participation"
     wash_trading = "wash_trading"
     reward_claim = "reward_claim"
