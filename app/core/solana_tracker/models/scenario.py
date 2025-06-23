@@ -79,7 +79,7 @@ class LargeDepositRule(BaseModel):
 
 class DeFiProtocol(BaseModel):
     name: str
-    program_id: str
+    program_id: Optional[str] = None  # Optional gemacht
     addresses: Optional[List[str]] = None
 
 class BridgeInfo(BaseModel):
