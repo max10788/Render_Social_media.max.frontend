@@ -35,9 +35,6 @@ solana>=0.31.0
 solders>=0.18.0
 base58>=2.1.1
 
-setuptools
-
-
 # JSON RPC + Validierung
 pydantic==1.10.12
 python-dotenv==1.0.0
