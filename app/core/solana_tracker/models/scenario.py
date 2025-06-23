@@ -65,17 +65,25 @@ class AmountThreshold(BaseModel):
     max_amount: Optional[Decimal] = None
     dust_threshold: Optional[Decimal] = Field(default=Decimal('0.000001'))
 
-class LargeDepositRule(BaseModel):
-    protocol_name: str
-    min_deposit_amount: float
-    allowed_tokens: Optional[List[str]] = None
-    excluded_addresses: Optional[List[str]] = None
-    confidence_score: float = 0.8
+class DeFiProtocol:
+    def __init__(self, name, program_id=None, addresses=None):
+        self.name = name
+        self.program_id = program_id
+        self.addresses = addresses if addresses else []
 
-class DeFiProtocol(BaseModel):
-    name: str
-    program_id: str
-    addresses: Optional[List[str]] = None  # oder default-Wert
+class ScenarioPattern:
+    def __init__(self, type, confidence_threshold, pattern_rules):
+        self.type = type
+        self.confidence_threshold = confidence_threshold
+        self.pattern_rules = pattern_rules
+
+class LargeDepositRule:
+    def __init__(self, protocol_name, min_deposit_amount, allowed_tokens, excluded_addresses, confidence_score):
+        self.protocol_name = protocol_name
+        self.min_deposit_amount = min_deposit_amount
+        self.allowed_tokens = allowed_tokens
+        self.excluded_addresses = excluded_addresses
+        self.confidence_score = confidence_score
     
 class BridgeInfo(BaseModel):
     """Cross-chain bridge information."""
