@@ -53,13 +53,13 @@ class ScenarioDetector:
                         DeFiProtocol(
                             name="Raydium",
                             program_id="RaYdIuMpRoGrAmIdXCUg6sP4wxpD3x1W7D1t2Z7K9eR",
-                            addresses=["4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"]
+                            addresses=["4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"],
                         ),
                         DeFiProtocol(
                             name="Orca",
                             program_id="whirLbGkszUak4H2e3FNi9PT1LMxth8mjcLp9wG8s8q",
-                            addresses=["orcaEyt5fJZdo11ix8i8re9DpoX6Jvc9coEdidczDhdw2EM"]
-                        )
+                            addresses=["orcaEyt5fJZdo11ix8i8re9DpoX6Jvc9coEdidczDhdw2EM"],
+                        ),
                     ],
                     "min_token_change": 2
                 }
