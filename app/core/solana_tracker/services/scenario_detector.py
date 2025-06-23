@@ -8,12 +8,14 @@ from dataclasses import dataclass
 from app.core.solana_tracker.models.transaction import TrackedTransaction
 from app.core.solana_tracker.models.scenario import (
     ScenarioType,
-    ScenarioConfig,
-    DetectedScenario,
     ScenarioDetails,
-    DeFiProtocol,
-    BridgeInfo,
-    LargeDepositRule
+    DetectedScenario,
+    ScenarioRule,
+    ScenarioConfig,
+    AmountThreshold,
+    LargeDepositRule,
+    ScenarioPattern,
+    DeFiProtocol
 )
 
 logger = logging.getLogger(__name__)
