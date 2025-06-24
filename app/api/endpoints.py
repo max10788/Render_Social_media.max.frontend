@@ -329,32 +329,48 @@ def get_transaction_service(
     """Get transaction service instance."""
     return TransactionService(solana_repository=repo)
         
+async def get_transaction_detail(tx_hash: str) -> Optional[TransactionDetail]:
+    # Hier sollte Ihre Logik zur Abfrage der Transaktion stehen.
+    # Beispiel:
+    try:
+        # Annahme: solana_repo ist eine Instanz des Repositorys, das die Transaktionen abruft
+        solana_repo = get_solana_repository()  # Stellen Sie sicher, dass dies verfügbar ist
+        tx_detail = await solana_repo.get_transaction(tx_hash)
+        if tx_detail is None:
+            raise ValueError("Transaction not found")
+
+        # Validieren und sicherstellen, dass tx_detail die richtige Struktur hat
+        if isinstance(tx_detail, dict):
+            if 'signature' not in tx_detail or 'transaction' not in tx_detail or 'transfers' not in tx_detail:
+                raise ValueError("Invalid transaction detail structure")
+
+            # Beispielhafte Konvertierung zur Verdeutlichung
+            tx_detail = TransactionDetail(
+                signature=tx_detail['signature'],
+                timestamp=tx_detail.get('timestamp', datetime.now()),
+                transfers=tx_detail['transfers'],
+                transaction=tx_detail['transaction']
+            )
+
+        return tx_detail
+    except Exception as e:
+        logger.error("Error fetching transaction detail: %s", e)
+        raise
+
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
-async def track_transactions(
-    request: TransactionTrackRequest,
-    service: TransactionService = Depends(get_transaction_service)
-):
+async def track_transactions(request: TransactionTrackRequest):
     try:
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
         amount = Decimal(str(request.amount)) if request.amount is not None else None
 
-        tracking_result = await service.analyze_transaction_chain(
-            start_tx_hash=request.start_tx_hash,
-            max_depth=request.num_transactions,
-            target_currency=request.target_currency,
-            amount=amount
-        )
-
-        if (
-            not tracking_result.get("transactions") and
-            tracking_result.get("status") in {"no_chain_found", "no_data"}
-        ):
-            logger.warning(f"No transactions found or accessible in chain starting from {request.start_tx_hash}")
+        tx_detail = await get_transaction_detail(request.start_tx_hash)
+        if not tx_detail:
+            logger.error(f"No transactions found or accessible for transaction hash {request.start_tx_hash}")
             return TransactionTrackResponse(
                 status="no_data",
                 total_transactions_tracked=0,
                 tracked_transactions=[],
-                final_status=FinalStatusEnum.no_transactions_found,
+                final_status="no_transactions_found",
                 final_wallet_address=None,
                 remaining_amount=request.amount,
                 target_currency=request.target_currency,
