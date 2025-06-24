@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score
 import joblib
 import uuid
 from fastapi.staticfiles import StaticFiles
-from typing import List, Dict
+from typing import List, Dict, Any, Optional
 import aiohttp
 from textblob import TextBlob
 from decimal import Decimal  # Add this import
