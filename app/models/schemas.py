@@ -180,12 +180,13 @@ class TransactionTrackResponse(BaseModel):
     status: str
     total_transactions_tracked: int
     tracked_transactions: List[TrackedTransaction]
-    final_status: FinalStatusEnum
-    final_wallet_address: Optional[str] = None
-    remaining_amount: Optional[float] = None
+    final_status: str
+    final_wallet_address: Optional[str]
+    remaining_amount: Optional[float]
     target_currency: str
-    detected_scenarios: List[ScenarioType] = []
-    scenario_details: Dict[ScenarioType, Dict] = {}
+    detected_scenarios: List[dict]
+    scenario_details: dict
+    statistics: dict
 
 class RateLimitConfig(BaseModel):
     rate: int = Field(default=50, description="Requests per second")
