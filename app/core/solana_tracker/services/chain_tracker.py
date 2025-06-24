@@ -224,48 +224,52 @@ class ChainTracker:
         tx_detail: Union[TransactionDetail, Dict]
     ) -> List[Dict]:
         transfers = []
+        logger.debug("Starting transfer extraction")
+    
         try:
-            # Prüfen, ob tx_detail ein Wörterbuch ist
+            # Fall 1: tx_detail ist ein TransactionDetail-Objekt
+            if isinstance(tx_detail, TransactionDetail):
+                if hasattr(tx_detail, 'transfers'):
+                    for transfer in tx_detail.transfers:
+                        if transfer.amount >= self.MIN_AMOUNT:
+                            transfers.append({
+                                "from": transfer.from_address,
+                                "to": transfer.to_address,
+                                "amount": transfer.amount
+                            })
+                logger.debug("Found %d transfers from TransactionDetail object", len(transfers))
+                return transfers
+    
+            # Fall 2: tx_detail ist ein Dictionary (z.B. direkte RPC-Antwort)
             if isinstance(tx_detail, dict):
-                logger.debug("Converting dict to TransactionDetail")
-                if 'transfers' in tx_detail and 'transaction' in tx_detail and 'signature' in tx_detail:
-                    tx_detail_obj = TransactionDetail(
-                        signature=tx_detail['signature'],
-                        timestamp=tx_detail.get('timestamp', datetime.now()),
-                        transfers=tx_detail['transfers'],
-                        transaction=tx_detail['transaction']
-                    )
-                    tx_detail = tx_detail_obj
-                else:
-                    logger.error("Dictionary does not contain the necessary keys for TransactionDetail")
-                    return transfers
+                logger.debug("Processing raw dictionary from RPC response")
+                result = tx_detail.get('result', {})
+                transaction_data = result.get('transaction', {})
+                message = transaction_data.get('message', {})
+                instructions = message.get('instructions', [])
     
-            # Extrahiere alle Transfers aus dem Objekt
-            if hasattr(tx_detail, 'transfers'):
-                for transfer in tx_detail.transfers:
-                    logger.debug("Inspecting transfer: %s", transfer)
-                    if transfer.amount >= self.MIN_AMOUNT:
-                        transfers.append({
-                            "from": transfer.from_address,
-                            "to": transfer.to_address,
-                            "amount": transfer.amount
-                        })
+                for instr in instructions:
+                    if instr.get('program') == 'system' and instr.get('parsed', {}).get('type') == 'transfer':
+                        info = instr['parsed']['info']
+                        amount_sol = Decimal(info['lamports']) / Decimal(1_000_000_000)
     
-            # Ergänzung: Extrahiere weitere Arten von Transaktionen aus 'transaction.instructions'
-            if hasattr(tx_detail, 'transaction') and hasattr(tx_detail.transaction, 'instructions'):
-                for instruction in tx_detail.transaction.instructions:
-                    # Hier können Sie z.B. nach SPL-Token-Transfers suchen
-                    if instruction.program_id == "TokenkegQfeZyiNwAJbNbGKL6Qiw7P11pZyD7CwxbK1cd":
-                        # Beispiellogik für SPL-Token-Transfers
-                        spl_transfer_data = self._parse_spl_token_transfer(instruction)
-                        if spl_transfer_data:
-                            transfers.append(spl_transfer_data)
+                        if amount_sol >= self.MIN_AMOUNT:
+                            transfers.append({
+                                "from": info['source'],
+                                "to": info['destination'],
+                                "amount": amount_sol
+                            })
     
-            logger.debug("Transfer extraction complete: %d valid transfers", len(transfers))
+                logger.debug("Extracted %d transfers from raw dictionary", len(transfers))
+                return transfers
+    
+            # Fallback: Keine Transfers gefunden
+            logger.warning("No valid transfers found - unsupported type or structure")
             return transfers
+    
         except Exception as e:
             logger.error("Error extracting transfers: %s", e, exc_info=True)
-            return []
+            return transfers
 
     async def _find_next_transactions(
         self,
