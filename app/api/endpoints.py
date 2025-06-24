@@ -313,12 +313,10 @@ def get_solana_repository(
         rate_limit_config=rate_limit_config
     )
 
-# Dependency für TransactionService
-def get_transaction_service(
-    repo: EnhancedSolanaRepository = Depends(get_solana_repository)
-) -> TransactionService:
-    """Get transaction service instance."""
-    return TransactionService(solana_repository=repo)
+# Initialisieren des TransactionService
+def get_transaction_service() -> TransactionService:
+    solana_repo = get_solana_repository()
+    return TransactionService(solana_repository=solana_repo)
         
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(request: TransactionTrackRequest):
@@ -326,7 +324,12 @@ async def track_transactions(request: TransactionTrackRequest):
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
         amount = Decimal(str(request.amount)) if request.amount is not None else None
 
-        tx_detail = await get_transaction_detail(request.start_tx_hash)
+        # Holen Sie sich eine Instanz von TransactionService
+        transaction_service = get_transaction_service()
+
+        # Verwenden Sie die Methode get_transaction_details statt der Funktion get_transaction_detail
+        tx_detail = await transaction_service.get_transaction_details(request.start_tx_hash)
+
         if not tx_detail:
             logger.error(f"No transactions found or accessible for transaction hash {request.start_tx_hash}")
             return TransactionTrackResponse(
