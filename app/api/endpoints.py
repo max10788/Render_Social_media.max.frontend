@@ -40,6 +40,7 @@ from app.core.solana_tracker.services.transaction_service import TransactionServ
 from app.core.solana_tracker.models.scenario import ScenarioType
 from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
+from app.core.solana_tracker.models.transaction import TransactionDetail, TrackedTransaction
 
 from app.core.crypto_tracker import CryptoTrackingService
 from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
