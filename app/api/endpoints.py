@@ -294,16 +294,30 @@ def get_crypto_service() -> CryptoTrackingService:
 def get_app_settings() -> Settings:
     return get_settings()
 
-# Dependency für SolanaRepository
 def get_solana_repository(
     settings: Settings = Depends(get_app_settings)
-) -> SolanaRepository:
-    """Get Solana repository instance."""
-    rpc_url = settings.SOLANA_RPC_URL or os.getenv(
-        "SOLANA_RPC_URL",
-        "https://api.devnet.solana.com"
+) -> EnhancedSolanaRepository:
+    """Get Enhanced Solana repository instance."""
+    primary_rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.devnet.solana.com")
+    fallback_rpc_urls_str = os.getenv("SOLANA_FALLBACK_RPC_URLS", "")
+    fallback_rpc_urls = [url.strip() for url in fallback_rpc_urls_str.split(",")] if fallback_rpc_urls_str else []
+    rate_limit_config = {
+        "rate": int(os.getenv("SOLANA_RATE_LIMIT_RATE", 50)),
+        "capacity": int(os.getenv("SOLANA_RATE_LIMIT_CAPACITY", 100))
+    }
+
+    return EnhancedSolanaRepository(
+        primary_rpc_url=primary_rpc_url,
+        fallback_rpc_urls=fallback_rpc_urls,
+        rate_limit_config=rate_limit_config
     )
-    return SolanaRepository(rpc_url)
+
+# Dependency für TransactionService
+def get_transaction_service(
+    repo: EnhancedSolanaRepository = Depends(get_solana_repository)
+) -> TransactionService:
+    """Get transaction service instance."""
+    return TransactionService(solana_repository=repo)
 
 # Dependency für TransactionService
 def get_transaction_service(
