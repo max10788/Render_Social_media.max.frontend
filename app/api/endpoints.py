@@ -313,9 +313,8 @@ def get_solana_repository(
         rate_limit_config=rate_limit_config
     )
 
-# Initialisieren des TransactionService
 def get_transaction_service() -> TransactionService:
-    solana_repo = get_solana_repository()
+    solana_repo = get_solana_repository()  
     return TransactionService(solana_repository=solana_repo)
         
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
@@ -324,10 +323,7 @@ async def track_transactions(request: TransactionTrackRequest):
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
         amount = Decimal(str(request.amount)) if request.amount is not None else None
 
-        # Holen Sie sich eine Instanz von TransactionService
         transaction_service = get_transaction_service()
-
-        # Verwenden Sie die Methode get_transaction_details statt der Funktion get_transaction_detail
         tx_detail = await transaction_service.get_transaction_details(request.start_tx_hash)
 
         if not tx_detail:
@@ -351,6 +347,13 @@ async def track_transactions(request: TransactionTrackRequest):
                 statistics={}
             )
 
+        tracking_result = await transaction_service.analyze_transaction_chain(
+            start_tx_hash=request.start_tx_hash,
+            max_depth=10,
+            target_currency=request.target_currency,
+            amount=amount
+        )
+
         scenarios = tracking_result.get("scenarios", [])
         transactions = tracking_result.get("transactions", [])
         statistics = tracking_result.get("statistics", {})
@@ -369,8 +372,8 @@ async def track_transactions(request: TransactionTrackRequest):
         final_tx = transactions[-1] if transactions else None
         final_wallet = final_tx.to_wallet if final_tx else None
         final_amount = final_tx.amount if final_tx else request.amount
-
         scenario_details = {}
+
         for scenario in scenarios:
             scenario_details[scenario.type] = {
                 "description": getattr(scenario.details, "user_message", ""),
@@ -385,7 +388,6 @@ async def track_transactions(request: TransactionTrackRequest):
             f"Successfully tracked {len(transactions)} transactions with "
             f"{len(scenarios)} detected scenarios"
         )
-
         return TransactionTrackResponse(
             status="complete",
             total_transactions_tracked=len(transactions),
