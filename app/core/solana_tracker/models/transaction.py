@@ -230,19 +230,19 @@ class TransactionDetail(BaseModel):
     timestamp: datetime = Field(..., description="Zeitpunkt der Transaktion")
 
     # Einfache Token/SOL-Transfers (wie bisher)
-    transfers: List[Transfer] = Field(default_factory=list)
+    transfers: list[Transfer] = Field(default_factory=list)
 
     # Rohdaten der Transaktion
     transaction: SolanaTransaction = Field(..., description="Rohdaten der Solana-Transaktion")
 
     # Zusätzliche Details
-    instructions: List[Dict[str, Any]] = Field(default_factory=list, description="Liste aller Instruktionen")
-    logs: List[str] = Field(default_factory=list, description="Programm-Logs")
-    balance_changes: List[Dict[str, Any]] = Field(default_factory=list, description="Änderungen der Kontoguthaben")
-    fee_details: Optional[Dict[str, Any]] = Field(None, description="Gebühr und wer hat gezahlt")
-    error: Optional[str] = Field(None, description="Fehlermeldung, falls vorhanden")
-    meta: Optional[Dict[str, Any]] = Field(None, description="Roh-Meta-Daten zur Fehlersuche")
-    token_info: Dict[str, TokenInfo] = Field(default_factory=dict, description="Token-Mints der involvierten Tokens")
+    instructions: list[dict[str, any]] = Field(default_factory=list, description="Liste aller Instruktionen")
+    logs: list[str] = Field(default_factory=list, description="Programm-Logs")
+    balance_changes: list[dict[str, any]] = Field(default_factory=list, description="Änderungen der Kontoguthaben")
+    fee_details: optional[dict[str, any]] = Field(None, description="Gebühr und wer hat gezahlt")
+    error: optional[str] = Field(None, description="Fehlermeldung, falls vorhanden")
+    meta: optional[dict[str, any]] = Field(None, description="Roh-Meta-Daten zur Fehlersuche")
+    token_info: dict[str, TokenInfo] = Field(default_factory=dict, description="Token-Mints der involvierten Tokens")
 
     @model_validator(mode='after')
     def validate_transaction_structure(self) -> 'TransactionDetail':
