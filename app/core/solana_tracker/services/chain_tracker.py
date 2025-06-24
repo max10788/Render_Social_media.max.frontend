@@ -214,9 +214,20 @@ class ChainTracker:
     ) -> List[Dict]:
         transfers = []
         try:
+            # Überprüfen, ob tx_detail ein TransactionDetail-Objekt ist
+            if isinstance(tx_detail, dict):
+                logger.error("Expected TransactionDetail object, got dict")
+                return transfers
+    
+            # Überprüfen, ob 'transfers' vorhanden ist, sonst leere Liste zurückgeben
+            if not hasattr(tx_detail, 'transfers'):
+                logger.error("TransactionDetail object has no 'transfers' attribute")
+                return transfers
+    
+            # Typische Verarbeitung
             for transfer in tx_detail.transfers:
                 logger.debug("Inspecting transfer: %s", transfer)
-                if transfer.amount >= self.MIN_AMOUNT:  # <-- FIXED HERE!
+                if transfer.amount >= self.MIN_AMOUNT:
                     transfers.append({
                         "from": transfer.from_address,
                         "to": transfer.to_address,
