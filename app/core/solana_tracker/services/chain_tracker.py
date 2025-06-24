@@ -228,9 +228,7 @@ class ChainTracker:
             # Prüfen, ob tx_detail ein Wörterbuch ist
             if isinstance(tx_detail, dict):
                 logger.debug("Converting dict to TransactionDetail")
-                # Hier müssten Sie sicherstellen, dass tx_detail tatsächlich die benötigten Daten enthält
                 if 'transfers' in tx_detail and 'transaction' in tx_detail and 'signature' in tx_detail:
-                    # Erstellen Sie ein temporäres TransactionDetail-Objekt aus dem Wörterbuch
                     tx_detail_obj = TransactionDetail(
                         signature=tx_detail['signature'],
                         timestamp=tx_detail.get('timestamp', datetime.now()),
@@ -241,16 +239,28 @@ class ChainTracker:
                 else:
                     logger.error("Dictionary does not contain the necessary keys for TransactionDetail")
                     return transfers
-
-            # Typische Verarbeitung
-            for transfer in tx_detail.transfers:
-                logger.debug("Inspecting transfer: %s", transfer)
-                if transfer.amount >= self.MIN_AMOUNT:
-                    transfers.append({
-                        "from": transfer.from_address,
-                        "to": transfer.to_address,
-                        "amount": transfer.amount
-                    })
+    
+            # Extrahiere alle Transfers aus dem Objekt
+            if hasattr(tx_detail, 'transfers'):
+                for transfer in tx_detail.transfers:
+                    logger.debug("Inspecting transfer: %s", transfer)
+                    if transfer.amount >= self.MIN_AMOUNT:
+                        transfers.append({
+                            "from": transfer.from_address,
+                            "to": transfer.to_address,
+                            "amount": transfer.amount
+                        })
+    
+            # Ergänzung: Extrahiere weitere Arten von Transaktionen aus 'transaction.instructions'
+            if hasattr(tx_detail, 'transaction') and hasattr(tx_detail.transaction, 'instructions'):
+                for instruction in tx_detail.transaction.instructions:
+                    # Hier können Sie z.B. nach SPL-Token-Transfers suchen
+                    if instruction.program_id == "TokenkegQfeZyiNwAJbNbGKL6Qiw7P11pZyD7CwxbK1cd":
+                        # Beispiellogik für SPL-Token-Transfers
+                        spl_transfer_data = self._parse_spl_token_transfer(instruction)
+                        if spl_transfer_data:
+                            transfers.append(spl_transfer_data)
+    
             logger.debug("Transfer extraction complete: %d valid transfers", len(transfers))
             return transfers
         except Exception as e:
