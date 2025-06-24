@@ -224,23 +224,10 @@ class ChainTracker:
         tx_detail: Union[TransactionDetail, Dict]
     ) -> List[Dict]:
         transfers = []
-        logger.debug("Starting transfer extraction")
+        logger.debug("Starting transfer extraction from tx_detail type: %s", type(tx_detail).__name__)
     
         try:
-            # Fall 1: tx_detail ist ein TransactionDetail-Objekt
-            if isinstance(tx_detail, TransactionDetail):
-                if hasattr(tx_detail, 'transfers'):
-                    for transfer in tx_detail.transfers:
-                        if transfer.amount >= self.MIN_AMOUNT:
-                            transfers.append({
-                                "from": transfer.from_address,
-                                "to": transfer.to_address,
-                                "amount": transfer.amount
-                            })
-                logger.debug("Found %d transfers from TransactionDetail object", len(transfers))
-                return transfers
-    
-            # Fall 2: tx_detail ist ein Dictionary (z.B. direkte RPC-Antwort)
+            # Fall 1: tx_detail ist ein Dictionary (z.B. direkte RPC-Antwort)
             if isinstance(tx_detail, dict):
                 logger.debug("Processing raw dictionary from RPC response")
                 result = tx_detail.get('result', {})
@@ -249,23 +236,63 @@ class ChainTracker:
                 instructions = message.get('instructions', [])
     
                 for instr in instructions:
-                    if instr.get('program') == 'system' and instr.get('parsed', {}).get('type') == 'transfer':
-                        info = instr['parsed']['info']
-                        amount_sol = Decimal(info['lamports']) / Decimal(1_000_000_000)
+                    program_id = instr.get('programId')
+                    parsed = instr.get('parsed')
     
+                    if not parsed or not isinstance(parsed, dict):
+                        continue
+    
+                    instruction_type = parsed.get('type')
+                    info = parsed.get('info', {})
+    
+                    # SOL Transfer
+                    if program_id == "11111111111111111111111111111111" and instruction_type == "transfer":
+                        amount_sol = Decimal(info.get('lamports', 0)) / Decimal(1_000_000_000)
                         if amount_sol >= self.MIN_AMOUNT:
+                            logger.info("Found SOL transfer: from=%s to=%s amount=%.9f SOL",
+                                        info['source'], info['destination'], amount_sol)
                             transfers.append({
                                 "from": info['source'],
                                 "to": info['destination'],
                                 "amount": amount_sol
                             })
     
+                    # SPL Token Transfer
+                    elif program_id == "TokenkegQfeZyiNwAJbNbGKL6Qiw7P11pZyD7CwxbK1cd" and instruction_type == "transfer":
+                        mint = info.get('mint')
+                        amount_raw = info.get('tokenAmount', {}).get('uiAmount') or info.get('amount', 0)
+                        amount_token = Decimal(amount_raw) if amount_raw else Decimal(0)
+                        if amount_token >= self.MIN_AMOUNT:
+                            logger.info("Found SPL token transfer: from=%s to=%s mint=%s amount=%.9f tokens",
+                                        info['source'], info['destination'], mint, amount_token)
+                            transfers.append({
+                                "from": info['source'],
+                                "to": info['destination'],
+                                "amount": amount_token,
+                                "mint": mint
+                            })
+    
                 logger.debug("Extracted %d transfers from raw dictionary", len(transfers))
                 return transfers
     
-            # Fallback: Keine Transfers gefunden
-            logger.warning("No valid transfers found - unsupported type or structure")
-            return transfers
+            # Fall 2: tx_detail ist bereits ein TransactionDetail-Objekt
+            elif isinstance(tx_detail, TransactionDetail):
+                if hasattr(tx_detail, 'transfers'):
+                    for transfer in tx_detail.transfers:
+                        if transfer.amount >= self.MIN_AMOUNT:
+                            logger.info("Found pre-parsed transfer: from=%s to=%s amount=%.9f",
+                                        transfer.from_address, transfer.to_address, transfer.amount)
+                            transfers.append({
+                                "from": transfer.from_address,
+                                "to": transfer.to_address,
+                                "amount": transfer.amount
+                            })
+                logger.debug("Found %d transfers from TransactionDetail object", len(transfers))
+                return transfers
+    
+            else:
+                logger.warning("Unsupported tx_detail type for transfer extraction: %s", type(tx_detail).__name__)
+                return []
     
         except Exception as e:
             logger.error("Error extracting transfers: %s", e, exc_info=True)
