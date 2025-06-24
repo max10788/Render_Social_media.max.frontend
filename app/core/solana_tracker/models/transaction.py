@@ -221,28 +221,24 @@ class TrackedTransaction(TransactionBase):
 
 
 class TransactionDetail(BaseModel):
-    """
-    Erweiterte Transaktionsinformation für alle Arten von Solana-Transaktionen.
-    Enthält einfache Transfers sowie komplexe Operationen wie SPL-Token,
-    DeFi-Swaps, Stake-Vorgänge, Instruktionen und Logs.
-    """
-    signature: str = Field(..., description="Transaktions-Hash/Signatur")
-    timestamp: datetime = Field(..., description="Zeitpunkt der Transaktion")
+    """Detailed transaction information including transfers."""
+    signature: str
+    timestamp: datetime
+    transfers: List[Transfer]
+    transaction: SolanaTransaction
 
-    # Einfache Token/SOL-Transfers (wie bisher)
-    transfers: list[Transfer] = Field(default_factory=list)
+    @validator('signature')
+    def validate_tx_hash(cls, v):
+        if not v or len(v) < 32:
+            raise ValueError("Transaction hash must be at least 32 characters")
+        return v
 
-    # Rohdaten der Transaktion
-    transaction: SolanaTransaction = Field(..., description="Rohdaten der Solana-Transaktion")
-
-    # Zusätzliche Details
-    instructions: list[dict[str, any]] = Field(default_factory=list, description="Liste aller Instruktionen")
-    logs: list[str] = Field(default_factory=list, description="Programm-Logs")
-    balance_changes: list[dict[str, any]] = Field(default_factory=list, description="Änderungen der Kontoguthaben")
-    fee_details: Optional[dict[str, any]] = Field(None, description="Gebühr und wer hat gezahlt")
-    error: Optional[str] = Field(None, description="Fehlermeldung, falls vorhanden")
-    meta: Optional[dict[str, any]] = Field(None, description="Roh-Meta-Daten zur Fehlersuche")
-    token_info: dict[str, TokenInfo] = Field(default_factory=dict, description="Token-Mints der involvierten Tokens")
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            Decimal: str
+        }
 
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
