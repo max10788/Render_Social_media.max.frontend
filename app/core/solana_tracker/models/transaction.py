@@ -221,11 +221,23 @@ class TrackedTransaction(TransactionBase):
 
 
 class TransactionDetail(BaseModel):
-    """Detailed transaction information including transfers."""
-    signature: str
-    timestamp: datetime
-    transfers: List[Transfer]
-    transaction: SolanaTransaction
+    signature: str = Field(..., description="Transaktions-Hash/Signatur")
+    timestamp: datetime = Field(..., description="Zeitpunkt der Transaktion")
+
+    # Einfache Token/SOL-Transfers (wie bisher)
+    transfers: List[Transfer] = Field(default_factory=list)
+
+    # Rohdaten der Transaktion
+    transaction: SolanaTransaction = Field(..., description="Rohdaten der Solana-Transaktion")
+
+    # Zusätzliche Details
+    instructions: List[Dict[str, Any]] = Field(default_factory=list, description="Liste aller Instruktionen")
+    logs: List[str] = Field(default_factory=list, description="Programm-Logs")
+    balance_changes: List[Dict[str, Any]] = Field(default_factory=list, description="Änderungen der Kontoguthaben")
+    fee_details: Optional[Dict[str, Any]] = Field(None, description="Gebühr und wer hat gezahlt")
+    error: Optional[str] = Field(None, description="Fehlermeldung, falls vorhanden")
+    meta: Optional[Dict[str, Any]] = Field(None, description="Roh-Meta-Daten zur Fehlersuche")
+    token_info: Dict[str, TokenInfo] = Field(default_factory=dict, description="Token-Mints der involvierten Tokens")
 
     class Config:
         arbitrary_types_allowed = True
