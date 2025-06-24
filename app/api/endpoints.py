@@ -328,34 +328,6 @@ def get_transaction_service(
 ) -> TransactionService:
     """Get transaction service instance."""
     return TransactionService(solana_repository=repo)
-    
-async def get_transaction_detail(tx_hash: str) -> Optional[TransactionDetail]:
-    # Hier sollte Ihre Logik zur Abfrage der Transaktion stehen.
-    # Beispiel:
-    try:
-        # Annahme: solana_repo ist eine Instanz des Repositorys, das die Transaktionen abruft
-        solana_repo = get_solana_repository()  # Stellen Sie sicher, dass dies verfügbar ist
-        tx_detail = await solana_repo.get_transaction(tx_hash)
-        if tx_detail is None:
-            raise ValueError("Transaction not found")
-
-        # Validieren und sicherstellen, dass tx_detail die richtige Struktur hat
-        if isinstance(tx_detail, dict):
-            if 'transfers' not in tx_detail:
-                raise ValueError("Invalid transaction detail structure")
-
-            # Beispielhafte Konvertierung zur Verdeutlichung
-            tx_detail = TransactionDetail(
-                signature=tx_detail['signature'],
-                timestamp=tx_detail.get('timestamp', datetime.now()),
-                transfers=tx_detail['transfers'],
-                transaction=tx_detail['transaction']
-            )
-
-        return tx_detail
-    except Exception as e:
-        logger.error("Error fetching transaction detail: %s", e)
-        raise
         
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(
