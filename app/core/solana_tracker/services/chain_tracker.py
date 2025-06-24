@@ -1,4 +1,4 @@
-from typing import List, Set, Dict, Optional, Tuple
+from typing import List, Set, Dict, Optional, Tuple, Union
 from datetime import datetime
 import logging
 import asyncio
@@ -13,34 +13,32 @@ from app.core.solana_tracker.repositories.enhanced_solana_repository import Enha
 
 def log_rpc_json(method: str, params: list, response: dict):
     # Truncate very long responses for readability
-    logger.info(
-        f"RPC {method}({params}) response: {json.dumps(response, indent=2)[:1500]}"
-    )
+    logger.info(f"RPC {method}{{params}} response: {json.dumps(response, indent=2)[:1500]}")
 
 logger = logging.getLogger(__name__)
 
 class ChainTracker:
     """Chain tracking service for monitoring blockchain activity."""
-    
+
     # Class level constants
     MIN_AMOUNT = Decimal('0.000001')
-    
+
     def __init__(self, solana_repo: Optional[SolanaRepository] = None):
         """Initialize the chain tracker."""
         self.solana_repo = solana_repo
         self.last_update = datetime.utcnow()
         self.active = False
-        
+
     async def start(self):
         """Start the chain tracker."""
         self.active = True
         logger.info("Chain tracker started")
-    
+
     async def stop(self):
         """Stop the chain tracker."""
         self.active = False
         logger.info("Chain tracker stopped")
-    
+
     def get_min_amount(self) -> Decimal:
         """Get minimum tracking amount."""
         return self.MIN_AMOUNT
@@ -54,7 +52,7 @@ class ChainTracker:
         except Exception as e:
             logger.error("Invalid signature format for '%s': %s", signature, e)
             return False
-        
+
     async def track_chain(
         self,
         start_tx_hash: str,
@@ -65,8 +63,10 @@ class ChainTracker:
         if not self.validate_transaction_signature(start_tx_hash):
             logger.error("Invalid transaction signature format: %s", start_tx_hash)
             return []
+
         result_transactions: List[TrackedTransaction] = []
         visited_addresses: Set[str] = set()
+
         try:
             async with self.solana_repo as repo:
                 # 1. Hole erste Transaktion (NUR JSON loggen, kein raw!)
@@ -76,9 +76,11 @@ class ChainTracker:
                     return []
                 transfers = self._extract_transfers(tx_detail)
                 logger.info("First parsed transfers: %s", transfers)
+
                 if not transfers:
                     logger.warning("No valid transfers in initial tx %s", start_tx_hash)
                     return []
+
                 # 2. Nehme Empfänger-Adresse des größten Transfers als Startpunkt
                 main_transfer = max(transfers, key=lambda t: t["amount"])
                 current_wallet = main_transfer["to"]
@@ -90,10 +92,12 @@ class ChainTracker:
                     timestamp=tx_detail.transaction.timestamp,
                     value_in_target_currency=None
                 ))
+
                 for depth in range(1, max_depth):
                     if not current_wallet or current_wallet in visited_addresses:
                         logger.info("End of chain reached at depth=%d", depth)
                         break
+
                     visited_addresses.add(current_wallet)
 
                     # Logge die JSON-Antwort der Balance-Query:
@@ -109,6 +113,7 @@ class ChainTracker:
                         "getSignaturesForAddress", get_sigs_params
                     )
                     log_rpc_json("getSignaturesForAddress", get_sigs_params, sigs_response)
+
                     # Parse out signatures:
                     sig_infos = sigs_response.get("result", [])
                     if not sig_infos:
@@ -121,14 +126,17 @@ class ChainTracker:
                         tx_hash = sig_info.get("signature")
                         if not tx_hash:
                             continue
+
                         next_tx_detail = await self._get_transaction_safe(tx_hash)
                         if not next_tx_detail:
                             continue
+
                         tx_transfers = self._extract_transfers(next_tx_detail)
                         out_transfers = [
                             t for t in tx_transfers
-                            if t["from"] == current_wallet and t["amount"] >= self.MIN_AMOUNT   # <-- FIXED
+                            if t["from"] == current_wallet and t["amount"] >= self.MIN_AMOUNT
                         ]
+
                         if out_transfers:
                             next_transfer = max(out_transfers, key=lambda t: t["amount"])
                             result_transactions.append(TrackedTransaction(
@@ -142,16 +150,18 @@ class ChainTracker:
                             current_wallet = next_transfer["to"]
                             found_next = True
                             break  # Nimm nur den ersten relevanten Outflow
+
                     if not found_next:
                         logger.info(f"No outgoing transfer found from {current_wallet}, chain ends here.")
                         break
-            logger.info("Chain tracking finished. Found %d transactions.", len(result_transactions))
-            return result_transactions
+
+                logger.info("Chain tracking finished. Found %d transactions.", len(result_transactions))
+                return result_transactions
+
         except Exception as e:
             logger.error("Error tracking transaction chain from %s: %s", start_tx_hash, e, exc_info=True)
             return []
-            
-        
+
     @retry_with_exponential_backoff(max_retries=3)
     async def _get_transaction_safe(
         self,
@@ -179,21 +189,22 @@ class ChainTracker:
         if not tx_detail:
             logger.warning("No tx_detail returned for %s", tx_hash)
             return None
-            
+
         try:
             transfers = self._extract_transfers(tx_detail)
             logger.debug("Extracted %d transfers from %s", len(transfers), tx_hash)
             if not transfers:
                 logger.info("No valid transfers found in transaction %s", tx_hash)
                 return None
-                
+
             if amount is not None:
-                transfers = [t for t in transfers if abs(t["amount"] - amount) <= self.min_amount]
+                transfers = [t for t in transfers if abs(t["amount"] - amount) <= self.MIN_AMOUNT]
                 logger.debug("After amount filter: %d transfers remain", len(transfers))
+
             if not transfers:
                 logger.info("No transfers remaining after filtering by amount for %s", tx_hash)
                 return None
-                
+
             largest_transfer = max(transfers, key=lambda t: t["amount"])
             logger.info("Largest transfer in %s: %s", tx_hash, largest_transfer)
             return TrackedTransaction(
@@ -201,7 +212,7 @@ class ChainTracker:
                 from_wallet=largest_transfer["from"],
                 to_wallet=largest_transfer["to"],
                 amount=largest_transfer["amount"],
-                timestamp=tx_detail.transaction.timestamp,  # <-- datetime!
+                timestamp=tx_detail.transaction.timestamp,
                 value_in_target_currency=None
             )
         except Exception as e:
@@ -210,20 +221,27 @@ class ChainTracker:
 
     def _extract_transfers(
         self,
-        tx_detail: TransactionDetail
+        tx_detail: Union[TransactionDetail, Dict]
     ) -> List[Dict]:
         transfers = []
         try:
-            # Überprüfen, ob tx_detail ein TransactionDetail-Objekt ist
+            # Prüfen, ob tx_detail ein Wörterbuch ist
             if isinstance(tx_detail, dict):
-                logger.error("Expected TransactionDetail object, got dict")
-                return transfers
-    
-            # Überprüfen, ob 'transfers' vorhanden ist, sonst leere Liste zurückgeben
-            if not hasattr(tx_detail, 'transfers'):
-                logger.error("TransactionDetail object has no 'transfers' attribute")
-                return transfers
-    
+                logger.debug("Converting dict to TransactionDetail")
+                # Hier müssten Sie sicherstellen, dass tx_detail tatsächlich die benötigten Daten enthält
+                if 'transfers' in tx_detail and 'transaction' in tx_detail and 'signature' in tx_detail:
+                    # Erstellen Sie ein temporäres TransactionDetail-Objekt aus dem Wörterbuch
+                    tx_detail_obj = TransactionDetail(
+                        signature=tx_detail['signature'],
+                        timestamp=tx_detail.get('timestamp', datetime.now()),
+                        transfers=tx_detail['transfers'],
+                        transaction=tx_detail['transaction']
+                    )
+                    tx_detail = tx_detail_obj
+                else:
+                    logger.error("Dictionary does not contain the necessary keys for TransactionDetail")
+                    return transfers
+
             # Typische Verarbeitung
             for transfer in tx_detail.transfers:
                 logger.debug("Inspecting transfer: %s", transfer)
@@ -238,7 +256,7 @@ class ChainTracker:
         except Exception as e:
             logger.error("Error extracting transfers: %s", e, exc_info=True)
             return []
-            
+
     async def _find_next_transactions(
         self,
         tracked_tx: TrackedTransaction,
@@ -256,7 +274,7 @@ class ChainTracker:
                     transfers = self._extract_transfers(tx)
                     matching_transfers = [
                         t for t in transfers
-                        if abs(t["amount"] - amount) <= self.min_amount
+                        if abs(t["amount"] - amount) <= self.MIN_AMOUNT
                     ]
                     if not matching_transfers:
                         logger.debug("Skipping tx %s: no matching transfer for amount %s", tx.transaction.tx_hash, amount)
