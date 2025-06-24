@@ -244,20 +244,6 @@ class TransactionDetail(BaseModel):
     meta: Optional[dict[str, any]] = Field(None, description="Roh-Meta-Daten zur Fehlersuche")
     token_info: dict[str, TokenInfo] = Field(default_factory=dict, description="Token-Mints der involvierten Tokens")
 
-    @model_validator(mode='after')
-    def validate_transaction_structure(self) -> 'TransactionDetail':
-        """Optional: Validierungslogik nach dem Parsen"""
-        if not self.signature or len(self.signature) < 40:
-            raise ValueError("Invalid transaction signature")
-        return self
-
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            Decimal: str
-        }
-
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
     transactions: List[TransactionDetail]
