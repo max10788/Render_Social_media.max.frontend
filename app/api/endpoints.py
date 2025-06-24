@@ -307,7 +307,7 @@ def get_solana_repository(
 
 # Dependency für TransactionService
 def get_transaction_service(
-    repo: SolanaRepository = Depends(get_solana_repository)
+    repo: EnhancedSolanaRepository = Depends(get_solana_repository)
 ) -> TransactionService:
     """Get transaction service instance."""
     return TransactionService(solana_repository=repo)
@@ -317,12 +317,8 @@ async def track_transactions(
     request: TransactionTrackRequest,
     service: TransactionService = Depends(get_transaction_service)
 ):
-    """
-    Track a chain of transactions and detect scenarios.
-    """
     try:
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
-
         amount = Decimal(str(request.amount)) if request.amount is not None else None
 
         tracking_result = await service.analyze_transaction_chain(
@@ -351,8 +347,9 @@ async def track_transactions(
                         "Für die angegebene Transaktion konnten keine Daten abgerufen werden. "
                         "Bitte prüfen Sie, ob die Transaktions-ID korrekt ist und ob die Transaktion auf der Blockchain existiert."
                     ),
-                    "suggestion": "Überprüfen Sie die Transaktions-ID und versuchen Sie es ggf. erneut."
-                }
+                    "suggestion": "Überprüfen Sie die Transaktions-ID und versuchen Sie ggf. erneut."
+                },
+                statistics={}
             )
 
         scenarios = tracking_result.get("scenarios", [])
@@ -361,23 +358,18 @@ async def track_transactions(
 
         final_status = FinalStatusEnum.still_in_same_wallet
         for scenario in scenarios:
-            if scenario.type == ScenarioType.burned:
+            if scenario.type == "burned":
                 final_status = FinalStatusEnum.permanently_lost
-            elif scenario.type == ScenarioType.delegated_staking:
+            elif scenario.type == "delegated_staking":
                 final_status = FinalStatusEnum.staked
-            elif scenario.type == ScenarioType.cross_chain_bridge:
+            elif scenario.type == "cross_chain_bridge":
                 final_status = FinalStatusEnum.bridged_to_other_chain
-            elif scenario.type == ScenarioType.converted_to_stablecoin:
+            elif scenario.type == "converted_to_stablecoin":
                 final_status = FinalStatusEnum.converted_to_stable
 
         final_tx = transactions[-1] if transactions else None
         final_wallet = final_tx.to_wallet if final_tx else None
         final_amount = final_tx.amount if final_tx else request.amount
-
-        logger.info(
-            f"Successfully tracked {len(transactions)} transactions with "
-            f"{len(scenarios)} detected scenarios"
-        )
 
         scenario_details = {}
         for scenario in scenarios:
@@ -390,20 +382,23 @@ async def track_transactions(
                 "suggested_actions": getattr(scenario, "next_steps", []) or []
             }
 
-        # Gib die Models direkt an das Response-Model zurück!
+        logger.info(
+            f"Successfully tracked {len(transactions)} transactions with "
+            f"{len(scenarios)} detected scenarios"
+        )
+
         return TransactionTrackResponse(
             status="complete",
             total_transactions_tracked=len(transactions),
-            tracked_transactions=transactions,           # <--- Liste von TrackedTransaction
+            tracked_transactions=transactions,
             final_status=final_status,
             final_wallet_address=final_wallet,
             remaining_amount=final_amount,
             target_currency=request.target_currency,
-            detected_scenarios=scenarios,                 # <--- Liste von DetectedScenario
+            detected_scenarios=scenarios,
             scenario_details=scenario_details,
             statistics=statistics
         )
-
     except ValueError as ve:
         logger.error(f"Validation error: {str(ve)}")
         raise HTTPException(
@@ -424,7 +419,6 @@ async def track_transactions(
                 "suggestion": "Please try again later oder kontaktieren Sie den Support"
             }
         )
-        
 #--------------------------i
 # ML-basierte Analyse
 #--------------------------i
