@@ -221,6 +221,11 @@ class TrackedTransaction(TransactionBase):
 
 
 class TransactionDetail(BaseModel):
+    """
+    Erweiterte Transaktionsinformation für alle Arten von Solana-Transaktionen.
+    Enthält einfache Transfers sowie komplexe Operationen wie SPL-Token,
+    DeFi-Swaps, Stake-Vorgänge, Instruktionen und Logs.
+    """
     signature: str = Field(..., description="Transaktions-Hash/Signatur")
     timestamp: datetime = Field(..., description="Zeitpunkt der Transaktion")
 
@@ -231,13 +236,20 @@ class TransactionDetail(BaseModel):
     transaction: SolanaTransaction = Field(..., description="Rohdaten der Solana-Transaktion")
 
     # Zusätzliche Details
-    instructions: List[dict[str, any]] = Field(default_factory=list, description="Liste aller Instruktionen")
+    instructions: List[Dict[str, Any]] = Field(default_factory=list, description="Liste aller Instruktionen")
     logs: List[str] = Field(default_factory=list, description="Programm-Logs")
-    balance_changes: List[dict[str, any]] = Field(default_factory=list, description="Änderungen der Kontoguthaben")
-    fee_details: Optional[dict[str, any]] = Field(None, description="Gebühr und wer hat gezahlt")
+    balance_changes: List[Dict[str, Any]] = Field(default_factory=list, description="Änderungen der Kontoguthaben")
+    fee_details: Optional[Dict[str, Any]] = Field(None, description="Gebühr und wer hat gezahlt")
     error: Optional[str] = Field(None, description="Fehlermeldung, falls vorhanden")
-    meta: Optional[dict[str, any]] = Field(None, description="Roh-Meta-Daten zur Fehlersuche")
-    token_info: dict[str, TokenInfo] = Field(default_factory=dict, description="Token-Mints der involvierten Tokens")
+    meta: Optional[Dict[str, Any]] = Field(None, description="Roh-Meta-Daten zur Fehlersuche")
+    token_info: Dict[str, TokenInfo] = Field(default_factory=dict, description="Token-Mints der involvierten Tokens")
+
+    @model_validator(mode='after')
+    def validate_transaction_structure(self) -> 'TransactionDetail':
+        """Optional: Validierungslogik nach dem Parsen"""
+        if not self.signature or len(self.signature) < 40:
+            raise ValueError("Invalid transaction signature")
+        return self
 
     class Config:
         arbitrary_types_allowed = True
