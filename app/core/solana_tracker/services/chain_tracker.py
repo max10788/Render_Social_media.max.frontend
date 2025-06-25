@@ -219,15 +219,11 @@ class ChainTracker:
             logger.error("Error processing transaction %s: %s", tx_hash, e, exc_info=True)
             return None
 
-    def _extract_transfers(
-        self,
-        tx_detail: Union[TransactionDetail, Dict]
-    ) -> List[Dict]:
+    def _extract_transfers(self, tx_detail: Union[TransactionDetail, Dict]) -> List[Dict]:
         transfers = []
         logger.debug("Starting transfer extraction from tx_detail type: %s", type(tx_detail).__name__)
     
         try:
-            # Fall 1: tx_detail ist ein Dictionary (z.B. direkte RPC-Antwort)
             if isinstance(tx_detail, dict):
                 logger.debug("Processing raw dictionary from RPC response")
                 result = tx_detail.get('result', {})
@@ -275,7 +271,6 @@ class ChainTracker:
                 logger.debug("Extracted %d transfers from raw dictionary", len(transfers))
                 return transfers
     
-            # Fall 2: tx_detail ist bereits ein TransactionDetail-Objekt
             elif isinstance(tx_detail, TransactionDetail):
                 if hasattr(tx_detail, 'transfers'):
                     for transfer in tx_detail.transfers:
@@ -297,6 +292,7 @@ class ChainTracker:
         except Exception as e:
             logger.error("Error extracting transfers: %s", e, exc_info=True)
             return transfers
+
 
     async def _find_next_transactions(
         self,
