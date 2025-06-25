@@ -306,7 +306,6 @@ def get_solana_repository(
         "rate": int(os.getenv("SOLANA_RATE_LIMIT_RATE", 50)),
         "capacity": int(os.getenv("SOLANA_RATE_LIMIT_CAPACITY", 100))
     }
-
     return EnhancedSolanaRepository(
         primary_rpc_url=primary_rpc_url,
         fallback_rpc_urls=fallback_rpc_urls,
