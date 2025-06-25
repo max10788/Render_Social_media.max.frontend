@@ -137,12 +137,12 @@ class EnhancedSolanaRepository(SolanaRepository):
             self.endpoint_manager.endpoints[endpoint].healthy = False
             raise
 
-    except Exception as e:
-        logger.error(f"RPC call failed for {method} at {endpoint}: {e}")
-        self.endpoint_manager.endpoints[endpoint].failed_requests += 1
-        if self.endpoint_manager.endpoints[endpoint].failed_requests >= self.endpoint_manager.max_failures:
-            self.endpoint_manager.endpoints[endpoint].healthy = False
-        raise
+        except Exception as e:
+            logger.error(f"RPC call failed for {method} at {endpoint}: {e}")
+            self.endpoint_manager.endpoints[endpoint].failed_requests += 1
+            if self.endpoint_manager.endpoints[endpoint].failed_requests >= self.endpoint_manager.max_failures:
+                self.endpoint_manager.endpoints[endpoint].healthy = False
+            raise
 
     # You may want to override or add additional methods to use _make_rpc_call
     # Example:
