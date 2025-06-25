@@ -75,59 +75,55 @@ class TransactionService:
             raise
 
     @retry_with_exponential_backoff(max_retries=3)
-    async def analyze_transaction_chain(
-        self,
-        start_tx_hash: str,
-        max_depth: int = 10,
-        target_currency: str = "USD",
-        amount: Optional[Decimal] = None
-    ) -> Dict[str, Any]:
-        """
-        Analyze a chain of transactions starting from a given hash.
-        """
-        logger.info("Analyzing transaction chain from %s (max_depth=%d, currency=%s, amount=%s)",
-                    start_tx_hash, max_depth, target_currency, amount)
-        try:
-            tracked_txs = await self.chain_tracker.track_chain(
-                start_tx_hash,
-                max_depth=max_depth,
-                amount=amount
-            )
-            logger.debug("track_chain returned %d transactions", len(tracked_txs))
-    
-            if not tracked_txs:
-                logger.warning("No transaction chain found for %s", start_tx_hash)
-                return {
-                    "status": "no_chain_found",
-                    "transactions": [],
-                    "scenarios": []
-                }
-            
-            # Ensure timestamps are in ISO format string
-            for tx in tracked_txs:
-                if isinstance(tx.timestamp, datetime):
-                    tx.timestamp = tx.timestamp.isoformat()
-            
-            scenarios = await self.scenario_detector.detect_scenarios(tracked_txs)
-            logger.info("Scenario detection complete. Found %d scenarios.",
-                       len(scenarios) if scenarios else 0)
-    
-            stats = await self._calculate_chain_statistics(tracked_txs)
-            logger.debug("Chain statistics calculated: %s", stats)
-    
+async def analyze_transaction_chain(
+    self,
+    start_tx_hash: str,
+    max_depth: int = 10,
+    target_currency: str = "USD",
+    amount: Optional[Decimal] = None
+) -> Dict[str, Any]:
+    logger.info("Analyzing transaction chain from %s (max_depth=%d, currency=%s, amount=%s)",
+                start_tx_hash, max_depth, target_currency, amount)
+    try:
+        tracked_txs = await self.chain_tracker.track_chain(
+            start_tx_hash,
+            max_depth=max_depth,
+            amount=amount
+        )
+        logger.debug("track_chain returned %d transactions", len(tracked_txs))
+
+        if not tracked_txs:
+            logger.warning("No transaction chain found for %s", start_tx_hash)
             return {
-                "status": "success",
-                "transactions": tracked_txs,
-                "scenarios": scenarios if scenarios else [],
-                "statistics": stats,
-                "analysis_timestamp": datetime.utcnow().isoformat()
+                "status": "no_chain_found",
+                "transactions": [],
+                "scenarios": []
             }
-            
-        except Exception as e:
-            logger.error("Error analyzing transaction chain from %s: %s",
-                        start_tx_hash, e, exc_info=True)
-            raise
-                
+
+        for tx in tracked_txs:
+            if isinstance(tx.timestamp, datetime):
+                tx.timestamp = tx.timestamp.isoformat()
+
+        scenarios = await self.scenario_detector.detect_scenarios(tracked_txs)
+        logger.info("Scenario detection complete. Found %d scenarios.",
+                   len(scenarios) if scenarios else 0)
+
+        stats = await self._calculate_chain_statistics(tracked_txs)
+        logger.debug("Chain statistics calculated: %s", stats)
+
+        return {
+            "status": "success",
+            "transactions": tracked_txs,
+            "scenarios": scenarios if scenarios else [],
+            "statistics": stats,
+            "analysis_timestamp": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error("Error analyzing transaction chain from %s: %s",
+                    start_tx_hash, e, exc_info=True)
+        raise
+        
     async def _calculate_chain_statistics(
         self,
         transactions: List[TrackedTransaction]
