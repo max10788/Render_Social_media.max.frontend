@@ -298,8 +298,7 @@ def get_app_settings() -> Settings:
 def get_solana_repository(
     settings: Settings = Depends(get_app_settings)
 ) -> EnhancedSolanaRepository:
-    """Get Enhanced Solana repository instance."""
-    primary_rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.devnet.solana.com")
+    primary_rpc_url = os.getenv("SOLANA_RPC_URL")
     fallback_rpc_urls_str = os.getenv("SOLANA_FALLBACK_RPC_URLS", "")
     fallback_rpc_urls = [url.strip() for url in fallback_rpc_urls_str.split(",")] if fallback_rpc_urls_str else []
     rate_limit_config = {
