@@ -63,25 +63,19 @@ class ChainTracker:
         if not self.validate_transaction_signature(start_tx_hash):
             logger.error("Invalid transaction signature format: %s", start_tx_hash)
             return []
-
         result_transactions: List[TrackedTransaction] = []
         visited_addresses: Set[str] = set()
-
         try:
             async with self.solana_repo as repo:
-                # 1. Hole erste Transaktion (NUR JSON loggen, kein raw!)
                 tx_detail = await self._get_transaction_safe(start_tx_hash)
                 if not tx_detail:
                     logger.error("Initial transaction %s not found", start_tx_hash)
                     return []
                 transfers = self._extract_transfers(tx_detail)
                 logger.info("First parsed transfers: %s", transfers)
-
                 if not transfers:
                     logger.warning("No valid transfers in initial tx %s", start_tx_hash)
                     return []
-
-                # 2. Nehme Empfänger-Adresse des größten Transfers als Startpunkt
                 main_transfer = max(transfers, key=lambda t: t["amount"])
                 current_wallet = main_transfer["to"]
                 result_transactions.append(TrackedTransaction(
@@ -92,51 +86,38 @@ class ChainTracker:
                     timestamp=tx_detail.transaction.timestamp,
                     value_in_target_currency=None
                 ))
-
                 for depth in range(1, max_depth):
                     if not current_wallet or current_wallet in visited_addresses:
                         logger.info("End of chain reached at depth=%d", depth)
                         break
-
                     visited_addresses.add(current_wallet)
-
-                    # Logge die JSON-Antwort der Balance-Query:
                     sol_balance_response = await repo._make_rpc_call(
                         "getBalance", [current_wallet]
                     )
                     log_rpc_json("getBalance", [current_wallet], sol_balance_response)
                     sol_balance = sol_balance_response.get('result', {}).get('value', 0)
-
-                    # Logge die JSON-Antwort der Signature-Query:
                     get_sigs_params = [current_wallet, {"limit": 10}]
                     sigs_response = await repo._make_rpc_call(
                         "getSignaturesForAddress", get_sigs_params
                     )
                     log_rpc_json("getSignaturesForAddress", get_sigs_params, sigs_response)
-
-                    # Parse out signatures:
                     sig_infos = sigs_response.get("result", [])
                     if not sig_infos:
                         logger.info(f"No outgoing signatures found for {current_wallet}, chain ends here.")
                         break
-
-                    # Hole Transaktionen wie bisher, logge dabei die JSON-Antworten einzeln:
                     found_next = False
                     for sig_info in sig_infos:
                         tx_hash = sig_info.get("signature")
                         if not tx_hash:
                             continue
-
                         next_tx_detail = await self._get_transaction_safe(tx_hash)
                         if not next_tx_detail:
                             continue
-
                         tx_transfers = self._extract_transfers(next_tx_detail)
                         out_transfers = [
                             t for t in tx_transfers
                             if t["from"] == current_wallet and t["amount"] >= self.MIN_AMOUNT
                         ]
-
                         if out_transfers:
                             next_transfer = max(out_transfers, key=lambda t: t["amount"])
                             result_transactions.append(TrackedTransaction(
@@ -149,15 +130,12 @@ class ChainTracker:
                             ))
                             current_wallet = next_transfer["to"]
                             found_next = True
-                            break  # Nimm nur den ersten relevanten Outflow
-
+                            break
                     if not found_next:
                         logger.info(f"No outgoing transfer found from {current_wallet}, chain ends here.")
                         break
-
                 logger.info("Chain tracking finished. Found %d transactions.", len(result_transactions))
                 return result_transactions
-
         except Exception as e:
             logger.error("Error tracking transaction chain from %s: %s", start_tx_hash, e, exc_info=True)
             return []
