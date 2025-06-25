@@ -146,15 +146,16 @@ class EnhancedSolanaRepository(SolanaRepository):
 
     # You may want to override or add additional methods to use _make_rpc_call
     # Example:
-    async def get_transaction(self, signature: str) -> Optional[Dict[str, Any]]:
-        """
-        Fetch a Solana transaction by its signature.
-        """
+    async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
-            result = await self._make_rpc_call("getTransaction", [signature, {"encoding": "json", "commitment": "finalized"}])
-            return result.get("result")
+            response_data = await self._make_rpc_call("getTransaction", [tx_hash])
+            if response_data and "result" in response_data:
+                return TransactionDetail(**response_data["result"])
+            else:
+                logger.warning(f"No result found in response for tx hash {tx_hash}")
+                return None
         except Exception as e:
-            logger.error(f"Error fetching transaction {signature}: {e}")
+            logger.error(f"Error fetching transaction {tx_hash}: {str(e)}")
             return None
 
     async def get_signatures_for_address(self, address: str, limit: int = 10) -> Optional[List[Dict[str, Any]]]:
