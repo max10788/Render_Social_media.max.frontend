@@ -75,106 +75,106 @@ class TransactionService:
             raise
 
     @retry_with_exponential_backoff(max_retries=3)
-async def analyze_transaction_chain(
-    self,
-    start_tx_hash: str,
-    max_depth: int = 10,
-    target_currency: str = "USD",
-    amount: Optional[Decimal] = None
-) -> Dict[str, Any]:
-    logger.info("Analyzing transaction chain from %s (max_depth=%d, currency=%s, amount=%s)",
-                start_tx_hash, max_depth, target_currency, amount)
-    try:
-        tracked_txs = await self.chain_tracker.track_chain(
-            start_tx_hash,
-            max_depth=max_depth,
-            amount=amount
-        )
-        logger.debug("track_chain returned %d transactions", len(tracked_txs))
-
-        if not tracked_txs:
-            logger.warning("No transaction chain found for %s", start_tx_hash)
-            return {
-                "status": "no_chain_found",
-                "transactions": [],
-                "scenarios": []
-            }
-
-        for tx in tracked_txs:
-            if isinstance(tx.timestamp, datetime):
-                tx.timestamp = tx.timestamp.isoformat()
-
-        scenarios = await self.scenario_detector.detect_scenarios(tracked_txs)
-        logger.info("Scenario detection complete. Found %d scenarios.",
-                   len(scenarios) if scenarios else 0)
-
-        stats = await self._calculate_chain_statistics(tracked_txs)
-        logger.debug("Chain statistics calculated: %s", stats)
-
-        return {
-            "status": "success",
-            "transactions": tracked_txs,
-            "scenarios": scenarios if scenarios else [],
-            "statistics": stats,
-            "analysis_timestamp": datetime.utcnow().isoformat()
-        }
-
-    except Exception as e:
-        logger.error("Error analyzing transaction chain from %s: %s",
-                    start_tx_hash, e, exc_info=True)
-        raise
-        
-    async def _calculate_chain_statistics(
+    async def analyze_transaction_chain(
         self,
-        transactions: List[TrackedTransaction]
+        start_tx_hash: str,
+        max_depth: int = 10,
+        target_currency: str = "USD",
+        amount: Optional[Decimal] = None
     ) -> Dict[str, Any]:
-        """Calculate statistics for a chain of transactions."""
-        logger.debug("Calculating statistics for %d transactions", len(transactions))
-        if not transactions:
-            logger.warning("No transactions provided for statistics calculation")
-            return {}
+        logger.info("Analyzing transaction chain from %s (max_depth=%d, currency=%s, amount=%s)",
+                    start_tx_hash, max_depth, target_currency, amount)
         try:
-            total_amount = sum(tx.amount for tx in transactions)
-            unique_addresses = set()
-            for tx in transactions:
-                unique_addresses.add(tx.from_wallet)
-                unique_addresses.add(tx.to_wallet)
-            time_diffs = []
-            for i in range(1, len(transactions)):
-                t1 = transactions[i-1].timestamp
-                t2 = transactions[i].timestamp
-                # Ensure timestamps are datetime objects for calculation
-                if isinstance(t1, str):
-                    t1 = datetime.fromisoformat(t1.replace('Z', '+00:00'))
-                if isinstance(t2, str):
-                    t2 = datetime.fromisoformat(t2.replace('Z', '+00:00'))
-                time_diffs.append((t2 - t1).total_seconds())
-            
-            # Ensure timestamps are converted to ISO format strings
-            first_timestamp = transactions[0].timestamp
-            last_timestamp = transactions[-1].timestamp
-            if isinstance(first_timestamp, datetime):
-                first_timestamp = first_timestamp.isoformat()
-            if isinstance(last_timestamp, datetime):
-                last_timestamp = last_timestamp.isoformat()
-                
-            logger.debug("Statistics: total_amount=%s, unique_addresses=%d, avg_time=%.2f",
-                        total_amount, len(unique_addresses),
-                        sum(time_diffs)/len(time_diffs) if time_diffs else 0)
-            
+            tracked_txs = await self.chain_tracker.track_chain(
+                start_tx_hash,
+                max_depth=max_depth,
+                amount=amount
+            )
+            logger.debug("track_chain returned %d transactions", len(tracked_txs))
+    
+            if not tracked_txs:
+                logger.warning("No transaction chain found for %s", start_tx_hash)
+                return {
+                    "status": "no_chain_found",
+                    "transactions": [],
+                    "scenarios": []
+                }
+    
+            for tx in tracked_txs:
+                if isinstance(tx.timestamp, datetime):
+                    tx.timestamp = tx.timestamp.isoformat()
+    
+            scenarios = await self.scenario_detector.detect_scenarios(tracked_txs)
+            logger.info("Scenario detection complete. Found %d scenarios.",
+                       len(scenarios) if scenarios else 0)
+    
+            stats = await self._calculate_chain_statistics(tracked_txs)
+            logger.debug("Chain statistics calculated: %s", stats)
+    
             return {
-                "total_transactions": len(transactions),
-                "total_amount": float(total_amount),
-                "unique_addresses": len(unique_addresses),
-                "average_time_between_tx": (
-                    sum(time_diffs) / len(time_diffs) if time_diffs else 0
-                ),
-                "first_tx_timestamp": first_timestamp,
-                "last_tx_timestamp": last_timestamp
+                "status": "success",
+                "transactions": tracked_txs,
+                "scenarios": scenarios if scenarios else [],
+                "statistics": stats,
+                "analysis_timestamp": datetime.utcnow().isoformat()
             }
+    
         except Exception as e:
-            logger.error("Error calculating chain statistics: %s", e, exc_info=True)
-            return {}
+            logger.error("Error analyzing transaction chain from %s: %s",
+                        start_tx_hash, e, exc_info=True)
+            raise
+            
+        async def _calculate_chain_statistics(
+            self,
+            transactions: List[TrackedTransaction]
+        ) -> Dict[str, Any]:
+            """Calculate statistics for a chain of transactions."""
+            logger.debug("Calculating statistics for %d transactions", len(transactions))
+            if not transactions:
+                logger.warning("No transactions provided for statistics calculation")
+                return {}
+            try:
+                total_amount = sum(tx.amount for tx in transactions)
+                unique_addresses = set()
+                for tx in transactions:
+                    unique_addresses.add(tx.from_wallet)
+                    unique_addresses.add(tx.to_wallet)
+                time_diffs = []
+                for i in range(1, len(transactions)):
+                    t1 = transactions[i-1].timestamp
+                    t2 = transactions[i].timestamp
+                    # Ensure timestamps are datetime objects for calculation
+                    if isinstance(t1, str):
+                        t1 = datetime.fromisoformat(t1.replace('Z', '+00:00'))
+                    if isinstance(t2, str):
+                        t2 = datetime.fromisoformat(t2.replace('Z', '+00:00'))
+                    time_diffs.append((t2 - t1).total_seconds())
+                
+                # Ensure timestamps are converted to ISO format strings
+                first_timestamp = transactions[0].timestamp
+                last_timestamp = transactions[-1].timestamp
+                if isinstance(first_timestamp, datetime):
+                    first_timestamp = first_timestamp.isoformat()
+                if isinstance(last_timestamp, datetime):
+                    last_timestamp = last_timestamp.isoformat()
+                    
+                logger.debug("Statistics: total_amount=%s, unique_addresses=%d, avg_time=%.2f",
+                            total_amount, len(unique_addresses),
+                            sum(time_diffs)/len(time_diffs) if time_diffs else 0)
+                
+                return {
+                    "total_transactions": len(transactions),
+                    "total_amount": float(total_amount),
+                    "unique_addresses": len(unique_addresses),
+                    "average_time_between_tx": (
+                        sum(time_diffs) / len(time_diffs) if time_diffs else 0
+                    ),
+                    "first_tx_timestamp": first_timestamp,
+                    "last_tx_timestamp": last_timestamp
+                }
+            except Exception as e:
+                logger.error("Error calculating chain statistics: %s", e, exc_info=True)
+                return {}
 
     async def get_wallet_transactions(
         self,
