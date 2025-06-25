@@ -38,13 +38,9 @@ class TransactionService:
         tx_hash: str,
         use_cache: bool = True
     ) -> Optional[TransactionDetail]:
-        """
-        Fetch detailed transaction information with caching.
-        """
         cache_key = f"tx:{tx_hash}"
         logger.debug("Fetching transaction details for %s (use_cache=%s)", tx_hash, use_cache)
-        
-        # Try cache first
+    
         if use_cache and self.cache:
             try:
                 cached_data = await self.cache.get(cache_key)
@@ -55,8 +51,7 @@ class TransactionService:
                     logger.debug("Cache miss for transaction %s", tx_hash)
             except Exception as e:
                 logger.error("Cache lookup error for key %s: %s", cache_key, e)
-        
-        # Fetch from blockchain
+    
         try:
             tx_detail = await self.solana_repo.get_transaction(tx_hash)
             if tx_detail:
