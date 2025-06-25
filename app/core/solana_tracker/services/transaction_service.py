@@ -64,10 +64,12 @@ class TransactionService:
                         logger.error("Error caching transaction %s: %s", tx_hash, cache_e)
             else:
                 logger.warning("No transaction detail found for %s on blockchain", tx_hash)
+                return None
             return tx_detail
         except Exception as e:
             logger.error("Error fetching transaction %s: %s", tx_hash, e, exc_info=True)
             raise
+
 
     @retry_with_exponential_backoff(max_retries=3)
     async def analyze_transaction_chain(
