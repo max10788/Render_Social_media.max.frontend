@@ -4,6 +4,7 @@ import asyncio
 import aiohttp
 from datetime import datetime
 from decimal import Decimal
+from functools import wraps
 
 from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
@@ -51,6 +52,27 @@ class EnhancedSolanaRepository(SolanaRepository):
         """Stop services."""
         await self.endpoint_manager.stop()
 
+    def retry_with_exponential_backoff(max_retries=3, initial_delay=1):
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                retries = 0
+                while retries < max_retries:
+                    try:
+                        return await func(*args, **kwargs)
+                    except httpx.HTTPStatusError as e:
+                        if e.response.status_code == 429:
+                            delay = initial_delay * (2 ** retries)
+                            logger.warning(f"Rate limited. Retrying in {delay} seconds...")
+                            time.sleep(delay)
+                            retries += 1
+                        else:
+                            raise
+                logger.error(f"Max retries ({max_retries}) reached for {func.__name__}")
+                raise
+            return wrapper
+        return decorator
+    
     @enhanced_retry_with_backoff(
         max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
     )
