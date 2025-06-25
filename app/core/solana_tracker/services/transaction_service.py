@@ -70,7 +70,23 @@ class TransactionService:
             logger.error("Error fetching transaction %s: %s", tx_hash, e, exc_info=True)
             raise
 
+    async def _get_transaction_safe(
+        self,
+        tx_hash: str
+    ) -> Optional[TransactionDetail]:
+        logger.debug("Fetching transaction safely for %s", tx_hash)
+        try:
+            tx_detail = await self.solana_repo.get_transaction(tx_hash)
+            if tx_detail:
+                logger.debug("Successfully retrieved transaction %s", tx_hash)
+                return tx_detail
+            logger.warning("Transaction %s not found", tx_hash)
+            return None
+        except Exception as e:
+            logger.error("Error fetching transaction %s: %s", tx_hash, e, exc_info=True)
+            return None
 
+    
     @retry_with_exponential_backoff(max_retries=3)
     async def analyze_transaction_chain(
         self,
