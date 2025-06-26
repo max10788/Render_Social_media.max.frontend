@@ -20,8 +20,6 @@ from app.core.config import SolanaConfig
 
 logger = logging.getLogger(__name__)
 
-solana_config = SolanaConfig()
-repository = EnhancedSolanaRepository(config=solana_config)
 
 class EnhancedSolanaRepository(SolanaRepository):
     """Enhanced Solana repository with improved RPC handling."""
@@ -52,6 +50,9 @@ class EnhancedSolanaRepository(SolanaRepository):
 
         # Initialize monitoring
         self.monitor = RateLimitMonitor()
+
+    solana_config = SolanaConfig()
+    repository = EnhancedSolanaRepository(config=solana_config)
 
     async def start(self):
         """Start services."""
