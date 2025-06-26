@@ -5,6 +5,7 @@ import aiohttp
 from datetime import datetime
 from decimal import Decimal
 from functools import wraps
+import httpx
 
 from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
