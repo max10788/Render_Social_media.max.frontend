@@ -33,8 +33,6 @@ from app.core.solana_tracker.models.scenario import (
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
 from app.core.solana_tracker.utils.signature_utils import validate_signature
 
-solana_config = SolanaConfig()
-repository = EnhancedSolanaRepository(config=solana_config
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +75,9 @@ class SolanaRepository:
         self.semaphore = asyncio.Semaphore(self.config.rate_limit_rate)
         self.last_request_time = 0
         self.request_count = 0
+
+    solana_config = SolanaConfig()
+    repository = EnhancedSolanaRepository(config=solana_config)
 
     async def __aenter__(self):
         """Async context manager entry."""
