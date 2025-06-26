@@ -105,39 +105,30 @@ class SolanaRepository:
             raise ConnectionError("Solana RPC endpoint is not responding")
         return True
 
-    async def _make_rpc_call(self, method: str, params: List) -> Dict:
-        """Make RPC call to Solana network."""
-        await self._ensure_session()
+    async def _make_rpc_call(self, method: str, params: list) -> dict:
         try:
-            # Add maxSupportedTransactionVersion parameter to fix version compatibility error
-            if method == "getTransaction":
-                params[1]["maxSupportedTransactionVersion"] = 0
-
-            payload = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": method,
-                "params": params
-            }
-            logger.debug(f"RPC Request: {json.dumps(payload, indent=2)}")
-
-            async with self._session.post(
-                self.rpc_url,
-                json=payload
-            ) as response:
-                response_text = await response.text()
-                logger.info(f"RPC Response [{response.status}]: {response_text[:2000]}") # truncate long logs
-                if response.status != 200:
-                    logger.error(f"RPC error: {response.status} - {response_text}")
-                    return {"error": f"RPC error: {response.status}"}
-                try:
-                    return json.loads(response_text)
-                except Exception as e:
-                    logger.error(f"Error parsing RPC JSON response: {e}, raw response: {response_text}")
-                    return {"error": f"Error parsing RPC JSON response: {e}"}
+            response = await self.client.post(
+                self.primary_rpc_url,
+                json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            response.raise_for_status()
+            response_data = response.json()
+    
+            # Stellen Sie sicher, dass die Antwort das erwartete Format hat
+            if isinstance(response_data, dict) and "result" in response_data:
+                return response_data
+            else:
+                logger.error(f"Unexpected RPC response format: {response_data}")
+                return {"result": None}
+    
+        except httpx.HTTPStatusError as e:
+            logger.error(f"RPC error: {e.response.status_code} - {e.response.text}")
+            raise
         except Exception as e:
-            logger.error(f"RPC call failed: {e}")
-            return {"error": str(e)}
+            logger.error(f"Error making RPC call: {str(e)}")
+            raise
 
     async def get_raw_transaction(self, tx_hash: str) -> Dict:
         """
