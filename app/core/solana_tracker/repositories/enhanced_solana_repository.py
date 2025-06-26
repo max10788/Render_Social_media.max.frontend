@@ -78,29 +78,30 @@ class EnhancedSolanaRepository(SolanaRepository):
         max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
     )
     async def _make_rpc_call(self, method: str, params: list) -> dict:
-        try:
-            response = await self.client.post(
-                self.primary_rpc_url,
-                json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
-                headers={"Content-Type": "application/json"},
-                timeout=10
-            )
-            response.raise_for_status()
-            response_data = response.json()
+        async with httpx.AsyncClient() as client:  # Verwenden Sie den AsyncClient von httpx
+            try:
+                response = await client.post(
+                    self.primary_rpc_url,
+                    json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+                    headers={"Content-Type": "application/json"},
+                    timeout=10
+                )
+                response.raise_for_status()
+                response_data = response.json()
     
-            # Stellen Sie sicher, dass die Antwort das erwartete Format hat
-            if isinstance(response_data, dict) and "result" in response_data:
-                return response_data
-            else:
-                logger.error(f"Unexpected RPC response format: {response_data}")
-                return {"result": None}
+                # Stellen Sie sicher, dass die Antwort das erwartete Format hat
+                if isinstance(response_data, dict) and "result" in response_data:
+                    return response_data
+                else:
+                    logger.error(f"Unexpected RPC response format: {response_data}")
+                    return {"result": None}
     
-        except httpx.HTTPStatusError as e:
-            logger.error(f"RPC error: {e.response.status_code} - {e.response.text}")
-            raise
-        except Exception as e:
-            logger.error(f"Error making RPC call: {str(e)}")
-            raise
+            except httpx.HTTPStatusError as e:
+                logger.error(f"RPC error: {e.response.status_code} - {e.response.text}")
+                raise
+            except Exception as e:
+                logger.error(f"Error making RPC call: {str(e)}")
+                raise
 
     # You may want to override or add additional methods to use _make_rpc_call
     # Example:
