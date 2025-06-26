@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class EnhancedSolanaRepository(SolanaRepository):
     """Enhanced Solana repository with improved RPC handling."""
 
-    def __init__(
+    def __init__(self, config: SolanaConfig):
         self.config = config
         self.current_rpc_url = self.config.primary_rpc_url
         self.fallback_rpc_urls = self.config.fallback_rpc_urls
