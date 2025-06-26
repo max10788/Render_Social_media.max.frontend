@@ -11,6 +11,7 @@ import aiohttp
 import json
 from decimal import Decimal
 from dataclasses import dataclass
+import httpx
 
 from app.core.solana_tracker.models.transaction import (
     SolanaTransaction, 
