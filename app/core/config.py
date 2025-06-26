@@ -19,7 +19,7 @@ class SolanaConfig:
         self.rate_limit_capacity = int(os.getenv("SOLANA_RATE_LIMIT_CAPACITY", 100))
         self.health_check_interval = int(os.getenv("SOLANA_HEALTH_CHECK_INTERVAL", 60))
 
-    def _get_fallback_rpc_urls(self) -> List[str]:
+    def _get_fallback_rpc_urls(self) -> list[str]:
         fallback_urls_str = os.getenv("SOLANA_FALLBACK_RPC_URLS", "")
         return [url.strip() for url in fallback_urls_str.split(",")] if fallback_urls_str else []
 
