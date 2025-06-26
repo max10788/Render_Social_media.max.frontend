@@ -77,72 +77,29 @@ class EnhancedSolanaRepository(SolanaRepository):
     @enhanced_retry_with_backoff(
         max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
     )
-    async def _make_rpc_call(self, method: str, params: List) -> Dict:
-        """
-        Enhanced RPC call with rate limiting, failover, backoff, and logging.
-        Returns:
-            Dict: The JSON-RPC response.
-        Raises:
-            EnhancedRetryError: If all retries fail.
-        """
-        await self.rate_limiter.wait()  # Wait for rate limit token
-        endpoint = await self.endpoint_manager.get_healthy_endpoint()
-        start_time = datetime.utcnow()
-    
+    async def _make_rpc_call(self, method: str, params: list) -> dict:
         try:
-            async with aiohttp.ClientSession() as session:
-                # Add maxSupportedTransactionVersion if the method is getTransaction
-                if method == 'getTransaction':
-                    if isinstance(params[1], dict):
-                        params[1]['maxSupportedTransactionVersion'] = 0
-                    else:
-                        params.append({'maxSupportedTransactionVersion': 0})
+            response = await self.client.post(
+                self.primary_rpc_url,
+                json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            response.raise_for_status()
+            response_data = response.json()
     
-                payload = {
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": method,
-                    "params": params
-                }
+            # Stellen Sie sicher, dass die Antwort das erwartete Format hat
+            if isinstance(response_data, dict) and "result" in response_data:
+                return response_data
+            else:
+                logger.error(f"Unexpected RPC response format: {response_data}")
+                return {"result": None}
     
-                async with session.post(endpoint, json=payload, timeout=15) as response:
-                    response_time = (datetime.utcnow() - start_time).total_seconds()
-                    await self.monitor.record_request(
-                        endpoint=endpoint,
-                        status_code=response.status,
-                        response_time=response_time
-                    )
-                    self.endpoint_manager.record_request_result(endpoint, response.status)
-    
-                    if response.status == 429:
-                        logger.warning(f"Rate limited by {endpoint}, marking as unhealthy.")
-                        self.endpoint_manager.endpoints[endpoint].healthy = False
-                        raise Exception("Rate limit exceeded (429)")
-    
-                    if response.status != 200:
-                        logger.error(f"Non-200 RPC response from {endpoint}: {response.status}")
-                        raise Exception(f"Non-200 RPC response: {response.status}")
-    
-                    response_json = await response.json()
-                    if "error" in response_json:
-                        logger.error(f"RPC error from {endpoint}: {response_json['error']}")
-                        raise Exception(f"RPC error: {response_json['error']}")
-    
-                    # Optional: Log pretty-printed response
-                    logger.info(f"RPC {method}({params}) response: {json.dumps(response_json, indent=2)}")
-    
-                    return response_json
-    
-        except asyncio.TimeoutError:
-            logger.error(f"RPC call timeout for {method} at {endpoint}")
-            self.endpoint_manager.endpoints[endpoint].healthy = False
+        except httpx.HTTPStatusError as e:
+            logger.error(f"RPC error: {e.response.status_code} - {e.response.text}")
             raise
-
         except Exception as e:
-            logger.error(f"RPC call failed for {method} at {endpoint}: {e}")
-            self.endpoint_manager.endpoints[endpoint].failed_requests += 1
-            if self.endpoint_manager.endpoints[endpoint].failed_requests >= self.endpoint_manager.max_failures:
-                self.endpoint_manager.endpoints[endpoint].healthy = False
+            logger.error(f"Error making RPC call: {str(e)}")
             raise
 
     # You may want to override or add additional methods to use _make_rpc_call
