@@ -12,10 +12,16 @@ class MetricsConfig:
     ALERT_THRESHOLD = 0.1  # 10%
 
 class SolanaConfig:
-    FALLBACK_RPC_URLS = os.getenv('SOLANA_FALLBACK_RPC_URLS', '').split(',')
-    RATE_LIMIT_RATE = int(os.getenv('SOLANA_RATE_LIMIT_RATE', '50'))
-    RATE_LIMIT_CAPACITY = int(os.getenv('SOLANA_RATE_LIMIT_CAPACITY', '100'))
-    HEALTH_CHECK_INTERVAL = int(os.getenv('SOLANA_HEALTH_CHECK_INTERVAL', '60'))
+    def __init__(self):
+        self.primary_rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+        self.fallback_rpc_urls = self._get_fallback_rpc_urls()
+        self.rate_limit_rate = int(os.getenv("SOLANA_RATE_LIMIT_RATE", 50))
+        self.rate_limit_capacity = int(os.getenv("SOLANA_RATE_LIMIT_CAPACITY", 100))
+        self.health_check_interval = int(os.getenv("SOLANA_HEALTH_CHECK_INTERVAL", 60))
+
+    def _get_fallback_rpc_urls(self) -> List[str]:
+        fallback_urls_str = os.getenv("SOLANA_FALLBACK_RPC_URLS", "")
+        return [url.strip() for url in fallback_urls_str.split(",")] if fallback_urls_str else []
 
 class Settings(BaseSettings):
     # Existing Settings
