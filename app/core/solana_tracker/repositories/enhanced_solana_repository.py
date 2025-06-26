@@ -23,12 +23,15 @@ class EnhancedSolanaRepository(SolanaRepository):
     """Enhanced Solana repository with improved RPC handling."""
 
     def __init__(
+        self.config = config
+        self.current_rpc_url = self.config.primary_rpc_url
+        self.fallback_rpc_urls = self.config.fallback_rpc_urls
+        self.client = httpx.AsyncClient()
+        self.semaphore = asyncio.Semaphore(self.config.rate_limit_rate)
+        self.last_request_time = 0
+        self.request_count = 0
         self,
-        primary_rpc_url: str,
-        fallback_rpc_urls: Optional[List[str]] = None,
         rate_limit_config: Optional[Dict] = None
-    ):
-        super().__init__(primary_rpc_url)
 
         # Initialize endpoint manager
         self.endpoint_manager = RpcEndpointManager(
@@ -79,30 +82,36 @@ class EnhancedSolanaRepository(SolanaRepository):
         max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
     )
     async def _make_rpc_call(self, method: str, params: list) -> dict:
-        async with httpx.AsyncClient() as client:  # Verwenden Sie den AsyncClient von httpx
-            try:
-                response = await client.post(
-                    self.primary_rpc_url,
-                    json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
-                    headers={"Content-Type": "application/json"},
-                    timeout=10
-                )
-                response.raise_for_status()
-                response_data = response.json()
-    
-                # Stellen Sie sicher, dass die Antwort das erwartete Format hat
-                if isinstance(response_data, dict) and "result" in response_data:
-                    return response_data
-                else:
-                    logger.error(f"Unexpected RPC response format: {response_data}")
-                    return {"result": None}
-    
-            except httpx.HTTPStatusError as e:
-                logger.error(f"RPC error: {e.response.status_code} - {e.response.text}")
-                raise
-            except Exception as e:
-                logger.error(f"Error making RPC call: {str(e)}")
-                raise
+        urls = [self.current_rpc_url] + self.fallback_rpc_urls
+
+        for url in urls:
+            async with self.semaphore:
+                try:
+                    response = await self.client.post(
+                        url,
+                        json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+                        headers={"Content-Type": "application/json"},
+                        timeout=10
+                    )
+                    response.raise_for_status()
+                    response_data = response.json()
+
+                    if isinstance(response_data, dict) and "result" in response_data:
+                        return response_data
+                    else:
+                        logger.error(f"Unexpected RPC response format from {url}: {response_data}")
+                        continue
+
+                except httpx.HTTPStatusError as e:
+                    logger.error(f"RPC error from {url}: {e.response.status_code} - {e.response.text}")
+                    continue
+                except Exception as e:
+                    logger.error(f"Error making RPC call to {url}: {str(e)}")
+                    continue
+
+        # Wenn alle URLs fehlschlagen
+        logger.error("All RPC endpoints failed.")
+        raise Exception("All RPC endpoints failed.")
 
     # You may want to override or add additional methods to use _make_rpc_call
     # Example:
