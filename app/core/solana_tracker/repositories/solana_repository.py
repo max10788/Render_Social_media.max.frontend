@@ -77,9 +77,6 @@ class SolanaRepository:
         self.last_request_time = 0
         self.request_count = 0
 
-    solana_config = SolanaConfig()
-    repository = EnhancedSolanaRepository(config=solana_config)
-
     async def __aenter__(self):
         """Async context manager entry."""
         await self._ensure_session()
