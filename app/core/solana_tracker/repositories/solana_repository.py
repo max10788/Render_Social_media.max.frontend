@@ -63,12 +63,7 @@ class SolanaRepositoryProtocol(Protocol):
 
 class SolanaRepository:
     """Implementation of Solana blockchain repository."""
-    
-    def __init__(self, rpc_url: str, max_retries: int = 3):
-
-        self.max_retries = max_retries
-        self._connection_checked = False
-        self._session: Optional[aiohttp.ClientSession] = None
+    def __init__(self, config: SolanaConfig):
         self.config = config
         self.current_rpc_url = self.config.primary_rpc_url
         self.fallback_rpc_urls = self.config.fallback_rpc_urls
