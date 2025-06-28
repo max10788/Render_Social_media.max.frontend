@@ -53,7 +53,7 @@ class EnhancedSolanaRepository(SolanaRepository):
         self.semaphore = asyncio.Semaphore(self.config.rate_limit_rate)
         self.last_request_time = 0
         self.request_count = 0
-        self.rate_limit_config = config.rate_limit_config or {
+        self.rate_limit_config = config.rate_limit_capacity or {
             "rate": 50,  # requests per second
             "capacity": 100  # burst capacity
         }
