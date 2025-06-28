@@ -25,15 +25,18 @@ class EnhancedSolanaRepository(SolanaRepository):
     """Enhanced Solana repository with improved RPC handling."""
 
     def __init__(self, config: SolanaConfig):
+        super().__init__(config)
         self.config = config
-        self.current_rpc_url = self.config.primary_rpc_url
-        self.fallback_rpc_urls = self.config.fallback_rpc_urls
-        self.client = httpx.AsyncClient()
-        self.semaphore = asyncio.Semaphore(self.config.rate_limit_rate)
-        self.last_request_time = 0
-        self.request_count = 0
-        self,
-        rate_limit_config: Optional[Dict] = None
+        self.rate_limit_config = config.rate_limit_config or {
+            "rate": 50,  # requests per second
+            "capacity": 100  # burst capacity
+        }
+        self.rate_limiter = RateLimitBackoff(**self.rate_limit_config)
+        self.monitor = RateLimitMonitor()
+        self.endpoint_manager = RpcEndpointManager(
+            primary_url=config.primary_rpc_url,
+            fallback_urls=config.fallback_rpc_urls or []
+        )
 
         # Initialize endpoint manager
         self.endpoint_manager = RpcEndpointManager(
