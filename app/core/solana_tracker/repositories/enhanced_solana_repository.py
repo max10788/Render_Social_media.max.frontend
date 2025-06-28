@@ -21,12 +21,38 @@ from app.core.config import SolanaConfig
 logger = logging.getLogger(__name__)
 
 
+from typing import List, Optional, Dict, Any
+import logging
+import asyncio
+import httpx
+from datetime import datetime
+from decimal import Decimal
+from functools import wraps
+import time
+from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
+from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
+from app.core.solana_tracker.utils.enhanced_retry_utils import (
+    EnhancedRetryError,
+    RateLimitBackoff,
+    enhanced_retry_with_backoff
+)
+from app.core.solana_tracker.utils.rate_limit_metrics import RateLimitMonitor
+from app.core.solana_tracker.models.transaction import TransactionDetail
+from app.core.config import SolanaConfig
+
+logger = logging.getLogger(__name__)
+
 class EnhancedSolanaRepository(SolanaRepository):
     """Enhanced Solana repository with improved RPC handling."""
-
     def __init__(self, config: SolanaConfig):
         super().__init__(config)
         self.config = config
+        self.current_rpc_url = self.config.primary_rpc_url
+        self.fallback_rpc_urls = self.config.fallback_rpc_urls
+        self.client = httpx.AsyncClient()
+        self.semaphore = asyncio.Semaphore(self.config.rate_limit_rate)
+        self.last_request_time = 0
+        self.request_count = 0
         self.rate_limit_config = config.rate_limit_config or {
             "rate": 50,  # requests per second
             "capacity": 100  # burst capacity
@@ -34,9 +60,10 @@ class EnhancedSolanaRepository(SolanaRepository):
         self.rate_limiter = RateLimitBackoff(**self.rate_limit_config)
         self.monitor = RateLimitMonitor()
         self.endpoint_manager = RpcEndpointManager(
-            primary_url=config.primary_rpc_url,
-            fallback_urls=config.fallback_rpc_urls or []
+            primary_url=self.config.primary_rpc_url,
+            fallback_urls=self.config.fallback_rpc_urls or []
         )
+
 
         # Initialize endpoint manager
         self.endpoint_manager = RpcEndpointManager(
@@ -53,9 +80,6 @@ class EnhancedSolanaRepository(SolanaRepository):
 
         # Initialize monitoring
         self.monitor = RateLimitMonitor()
-
-    solana_config = SolanaConfig()
-    repository = EnhancedSolanaRepository(config=solana_config)
 
     async def start(self):
         """Start services."""
@@ -156,3 +180,6 @@ class EnhancedSolanaRepository(SolanaRepository):
         except Exception as e:
             logger.error(f"Error fetching balance for {address}: {e}")
             return None
+
+solana_config = SolanaConfig()
+repository = EnhancedSolanaRepository(config=solana_config)
