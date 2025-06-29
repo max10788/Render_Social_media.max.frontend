@@ -57,7 +57,16 @@ class EnhancedSolanaRepository(SolanaRepository):
                     "capacity": 100
                 }
 
-        self.rate_limiter = RateLimitBackoff(**self.rate_limit_config)
+        # Neues Attribut hinzugefügt
+        self._connection_checked = False
+    
+        self.last_request_time = 0
+        self.request_count = 0
+        self.monitor = RateLimitMonitor()
+        self.endpoint_manager = RpcEndpointManager(
+            primary_url=self.config.primary_rpc_url,
+            fallback_urls=self.config.fallback_rpc_urls
+        )
 
     async def start(self):
         """Start background services like health checks."""
