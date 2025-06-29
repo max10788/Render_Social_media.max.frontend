@@ -94,19 +94,29 @@ class EnhancedSolanaRepository(SolanaRepository):
     async def _make_rpc_call(self, method: str, params: list) -> dict:
         urls = [self.current_rpc_url] + self.fallback_rpc_urls
     
-        # Falls es sich um eine Transaktionsabfrage handelt, Version hinzufügen
-        if method == "getTransaction":
-            params = params + [{"maxSupportedTransactionVersion": 0}]
-    
         for url in urls:
             async with self.semaphore:
                 try:
+                    # Versuche zunächst ohne maxSupportedTransactionVersion
+                    call_params = params.copy()
                     response = await self.client.post(
                         url,
-                        json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
+                        json={"jsonrpc": "2.0", "id": 1, "method": method, "params": call_params},
                         headers={"Content-Type": "application/json"},
                         timeout=10
                     )
+    
+                    if response.status_code == 400 and "Transaction version" in response.text:
+                        logger.warning(f"{url} requires maxSupportedTransactionVersion")
+                        # Nochmal mit dem Parameter versuchen
+                        call_params = params + [{"maxSupportedTransactionVersion": 0}]
+                        response = await self.client.post(
+                            url,
+                            json={"jsonrpc": "2.0", "id": 1, "method": method, "params": call_params},
+                            headers={"Content-Type": "application/json"},
+                            timeout=10
+                        )
+    
                     response.raise_for_status()
                     response_data = response.json()
     
@@ -130,7 +140,7 @@ class EnhancedSolanaRepository(SolanaRepository):
         try:
             # Füge maxSupportedTransactionVersion hinzu
             params = [tx_hash, {"maxSupportedTransactionVersion": 0}]
-            response_data = await self._make_rpc_call("getTransaction", params)
+            result = await self._make_rpc_call("getTransaction", [tx_hash])
             
             if response_data and "result" in response_data:
                 return TransactionDetail(**response_data["result"])
