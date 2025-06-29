@@ -298,18 +298,29 @@ def get_app_settings() -> Settings:
 def get_solana_repository(
     settings: Settings = Depends(get_app_settings)
 ) -> EnhancedSolanaRepository:
+    # Lies Werte aus Umgebungsvariablen (oder Settings)
     primary_rpc_url = os.getenv("SOLANA_RPC_URL")
     fallback_rpc_urls_str = os.getenv("SOLANA_FALLBACK_RPC_URLS", "")
-    fallback_rpc_urls = [url.strip() for url in fallback_rpc_urls_str.split(",")] if fallback_rpc_urls_str else []
-    rate_limit_config = {
-        "rate": int(os.getenv("SOLANA_RATE_LIMIT_RATE", 50)),
-        "capacity": int(os.getenv("SOLANA_RATE_LIMIT_CAPACITY", 100))
-    }
-    return EnhancedSolanaRepository(
-        primary_rpc_url=primary_rpc_url,
-        fallback_rpc_urls=fallback_rpc_urls,
-        rate_limit_config=rate_limit_config
-    )
+    
+    fallback_rpc_urls = [
+        url.strip() for url in fallback_rpc_urls_str.split(",")
+    ] if fallback_rpc_urls_str else []
+
+    # Rate Limiting
+    rate_limit_rate = int(os.getenv("SOLANA_RATE_LIMIT_RATE", "50"))
+    rate_limit_capacity = os.getenv("SOLANA_RATE_LIMIT_CAPACITY", "100")
+
+    # Erstelle eine manuelle SolanaConfig-ähnliche Instanz
+    class InlineSolanaConfig:
+        def __init__(self):
+            self.primary_rpc_url = primary_rpc_url
+            self.fallback_rpc_urls = fallback_rpc_urls
+            self.rate_limit_rate = rate_limit_rate
+            self.rate_limit_capacity = rate_limit_capacity
+            self.health_check_interval = 60  # Optional: Standardwert setzen
+
+    config = InlineSolanaConfig()
+    return EnhancedSolanaRepository(config=config)
 
 def get_transaction_service() -> TransactionService:
     solana_repo = get_solana_repository()  
