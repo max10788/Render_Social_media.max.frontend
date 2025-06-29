@@ -43,7 +43,6 @@ from app.core.config import SolanaConfig
 logger = logging.getLogger(__name__)
 
 class EnhancedSolanaRepository(SolanaRepository):
-    """Enhanced Solana repository with improved RPC handling."""
     def __init__(self, config: SolanaConfig):
         super().__init__(config)
         self.config = config
@@ -53,30 +52,27 @@ class EnhancedSolanaRepository(SolanaRepository):
         self.semaphore = asyncio.Semaphore(self.config.rate_limit_rate)
         self.last_request_time = 0
         self.request_count = 0
-        self.rate_limit_config = config.rate_limit_capacity or {
-            "rate": 50,  # requests per second
-            "capacity": 100  # burst capacity
-        }
-        self.rate_limiter = RateLimitBackoff(**self.rate_limit_config)
         self.monitor = RateLimitMonitor()
         self.endpoint_manager = RpcEndpointManager(
             primary_url=self.config.primary_rpc_url,
             fallback_urls=self.config.fallback_rpc_urls or []
         )
 
+        # Überprüfen und Anpassen von rate_limit_config
+        if isinstance(self.config.rate_limit_capacity, int):
+            # Wenn rate_limit_capacity ein Integer ist
+            self.rate_limit_config = {
+                "rate": self.config.rate_limit_capacity,  # Nehme den Integer als Rate
+                "capacity": 100  # Standardkapazität
+            }
+        else:
+            # Verwende das Dictionary oder den Standardwert
+            self.rate_limit_config = self.config.rate_limit_capacity or {
+                "rate": 50,
+                "capacity": 100
+            }
 
-        # Initialize endpoint manager
-        self.endpoint_manager = RpcEndpointManager(
-            primary_url=primary_rpc_url,
-            fallback_urls=fallback_rpc_urls or []
-        )
-
-        # Initialize rate limiting
-        rate_limit_config = rate_limit_config or {
-            "rate": 50,  # requests per second
-            "capacity": 100  # burst capacity
-        }
-        self.rate_limiter = RateLimitBackoff(**rate_limit_config)
+        self.rate_limiter = RateLimitBackoff(**self.rate_limit_config)g)
 
         # Initialize monitoring
         self.monitor = RateLimitMonitor()
