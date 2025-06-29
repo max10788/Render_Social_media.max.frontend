@@ -155,4 +155,6 @@ class EnhancedSolanaRepository(SolanaRepository):
             return None
 
 solana_config = SolanaConfig()
-repository = EnhancedSolanaRepository(config=solana_config)
+repository = EnhancedSolanaRepository()
+repository.init(config=solana_config)
+
