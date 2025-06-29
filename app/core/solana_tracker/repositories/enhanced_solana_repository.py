@@ -72,7 +72,7 @@ class EnhancedSolanaRepository(SolanaRepository):
                 "capacity": 100
             }
 
-        self.rate_limiter = RateLimitBackoff(**self.rate_limit_config)g)
+        self.rate_limiter = RateLimitBackoff(**self.rate_limit_config)
 
         # Initialize monitoring
         self.monitor = RateLimitMonitor()
