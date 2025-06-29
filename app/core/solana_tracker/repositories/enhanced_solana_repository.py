@@ -138,12 +138,11 @@ async def _make_rpc_call(self, method: str, params: list) -> dict:
 
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
-            # Füge maxSupportedTransactionVersion hinzu
-            params = [tx_hash, {"maxSupportedTransactionVersion": 0}]
+            # Nur den Transaktionshash als Ausgangspunkt verwenden
             result = await self._make_rpc_call("getTransaction", [tx_hash])
-            
-            if response_data and "result" in response_data:
-                return TransactionDetail(**response_data["result"])
+    
+            if result and "result" in result:
+                return TransactionDetail(**result["result"])
             else:
                 logger.warning(f"No result found in response for tx hash {tx_hash}")
                 return None
