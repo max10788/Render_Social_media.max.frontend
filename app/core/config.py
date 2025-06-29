@@ -13,7 +13,7 @@ class MetricsConfig:
 
 class SolanaConfig:
     def __init__(self):
-        self.primary_rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+        self.primary_rpc_url = os.getenv("SOLANA_RPC_URL")
         self.fallback_rpc_urls = self._get_fallback_rpc_urls()
         self.rate_limit_rate = int(os.getenv("SOLANA_RATE_LIMIT_RATE", 50))
         self.rate_limit_capacity = int(os.getenv("SOLANA_RATE_LIMIT_CAPACITY", 100))
