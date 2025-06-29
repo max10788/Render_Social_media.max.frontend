@@ -12,14 +12,41 @@ class MetricsConfig:
     ALERT_THRESHOLD = 0.1  # 10%
 
 class SolanaConfig:
-    def __init__(self):
-        self.primary_rpc_url = os.getenv("SOLANA_RPC_URL")
-        self.fallback_rpc_urls = self._get_fallback_rpc_urls()
-        self.rate_limit_rate = int(os.getenv("SOLANA_RATE_LIMIT_RATE", 50))
-        self.rate_limit_capacity = int(os.getenv("SOLANA_RATE_LIMIT_CAPACITY", 100))
-        self.health_check_interval = int(os.getenv("SOLANA_HEALTH_CHECK_INTERVAL", 60))
+    def __init__(
+        self,
+        primary_rpc_url: Optional[str] = None,
+        fallback_rpc_urls: Optional[List[str]] = None,
+        rate_limit_rate: Optional[int] = None,
+        rate_limit_capacity: Optional[Union[int, dict, str]] = None,
+        health_check_interval: Optional[int] = None
+    ):
+        # Primäre RPC URL
+        self.primary_rpc_url = primary_rpc_url or os.getenv("SOLANA_RPC_URL")
+        
+        # Fallback URLs
+        if fallback_rpc_urls is not None:
+            self.fallback_rpc_urls = fallback_rpc_urls
+        else:
+            self.fallback_rpc_urls = self._get_fallback_rpc_urls()
 
-    def _get_fallback_rpc_urls(self) -> list[str]:
+        # Rate Limiting
+        self.rate_limit_rate = rate_limit_rate or int(os.getenv("SOLANA_RATE_LIMIT_RATE", "50"))
+        
+        capacity_env = os.getenv("SOLANA_RATE_LIMIT_CAPACITY", "100")
+        if rate_limit_capacity is not None:
+            self.rate_limit_capacity = rate_limit_capacity
+        else:
+            try:
+                self.rate_limit_capacity = int(capacity_env)
+            except ValueError:
+                self.rate_limit_capacity = capacity_env  # könnte auch ein JSON/dict sein
+
+        # Health Check
+        self.health_check_interval = health_check_interval or int(
+            os.getenv("SOLANA_HEALTH_CHECK_INTERVAL", "60")
+        )
+
+    def _get_fallback_rpc_urls(self) -> List[str]:
         fallback_urls_str = os.getenv("SOLANA_FALLBACK_RPC_URLS", "")
         return [url.strip() for url in fallback_urls_str.split(",")] if fallback_urls_str else []
 
