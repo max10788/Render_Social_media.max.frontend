@@ -88,54 +88,53 @@ class EnhancedSolanaRepository(SolanaRepository):
             return wrapper
         return decorator
 
-    @enhanced_retry_with_backoff(
-        max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
-    )
-    async def _make_rpc_call(self, method: str, params: list) -> dict:
-        urls = [self.current_rpc_url] + self.fallback_rpc_urls
-    
-        for url in urls:
-            async with self.semaphore:
-                try:
-                    # Versuche zunächst ohne maxSupportedTransactionVersion
-                    response_data = await self._make_rpc_call("getTransaction", params)
-                    call_params = params.copy()
+@enhanced_retry_with_backoff(
+    max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
+)
+async def _make_rpc_call(self, method: str, params: list) -> dict:
+    urls = [self.current_rpc_url] + self.fallback_rpc_urls
+
+    for url in urls:
+        async with self.semaphore:
+            try:
+                # Erster Versuch ohne maxSupportedTransactionVersion (falls kompatibel)
+                call_params = params.copy()
+                response = await self.client.post(
+                    url,
+                    json={"jsonrpc": "2.0", "id": 1, "method": method, "params": call_params},
+                    headers={"Content-Type": "application/json"},
+                    timeout=10
+                )
+
+                # Wenn 400 und Hinweis auf Transaktionsversion → erneut mit maxSupportedTransactionVersion
+                if response.status_code == 400 and "Transaction version" in response.text:
+                    logger.warning(f"{url} requires maxSupportedTransactionVersion")
+                    call_params = params + [{"maxSupportedTransactionVersion": 0}]
                     response = await self.client.post(
                         url,
                         json={"jsonrpc": "2.0", "id": 1, "method": method, "params": call_params},
                         headers={"Content-Type": "application/json"},
                         timeout=10
                     )
-    
-                    if response.status_code == 400 and "Transaction version" in response.text:
-                        logger.warning(f"{url} requires maxSupportedTransactionVersion")
-                        # Nochmal mit dem Parameter versuchen
-                        call_params = params + [{"maxSupportedTransactionVersion": 0}]
-                        response = await self.client.post(
-                            url,
-                            json={"jsonrpc": "2.0", "id": 1, "method": method, "params": call_params},
-                            headers={"Content-Type": "application/json"},
-                            timeout=10
-                        )
-    
-                    response.raise_for_status()
-                    response_data = response.json()
-    
-                    if isinstance(response_data, dict) and "result" in response_data:
-                        return response_data
-                    else:
-                        logger.error(f"Unexpected RPC response format from {url}: {response_data}")
-                        continue
-    
-                except httpx.HTTPStatusError as e:
-                    logger.error(f"RPC error from {url}: {e.response.status_code} - {e.response.text}")
+
+                response.raise_for_status()
+                response_data = response.json()
+
+                if isinstance(response_data, dict) and "result" in response_data:
+                    return response_data
+                else:
+                    logger.error(f"Unexpected RPC response format from {url}: {response_data}")
                     continue
-                except Exception as e:
-                    logger.error(f"Error making RPC call to {url}: {str(e)}")
-                    continue
-    
-        logger.error("All RPC endpoints failed.")
-        raise Exception("All RPC endpoints failed.")
+
+            except httpx.HTTPStatusError as e:
+                logger.error(f"RPC error from {url}: {e.response.status_code} - {e.response.text}")
+                continue
+            except Exception as e:
+                logger.error(f"Error making RPC call to {url}: {str(e)}")
+                continue
+
+    logger.error("All RPC endpoints failed.")
+    raise Exception("All RPC endpoints failed.")
 
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
