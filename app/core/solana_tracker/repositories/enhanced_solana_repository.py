@@ -93,7 +93,11 @@ class EnhancedSolanaRepository(SolanaRepository):
     )
     async def _make_rpc_call(self, method: str, params: list) -> dict:
         urls = [self.current_rpc_url] + self.fallback_rpc_urls
-
+    
+        # Falls es sich um eine Transaktionsabfrage handelt, Version hinzufügen
+        if method == "getTransaction":
+            params = params + [{"maxSupportedTransactionVersion": 0}]
+    
         for url in urls:
             async with self.semaphore:
                 try:
@@ -105,26 +109,29 @@ class EnhancedSolanaRepository(SolanaRepository):
                     )
                     response.raise_for_status()
                     response_data = response.json()
-
+    
                     if isinstance(response_data, dict) and "result" in response_data:
                         return response_data
                     else:
                         logger.error(f"Unexpected RPC response format from {url}: {response_data}")
                         continue
-
+    
                 except httpx.HTTPStatusError as e:
                     logger.error(f"RPC error from {url}: {e.response.status_code} - {e.response.text}")
                     continue
                 except Exception as e:
                     logger.error(f"Error making RPC call to {url}: {str(e)}")
                     continue
-
+    
         logger.error("All RPC endpoints failed.")
         raise Exception("All RPC endpoints failed.")
 
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
-            response_data = await self._make_rpc_call("getTransaction", [tx_hash])
+            # Füge maxSupportedTransactionVersion hinzu
+            params = [tx_hash, {"maxSupportedTransactionVersion": 0}]
+            response_data = await self._make_rpc_call("getTransaction", params)
+            
             if response_data and "result" in response_data:
                 return TransactionDetail(**response_data["result"])
             else:
