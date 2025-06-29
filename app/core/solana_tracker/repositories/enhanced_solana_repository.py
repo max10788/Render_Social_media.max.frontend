@@ -19,6 +19,7 @@ from app.core.solana_tracker.utils.enhanced_retry_utils import (
 from app.core.solana_tracker.utils.rate_limit_metrics import RateLimitMonitor
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
 
+logger = logging.getLogger(__name__)
 
 # Erstelle eine globale Konfiguration aus den Umgebungsvariablen
 solana_config = SolanaConfig()  # Liest automatisch aus Umgebungsvariablen wie SOLANA_RPC_URL usw.
