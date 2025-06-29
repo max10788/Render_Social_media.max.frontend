@@ -20,12 +20,13 @@ from app.core.solana_tracker.utils.rate_limit_metrics import RateLimitMonitor
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
 
 
-# Konfiguration definieren
-solana_config = SolanaConfig()  # Definieren Sie die Konfiguration zuerst
+# Erstelle eine globale Konfiguration aus den Umgebungsvariablen
+solana_config = SolanaConfig()  # Liest automatisch aus Umgebungsvariablen wie SOLANA_RPC_URL usw.
+
 
 class EnhancedSolanaRepository(SolanaRepository):
     def __init__(self, config: SolanaConfig):
-        super().__init__(config)
+        super().__init__(config)  # Aufruf des Elternkonstruktors (könnte auch leer sein)
         self.config = config
         self.current_rpc_url = self.config.primary_rpc_url
         self.fallback_rpc_urls = self.config.fallback_rpc_urls or []
@@ -39,24 +40,30 @@ class EnhancedSolanaRepository(SolanaRepository):
             fallback_urls=self.config.fallback_rpc_urls
         )
 
+        # Rate Limit Config verarbeiten
         if isinstance(self.config.rate_limit_capacity, int):
             self.rate_limit_config = {
                 "rate": self.config.rate_limit_capacity,
                 "capacity": 100
             }
         else:
-            self.rate_limit_config = self.config.rate_limit_capacity or {
-                "rate": 50,
-                "capacity": 100
-            }
+            try:
+                parsed_capacity = int(self.config.rate_limit_capacity)
+                self.rate_limit_config = {"rate": parsed_capacity, "capacity": 100}
+            except (ValueError, TypeError):
+                self.rate_limit_config = {
+                    "rate": 50,
+                    "capacity": 100
+                }
 
         self.rate_limiter = RateLimitBackoff(**self.rate_limit_config)
-        self.monitor = RateLimitMonitor()
 
     async def start(self):
+        """Start background services like health checks."""
         await self.endpoint_manager.start()
 
     async def stop(self):
+        """Stop background services."""
         await self.endpoint_manager.stop()
 
     def retry_with_exponential_backoff(max_retries=3, initial_delay=1):
@@ -79,7 +86,7 @@ class EnhancedSolanaRepository(SolanaRepository):
                 raise
             return wrapper
         return decorator
-    
+
     @enhanced_retry_with_backoff(
         max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
     )
@@ -111,7 +118,6 @@ class EnhancedSolanaRepository(SolanaRepository):
                     logger.error(f"Error making RPC call to {url}: {str(e)}")
                     continue
 
-        # Wenn alle URLs fehlschlagen
         logger.error("All RPC endpoints failed.")
         raise Exception("All RPC endpoints failed.")
 
@@ -128,9 +134,6 @@ class EnhancedSolanaRepository(SolanaRepository):
             return None
 
     async def get_signatures_for_address(self, address: str, limit: int = 10) -> Optional[List[Dict[str, Any]]]:
-        """
-        Fetch recent signatures for an address.
-        """
         try:
             result = await self._make_rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
             return result.get("result")
@@ -139,9 +142,6 @@ class EnhancedSolanaRepository(SolanaRepository):
             return None
 
     async def get_balance(self, address: str) -> Optional[int]:
-        """
-        Fetch the balance for an address.
-        """
         try:
             result = await self._make_rpc_call("getBalance", [address])
             return result.get("result", {}).get("value")
@@ -149,5 +149,6 @@ class EnhancedSolanaRepository(SolanaRepository):
             logger.error(f"Error fetching balance for {address}: {e}")
             return None
 
-# Instanz erstellen
-repository = EnhancedSolanaRepository(config=solana_config)  # Verwenden Sie die Konfiguration bei der Instanzialisierung
+
+# Instanz erstellen – nutzt automatisch Umgebungsvariablen via SolanaConfig
+repository = EnhancedSolanaRepository(config=solana_config)
