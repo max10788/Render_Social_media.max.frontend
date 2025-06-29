@@ -98,6 +98,7 @@ class EnhancedSolanaRepository(SolanaRepository):
             async with self.semaphore:
                 try:
                     # Versuche zunächst ohne maxSupportedTransactionVersion
+                    response_data = await self._make_rpc_call("getTransaction", params)
                     call_params = params.copy()
                     response = await self.client.post(
                         url,
