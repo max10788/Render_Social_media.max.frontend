@@ -106,45 +106,26 @@ class EnhancedSolanaRepository(SolanaRepository):
         for url in urls:
             async with self.semaphore:
                 try:
-                    call_params = params.copy()
-    
-                    # Erster Versuch ohne maxSupportedTransactionVersion
                     response = await self.client.post(
                         url,
-                        json={"jsonrpc": "2.0", "id": 1, "method": method, "params": call_params},
+                        json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params},
                         headers={"Content-Type": "application/json"},
                         timeout=10
                     )
-    
-                    # Falls fehlgeschlagen wegen Transaktionsversion → neu mit dem Parameter
-                    if response.status_code == 400 and "Transaction version" in response.text:
-                        logger.warning(f"{url} requires maxSupportedTransactionVersion")
-                        call_params = params + [{"maxSupportedTransactionVersion": 0}]
-                        response = await self.client.post(
-                            url,
-                            json={"jsonrpc": "2.0", "id": 1, "method": method, "params": call_params},
-                            headers={"Content-Type": "application/json"},
-                            timeout=10
-                        )
-    
-                    # Bei Parametern-Fehler (Got 3) → vermeide zusätzlichen Parameter
-                    if response.status_code == 400 and "Expected from 1 to 2 parameters" in response.text:
-                        logger.warning(f"{url} does not support extra parameters. Using minimal params.")
-                        call_params = params[:1]  # Nur den Hash nehmen
-                        response = await self.client.post(
-                            url,
-                            json={"jsonrpc": "2.0", "id": 1, "method": method, "params": call_params},
-                            headers={"Content-Type": "application/json"},
-                            timeout=10
-                        )
-    
                     response.raise_for_status()
                     response_data = response.json()
     
-                    if isinstance(response_data, dict) and "result" in response_data:
-                        return response_data
+                    if isinstance(response_data, dict):
+                        if "error" in response_data:
+                            logger.error(f"RPC error from {url}: {response_data['error']}")
+                            continue
+                        elif "result" in response_data:
+                            return response_data
+                        else:
+                            logger.warning(f"Unexpected RPC response format from {url}: {response_data}")
+                            continue
                     else:
-                        logger.error(f"Unexpected RPC response format from {url}: {response_data}")
+                        logger.warning(f"Invalid RPC response type from {url}: {type(response_data)}")
                         continue
     
                 except httpx.HTTPStatusError as e:
@@ -155,22 +136,22 @@ class EnhancedSolanaRepository(SolanaRepository):
                     continue
     
         logger.error("All RPC endpoints failed.")
-        raise ConnectionError("Could not establish Solana RPC connection")
+        raise Exception("All RPC endpoints failed.")
 
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
-            # Nur den Transaktionshash als Ausgangspunkt verwenden
-            result = await self._make_rpc_call("getTransaction", [tx_hash])
-    
-            if result and "result" in result:
-                return TransactionDetail(**result["result"])
-            else:
+            response_data = await self._make_rpc_call("getTransaction", [tx_hash])
+            
+            if not response_data or "result" not in response_data or response_data["result"] is None:
                 logger.warning(f"No result found in response for tx hash {tx_hash}")
                 return None
+    
+            return TransactionDetail(**response_data["result"])
+    
         except Exception as e:
             logger.error(f"Error fetching transaction {tx_hash}: {str(e)}")
             return None
-
+            
     async def get_signatures_for_address(self, address: str, limit: int = 10) -> Optional[List[Dict[str, Any]]]:
         try:
             result = await self._make_rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
