@@ -115,6 +115,9 @@ class EnhancedSolanaRepository(SolanaRepository):
                     response.raise_for_status()
                     response_data = response.json()
     
+                    # Debug-Log: Zeige komplette Antwort (oder nur Ausschnitt)
+                    logger.debug(f"Raw RPC response from {url}: {response_data}")
+    
                     # Prüfung auf RPC-Fehler
                     if isinstance(response_data, dict):
                         if "error" in response_data:
@@ -125,6 +128,9 @@ class EnhancedSolanaRepository(SolanaRepository):
                         if result is None:
                             logger.debug(f"No 'result' in RPC response from {url}")
                             continue
+    
+                        # Zusätzlich: Logge den Inhalt von 'result'
+                        logger.debug(f"Extracted 'result' from {url}: {result}")
     
                         return result  # Gib direkt das Result zurück
     
@@ -141,7 +147,6 @@ class EnhancedSolanaRepository(SolanaRepository):
     
         logger.error("All RPC endpoints failed.")
         return None
-
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
             raw_result = await self._make_rpc_call("getTransaction", [tx_hash])
