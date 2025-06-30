@@ -5,8 +5,7 @@ from decimal import Decimal
 import asyncio
 from functools import lru_cache
 
-from app.core.solana_tracker.models.transaction import (
-    TransactionDetail, 
+from app.core.solana_tracker.models.transaction import ( 
     TrackedTransaction, 
     SolanaTransaction,
     TransactionBatch
@@ -16,6 +15,11 @@ from app.core.solana_tracker.repositories.cache_repository import CacheRepositor
 from app.core.solana_tracker.services.chain_tracker import ChainTracker
 from app.core.solana_tracker.services.scenario_detector import ScenarioDetector
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
+from app.core.solana_tracker.models.base_models import TransactionDetail
+from app.core.solana_tracker.models.transaction import (
+    TrackedTransaction,
+    TransactionBatch
+)
 
 logger = logging.getLogger(__name__)
 
