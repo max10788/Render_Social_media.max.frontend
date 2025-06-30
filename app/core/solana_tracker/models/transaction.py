@@ -218,21 +218,21 @@ class TrackedTransaction(TransactionBase):
         }
         
 class TransactionMessageDetail(BaseModel):
-    accountKeys: List[str] = Field(default_factory=list)
+    accountKeys: list[str] = Field(default_factory=list)
     recentBlockhash: str = ""
-    instructions: List[Dict[str, Any]] = Field(default_factory=list)
-    header: Dict[str, Any] = Field(default_factory=dict)
+    instructions: list[dict[str, Any]] = Field(default_factory=list)
+    header: dict[str, Any] = Field(default_factory=dict)
 
 class TransactionMetaDetail(BaseModel):
     fee: int = 0
-    preBalances: List[int] = Field(default_factory=list)
-    postBalances: List[int] = Field(default_factory=list)
-    innerInstructions: Optional[List[Dict[str, Any]]] = None
-    logMessages: Optional[List[str]] = None
-    err: Optional[Dict[str, Any]] = None
+    preBalances: list[int] = Field(default_factory=list)
+    postBalances: list[int] = Field(default_factory=list)
+    innerInstructions: Optional[list[dict[str, Any]]] = None
+    logMessages: Optional[list[str]] = None
+    err: Optional[dict[str, Any]] = None
 
 class TransactionDetail(BaseModel):
-    signatures: List[str] = Field(default_factory=list)
+    signatures: list[str] = Field(default_factory=list)
     message: Optional[TransactionMessageDetail] = None
     slot: Optional[int] = None
     meta: Optional[TransactionMetaDetail] = None
@@ -243,6 +243,9 @@ class TransactionDetail(BaseModel):
         if self.block_time is not None:
             return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
         return None
+
+    class Config:
+        arbitrary_types_allowed = True
     
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
