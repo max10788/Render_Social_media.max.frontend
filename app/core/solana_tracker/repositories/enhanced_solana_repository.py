@@ -9,7 +9,11 @@ import logging
 import time
 
 from app.core.config import SolanaConfig
-from app.core.solana_tracker.models.transaction import TransactionDetail
+from app.core.solana_tracker.models.base_models import (
+    TransactionDetail,
+    TransactionMessageDetail,
+    TransactionMetaDetail
+)
 from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.core.solana_tracker.utils.enhanced_retry_utils import (
     EnhancedRetryError,
@@ -18,25 +22,15 @@ from app.core.solana_tracker.utils.enhanced_retry_utils import (
 )
 from app.core.solana_tracker.utils.rate_limit_metrics import RateLimitMonitor
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
-from typing import Optional, Dict, List, Any
-from datetime import datetime
-
-from app.core.solana_tracker.models.base_models import (
-    TransactionDetail,
-    TransactionMessageDetail,
-    TransactionMetaDetail,
-    TransactionBatch
-)
 
 logger = logging.getLogger(__name__)
 
 # Erstelle eine globale Konfiguration aus den Umgebungsvariablen
-solana_config = SolanaConfig()  # Liest automatisch aus Umgebungsvariablen wie SOLANA_RPC_URL usw.
-
+solana_config = SolanaConfig()
 
 class EnhancedSolanaRepository(SolanaRepository):
     def __init__(self, config: SolanaConfig):
-        super().__init__(config)  # Aufruf des Elternkonstruktors (könnte auch leer sein)
+        super().__init__(config)
         self.config = config
         self.current_rpc_url = self.config.primary_rpc_url
         self.fallback_rpc_urls = self.config.fallback_rpc_urls or []
@@ -45,11 +39,8 @@ class EnhancedSolanaRepository(SolanaRepository):
         self.last_request_time = 0
         self.request_count = 0
         self.monitor = RateLimitMonitor()
-        self.endpoint_manager = RpcEndpointManager(
-            primary_url=self.config.primary_rpc_url,
-            fallback_urls=self.config.fallback_rpc_urls
-        )
-
+        self._first_rpc_logged = False  # Füge diese Zeile hinzu
+        
         # Rate Limit Config verarbeiten
         if isinstance(self.config.rate_limit_capacity, int):
             self.rate_limit_config = {
@@ -66,12 +57,6 @@ class EnhancedSolanaRepository(SolanaRepository):
                     "capacity": 100
                 }
 
-        # Neues Attribut hinzugefügt
-        self._connection_checked = False
-
-        self.last_request_time = 0
-        self.request_count = 0
-        self.monitor = RateLimitMonitor()
         self.endpoint_manager = RpcEndpointManager(
             primary_url=self.config.primary_rpc_url,
             fallback_urls=self.config.fallback_rpc_urls
