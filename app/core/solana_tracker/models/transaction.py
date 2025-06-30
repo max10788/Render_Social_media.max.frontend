@@ -220,22 +220,25 @@ class TrackedTransaction(TransactionBase):
         return v
 
 
-class TransactionMessageDetail(BaseModel):
-    accountKeys: List[str] = []
+@dataclass
+class TransactionMessageDetail:
+    accountKeys: List[str] = ()
     recentBlockhash: str = ""
-    instructions: List[dict[str, any]] = []
-    header: dict[str, any] = {}
+    instructions: List[Dict[str, Any]] = ()
+    header: Dict[str, Any] = ()
 
-class TransactionMetaDetail(BaseModel):
+@dataclass
+class TransactionMetaDetail:
     fee: int = 0
-    preBalances: List[int] = []
-    postBalances: List[int] = []
-    innerInstructions: Optional[List[any]] = []
-    logMessages: Optional[List[str]] = []
-    err: Optional[Dict[str, any]] = {}
+    preBalances: List[int] = ()
+    postBalances: List[int] = ()
+    innerInstructions: Optional[List[Any]] = None
+    logMessages: Optional[List[str]] = None
+    err: Optional[Dict[str, Any]] = None
 
-class TransactionDetail(BaseModel):
-    signatures: List[str] = []
+@dataclass
+class TransactionDetail:
+    signatures: List[str] = ()
     message: Optional[TransactionMessageDetail] = None
     slot: Optional[int] = None
     meta: Optional[TransactionMetaDetail] = None
