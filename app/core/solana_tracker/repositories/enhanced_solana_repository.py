@@ -100,7 +100,7 @@ class EnhancedSolanaRepository(SolanaRepository):
     @enhanced_retry_with_backoff(
         max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
     )
-    async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
+    async def _make_rpc_call(self, method: str, params: list) -> Optional[dict[str, Any]]:
         urls = [self.current_rpc_url] + self.fallback_rpc_urls
     
         for url in urls:
@@ -115,8 +115,10 @@ class EnhancedSolanaRepository(SolanaRepository):
                     response.raise_for_status()
                     response_data = response.json()
     
-                    # Debug-Log: Zeige komplette Antwort (oder nur Ausschnitt)
-                    logger.debug(f"Raw RPC response from {url}: {response_data}")
+                    # Nur die erste Antwort loggen
+                    if not self._first_rpc_logged:
+                        logger.info(f"First RPC response received: {response_data}")
+                        self._first_rpc_logged = True  # Nur einmal loggen
     
                     # Prüfung auf RPC-Fehler
                     if isinstance(response_data, dict):
@@ -128,9 +130,6 @@ class EnhancedSolanaRepository(SolanaRepository):
                         if result is None:
                             logger.debug(f"No 'result' in RPC response from {url}")
                             continue
-    
-                        # Zusätzlich: Logge den Inhalt von 'result'
-                        logger.debug(f"Extracted 'result' from {url}: {result}")
     
                         return result  # Gib direkt das Result zurück
     
@@ -147,6 +146,7 @@ class EnhancedSolanaRepository(SolanaRepository):
     
         logger.error("All RPC endpoints failed.")
         return None
+    
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
             raw_result = await self._make_rpc_call("getTransaction", [tx_hash])
