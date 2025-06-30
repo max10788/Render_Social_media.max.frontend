@@ -100,9 +100,9 @@ class EnhancedSolanaRepository(SolanaRepository):
     @enhanced_retry_with_backoff(
         max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
     )
-    async def _make_rpc_call(self, method: str, params: list) -> dict:
+    async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
         urls = [self.current_rpc_url] + self.fallback_rpc_urls
-
+    
         for url in urls:
             async with self.semaphore:
                 try:
@@ -114,28 +114,33 @@ class EnhancedSolanaRepository(SolanaRepository):
                     )
                     response.raise_for_status()
                     response_data = response.json()
-
+    
+                    # Prüfung auf RPC-Fehler
                     if isinstance(response_data, dict):
                         if "error" in response_data:
                             logger.error(f"RPC error from {url}: {response_data['error']}")
                             continue
-                        elif "result" in response_data:
-                            return response_data
-                        else:
-                            # Weniger Logging – ignoriere unerwartete Formate still
+    
+                        result = response_data.get("result")
+                        if result is None:
+                            logger.debug(f"No 'result' in RPC response from {url}")
                             continue
+    
+                        return result  # Gib direkt das Result zurück
+    
                     else:
+                        logger.warning(f"Invalid RPC response type from {url}: {type(response_data)}")
                         continue
-
+    
                 except httpx.HTTPStatusError as e:
                     logger.error(f"RPC error from {url}: {e.response.status_code} - {e.response.text}")
                     continue
                 except Exception as e:
                     logger.error(f"Error making RPC call to {url}: {str(e)}")
                     continue
-
+    
         logger.error("All RPC endpoints failed.")
-        raise Exception("All RPC endpoints failed.")
+        return None
 
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
