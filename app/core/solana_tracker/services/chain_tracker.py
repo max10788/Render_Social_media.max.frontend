@@ -6,9 +6,12 @@ from decimal import Decimal
 import base58
 import json
 
-from app.core.solana_tracker.models.transaction import TrackedTransaction, TransactionDetail
-from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
-from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
+# Ändern der Imports auf base_models
+from app.core.solana_tracker.models.base_models import (
+    TrackedTransaction,
+    TransactionDetail,
+    TransactionBase
+)
 from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
 
 def log_rpc_json(method: str, params: list, response: dict):
@@ -23,7 +26,7 @@ class ChainTracker:
     # Class level constants
     MIN_AMOUNT = Decimal('0.000001')
 
-    def __init__(self, solana_repo: Optional[SolanaRepository] = None):
+    def __init__(self, solana_repo: Optional[EnhancedSolanaRepository] = None):
         """Initialize the chain tracker."""
         self.solana_repo = solana_repo
         self.last_update = datetime.utcnow()
