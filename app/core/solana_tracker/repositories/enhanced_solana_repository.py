@@ -59,7 +59,7 @@ class EnhancedSolanaRepository(SolanaRepository):
 
         # Neues Attribut hinzugefügt
         self._connection_checked = False
-    
+
         self.last_request_time = 0
         self.request_count = 0
         self.monitor = RateLimitMonitor()
@@ -102,7 +102,7 @@ class EnhancedSolanaRepository(SolanaRepository):
     )
     async def _make_rpc_call(self, method: str, params: list) -> dict:
         urls = [self.current_rpc_url] + self.fallback_rpc_urls
-    
+
         for url in urls:
             async with self.semaphore:
                 try:
@@ -114,7 +114,7 @@ class EnhancedSolanaRepository(SolanaRepository):
                     )
                     response.raise_for_status()
                     response_data = response.json()
-    
+
                     if isinstance(response_data, dict):
                         if "error" in response_data:
                             logger.error(f"RPC error from {url}: {response_data['error']}")
@@ -122,36 +122,34 @@ class EnhancedSolanaRepository(SolanaRepository):
                         elif "result" in response_data:
                             return response_data
                         else:
-                            logger.warning(f"Unexpected RPC response format from {url}: {response_data}")
+                            # Weniger Logging – ignoriere unerwartete Formate still
                             continue
                     else:
-                        logger.warning(f"Invalid RPC response type from {url}: {type(response_data)}")
                         continue
-    
+
                 except httpx.HTTPStatusError as e:
                     logger.error(f"RPC error from {url}: {e.response.status_code} - {e.response.text}")
                     continue
                 except Exception as e:
                     logger.error(f"Error making RPC call to {url}: {str(e)}")
                     continue
-    
+
         logger.error("All RPC endpoints failed.")
         raise Exception("All RPC endpoints failed.")
 
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
             response_data = await self._make_rpc_call("getTransaction", [tx_hash])
-            
+
             if not response_data or "result" not in response_data or response_data["result"] is None:
-                logger.warning(f"No result found in response for tx hash {tx_hash}")
-                return None
-    
+                return None  # Keine Warnung mehr
+
             return TransactionDetail(**response_data["result"])
-    
+
         except Exception as e:
             logger.error(f"Error fetching transaction {tx_hash}: {str(e)}")
             return None
-            
+
     async def get_signatures_for_address(self, address: str, limit: int = 10) -> Optional[List[Dict[str, Any]]]:
         try:
             result = await self._make_rpc_call("getSignaturesForAddress", [address, {"limit": limit}])
