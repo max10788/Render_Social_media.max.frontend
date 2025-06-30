@@ -24,7 +24,8 @@ from datetime import datetime
 from app.core.solana_tracker.models.base_models import (
     TransactionDetail,
     TransactionMessageDetail,
-    TransactionMetaDetail
+    TransactionMetaDetail,
+    TransactionBatch
 )
 
 logger = logging.getLogger(__name__)
