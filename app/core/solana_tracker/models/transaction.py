@@ -220,27 +220,33 @@ class TrackedTransaction(TransactionBase):
         return v
 
 
+class TransactionMessageDetail(BaseModel):
+    accountKeys: List[str] = []
+    recentBlockhash: str = ""
+    instructions: List[Dict[str, Any]] = []
+    header: Dict[str, Any] = {}
+
+class TransactionMetaDetail(BaseModel):
+    fee: int = 0
+    preBalances: List[int] = []
+    postBalances: List[int] = []
+    innerInstructions: Optional[List[Any]] = []
+    logMessages: Optional[List[str]] = []
+    err: Optional[Dict[str, Any]] = {}
+
 class TransactionDetail(BaseModel):
-    transaction: Optional[dict[str, any]] = None
-    meta: Optional[dict[str, any]] = None
-    transfers: Optional[list[dict[str, any]]] = None
-    timestamp: Optional[int] = None
-    signature: Optional[str] = None
+    signatures: List[str] = []
+    message: Optional[TransactionMessageDetail] = None
+    slot: Optional[int] = None
+    meta: Optional[TransactionMetaDetail] = None
+    block_time: Optional[int] = None
 
-    @model_validator(mode='after')
-    def validate_tx_hash(self):
-        sig = self.signature
-        if sig and len(sig) < 32:
-            raise ValueError("Transaction hash must be at least 32 characters")
-        return self
-
-    model_config = {
-        "arbitrary_types_allowed": True,
-        "json_encoders": {
-            datetime: lambda v: v.isoformat(),
-            Decimal: str
-        }
-    }
+    @property
+    def human_readable_time(self) -> Optional[str]:
+        from datetime import datetime, timezone
+        if self.block_time is not None:
+            return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
+        return None
     
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
