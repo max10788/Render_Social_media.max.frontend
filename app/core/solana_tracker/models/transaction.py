@@ -1,5 +1,5 @@
 from typing import Optional, List, Any, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
 from app.models.schemas import RateLimitConfig, EndpointMetrics, RpcError
