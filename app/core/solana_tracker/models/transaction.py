@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Any, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
@@ -221,9 +221,9 @@ class TrackedTransaction(TransactionBase):
 
 
 class TransactionDetail(BaseModel):
-    transaction: Optional[dict[str, Any]] = None
-    meta: Optional[dict[str, Any]] = None
-    transfers: Optional[list[dict[str, Any]]] = None
+    transaction: Optional[dict[str, any]] = None
+    meta: Optional[dict[str, any]] = None
+    transfers: Optional[list[dict[str, any]]] = None
     timestamp: Optional[int] = None
     signature: Optional[str] = None
 
