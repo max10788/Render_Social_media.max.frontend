@@ -1,5 +1,5 @@
-from typing import Optional, List, Dict, Any
-from datetime import datetime
+ffrom typing import Optional, List, Dict, Any
+from datetime import datetime, timezone  # timezone hinzugefügt
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
 
@@ -17,25 +17,24 @@ class TransactionBase(BaseModel):
 class TransactionMessageDetail(BaseModel):
     accountKeys: List[str] = Field(default_factory=list)
     recentBlockhash: str = Field(default="")
-    instructions: List[Dict[str, Any]] = Field(default_factory=list)  # Geändert von any zu Any
-    header: Dict[str, Any] = Field(default_factory=dict)  # Geändert von any zu Any
+    instructions: List[Dict[str, Any]] = Field(default_factory=list)
+    header: Dict[str, Any] = Field(default_factory=dict)
 
-    model_config = {
-        "populate_by_name": True,
-        "alias_generator": lambda x: "".join(word.capitalize() for word in x.split("_"))[0].lower() + "".join(word.capitalize() for word in x.split("_"))[1:]
-    }
+    class Config:
+        allow_population_by_field_name = True
+        alias_generator = lambda x: "".join(word.capitalize() for word in x.split("_"))[0].lower() + "".join(word.capitalize() for word in x.split("_"))[1:]
+
 class TransactionMetaDetail(BaseModel):
     fee: int = Field(default=0)
     preBalances: List[int] = Field(default_factory=list)
     postBalances: List[int] = Field(default_factory=list)
-    innerInstructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # Geändert von any zu Any
+    innerInstructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     logMessages: Optional[List[str]] = Field(default_factory=list)
-    err: Optional[Dict[str, Any]] = Field(default=None)  # Geändert von any zu Any
+    err: Optional[Dict[str, Any]] = Field(default=None)
 
-    model_config = {
-        "populate_by_name": True,
-        "alias_generator": lambda x: "".join(word.capitalize() for word in x.split("_"))[0].lower() + "".join(word.capitalize() for word in x.split("_"))[1:]
-    }
+    class Config:
+        allow_population_by_field_name = True
+        alias_generator = lambda x: "".join(word.capitalize() for word in x.split("_"))[0].lower() + "".join(word.capitalize() for word in x.split("_"))[1:]
 
 class TransactionDetail(BaseModel):
     signatures: List[str] = Field(default_factory=list)
