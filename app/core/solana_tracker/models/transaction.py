@@ -221,25 +221,22 @@ class TrackedTransaction(TransactionBase):
         return v
 
 
-@dataclass
-class TransactionMessageDetail:
-    accountKeys: List[str] = ()
+class TransactionMessageDetail(BaseModel):
+    accountKeys: list[str] = []
     recentBlockhash: str = ""
-    instructions: List[dict[str, any]] = ()
-    header: dict[str, any] = ()
+    instructions: list[dict[str, any]] = []
+    header: dict[str, any] = {}
 
-@dataclass
-class TransactionMetaDetail:
+class TransactionMetaDetail(BaseModel):
     fee: int = 0
-    preBalances: List[int] = ()
-    postBalances: List[int] = ()
-    innerInstructions: Optional[List[any]] = None
-    logMessages: Optional[List[str]] = None
-    err: Optional[dict[str, any]] = None
+    preBalances: list[int] = []
+    postBalances: list[int] = []
+    innerInstructions: Optional[list[any]] = []
+    logMessages: Optional[list[str]] = []
+    err: Optional[dict[str, any]] = {}
 
-@dataclass
-class TransactionDetail:
-    signatures: List[str] = ()
+class TransactionDetail(BaseModel):
+    signatures: list[str] = []
     message: Optional[TransactionMessageDetail] = None
     slot: Optional[int] = None
     meta: Optional[TransactionMetaDetail] = None
@@ -247,7 +244,6 @@ class TransactionDetail:
 
     @property
     def human_readable_time(self) -> Optional[str]:
-        from datetime import datetime, timezone
         if self.block_time is not None:
             return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
         return None
