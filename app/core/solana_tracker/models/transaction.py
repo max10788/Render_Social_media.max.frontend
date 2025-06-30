@@ -218,11 +218,11 @@ class TrackedTransaction(TransactionBase):
         }
         
 class TransactionMessageDetail(BaseModel):
-    accountKeys: List[str] = Field(default_factory=list)
-    recentBlockhash: str = ""
-    instructions: List[Dict[str, Any]] = Field(default_factory=list)
-    header: Dict[str, Any] = Field(default_factory=dict)
-
+    accountKeys: list[str] = Field(default_factory=list)
+    recentBlockhash: str = Field(default="")
+    instructions: list[dict[str, any]] = Field(default_factory=list)
+    header: dict[str, any] = Field(default_factory=dict)
+    
     class Config:
         arbitrary_types_allowed = True
         json_encoders = {
