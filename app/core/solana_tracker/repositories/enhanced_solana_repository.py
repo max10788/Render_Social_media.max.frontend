@@ -18,6 +18,14 @@ from app.core.solana_tracker.utils.enhanced_retry_utils import (
 )
 from app.core.solana_tracker.utils.rate_limit_metrics import RateLimitMonitor
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
+from typing import Optional, Dict, List, Any
+from datetime import datetime
+
+from app.core.solana_tracker.models.base_models import (
+    TransactionDetail,
+    TransactionMessageDetail,
+    TransactionMetaDetail
+
 
 logger = logging.getLogger(__name__)
 
