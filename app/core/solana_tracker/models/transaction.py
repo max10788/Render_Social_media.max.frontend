@@ -221,12 +221,12 @@ class TrackedTransaction(TransactionBase):
 
 
 class TransactionDetail(BaseModel):
-    transaction: Optional[dict[str, any]] = None
-    meta: Optional[dict[str, any]] = None
-    transfers: Optional[list[dict[str, any]]] = None
+    transaction: Optional[Dict[str, Any]] = None
+    meta: Optional[Dict[str, Any]] = None
+    transfers: Optional[List[Dict[str, Any]]] = None
     timestamp: Optional[int] = None
     signature: Optional[str] = None
-
+    
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
     transactions: List[TransactionDetail]
