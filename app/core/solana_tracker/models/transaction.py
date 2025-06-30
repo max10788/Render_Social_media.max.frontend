@@ -225,17 +225,17 @@ class TrackedTransaction(TransactionBase):
 class TransactionMessageDetail:
     accountKeys: List[str] = ()
     recentBlockhash: str = ""
-    instructions: List[Dict[str, Any]] = ()
-    header: Dict[str, Any] = ()
+    instructions: List[dict[str, any]] = ()
+    header: Dict[str, any] = ()
 
 @dataclass
 class TransactionMetaDetail:
     fee: int = 0
     preBalances: List[int] = ()
     postBalances: List[int] = ()
-    innerInstructions: Optional[List[Any]] = None
+    innerInstructions: Optional[List[any]] = None
     logMessages: Optional[List[str]] = None
-    err: Optional[Dict[str, Any]] = None
+    err: Optional[dict[str, any]] = None
 
 @dataclass
 class TransactionDetail:
