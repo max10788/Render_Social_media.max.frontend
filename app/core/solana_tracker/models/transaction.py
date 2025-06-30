@@ -224,7 +224,7 @@ class TransactionMessageDetail(BaseModel):
     accountKeys: List[str] = []
     recentBlockhash: str = ""
     instructions: List[dict[str, any]] = []
-    header: Dict[str, any] = {}
+    header: dict[str, any] = {}
 
 class TransactionMetaDetail(BaseModel):
     fee: int = 0
