@@ -221,24 +221,11 @@ class TrackedTransaction(TransactionBase):
 
 
 class TransactionDetail(BaseModel):
-    """Detailed transaction information including transfers."""
-    signature: str
-    timestamp: datetime
-    transfers: List[Transfer]
-    transaction: SolanaTransaction
-
-    @validator('signature')
-    def validate_tx_hash(cls, v):
-        if not v or len(v) < 32:
-            raise ValueError("Transaction hash must be at least 32 characters")
-        return v
-
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            Decimal: str
-        }
+    transaction: Optional[dict[str, any]] = None
+    meta: Optional[dict[str, any]] = None
+    transfers: Optional[list[dict[str, any]]] = None
+    timestamp: Optional[int] = None
+    signature: Optional[str] = None
 
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
