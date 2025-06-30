@@ -1,4 +1,4 @@
-ffrom typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone  # timezone hinzugefügt
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
