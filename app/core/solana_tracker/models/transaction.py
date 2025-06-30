@@ -205,27 +205,19 @@ class Transfer(BaseModel):
         json_encoders = {
             Decimal: str
         }
-
+        
 class TrackedTransaction(TransactionBase):
     """Transaction with tracking information."""
     from_wallet: str
     to_wallet: str
     amount: Decimal = Field(..., ge=0)
     value_in_target_currency: Optional[Decimal] = None
-    
+
     class Config:
         json_encoders = {
             Decimal: str,
-            datetime: lambda v: v.isoformat()  # Add this line
+            datetime: lambda v: v.isoformat()
         }
-
-    @validator('timestamp', pre=True)
-    def validate_timestamp(cls, v):
-        """Ensure timestamp is converted to ISO format string."""
-        if isinstance(v, datetime):
-            return v.isoformat()
-        return v
-
 
 class TransactionMessageDetail(BaseModel):
     accountKeys: list[str] = []
@@ -271,6 +263,7 @@ class TransactionBatch(BaseModel):
             datetime: lambda v: v.isoformat(),
             Decimal: str
         }
+        
 class EnhancedTransactionProcessor:
     """Enhanced transaction processor with rate limiting."""
     
