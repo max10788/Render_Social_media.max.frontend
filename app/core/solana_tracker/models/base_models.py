@@ -1,4 +1,4 @@
-from typing import Optional, List, Any
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
@@ -15,21 +15,21 @@ class TransactionBase(BaseModel):
         return v
 
 class TransactionMessageDetail(BaseModel):
-    accountKeys: list[str] = []
+    accountKeys: List[str] = Field(default_factory=list)
     recentBlockhash: str = ""
-    instructions: list[dict[str, Any]] = []
-    header: dict[str, Any] = {}
+    instructions: List[Dict[str, Any]] = Field(default_factory=list)
+    header: Dict[str, Any] = Field(default_factory=dict)
 
 class TransactionMetaDetail(BaseModel):
     fee: int = 0
-    preBalances: list[int] = []
-    postBalances: list[int] = []
-    innerInstructions: Optional[list[Any]] = []
-    logMessages: Optional[list[str]] = []
-    err: Optional[dict[str, Any]] = {}
+    preBalances: List[int] = Field(default_factory=list)
+    postBalances: List[int] = Field(default_factory=list)
+    innerInstructions: Optional[List[Dict[str, Any]]] = None
+    logMessages: Optional[List[str]] = None
+    err: Optional[Dict[str, Any]] = None
 
 class TransactionDetail(BaseModel):
-    signatures: list[str] = []
+    signatures: List[str] = Field(default_factory=list)
     message: Optional[TransactionMessageDetail] = None
     slot: Optional[int] = None
     meta: Optional[TransactionMetaDetail] = None
