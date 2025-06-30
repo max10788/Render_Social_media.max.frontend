@@ -6,9 +6,7 @@ from app.models.schemas import RateLimitConfig, EndpointMetrics, RpcError
 from dataclasses import dataclass
 from app.core.solana_tracker.models.base_models import (
     TransactionBase,
-    TransactionDetail,
-    TransactionMessageDetail,
-    TransactionMetaDetail
+    TransactionDetail
 )
 
 class RateLimiter:
