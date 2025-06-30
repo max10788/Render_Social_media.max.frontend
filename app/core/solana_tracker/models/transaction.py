@@ -227,6 +227,19 @@ class TransactionDetail(BaseModel):
     timestamp: Optional[int] = None
     signature: Optional[str] = None
     
+    @validator('signature')Add commentMore actions
+    def validate_tx_hash(cls, v):
+        if not v or len(v) < 32:
+            raise ValueError("Transaction hash must be at least 32 characters")
+        return v
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            Decimal: str
+        }
+    
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
     transactions: List[TransactionDetail]
