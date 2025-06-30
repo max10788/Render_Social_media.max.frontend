@@ -216,7 +216,7 @@ class TrackedTransaction(TransactionBase):
             Decimal: str,
             datetime: lambda v: v.isoformat()
         }
-
+        
 class TransactionMessageDetail(BaseModel):
     accountKeys: list[str] = []
     recentBlockhash: str = ""
@@ -246,8 +246,8 @@ class TransactionDetail(BaseModel):
     
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
-    transactions: List[TransactionDetail]
-    total_count: int
+    transactions: List[TransactionDetail] = Field(default_factory=list)
+    total_count: int = 0
     start_index: int = 0
 
     @validator('transactions')
@@ -255,12 +255,6 @@ class TransactionBatch(BaseModel):
         if len(v) > 1000:
             raise ValueError("Batch size cannot exceed 1000 transactions")
         return v
-
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            Decimal: str
-        }
         
 class EnhancedTransactionProcessor:
     """Enhanced transaction processor with rate limiting."""
