@@ -144,13 +144,26 @@ class EnhancedSolanaRepository(SolanaRepository):
 
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
-            response_data = await self._make_rpc_call("getTransaction", [tx_hash])
-
-            if not response_data or "result" not in response_data or response_data["result"] is None:
-                return None  # Keine Warnung mehr
-
-            return TransactionDetail(**response_data["result"])
-
+            raw_result = await self._make_rpc_call("getTransaction", [tx_hash])
+    
+            if not raw_result:
+                return None
+    
+            # Prüfe ob essentielle Felder vorhanden sind
+            if "transaction" not in raw_result or "meta" not in raw_result:
+                return None
+    
+            # Bereinigte Daten für TransactionDetail
+            parsed_data = {
+                "signatures": raw_result["transaction"].get("signatures", []),
+                "message": raw_result["transaction"].get("message"),
+                "slot": raw_result.get("slot"),
+                "meta": raw_result.get("meta"),
+                "block_time": raw_result.get("blockTime"),
+            }
+    
+            return TransactionDetail(**parsed_data)
+    
         except Exception as e:
             logger.error(f"Error fetching transaction {tx_hash}: {str(e)}")
             return None
