@@ -218,21 +218,30 @@ class TrackedTransaction(TransactionBase):
         }
         
 class TransactionMessageDetail(BaseModel):
-    accountKeys: list[str] = Field(default_factory=list)
+    accountKeys: List[str] = Field(default_factory=list)
     recentBlockhash: str = ""
-    instructions: list[dict[str, Any]] = Field(default_factory=list)
-    header: dict[str, Any] = Field(default_factory=dict)
+    instructions: List[Dict[str, Any]] = Field(default_factory=list)
+    header: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
 
 class TransactionMetaDetail(BaseModel):
     fee: int = 0
-    preBalances: list[int] = Field(default_factory=list)
-    postBalances: list[int] = Field(default_factory=list)
-    innerInstructions: Optional[list[dict[str, Any]]] = None
-    logMessages: Optional[list[str]] = None
-    err: Optional[dict[str, Any]] = None
+    preBalances: List[int] = Field(default_factory=list)
+    postBalances: List[int] = Field(default_factory=list)
+    innerInstructions: Optional[List[Dict[str, Any]]] = None
+    logMessages: Optional[List[str]] = None
+    err: Optional[Dict[str, Any]] = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
 class TransactionDetail(BaseModel):
-    signatures: list[str] = Field(default_factory=list)
+    signatures: List[str] = Field(default_factory=list)
     message: Optional[TransactionMessageDetail] = None
     slot: Optional[int] = None
     meta: Optional[TransactionMetaDetail] = None
@@ -246,6 +255,10 @@ class TransactionDetail(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            Decimal: str
+        }
     
 class TransactionBatch(BaseModel):
     """Batch of transactions for processing."""
