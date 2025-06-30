@@ -226,7 +226,7 @@ class TransactionMessageDetail:
     accountKeys: List[str] = ()
     recentBlockhash: str = ""
     instructions: List[dict[str, any]] = ()
-    header: Dict[str, any] = ()
+    header: dict[str, any] = ()
 
 @dataclass
 class TransactionMetaDetail:
