@@ -14,7 +14,6 @@ from app.core.solana_tracker.models.base_models import (
     TransactionMessageDetail,
     TransactionMetaDetail
 )
-from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.core.solana_tracker.utils.enhanced_retry_utils import (
     EnhancedRetryError,
     RateLimitBackoff,
@@ -22,14 +21,14 @@ from app.core.solana_tracker.utils.enhanced_retry_utils import (
 )
 from app.core.solana_tracker.utils.rate_limit_metrics import RateLimitMonitor
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
+
 logger = logging.getLogger(__name__)
 
 # Erstelle eine globale Konfiguration aus den Umgebungsvariablen
 solana_config = SolanaConfig()
 
-class EnhancedSolanaRepository(SolanaRepository):
+class EnhancedSolanaRepository:  # Entfernt das Erben von SolanaRepository
     def __init__(self, config: SolanaConfig):
-        super().__init__(config)
         self.config = config
         self.current_rpc_url = self.config.primary_rpc_url
         self.fallback_rpc_urls = self.config.fallback_rpc_urls or []
@@ -38,7 +37,7 @@ class EnhancedSolanaRepository(SolanaRepository):
         self.last_request_time = 0
         self.request_count = 0
         self.monitor = RateLimitMonitor()
-        self._first_rpc_logged = False  # Füge diese Zeile hinzu
+        self._first_rpc_logged = False
         
         # Rate Limit Config verarbeiten
         if isinstance(self.config.rate_limit_capacity, int):
@@ -69,6 +68,7 @@ class EnhancedSolanaRepository(SolanaRepository):
         """Stop background services."""
         await self.endpoint_manager.stop()
 
+    @staticmethod
     def retry_with_exponential_backoff(max_retries=3, initial_delay=1):
         def decorator(func):
             @wraps(func)
@@ -93,7 +93,7 @@ class EnhancedSolanaRepository(SolanaRepository):
     @enhanced_retry_with_backoff(
         max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
     )
-    async def _make_rpc_call(self, method: str, params: list) -> Optional[dict[str, Any]]:
+    async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
         urls = [self.current_rpc_url] + self.fallback_rpc_urls
     
         for url in urls:
@@ -108,12 +108,10 @@ class EnhancedSolanaRepository(SolanaRepository):
                     response.raise_for_status()
                     response_data = response.json()
     
-                    # Nur die erste Antwort loggen
                     if not self._first_rpc_logged:
                         logger.info(f"First RPC response received: {response_data}")
-                        self._first_rpc_logged = True  # Nur einmal loggen
+                        self._first_rpc_logged = True
     
-                    # Prüfung auf RPC-Fehler
                     if isinstance(response_data, dict):
                         if "error" in response_data:
                             logger.error(f"RPC error from {url}: {response_data['error']}")
@@ -124,7 +122,7 @@ class EnhancedSolanaRepository(SolanaRepository):
                             logger.debug(f"No 'result' in RPC response from {url}")
                             continue
     
-                        return result  # Gib direkt das Result zurück
+                        return result
     
                     else:
                         logger.warning(f"Invalid RPC response type from {url}: {type(response_data)}")
@@ -151,11 +149,9 @@ class EnhancedSolanaRepository(SolanaRepository):
             meta_data = raw_result.get("meta")
             slot = raw_result.get("slot")
     
-            # Nachricht parsen, aber nur falls vorhanden
             message_data = transaction_data.get("message")
             message = TransactionMessageDetail(**(message_data or {})) if message_data else None
     
-            # Meta parsen, aber nur falls vorhanden
             meta = TransactionMetaDetail(**(meta_data or {})) if meta_data else None
     
             parsed_data = {
@@ -188,6 +184,5 @@ class EnhancedSolanaRepository(SolanaRepository):
             logger.error(f"Error fetching balance for {address}: {e}")
             return None
 
-
-# Instanz erstellen – nutzt automatisch Umgebungsvariablen via SolanaConfig
+# Instanz erstellen
 repository = EnhancedSolanaRepository(config=solana_config)
