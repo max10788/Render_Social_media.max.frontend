@@ -221,9 +221,9 @@ class TrackedTransaction(TransactionBase):
 
 
 class TransactionDetail(BaseModel):
-    transaction: Optional[Dict[str, Any]] = None
-    meta: Optional[Dict[str, Any]] = None
-    transfers: Optional[List[Dict[str, Any]]] = None
+    transaction: Optional[dict[str, Any]] = None
+    meta: Optional[dict[str, Any]] = None
+    transfers: Optional[list[dict[str, Any]]] = None
     timestamp: Optional[int] = None
     signature: Optional[str] = None
     
