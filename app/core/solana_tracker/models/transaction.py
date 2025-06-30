@@ -223,16 +223,16 @@ class TrackedTransaction(TransactionBase):
 class TransactionMessageDetail(BaseModel):
     accountKeys: List[str] = []
     recentBlockhash: str = ""
-    instructions: List[Dict[str, Any]] = []
-    header: Dict[str, Any] = {}
+    instructions: List[dict[str, any]] = []
+    header: Dict[str, any] = {}
 
 class TransactionMetaDetail(BaseModel):
     fee: int = 0
     preBalances: List[int] = []
     postBalances: List[int] = []
-    innerInstructions: Optional[List[Any]] = []
+    innerInstructions: Optional[List[any]] = []
     logMessages: Optional[List[str]] = []
-    err: Optional[Dict[str, Any]] = {}
+    err: Optional[Dict[str, any]] = {}
 
 class TransactionDetail(BaseModel):
     signatures: List[str] = []
