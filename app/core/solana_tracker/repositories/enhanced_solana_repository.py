@@ -25,7 +25,7 @@ from app.core.solana_tracker.models.base_models import (
     TransactionDetail,
     TransactionMessageDetail,
     TransactionMetaDetail
-
+)
 
 logger = logging.getLogger(__name__)
 
