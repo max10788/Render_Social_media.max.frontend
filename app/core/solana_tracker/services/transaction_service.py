@@ -5,9 +5,9 @@ from decimal import Decimal
 import asyncio
 from functools import lru_cache
 
-from app.core.solana_tracker.models.transaction import ( 
-    TrackedTransaction, 
-    SolanaTransaction,
+from app.core.solana_tracker.models.base_models import (
+    TrackedTransaction,
+    TransactionDetail,
     TransactionBatch
 )
 from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
@@ -15,11 +15,9 @@ from app.core.solana_tracker.repositories.cache_repository import CacheRepositor
 from app.core.solana_tracker.services.chain_tracker import ChainTracker
 from app.core.solana_tracker.services.scenario_detector import ScenarioDetector
 from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
-from app.core.solana_tracker.models.base_models import TransactionDetail
-from app.core.solana_tracker.models.transaction import (
-    TrackedTransaction,
-    TransactionBatch
-)
+
+logger = logging.getLogger(__name__)
+
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +71,7 @@ class TransactionService:
         except Exception as e:
             logger.error("Error fetching transaction %s: %s", tx_hash, e, exc_info=True)
             raise
-
+            
     async def _get_transaction_safe(
         self,
         tx_hash: str
@@ -141,57 +139,52 @@ class TransactionService:
                         start_tx_hash, e, exc_info=True)
             raise
             
-        async def _calculate_chain_statistics(
-            self,
-            transactions: List[TrackedTransaction]
-        ) -> Dict[str, Any]:
-            """Calculate statistics for a chain of transactions."""
-            logger.debug("Calculating statistics for %d transactions", len(transactions))
-            if not transactions:
-                logger.warning("No transactions provided for statistics calculation")
-                return {}
-            try:
-                total_amount = sum(tx.amount for tx in transactions)
-                unique_addresses = set()
-                for tx in transactions:
-                    unique_addresses.add(tx.from_wallet)
+    async def _calculate_chain_statistics(
+        self,
+        transactions: List[TrackedTransaction]
+    ) -> Dict[str, Any]:
+        """Calculate statistics for a chain of transactions."""
+        logger.debug("Calculating statistics for %d transactions", len(transactions))
+        if not transactions:
+            logger.warning("No transactions provided for statistics calculation")
+            return {}
+        try:
+            total_amount = sum(tx.amount for tx in transactions)
+            unique_addresses = set()
+            for tx in transactions:
+                unique_addresses.add(tx.from_wallet)
+                if tx.to_wallet:
                     unique_addresses.add(tx.to_wallet)
-                time_diffs = []
-                for i in range(1, len(transactions)):
-                    t1 = transactions[i-1].timestamp
-                    t2 = transactions[i].timestamp
-                    # Ensure timestamps are datetime objects for calculation
-                    if isinstance(t1, str):
-                        t1 = datetime.fromisoformat(t1.replace('Z', '+00:00'))
-                    if isinstance(t2, str):
-                        t2 = datetime.fromisoformat(t2.replace('Z', '+00:00'))
-                    time_diffs.append((t2 - t1).total_seconds())
+            time_diffs = []
+            for i in range(1, len(transactions)):
+                t1 = transactions[i-1].timestamp
+                t2 = transactions[i].timestamp
+                if isinstance(t1, str):
+                    t1 = datetime.fromisoformat(t1.replace('Z', '+00:00'))
+                if isinstance(t2, str):
+                    t2 = datetime.fromisoformat(t2.replace('Z', '+00:00'))
+                time_diffs.append((t2 - t1).total_seconds())
+            
+            first_timestamp = transactions[0].timestamp
+            last_timestamp = transactions[-1].timestamp
+            if isinstance(first_timestamp, datetime):
+                first_timestamp = first_timestamp.isoformat()
+            if isinstance(last_timestamp, datetime):
+                last_timestamp = last_timestamp.isoformat()
                 
-                # Ensure timestamps are converted to ISO format strings
-                first_timestamp = transactions[0].timestamp
-                last_timestamp = transactions[-1].timestamp
-                if isinstance(first_timestamp, datetime):
-                    first_timestamp = first_timestamp.isoformat()
-                if isinstance(last_timestamp, datetime):
-                    last_timestamp = last_timestamp.isoformat()
-                    
-                logger.debug("Statistics: total_amount=%s, unique_addresses=%d, avg_time=%.2f",
-                            total_amount, len(unique_addresses),
-                            sum(time_diffs)/len(time_diffs) if time_diffs else 0)
-                
-                return {
-                    "total_transactions": len(transactions),
-                    "total_amount": float(total_amount),
-                    "unique_addresses": len(unique_addresses),
-                    "average_time_between_tx": (
-                        sum(time_diffs) / len(time_diffs) if time_diffs else 0
-                    ),
-                    "first_tx_timestamp": first_timestamp,
-                    "last_tx_timestamp": last_timestamp
-                }
-            except Exception as e:
-                logger.error("Error calculating chain statistics: %s", e, exc_info=True)
-                return {}
+            return {
+                "total_transactions": len(transactions),
+                "total_amount": float(total_amount),
+                "unique_addresses": len(unique_addresses),
+                "average_time_between_tx": (
+                    sum(time_diffs) / len(time_diffs) if time_diffs else 0
+                ),
+                "first_tx_timestamp": first_timestamp,
+                "last_tx_timestamp": last_timestamp
+            }
+        except Exception as e:
+            logger.error("Error calculating chain statistics: %s", e, exc_info=True)
+            return {}
 
     async def get_wallet_transactions(
         self,
@@ -199,20 +192,21 @@ class TransactionService:
         limit: int = 100,
         before: Optional[str] = None
     ) -> TransactionBatch:
-        """
-        Fetch transactions for a specific wallet address.
-        """
-        logger.info("Fetching wallet transactions for %s (limit=%d, before=%s)", address, limit, before)
+        """Fetch transactions for a specific wallet address."""
+        logger.info("Fetching wallet transactions for %s (limit=%d, before=%s)", 
+                   address, limit, before)
         try:
             batch = await self.solana_repo.get_transactions_for_address(
                 address=address,
                 before=before,
                 limit=limit
             )
-            logger.debug("Fetched %d transactions for wallet %s", len(batch.transactions), address)
+            logger.debug("Fetched %d transactions for wallet %s", 
+                        len(batch.transactions), address)
             return batch
         except Exception as e:
-            logger.error("Error fetching wallet transactions for %s: %s", address, e, exc_info=True)
+            logger.error("Error fetching wallet transactions for %s: %s", 
+                        address, e, exc_info=True)
             raise
 
     @lru_cache(maxsize=100)
