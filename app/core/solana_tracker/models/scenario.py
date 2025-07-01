@@ -27,6 +27,18 @@ class ScenarioType(str, Enum):
     pending = "pending"
     completed = "completed"
 
+class AmountThreshold(BaseModel):
+    """Model for defining amount thresholds in scenario detection."""
+    min_amount: Decimal = Field(..., description="Minimum amount for threshold")
+    max_amount: Optional[Decimal] = Field(None, description="Maximum amount for threshold")
+    currency: str = Field(..., description="Currency for the threshold (e.g., 'SOL', 'USDC')")
+    confidence_level: float = Field(
+        default=0.8,
+        ge=0.0,
+        le=1.0,
+        description="Confidence level for this threshold"
+    )
+
 @dataclass
 class DeFiProtocol:
     """Information about a DeFi protocol."""
