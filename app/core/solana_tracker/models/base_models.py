@@ -14,9 +14,12 @@ class TransactionBase(BaseModel):
             raise ValueError("Transaction hash must be at least 32 characters")
         return v
 
+    class Config:
+        allow_population_by_field_name = True
+
 class TransactionMessageDetail(BaseModel):
-    accountKeys: List[str] = Field(default_factory=list)
-    recentBlockhash: str = Field(default="")
+    account_keys: List[str] = Field(default_factory=list, alias="accountKeys")
+    recent_blockhash: str = Field(default="", alias="recentBlockhash")
     instructions: List[Dict[str, Any]] = Field(default_factory=list)
     header: Dict[str, Any] = Field(default_factory=dict)
 
@@ -25,10 +28,10 @@ class TransactionMessageDetail(BaseModel):
 
 class TransactionMetaDetail(BaseModel):
     fee: int = Field(default=0)
-    preBalances: List[int] = Field(default_factory=list)
-    postBalances: List[int] = Field(default_factory=list)
-    innerInstructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
-    logMessages: Optional[List[str]] = Field(default_factory=list)
+    pre_balances: List[int] = Field(default_factory=list, alias="preBalances")
+    post_balances: List[int] = Field(default_factory=list, alias="postBalances")
+    inner_instructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list, alias="innerInstructions")
+    log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages")
     err: Optional[Dict[str, Any]] = Field(default=None)
 
     class Config:
@@ -40,8 +43,8 @@ class TransactionDetail(BaseModel):
     slot: Optional[int] = None
     meta: Optional[TransactionMetaDetail] = None
     block_time: Optional[int] = None
-    signature: str = Field(default="")  # Added this field
-    transaction: Optional[TransactionBase] = None  # Added this field
+    signature: str = Field(default="")
+    transaction: Optional[TransactionBase] = None
 
     @property
     def human_readable_time(self) -> Optional[str]:
@@ -70,7 +73,6 @@ class TransferAmount(BaseModel):
         }
 
 class TrackedTransaction(BaseModel):
-    """Transaction with tracking information."""
     tx_hash: str
     from_wallet: str
     to_wallet: Optional[str] = None
@@ -79,21 +81,16 @@ class TrackedTransaction(BaseModel):
     value_in_target_currency: Optional[Decimal] = None
 
     class Config:
+        allow_population_by_field_name = True
         json_encoders = {
             Decimal: str,
             datetime: lambda v: v.isoformat()
         }
 
-    @validator('tx_hash')
-    def validate_tx_hash(cls, v: str) -> str:
-        if not v or len(v) < 32:
-            raise ValueError("Transaction hash must be at least 32 characters")
-        return v
-
 class TransactionBatch(BaseModel):
     transactions: List[TransactionDetail]
     total_count: int
-    start_index: int = 0
+    start_index: int = Field(default=0)
 
     @validator('transactions')
     def validate_batch_size(cls, v):
@@ -102,6 +99,7 @@ class TransactionBatch(BaseModel):
         return v
 
     class Config:
+        allow_population_by_field_name = True
         json_encoders = {
             datetime: lambda v: v.isoformat(),
             Decimal: str
