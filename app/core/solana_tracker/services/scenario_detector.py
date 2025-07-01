@@ -12,7 +12,7 @@ from app.core.solana_tracker.models.scenario import (
     ScenarioRule,
     ScenarioConfig,
     AmountThreshold,
-    LargeDepositRule,
+    LargeDepositRule,  # Jetzt verfügbar
     ScenarioPattern,
     DeFiProtocol
 )
