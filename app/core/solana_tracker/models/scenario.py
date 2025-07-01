@@ -47,6 +47,14 @@ class ScenarioType(str, Enum):
     pending = "pending"
     completed = "completed"
 
+class LargeDepositRule(BaseModel):
+    """Rule for large deposits in DeFi protocols."""
+    protocol_name: str
+    min_deposit_amount: float
+    allowed_tokens: Optional[List[str]] = None
+    excluded_addresses: Optional[List[str]] = None
+    confidence_score: float = 0.8
+
 class AmountThreshold(BaseModel):
     """Model for defining amount thresholds in scenario detection."""
     min_amount: Decimal = Field(..., description="Minimum amount for threshold")
