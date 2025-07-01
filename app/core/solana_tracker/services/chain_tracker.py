@@ -5,6 +5,7 @@ import asyncio
 from decimal import Decimal
 import base58
 import json
+from functools import wraps
 
 # Ändern der Imports auf base_models
 from app.core.solana_tracker.models.base_models import (
@@ -143,22 +144,30 @@ class ChainTracker:
             logger.error("Error tracking transaction chain from %s: %s", start_tx_hash, e, exc_info=True)
             return []
 
-    @retry_with_exponential_backoff(max_retries=3)
-    async def _get_transaction_safe(
-        self,
-        tx_hash: str
-    ) -> Optional[TransactionDetail]:
-        logger.debug("Fetching transaction safely for %s", tx_hash)
-        try:
-            tx_detail = await self.solana_repo.get_transaction(tx_hash)
-            if tx_detail:
-                logger.debug("Successfully retrieved transaction %s", tx_hash)
-                return tx_detail
-            logger.warning("Transaction %s not found", tx_hash)
-            return None
-        except Exception as e:
-            logger.error("Error fetching transaction %s: %s", tx_hash, e, exc_info=True)
-            return None
+    def retry_with_exponential_backoff(max_retries=3, initial_delay=1):
+        """Decorator für exponentielles Backoff bei Wiederholungsversuchen."""
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                retries = 0
+                current_delay = initial_delay
+                
+                while retries < max_retries:
+                    try:
+                        return await func(*args, **kwargs)
+                    except Exception as e:
+                        retries += 1
+                        if retries == max_retries:
+                            logger.error(f"Max retries ({max_retries}) reached for {func.__name__}")
+                            raise e
+                        
+                        logger.warning(f"Attempt {retries} failed, retrying in {current_delay} seconds")
+                        await asyncio.sleep(current_delay)
+                        current_delay *= 2  # Exponentielles Backoff
+                
+                return None  # Sollte nie erreicht werden
+            return wrapper
+        return decorator
 
     async def _process_transaction(
         self,
