@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from decimal import Decimal
 from dataclasses import dataclass
+from pydantic import BaseModel, Field
 
 class ScenarioType(str, Enum):
     """Types of scenarios that can be detected."""
