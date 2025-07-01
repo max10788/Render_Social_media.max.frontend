@@ -5,11 +5,7 @@ from decimal import Decimal
 import asyncio
 from functools import lru_cache
 
-from app.core.solana_tracker.models.base_models import (
-    TrackedTransaction,
-    TransactionDetail,
-    TransactionBatch
-)
+from app.core.solana_tracker.models.base_models import TransactionDetail, TransactionBatch
 from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
 from app.core.solana_tracker.repositories.cache_repository import CacheRepository
 from app.core.solana_tracker.services.chain_tracker import ChainTracker
