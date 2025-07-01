@@ -5,6 +5,25 @@ from decimal import Decimal
 from dataclasses import dataclass
 from pydantic import BaseModel, Field
 
+__all__ = [
+    'ScenarioType',
+    'AddressPattern',
+    'AmountThreshold',
+    'LargeDepositRule',  # Hinzugefügt
+    'DeFiProtocol',
+    'BridgeInfo',
+    'ScenarioDetails',
+    'ScenarioRule',
+    'StakingRule',
+    'DeFiRule',
+    'BridgeRule',
+    'NFTRule',
+    'ScenarioConfig',
+    'DetectedScenario',
+    'ScenarioAnalysis',
+    'ScenarioPattern'
+]
+
 class ScenarioType(str, Enum):
     """Types of scenarios that can be detected."""
     # Basic Scenarios
