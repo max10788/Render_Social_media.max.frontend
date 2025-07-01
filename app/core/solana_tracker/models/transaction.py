@@ -4,10 +4,7 @@ from pydantic import BaseModel, Field, validator
 from decimal import Decimal
 from app.models.schemas import RateLimitConfig, EndpointMetrics, RpcError
 from dataclasses import dataclass
-from app.core.solana_tracker.models.base_models import (
-    TransactionBase,
-    TransactionDetail
-)
+from app.core.solana_tracker.models.base_models import BaseTransaction, TransactionDetail
 
 class RateLimiter:
     """Rate limiter using token bucket algorithm."""
