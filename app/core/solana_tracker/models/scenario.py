@@ -1,181 +1,60 @@
 from enum import Enum
-from typing import Dict, List, Optional, Union, Any
-from pydantic import BaseModel, Field
+from typing import Dict, List, Optional, Any
+from datetime import datetime
 from decimal import Decimal
 from dataclasses import dataclass
 
-all = ['ScenarioType', 'AddressPattern', 'AmountThreshold', 'DeFiProtocol', 'BridgeInfo',
-       'ScenarioDetails', 'ScenarioRule', 'StakingRule', 'DeFiRule', 'BridgeRule', 'NFTRule',
-       'ScenarioConfig', 'DetectedScenario', 'ScenarioAnalysis', 'ScenarioPattern']
-
 class ScenarioType(str, Enum):
-    # Investment/Storage Scenarios
+    """Types of scenarios that can be detected."""
+    # Basic Scenarios
+    large_transfer = "large_transfer"
+    token_swap = "token_swap"
     delegated_staking = "delegated_staking"
-    liquid_staking = "liquid_staking"
     defi_deposit = "defi_deposit"
+
+    # Investment Scenarios
     nft_investment = "nft_investment"
-    multi_sig_storage = "multi_sig_storage"
     cold_storage = "cold_storage"
     hardware_wallet = "hardware_wallet"
 
-    # Conversion/Exchange Scenarios
-    converted_to_stablecoin = "converted_to_stablecoin"
-    swapped_to_other_token = "swapped_to_other_token"
-    token_swap = "token_swap"
-    cross_chain_bridge = "cross_chain_bridge"
-    otc_trade = "otc_trade"
-    arbitrage_trade = "arbitrage_trade"
-
-    # DeFi Activity Scenarios
-    lending_deposit = "lending_deposit"
+    # DeFi Scenarios
     liquidity_provision = "liquidity_provision"
     yield_farming = "yield_farming"
-    flash_loan_arbitrage = "flash_loan_arbitrage"
+    flash_loan = "flash_loan"
 
-    # Program Interaction Scenarios
-    smart_contract_interaction = "smart_contract_interaction"
-    program_owned_account = "program_owned_account"
-    program_derived_address = "program_derived_address"
+    # Status Scenarios
+    failed = "failed"
+    pending = "pending"
+    completed = "completed"
 
-    # Special Cases
-    donation_or_grant = "donation_or_grant"
-    lost_or_dust = "lost_or_dust"
-    burned = "burned"
-    frozen = "frozen"
-
-    # Transaction Status
-    failed_transaction = "failed_transaction"
-    pending_validation = "pending_validation"
-    returned_to_origin = "returned_to_origin"
-
-    # Neue Einträge aus ScenarioPatterns
-    large_transfer = "large_transfer"
-    nft_minting = "nft_minting"
-    governance_participation = "governance_participation"
-    wash_trading = "wash_trading"
-    reward_claim = "reward_claim"
-    token_launch = "token_launch"
-    flashloan_usage = "flashloan_usage"
-
-class AddressPattern(BaseModel):
-    """Pattern matching for addresses."""
-    prefix: Optional[str] = None
-    suffix: Optional[str] = None
-    exact: Optional[str] = None
-    contains: Optional[List[str]] = None
-
-class AmountThreshold(BaseModel):
-    """Amount-based detection rules."""
-    min_amount: Optional[Decimal] = None
-    max_amount: Optional[Decimal] = None
-    dust_threshold: Optional[Decimal] = Field(default=Decimal('0.000001'))
-
-class LargeDepositRule(BaseModel):
-    protocol_name: str
-    min_deposit_amount: float
-    allowed_tokens: Optional[List[str]] = None
-    excluded_addresses: Optional[List[str]] = None
-    confidence_score: float = 0.8
-
-class DeFiProtocol(BaseModel):
+@dataclass
+class DeFiProtocol:
+    """Information about a DeFi protocol."""
     name: str
-    program_id: Optional[str] = None  # Optional gemacht
-    addresses: Optional[List[str]] = None
+    program_id: Optional[str] = None
+    addresses: List[str] = None
 
-class BridgeInfo(BaseModel):
-    """Cross-chain bridge information."""
-    name: str
-    address_patterns: List[AddressPattern]
-    target_chain: str
-    protocol: str
+    def __post_init__(self):
+        if self.addresses is None:
+            self.addresses = []
 
-class ScenarioDetails(BaseModel):
-    """Detailed information about detected scenario."""
+@dataclass
+class ScenarioDetails:
+    """Details of a detected scenario."""
     type: ScenarioType
-    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    confidence_score: float
     detection_time: str
     relevant_addresses: List[str]
-    metadata: Dict[str, Union[str, int, float, bool]]
-    is_terminal: bool = Field(default=False)
-    expected_duration: Optional[str] = None
-    can_be_recovered: bool = Field(default=True)
-    user_action_required: bool = Field(default=False)
-    risk_level: str = Field(default="low")
+    metadata: Dict[str, Any]
 
-    class Config:
-        arbitrary_types_allowed = True
-
-class ScenarioRule(BaseModel):
-    """Base class for scenario detection rules."""
-    type: ScenarioType
-    confidence: float = Field(1.0, ge=0.0, le=1.0)
-    description: str
-    enabled: bool = True
-    program_ids: Optional[List[str]] = None
-    address_patterns: Optional[List[str]] = None
-    amount_thresholds: Optional[AmountThreshold] = None
-    is_terminal: bool = False
-    metadata_requirements: Optional[Dict[str, Any]] = None
-
-class StakingRule(ScenarioRule):
-    """Rules for detecting staking operations."""
-    type: ScenarioType = ScenarioType.delegated_staking
-    validator_addresses: List[str]
-    min_stake_amount: Decimal
-
-class DeFiRule(ScenarioRule):
-    """Rules for detecting DeFi operations."""
-    type: ScenarioType = ScenarioType.defi_deposit
-    protocols: List[DeFiProtocol]
-    min_transaction_amount: Decimal
-
-class BridgeRule(ScenarioRule):
-    """Rules for detecting cross-chain bridges."""
-    type: ScenarioType = ScenarioType.cross_chain_bridge
-    bridges: List[BridgeInfo]
-
-class NFTRule(ScenarioRule):
-    """Rules for detecting NFT transactions."""
-    type: ScenarioType = ScenarioType.nft_investment
-    marketplace_addresses: List[str]
-    marketplace_program_ids: List[str]
-
-class ScenarioConfig(BaseModel):
-    """Configuration for scenario detection."""
-    rules: List[ScenarioRule]
-    max_depth: int = Field(default=10, ge=1, le=100)
-    min_confidence: float = Field(default=0.8, ge=0.0, le=1.0)
-
-class DetectedScenario(BaseModel):
+@dataclass
+class DetectedScenario:
     """Result of scenario detection."""
     type: ScenarioType
-    confidence: float = Field(..., ge=0.0, le=1.0)
+    confidence: float
     details: ScenarioDetails
     related_transactions: List[str]
     detection_rules_matched: List[str]
-    user_message: str = Field(default="")
-    next_steps: Optional[List[str]] = None
-
-    class Config:
-        use_enum_values = True
-        json_encoders = {
-            Decimal: lambda v: str(v)
-        }
-
-    @property
-    def is_terminal(self) -> bool:
-        """Check if this scenario represents an end state."""
-        return self.details.is_terminal
-
-class ScenarioAnalysis(BaseModel):
-    """Complete analysis of detected scenarios."""
-    scenarios: List[DetectedScenario]
-    analysis_duration: float
-    total_transactions_analyzed: int
-    detection_timestamp: str
-
-    class Config:
-        arbitrary_types_allowed = True
 
 @dataclass
 class ScenarioPattern:
@@ -183,3 +62,54 @@ class ScenarioPattern:
     type: ScenarioType
     confidence_threshold: float
     pattern_rules: Dict[str, Any]
+
+@dataclass
+class ScenarioRule:
+    """Base configuration for scenario detection rules."""
+    type: ScenarioType
+    confidence_threshold: float = 0.8
+    min_amount: Optional[Decimal] = None
+    program_ids: List[str] = None
+    description: str = ""
+
+    def __post_init__(self):
+        if self.program_ids is None:
+            self.program_ids = []
+
+@dataclass
+class ScenarioConfig:
+    """Configuration for scenario detection."""
+    rules: List[ScenarioRule]
+    max_depth: int = 10
+    min_confidence: float = 0.8
+
+def create_scenario_details(
+    scenario_type: ScenarioType,
+    confidence_score: float,
+    relevant_addresses: List[str],
+    metadata: Dict[str, Any]
+) -> ScenarioDetails:
+    """Helper function to create scenario details."""
+    return ScenarioDetails(
+        type=scenario_type,
+        confidence_score=confidence_score,
+        detection_time=datetime.utcnow().isoformat(),
+        relevant_addresses=relevant_addresses,
+        metadata=metadata
+    )
+
+def create_detected_scenario(
+    scenario_type: ScenarioType,
+    confidence: float,
+    details: ScenarioDetails,
+    related_transactions: List[str],
+    rules_matched: List[str]
+) -> DetectedScenario:
+    """Helper function to create detected scenario."""
+    return DetectedScenario(
+        type=scenario_type,
+        confidence=confidence,
+        details=details,
+        related_transactions=related_transactions,
+        detection_rules_matched=rules_matched
+    )
