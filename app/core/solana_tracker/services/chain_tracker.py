@@ -11,7 +11,7 @@ from functools import wraps
 from app.core.solana_tracker.models.base_models import (
     TrackedTransaction,
     TransactionDetail,
-    TransactionBase
+    BaseTransaction
 )
 from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
 
