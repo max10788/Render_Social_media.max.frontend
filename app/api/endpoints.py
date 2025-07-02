@@ -38,7 +38,6 @@ from app.core.solana_tracker.repositories.enhanced_solana_repository import Enha
 from app.core.solana_tracker.services.chain_tracker import ChainTracker
 from app.core.solana_tracker.services.transaction_service import TransactionService
 from app.core.solana_tracker.models.scenario import ScenarioType
-from app.core.solana_tracker.repositories.solana_repository import SolanaRepository
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
 from app.core.solana_tracker.models.transaction import TransactionDetail, TrackedTransaction
 
