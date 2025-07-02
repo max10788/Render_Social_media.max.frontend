@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
 
-class TransactionBase(BaseModel):
+class BaseTransaction(BaseModel):
     """Base Transaction DTO with common fields."""
     tx_hash: str = Field(..., description="Transaction signature/hash")
     timestamp: datetime = Field(..., description="Transaction timestamp")
@@ -44,7 +44,7 @@ class TransactionDetail(BaseModel):
     meta: Optional[TransactionMetaDetail] = None
     block_time: Optional[int] = None
     signature: str = Field(default="")
-    transaction: Optional[TransactionBase] = None
+    transaction: Optional[BaseTransaction] = None  # Hier auch aktualisiert
 
     @property
     def human_readable_time(self) -> Optional[str]:
