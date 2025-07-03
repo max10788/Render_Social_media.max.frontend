@@ -3,6 +3,20 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
 
+class BaseTransaction(BaseModel):
+    """Base Transaction DTO with common fields."""
+    tx_hash: str = Field(..., description="Transaction signature/hash")
+    timestamp: datetime = Field(..., description="Transaction timestamp")
+    
+    @validator('tx_hash')
+    def validate_tx_hash(cls, v):
+        if not v or len(v) < 32:
+            raise ValueError("Transaction hash must be at least 32 characters")
+        return v
+
+    class Config:
+        allow_population_by_field_name = True
+
 class Transfer(BaseModel):
     """Transfer details within a transaction."""
     from_address: str
@@ -50,20 +64,6 @@ class TokenInfo(BaseModel):
     mint_address: str = Field(..., min_length=32)
     token_symbol: Optional[str] = None
     decimals: int = Field(default=9, ge=0, le=18)
-
-class BaseTransaction(BaseModel):
-    """Base Transaction DTO with common fields."""
-    tx_hash: str = Field(..., description="Transaction signature/hash")
-    timestamp: datetime = Field(..., description="Transaction timestamp")
-    
-    @validator('tx_hash')
-    def validate_tx_hash(cls, v):
-        if not v or len(v) < 32:
-            raise ValueError("Transaction hash must be at least 32 characters")
-        return v
-
-    class Config:
-        allow_population_by_field_name = True
 
 class TransactionMessageDetail(BaseModel):
     account_keys: List[str] = Field(default_factory=list, alias="accountKeys")
