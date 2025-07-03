@@ -1,29 +1,51 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, constr, conint
-from sqlalchemy.orm import Session
+# Standard Library Imports
 from datetime import datetime
 import logging
 import os
+import uuid
+from decimal import Decimal
+from typing import List, Dict, Any, Optional
+
+# Third Party Imports
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, constr, conint
+from sqlalchemy.orm import Session
+import aiohttp
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import joblib
-import uuid
-from fastapi.staticfiles import StaticFiles
-from typing import List, Dict, Any, Optional
-import aiohttp
 from textblob import TextBlob
-from decimal import Decimal  # Add this import
 
-# Interne Module importieren
+# Core App Imports
+from app.core.config import get_settings, Settings, MetricsConfig
+from app.core.database import get_db, init_db
+from app.core.exceptions import (
+    CryptoTrackerError,
+    TransactionNotFoundError,
+    MultiSigAccessError
+)
 from app.core.feature_engineering import extract_features, generate_labels
 from app.core.twitter_api import TwitterClient
 from app.core.blockchain_api import fetch_on_chain_data
-from app.models.db_models import SentimentAnalysis, OnChainTransaction, Feedback, CryptoTransaction
-from app.core.database import get_db, init_db
+from app.core.crypto_tracker import CryptoTrackingService
+from app.core.solana_client import SolanaClient
+from app.core.ethereum_client import EthereumClient
+from app.core.exchange_rate import CoinGeckoExchangeRate
+from app.core.cache import InMemoryCache
 
+# Database Models
+from app.models.db_models import (
+    SentimentAnalysis,
+    OnChainTransaction,
+    Feedback,
+    CryptoTransaction
+)
+
+# Schema Models
 from app.models.schemas import (
     AnalyzeRequest, 
     AnalyzeResponse, 
@@ -31,28 +53,25 @@ from app.models.schemas import (
     TransactionTrackRequest, 
     TransactionTrackResponse,
     BlockchainEnum,
-    FinalStatusEnum,
+    FinalStatusEnum
 )
 
+# Solana Tracker Imports
+from app.core.solana_tracker.models.base_models import (
+    TransactionDetail,
+    TrackedTransaction,
+    TransactionMessageDetail,
+    BaseTransaction
+)
+from app.core.solana_tracker.models.scenario import (
+    ScenarioType,
+    ScenarioDetails,
+    DetectedScenario
+)
 from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
 from app.core.solana_tracker.services.chain_tracker import ChainTracker
 from app.core.solana_tracker.services.transaction_service import TransactionService
-from app.core.solana_tracker.models.scenario import ScenarioType
 from app.core.solana_tracker.utils.rpc_endpoint_manager import RpcEndpointManager
-from app.core.solana_tracker.models.base_models import (
-    TransactionMessageDetail,
-    TransactionDetail,
-    BaseTransaction
-)
-
-from app.core.crypto_tracker import CryptoTrackingService
-from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
-from app.core.exceptions import TransactionNotFoundError, CryptoTrackerError
-from app.core.solana_client import SolanaClient
-from app.core.ethereum_client import EthereumClient
-from app.core.exchange_rate import CoinGeckoExchangeRate
-from app.core.cache import InMemoryCache
-from app.core.config import get_settings, Settings, MetricsConfig
 
 # Logger konfigurieren
 logger = logging.getLogger(__name__)
