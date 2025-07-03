@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Any
 import logging
 from fastapi import HTTPException
 
-from app.core.solana_tracker.models.transaction import TransactionDetail, TrackedTransaction
+from app.core.solana_tracker.models.base_models import TransactionDetail, TrackedTransaction
 from app.core.solana_tracker.models.scenario import ScenarioType, ScenarioDetail
 from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
 from app.core.solana_tracker.utils.retry import retry_with_exponential_backoff
