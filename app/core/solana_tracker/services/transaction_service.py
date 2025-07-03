@@ -4,11 +4,38 @@ from typing import Dict, List, Optional, Any
 import logging
 from fastapi import HTTPException
 
-from app.core.solana_tracker.models.base_models import TransactionDetail, TrackedTransaction
-from app.core.solana_tracker.models.scenario import ScenarioType, ScenarioDetail
+# Base models
+from app.core.solana_tracker.models.base_models import (
+    TransactionDetail,
+    TrackedTransaction,
+    TransactionMessageDetail,
+    TransactionMetaDetail,
+    BaseTransaction
+)
+
+# Scenario models
+from app.core.solana_tracker.models.scenario import (
+    ScenarioType,
+    ScenarioDetails,
+    DetectedScenario,
+    ScenarioRule,
+    ScenarioConfig,
+    ScenarioPattern
+)
+
+# Repository
 from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
+
+# Utils
 from app.core.solana_tracker.utils.retry import retry_with_exponential_backoff
-from app.core.exceptions import MultiSigAccessError, TransactionValidationError
+
+# Core exceptions
+from app.core.exceptions import (
+    MultiSigAccessError,
+    CryptoTrackerError,
+    TransactionNotFoundError,
+    APIError
+)
 
 logger = logging.getLogger(__name__)
 
