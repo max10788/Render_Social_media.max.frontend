@@ -3,6 +3,54 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
 
+class Transfer(BaseModel):
+    """Transfer details within a transaction."""
+    from_address: str
+    to_address: Optional[str] = None
+    amount: Decimal = Field(..., ge=0)
+    direction: str = Field(..., regex="^(in|out)$")
+
+    class Config:
+        allow_population_by_field_name = True
+        json_encoders = {
+            Decimal: str
+        }
+
+class SolanaTransaction(BaseTransaction):
+    """Complete Solana transaction model."""
+    fee: Decimal = Field(default=0, ge=0)
+    success: bool = True
+    error_message: Optional[str] = None
+    block_time: Optional[int] = None
+    signatures: List[str] = Field(default_factory=list)
+
+    class Config:
+        allow_population_by_field_name = True
+        json_encoders = {
+            Decimal: str
+        }
+
+class TransactionInstruction(BaseModel):
+    """Individual instruction within a transaction."""
+    program_id: str
+    accounts: List[AccountMeta]
+    data: Optional[str] = None
+
+    class Config:
+        allow_population_by_field_name = True
+
+class AccountMeta(BaseModel):
+    """Account metadata for transaction participants."""
+    address: str = Field(..., min_length=32)
+    is_signer: bool = False
+    is_writable: bool = False
+
+class TokenInfo(BaseModel):
+    """SPL Token specific information."""
+    mint_address: str = Field(..., min_length=32)
+    token_symbol: Optional[str] = None
+    decimals: int = Field(default=9, ge=0, le=18)
+
 class BaseTransaction(BaseModel):
     """Base Transaction DTO with common fields."""
     tx_hash: str = Field(..., description="Transaction signature/hash")
