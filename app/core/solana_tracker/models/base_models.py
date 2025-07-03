@@ -3,15 +3,6 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
 
-class AccountMeta(BaseModel):
-    """Account metadata for transaction participants."""
-    address: str = Field(..., min_length=32)
-    is_signer: bool = False
-    is_writable: bool = False
-
-    class Config:
-        allow_population_by_field_name = True
-
 class BaseTransaction(BaseModel):
     """Base Transaction DTO with common fields."""
     tx_hash: str = Field(..., description="Transaction signature/hash")
@@ -26,59 +17,12 @@ class BaseTransaction(BaseModel):
     class Config:
         allow_population_by_field_name = True
 
-class TransactionInstruction(BaseModel):
-    """Individual instruction within a transaction."""
-    program_id: str
-    accounts: List[AccountMeta]
-    data: Optional[str] = None
-
-    class Config:
-        allow_population_by_field_name = True
-
-class Transfer(BaseModel):
-    """Transfer details within a transaction."""
-    from_address: str
-    to_address: Optional[str] = None
-    amount: Decimal = Field(..., ge=0)
-    direction: str = Field(..., regex="^(in|out)$")
-
-    class Config:
-        allow_population_by_field_name = True
-        json_encoders = {
-            Decimal: str
-        }
-
-class SolanaTransaction(BaseTransaction):
-    """Complete Solana transaction model."""
-    fee: Decimal = Field(default=0, ge=0)
-    success: bool = True
-    error_message: Optional[str] = None
-    block_time: Optional[int] = None
-    signatures: List[str] = Field(default_factory=list)
-
-    class Config:
-        allow_population_by_field_name = True
-        json_encoders = {
-            Decimal: str
-        }
-
-class AccountMeta(BaseModel):
-    """Account metadata for transaction participants."""
-    address: str = Field(..., min_length=32)
-    is_signer: bool = False
-    is_writable: bool = False
-
-class TokenInfo(BaseModel):
-    """SPL Token specific information."""
-    mint_address: str = Field(..., min_length=32)
-    token_symbol: Optional[str] = None
-    decimals: int = Field(default=9, ge=0, le=18)
-
 class TransactionMessageDetail(BaseModel):
     account_keys: List[str] = Field(default_factory=list, alias="accountKeys")
     recent_blockhash: str = Field(default="", alias="recentBlockhash")
     instructions: List[Dict[str, Any]] = Field(default_factory=list)
     header: Dict[str, Any] = Field(default_factory=dict)
+    required_signatures: int = Field(default=1, ge=1, le=20)
 
     class Config:
         allow_population_by_field_name = True
@@ -90,6 +34,7 @@ class TransactionMetaDetail(BaseModel):
     inner_instructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list, alias="innerInstructions")
     log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages")
     err: Optional[Dict[str, Any]] = Field(default=None)
+    available_signatures: Optional[int] = Field(default=None)
 
     class Config:
         allow_population_by_field_name = True
@@ -101,13 +46,33 @@ class TransactionDetail(BaseModel):
     meta: Optional[TransactionMetaDetail] = None
     block_time: Optional[int] = None
     signature: str = Field(default="")
-    transaction: Optional[BaseTransaction] = None  # Hier auch aktualisiert
+    transaction: Optional[BaseTransaction] = None
+    is_multi_sig: bool = Field(default=False)
+    multi_sig_config: Optional[Dict[str, Any]] = Field(default=None)
+    error_details: Optional[str] = Field(default=None)
 
     @property
     def human_readable_time(self) -> Optional[str]:
         if self.block_time is not None:
             return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
         return None
+
+    @property
+    def required_signatures(self) -> int:
+        return self.message.required_signatures if self.message else 1
+
+    @property
+    def available_signatures(self) -> int:
+        return self.meta.available_signatures if self.meta else 0
+
+    @property
+    def signature_progress(self) -> Optional[float]:
+        if not self.is_multi_sig:
+            return None
+        req = self.required_signatures
+        if req <= 0:
+            return 0.0
+        return (self.available_signatures or 0) / req
 
     class Config:
         allow_population_by_field_name = True
@@ -136,6 +101,48 @@ class TrackedTransaction(BaseModel):
     amount: Decimal
     timestamp: datetime
     value_in_target_currency: Optional[Decimal] = None
+    status: str = Field(
+        default="pending",
+        description="Transaction status"
+    )
+    remaining_amount: Optional[Decimal] = None
+    scenario_type: Optional[str] = None
+    
+    # Multi-Sig spezifische Felder
+    is_multi_sig: bool = Field(default=False)
+    required_signatures: Optional[int] = None
+    available_signatures: Optional[int] = None
+    multi_sig_status: Optional[str] = None
+    error_details: Optional[str] = None
+
+    @validator('status')
+    def validate_status(cls, v: str) -> str:
+        valid_statuses = {
+            "pending", "confirmed", "failed", "multi_sig_pending",
+            "multi_sig_partial", "multi_sig_complete", "multi_sig_failed"
+        }
+        if v not in valid_statuses:
+            raise ValueError(f"Invalid status. Allowed values: {valid_statuses}")
+        return v
+
+    @validator('multi_sig_status')
+    def validate_multi_sig_status(cls, v: Optional[str], values: Dict[str, Any]) -> Optional[str]:
+        if v is not None and not values.get('is_multi_sig', False):
+            raise ValueError("Multi-sig status can only be set for multi-sig transactions")
+        valid_statuses = {
+            "awaiting_signatures", "partially_signed", "fully_signed",
+            "execution_failed", "executed", None
+        }
+        if v not in valid_statuses:
+            raise ValueError(f"Invalid multi-sig status. Allowed values: {valid_statuses}")
+        return v
+
+    @property
+    def signature_progress(self) -> Optional[float]:
+        """Calculate signature collection progress."""
+        if not self.is_multi_sig or not self.required_signatures:
+            return None
+        return (self.available_signatures or 0) / self.required_signatures
 
     class Config:
         allow_population_by_field_name = True
@@ -148,11 +155,26 @@ class TransactionBatch(BaseModel):
     transactions: List[TransactionDetail]
     total_count: int
     start_index: int = Field(default=0)
+    multi_sig_count: int = Field(default=0)
+    failed_count: int = Field(default=0)
+    batch_status: str = Field(default="complete")
 
     @validator('transactions')
     def validate_batch_size(cls, v):
         if len(v) > 1000:
             raise ValueError("Batch size cannot exceed 1000 transactions")
+        return v
+
+    @validator('multi_sig_count')
+    def validate_multi_sig_count(cls, v: int, values: Dict[str, Any]) -> int:
+        if 'total_count' in values and v > values['total_count']:
+            raise ValueError("Multi-sig count cannot exceed total count")
+        return v
+
+    @validator('failed_count')
+    def validate_failed_count(cls, v: int, values: Dict[str, Any]) -> int:
+        if 'total_count' in values and v > values['total_count']:
+            raise ValueError("Failed count cannot exceed total count")
         return v
 
     class Config:
