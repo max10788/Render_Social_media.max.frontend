@@ -2,25 +2,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
 import logging
-from fastapi import HTTPException
 
 # Base models
 from app.core.solana_tracker.models.base_models import (
     TransactionDetail,
-    TrackedTransaction,
-    TransactionMessageDetail,
-    TransactionMetaDetail,
-    BaseTransaction
-)
-
-# Scenario models
-from app.core.solana_tracker.models.scenario import (
-    ScenarioType,
-    ScenarioDetails,
-    DetectedScenario,
-    ScenarioRule,
-    ScenarioConfig,
-    ScenarioPattern
+    TrackedTransaction
 )
 
 # Repository
@@ -32,9 +18,7 @@ from app.core.solana_tracker.utils.retry import retry_with_exponential_backoff
 # Core exceptions
 from app.core.exceptions import (
     MultiSigAccessError,
-    CryptoTrackerError,
-    TransactionNotFoundError,
-    APIError
+    TransactionNotFoundError
 )
 
 logger = logging.getLogger(__name__)
