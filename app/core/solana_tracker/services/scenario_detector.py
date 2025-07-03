@@ -4,18 +4,22 @@ import logging
 from decimal import Decimal
 import asyncio
 from dataclasses import dataclass
+
+# Base models
 from app.core.solana_tracker.models.base_models import TrackedTransaction
+
+# Scenario models
 from app.core.solana_tracker.models.scenario import (
     ScenarioType,
     ScenarioDetails,
     DetectedScenario,
     ScenarioRule,
     ScenarioConfig,
-    AmountThreshold,
-    LargeDepositRule,  # Jetzt verfügbar
-    ScenarioPattern,
-    DeFiProtocol
+    ScenarioPattern
 )
+
+# Core exceptions
+from app.core.exceptions import MultiSigAccessError
 
 logger = logging.getLogger(__name__)
 
