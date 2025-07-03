@@ -26,6 +26,15 @@ class BaseTransaction(BaseModel):
     class Config:
         allow_population_by_field_name = True
 
+class TransactionInstruction(BaseModel):
+    """Individual instruction within a transaction."""
+    program_id: str
+    accounts: List[AccountMeta]
+    data: Optional[str] = None
+
+    class Config:
+        allow_population_by_field_name = True
+
 class Transfer(BaseModel):
     """Transfer details within a transaction."""
     from_address: str
@@ -52,15 +61,6 @@ class SolanaTransaction(BaseTransaction):
         json_encoders = {
             Decimal: str
         }
-
-class TransactionInstruction(BaseModel):
-    """Individual instruction within a transaction."""
-    program_id: str
-    accounts: List[AccountMeta]
-    data: Optional[str] = None
-
-    class Config:
-        allow_population_by_field_name = True
 
 class AccountMeta(BaseModel):
     """Account metadata for transaction participants."""
