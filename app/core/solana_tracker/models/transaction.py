@@ -214,60 +214,7 @@ class TrackedTransaction(TransactionBase):
             datetime: lambda v: v.isoformat()
         }
         
-class TransactionMessageDetail(BaseModel):
-    accountKeys: list[str] = Field(default_factory=list)
-    recentBlockhash: str = Field(default="")
-    instructions: list[dict[str, any]] = Field(default_factory=list)
-    header: dict[str, any] = Field(default_factory=dict)
-    
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
 
-class TransactionMetaDetail(BaseModel):
-    fee: int = 0
-    preBalances: List[int] = Field(default_factory=list)
-    postBalances: List[int] = Field(default_factory=list)
-    innerInstructions: Optional[List[Dict[str, Any]]] = None
-    logMessages: Optional[List[str]] = None
-    err: Optional[Dict[str, Any]] = None
-
-    class Config:
-        arbitrary_types_allowed = True
-
-class TransactionDetail(BaseModel):
-    signatures: List[str] = Field(default_factory=list)
-    message: Optional[TransactionMessageDetail] = None
-    slot: Optional[int] = None
-    meta: Optional[TransactionMetaDetail] = None
-    block_time: Optional[int] = None
-
-    @property
-    def human_readable_time(self) -> Optional[str]:
-        if self.block_time is not None:
-            return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
-        return None
-
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            Decimal: str
-        }
-    
-class TransactionBatch(BaseModel):
-    """Batch of transactions for processing."""
-    transactions: List[TransactionDetail] = Field(default_factory=list)
-    total_count: int = 0
-    start_index: int = 0
-
-    @validator('transactions')
-    def validate_batch_size(cls, v):
-        if len(v) > 1000:
-            raise ValueError("Batch size cannot exceed 1000 transactions")
-        return v
         
 class EnhancedTransactionProcessor:
     """Enhanced transaction processor with rate limiting."""
