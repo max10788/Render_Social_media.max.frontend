@@ -47,7 +47,6 @@ from app.core.solana_tracker.models.base_models import (
 
 from app.core.crypto_tracker import CryptoTrackingService
 from app.core.exceptions import CryptoTrackerError, TransactionNotFoundError
-from app.models.schemas import TransactionTrackRequest, TransactionTrackResponse
 from app.core.exceptions import TransactionNotFoundError, CryptoTrackerError
 from app.core.solana_client import SolanaClient
 from app.core.ethereum_client import EthereumClient
