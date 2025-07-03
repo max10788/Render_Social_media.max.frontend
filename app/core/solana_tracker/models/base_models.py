@@ -3,6 +3,15 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
 
+class AccountMeta(BaseModel):
+    """Account metadata for transaction participants."""
+    address: str = Field(..., min_length=32)
+    is_signer: bool = False
+    is_writable: bool = False
+
+    class Config:
+        allow_population_by_field_name = True
+
 class BaseTransaction(BaseModel):
     """Base Transaction DTO with common fields."""
     tx_hash: str = Field(..., description="Transaction signature/hash")
