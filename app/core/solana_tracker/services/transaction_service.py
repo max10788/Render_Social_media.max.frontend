@@ -1,88 +1,34 @@
-from typing import List, Optional, Dict, Any
 from datetime import datetime
-import logging
 from decimal import Decimal
-import asyncio
-from functools import lru_cache
+from typing import Dict, List, Optional, Any
+import logging
+from fastapi import HTTPException
 
-from app.core.solana_tracker.models.base_models import TransactionDetail, TransactionBatch
-from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
-from app.core.solana_tracker.repositories.cache_repository import CacheRepository
-from app.core.solana_tracker.services.chain_tracker import ChainTracker
-from app.core.solana_tracker.services.scenario_detector import ScenarioDetector
-from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
-from app.core.solana_tracker.models.base_models import TrackedTransaction
+from ..models.transaction import TransactionDetail, TrackedTransaction
+from ..models.scenario import ScenarioType, ScenarioDetail
+from ..repositories.enhanced_solana_repository import EnhancedSolanaRepository
+from ..utils.retry import retry_with_exponential_backoff
+from ..exceptions import MultiSigAccessError, TransactionValidationError
 
 logger = logging.getLogger(__name__)
 
 class TransactionService:
-    def __init__(
-        self,
-        solana_repository: EnhancedSolanaRepository,
-        cache_repository: Optional[CacheRepository] = None,
-        chain_tracker: Optional[ChainTracker] = None,
-        scenario_detector: Optional[ScenarioDetector] = None
-    ):
+    def __init__(self, solana_repository: EnhancedSolanaRepository):
         self.solana_repo = solana_repository
-        self.cache = cache_repository
-        self.chain_tracker = chain_tracker or ChainTracker(solana_repository)
-        self.scenario_detector = scenario_detector or ScenarioDetector()
-        logger.info("TransactionService initialized")
+        self.scenario_detector = ScenarioDetector()
         
-    async def get_transaction_details(
-        self,
-        tx_hash: str,
-        use_cache: bool = True
-    ) -> Optional[TransactionDetail]:
-        cache_key = f"tx:{tx_hash}"
-        logger.debug("Fetching transaction details for %s (use_cache=%s)", tx_hash, use_cache)
-    
-        if use_cache and self.cache:
-            try:
-                cached_data = await self.cache.get(cache_key)
-                if cached_data:
-                    logger.info("Cache hit for transaction %s", tx_hash)
-                    return TransactionDetail(**cached_data)
-                else:
-                    logger.debug("Cache miss for transaction %s", tx_hash)
-            except Exception as e:
-                logger.error("Cache lookup error for key %s: %s", cache_key, e)
-    
-        try:
-            tx_detail = await self.solana_repo.get_transaction(tx_hash)
-            if tx_detail:
-                logger.info("Fetched transaction %s from blockchain", tx_hash)
-                if self.cache:
-                    try:
-                        await self.cache.set(cache_key, tx_detail.dict(), ttl=3600)
-                        logger.debug("Transaction %s cached successfully", tx_hash)
-                    except Exception as cache_e:
-                        logger.error("Error caching transaction %s: %s", tx_hash, cache_e)
-            else:
-                logger.warning("No transaction detail found for %s on blockchain", tx_hash)
-                return None
-            return tx_detail
-        except Exception as e:
-            logger.error("Error fetching transaction %s: %s", tx_hash, e, exc_info=True)
-            raise
+    async def get_transaction_details(self, tx_hash: str) -> Optional[TransactionDetail]:
+        """
+        Ruft die Details einer Transaktion sicher ab.
+        
+        Args:
+            tx_hash: Die Transaktions-Hash
             
-    async def _get_transaction_safe(
-        self,
-        tx_hash: str
-    ) -> Optional[TransactionDetail]:
-        logger.debug("Fetching transaction safely for %s", tx_hash)
-        try:
-            tx_detail = await self.solana_repo.get_transaction(tx_hash)
-            if tx_detail:
-                logger.debug("Successfully retrieved transaction %s", tx_hash)
-                return tx_detail
-            logger.warning("Transaction %s not found", tx_hash)
-            return None
-        except Exception as e:
-            logger.error("Error fetching transaction %s: %s", tx_hash, e, exc_info=True)
-            return None
+        Returns:
+            TransactionDetail oder None wenn nicht gefunden
+        """
+        return await self._get_transaction_safe(tx_hash)
 
-    
     @retry_with_exponential_backoff(max_retries=3)
     async def analyze_transaction_chain(
         self,
@@ -91,34 +37,60 @@ class TransactionService:
         target_currency: str = "USD",
         amount: Optional[Decimal] = None
     ) -> Dict[str, Any]:
-        logger.info("Analyzing transaction chain from %s (max_depth=%d, currency=%s, amount=%s)",
-                    start_tx_hash, max_depth, target_currency, amount)
+        """
+        Analysiert eine Transaktionskette mit verbesserter Fehlerbehandlung.
+        
+        Args:
+            start_tx_hash: Hash der Ausgangstransaktion
+            max_depth: Maximale Tiefe der Analyse
+            target_currency: Zielwährung für Umrechnungen
+            amount: Optionaler Betrag für Tracking
+            
+        Returns:
+            Dict mit Analyseergebnissen
+            
+        Raises:
+            MultiSigAccessError: Bei Problemen mit Multi-Sig Zugriff
+            TransactionValidationError: Bei ungültigen Transaktionen
+            HTTPException: Bei allgemeinen API-Fehlern
+        """
         try:
-            tracked_txs = await self.chain_tracker.track_chain(
-                start_tx_hash,
+            # Validiere Input
+            if not self._validate_transaction_hash(start_tx_hash):
+                raise TransactionValidationError(f"Ungültige Transaktions-Hash: {start_tx_hash}")
+
+            # Hole initiale Transaktion
+            initial_tx = await self._get_transaction_safe(start_tx_hash)
+            if not initial_tx:
+                raise TransactionValidationError(f"Ausgangstransaktion nicht gefunden: {start_tx_hash}")
+
+            # Prüfe auf Multi-Sig
+            if self._is_multi_sig_transaction(initial_tx):
+                try:
+                    await self._validate_multi_sig_access(initial_tx)
+                except MultiSigAccessError as e:
+                    logger.error(f"Multi-Sig Zugriffsfehler: {e}")
+                    raise
+
+            # Tracke Transaktionskette
+            tracked_txs = await self._track_transaction_chain(
+                start_tx_hash=start_tx_hash,
                 max_depth=max_depth,
                 amount=amount
             )
-            logger.debug("track_chain returned %d transactions", len(tracked_txs))
-    
-            if not tracked_txs:
-                logger.warning("No transaction chain found for %s", start_tx_hash)
-                return {
-                    "status": "no_chain_found",
-                    "transactions": [],
-                    "scenarios": []
-                }
-    
+
+            # Konvertiere Timestamps
             for tx in tracked_txs:
                 if isinstance(tx.timestamp, datetime):
                     tx.timestamp = tx.timestamp.isoformat()
     
+            # Erkenne Szenarien
             scenarios = await self.scenario_detector.detect_scenarios(tracked_txs)
-            logger.info("Scenario detection complete. Found %d scenarios.",
-                       len(scenarios) if scenarios else 0)
+            logger.info(f"Szenarienerkennung abgeschlossen. {len(scenarios) if scenarios else 0} Szenarien gefunden.")
     
+            # Berechne Statistiken
             stats = await self._calculate_chain_statistics(tracked_txs)
-            logger.debug("Chain statistics calculated: %s", stats)
+            logger.debug(f"Kettenstatistiken berechnet: {stats}")
     
             return {
                 "status": "success",
@@ -128,88 +100,176 @@ class TransactionService:
                 "analysis_timestamp": datetime.utcnow().isoformat()
             }
     
-        except Exception as e:
-            logger.error("Error analyzing transaction chain from %s: %s",
-                        start_tx_hash, e, exc_info=True)
-            raise
-            
-    async def _calculate_chain_statistics(
-        self,
-        transactions: List[TrackedTransaction]
-    ) -> Dict[str, Any]:
-        """Calculate statistics for a chain of transactions."""
-        logger.debug("Calculating statistics for %d transactions", len(transactions))
-        if not transactions:
-            logger.warning("No transactions provided for statistics calculation")
-            return {}
-        try:
-            total_amount = sum(tx.amount for tx in transactions)
-            unique_addresses = set()
-            for tx in transactions:
-                unique_addresses.add(tx.from_wallet)
-                if tx.to_wallet:
-                    unique_addresses.add(tx.to_wallet)
-            time_diffs = []
-            for i in range(1, len(transactions)):
-                t1 = transactions[i-1].timestamp
-                t2 = transactions[i].timestamp
-                if isinstance(t1, str):
-                    t1 = datetime.fromisoformat(t1.replace('Z', '+00:00'))
-                if isinstance(t2, str):
-                    t2 = datetime.fromisoformat(t2.replace('Z', '+00:00'))
-                time_diffs.append((t2 - t1).total_seconds())
-            
-            first_timestamp = transactions[0].timestamp
-            last_timestamp = transactions[-1].timestamp
-            if isinstance(first_timestamp, datetime):
-                first_timestamp = first_timestamp.isoformat()
-            if isinstance(last_timestamp, datetime):
-                last_timestamp = last_timestamp.isoformat()
-                
-            return {
-                "total_transactions": len(transactions),
-                "total_amount": float(total_amount),
-                "unique_addresses": len(unique_addresses),
-                "average_time_between_tx": (
-                    sum(time_diffs) / len(time_diffs) if time_diffs else 0
-                ),
-                "first_tx_timestamp": first_timestamp,
-                "last_tx_timestamp": last_timestamp
-            }
-        except Exception as e:
-            logger.error("Error calculating chain statistics: %s", e, exc_info=True)
-            return {}
-
-    async def get_wallet_transactions(
-        self,
-        address: str,
-        limit: int = 100,
-        before: Optional[str] = None
-    ) -> TransactionBatch:
-        """Fetch transactions for a specific wallet address."""
-        logger.info("Fetching wallet transactions for %s (limit=%d, before=%s)", 
-                   address, limit, before)
-        try:
-            batch = await self.solana_repo.get_transactions_for_address(
-                address=address,
-                before=before,
-                limit=limit
+        except MultiSigAccessError as e:
+            logger.error(f"Multi-Sig Zugriffsfehler bei {start_tx_hash}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "multi_sig_access_denied",
+                    "message": str(e),
+                    "required_signers": e.required_signers if hasattr(e, 'required_signers') else None
+                }
             )
-            logger.debug("Fetched %d transactions for wallet %s", 
-                        len(batch.transactions), address)
-            return batch
+            
+        except TransactionValidationError as e:
+            logger.error(f"Validierungsfehler bei {start_tx_hash}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "validation_error",
+                    "message": str(e)
+                }
+            )
+            
         except Exception as e:
-            logger.error("Error fetching wallet transactions for %s: %s", 
-                        address, e, exc_info=True)
+            logger.error(f"Fehler bei der Analyse der Transaktionskette von {start_tx_hash}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "internal_error",
+                    "message": "Ein interner Fehler ist aufgetreten"
+                }
+            )
+
+    async def _track_transaction_chain(
+        self, 
+        start_tx_hash: str,
+        max_depth: int,
+        amount: Optional[Decimal]
+    ) -> List[TrackedTransaction]:
+        """
+        Verfolgt eine Kette von Transaktionen mit verbesserter Multi-Sig Behandlung.
+        """
+        visited_txs = set()
+        tracked_txs = []
+        queue = [(start_tx_hash, amount)]
+
+        while queue and len(tracked_txs) < max_depth:
+            current_hash, remaining_amount = queue.pop(0)
+            
+            if current_hash in visited_txs:
+                continue
+                
+            visited_txs.add(current_hash)
+            
+            try:
+                tx_detail = await self._get_transaction_safe(current_hash)
+                if not tx_detail:
+                    continue
+
+                # Multi-Sig Handling
+                if self._is_multi_sig_transaction(tx_detail):
+                    await self._handle_multi_sig_transaction(tx_detail)
+
+                # Erstelle TrackedTransaction
+                tracked_tx = await self._create_tracked_transaction(tx_detail, remaining_amount)
+                if tracked_tx:
+                    tracked_txs.append(tracked_tx)
+
+                    # Füge Folgetransaktionen zur Queue hinzu
+                    next_txs = await self._get_next_transactions(tracked_tx)
+                    for next_tx in next_txs:
+                        if next_tx.tx_hash not in visited_txs:
+                            queue.append((next_tx.tx_hash, tracked_tx.remaining_amount))
+
+            except MultiSigAccessError as e:
+                logger.warning(f"Multi-Sig Zugriffsproblem bei {current_hash}: {e}")
+                # Füge Transaktion trotzdem hinzu, aber markiere als nicht zugreifbar
+                tracked_txs.append(
+                    TrackedTransaction(
+                        tx_hash=current_hash,
+                        status="multi_sig_restricted",
+                        error_details=str(e)
+                    )
+                )
+                
+            except Exception as e:
+                logger.error(f"Fehler beim Tracking von {current_hash}: {e}")
+                continue
+
+        return tracked_txs
+
+    async def _get_transaction_safe(
+        self,
+        tx_hash: str
+    ) -> Optional[TransactionDetail]:
+        """
+        Ruft eine Transaktion sicher ab mit verbessertem Error Handling.
+        """
+        logger.debug(f"Rufe Transaktion sicher ab für {tx_hash}")
+        try:
+            tx_detail = await self.solana_repo.get_transaction(tx_hash)
+            if tx_detail:
+                logger.debug(f"Transaktion {tx_hash} erfolgreich abgerufen")
+                return tx_detail
+            logger.warning(f"Transaktion {tx_hash} nicht gefunden")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Fehler beim Abruf der Transaktion {tx_hash}: {e}", exc_info=True)
+            return None
+
+    def _is_multi_sig_transaction(self, tx_detail: TransactionDetail) -> bool:
+        """
+        Prüft ob eine Transaktion Multi-Sig ist.
+        """
+        # Prüfe auf Multi-Sig Indikatoren
+        return (
+            any("MultiSig" in account for account in tx_detail.account_keys)
+            or tx_detail.required_signatures > 1
+        )
+
+    async def _validate_multi_sig_access(self, tx_detail: TransactionDetail) -> None:
+        """
+        Validiert den Zugriff auf eine Multi-Sig Transaktion.
+        """
+        required_signers = tx_detail.required_signatures
+        available_signers = len(tx_detail.signatures)
+        
+        if available_signers < required_signers:
+            raise MultiSigAccessError(
+                f"Nicht genügend Signaturen für Multi-Sig Zugriff. "
+                f"Benötigt: {required_signers}, Verfügbar: {available_signers}",
+                required_signers=required_signers,
+                available_signers=available_signers
+            )
+
+    async def _handle_multi_sig_transaction(self, tx_detail: TransactionDetail) -> None:
+        """
+        Behandelt eine Multi-Sig Transaktion.
+        """
+        try:
+            await self._validate_multi_sig_access(tx_detail)
+            # Hier können weitere Multi-Sig spezifische Verarbeitungen erfolgen
+            
+        except MultiSigAccessError:
+            # Log und re-raise für höhere Ebenen
             raise
 
-    @lru_cache(maxsize=100)
-    def _get_program_name(self, program_id: str) -> str:
-        """Get known program name from ID (cached)."""
-        KNOWN_PROGRAMS = {
-            "TokenkegQfeZyiNwAJbNbGKPE8839dhk8qSu5v3LwRK4": "Token Program",
-            "11111111111111111111111111111111": "System Program",
+    async def _calculate_chain_statistics(self, transactions: List[TrackedTransaction]) -> Dict[str, Any]:
+        """
+        Berechnet Statistiken für die Transaktionskette.
+        """
+        if not transactions:
+            return {}
+            
+        total_amount = sum(tx.amount for tx in transactions if tx.amount is not None)
+        avg_amount = total_amount / len(transactions) if transactions else 0
+        
+        return {
+            "total_transactions": len(transactions),
+            "total_amount": float(total_amount),
+            "average_amount": float(avg_amount),
+            "multi_sig_count": sum(1 for tx in transactions if tx.status == "multi_sig_restricted"),
+            "successful_transactions": sum(1 for tx in transactions if tx.status == "success"),
+            "failed_transactions": sum(1 for tx in transactions if tx.status == "failed"),
+            "unique_wallets": len(set(tx.to_wallet for tx in transactions if tx.to_wallet))
         }
-        result = KNOWN_PROGRAMS.get(program_id, "Unknown Program")
-        logger.debug("Program name lookup for %s: %s", program_id, result)
-        return result
+
+    def _validate_transaction_hash(self, tx_hash: str) -> bool:
+        """
+        Validiert das Format einer Transaktions-Hash.
+        """
+        import re
+        # Solana Transaktion Hash Format
+        return bool(re.match(r'^[1-9A-HJ-NP-Za-km-z]{87,88}$', tx_hash))
