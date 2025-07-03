@@ -12,7 +12,8 @@ from app.core.config import SolanaConfig
 from app.core.solana_tracker.models.base_models import (
     TransactionDetail,
     TransactionMessageDetail,
-    TransactionMetaDetail
+    TransactionMetaDetail,
+    BaseTransaction
 )
 from app.core.solana_tracker.utils.enhanced_retry_utils import (
     EnhancedRetryError,
