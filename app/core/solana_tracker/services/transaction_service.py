@@ -13,7 +13,7 @@ from app.core.solana_tracker.models.base_models import (
 from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
 
 # Utils
-from app.core.solana_tracker.utils.retry import retry_with_exponential_backoff
+from app.core.solana_tracker.utils.retry_utils import retry_with_exponential_backoff
 
 # Core exceptions
 from app.core.exceptions import (
