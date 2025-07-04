@@ -1,4 +1,5 @@
 # Standard Library Imports
+from fastapi import HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
