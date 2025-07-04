@@ -22,7 +22,14 @@ from app.core.solana_tracker.models.scenario import (
 )
 
 # Core exceptions
-from app.core.exceptions import MultiSigAccessError
+from app.core.exceptions import (
+    MultiSigAccessError,
+    TransactionNotFoundError,
+    TransactionValidationError,
+    RateLimitExceededError,
+    BlockchainConnectionError,
+    ScenarioDetectionError
+)
 
 logger = logging.getLogger(__name__)
 
