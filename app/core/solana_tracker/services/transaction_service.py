@@ -26,12 +26,25 @@ from app.core.solana_tracker.utils.enhanced_retry_utils import (
     enhanced_retry_with_backoff as retry_with_exponential_backoff
 )
 
+from app.core.exceptions import (
+    CryptoTrackerError,
+    MultiSigAccessError,
+    TransactionNotFoundError,
+    TransactionValidationError,
+    RateLimitExceededError,
+    BlockchainConnectionError
+)
+
 logger = logging.getLogger(__name__)
 
 class TransactionService:
-    def __init__(self, solana_repository: EnhancedSolanaRepository):
+    def __init__(
+        self,
+        solana_repository: EnhancedSolanaRepository,
+        scenario_detector: Optional[ScenarioDetector] = None
+    ):
         self.solana_repo = solana_repository
-        self.scenario_detector = ScenarioDetector()
+        self.scenario_detector = scenario_detector or ScenarioDetector()
         
     async def get_transaction_details(self, tx_hash: str) -> Optional[TransactionDetail]:
         """
