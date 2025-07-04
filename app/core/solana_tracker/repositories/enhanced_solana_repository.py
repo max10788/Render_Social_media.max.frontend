@@ -267,4 +267,4 @@ class EnhancedSolanaRepository:
             return []
 
 # Instanz erstellen
-repository = EnhancedSolanaRepository(config=solana_config))
+repository = EnhancedSolanaRepository(config=solana_config)
