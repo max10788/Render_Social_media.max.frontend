@@ -239,14 +239,27 @@ class TransactionService:
             return None
 
     def _is_multi_sig_transaction(self, tx_detail: TransactionDetail) -> bool:
-        """
-        Prüft ob eine Transaktion Multi-Sig ist.
-        """
-        # Prüfe auf Multi-Sig Indikatoren
-        return (
-            any("MultiSig" in account for account in tx_detail.account_keys)
-            or tx_detail.required_signatures > 1
-        )
+        """Check if transaction is multi-sig."""
+        try:
+            if not tx_detail or not tx_detail.message:
+                return False
+                
+            # Account keys are in the message structure
+            account_keys = tx_detail.message.accountKeys if hasattr(tx_detail.message, 'accountKeys') else []
+            
+            # Check for MultiSig accounts in the account keys
+            has_multi_sig = any("MultiSig" in account for account in account_keys)
+            
+            # Check required signatures from header
+            if hasattr(tx_detail.message, 'header'):
+                required_sigs = tx_detail.message.header.get('numRequiredSignatures', 1)
+                if required_sigs > 1:
+                    return True
+                    
+            return has_multi_sig
+        except Exception as e:
+            logger.error(f"Error checking multi-sig transaction: {e}")
+            return False
 
     async def _validate_multi_sig_access(self, tx_detail: TransactionDetail) -> None:
         """
