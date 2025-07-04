@@ -18,13 +18,14 @@ class BaseTransaction(BaseModel):
         allow_population_by_field_name = True
 
 class TransactionMessageDetail(BaseModel):
-    account_keys: List[str] = Field(default_factory=list, alias="accountKeys")
-    recent_blockhash: str = Field(default="", alias="recentBlockhash")
+    """Message details within a transaction."""
+    accountKeys: List[str] = Field(default_factory=list)
+    recentBlockhash: str = Field(default="")
     instructions: List[Dict[str, Any]] = Field(default_factory=list)
     header: Dict[str, Any] = Field(default_factory=dict)
-    required_signatures: int = Field(default=1, ge=1, le=20)
-
+    
     class Config:
+        arbitrary_types_allowed = True
         allow_population_by_field_name = True
 
 class TransactionMetaDetail(BaseModel):
