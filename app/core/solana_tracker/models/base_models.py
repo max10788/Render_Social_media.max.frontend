@@ -42,66 +42,40 @@ class TransactionMetaDetail(BaseModel):
 
 
 class TransactionDetail(BaseModel):
-    """Complete transaction details with enhanced metadata."""
-    # Basic transaction information
-    signatures: List[str] = Field(default_factory=list, description="List of all signatures on this transaction")
-    signature: str = Field(default="", description="Primary/main signature of the transaction")
-    
-    # Transaction structure
-    message: Optional[TransactionMessageDetail] = Field(
-        None, 
-        description="Detailed message structure of the transaction"
-    )
-    transaction: Optional[BaseTransaction] = Field(
-        None,
-        description="Base transaction information"
-    )
-    
-    # Blockchain metadata
-    slot: Optional[int] = Field(None, description="Slot number where this transaction was processed")
-    block_time: Optional[int] = Field(None, description="Unix timestamp of the block")
-    meta: Optional[TransactionMetaDetail] = Field(None, description="Transaction metadata including fees and balances")
-    
-    # Multi-signature specific fields
-    is_multi_sig: bool = Field(
-        default=False,
-        description="Indicates if this is a multi-signature transaction"
-    )
-    multi_sig_config: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Configuration details for multi-sig transactions"
-    )
-    
-    # Error handling
-    error_details: Optional[str] = Field(
-        default=None,
-        description="Detailed error message if transaction failed"
-    )
+    signatures: List[str] = Field(default_factory=list)
+    message: Optional[TransactionMessageDetail] = None
+    slot: Optional[int] = None
+    meta: Optional[TransactionMetaDetail] = None
+    block_time: Optional[int] = None
+    signature: str = Field(default="")
+    transaction: Optional[Dict[str, Any]] = None  # Geändert von BaseTransaction zu Dict
+
+    @property
+    def human_readable_time(self) -> Optional[str]:
+        if self.block_time is not None:
+            return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
+        return None
+
+    @property
+    def tx_hash(self) -> str:
+        """Get the transaction hash from signatures or signature."""
+        if self.signatures and len(self.signatures) > 0:
+            return self.signatures[0]
+        return self.signature
+
+    @property
+    def timestamp(self) -> datetime:
+        """Get transaction timestamp from block_time."""
+        if self.block_time is not None:
+            return datetime.fromtimestamp(self.block_time, tz=timezone.utc)
+        return datetime.utcnow()
 
     class Config:
         allow_population_by_field_name = True
-        arbitrary_types_allowed = True
         json_encoders = {
             datetime: lambda v: v.isoformat(),
             Decimal: str
         }
-
-    @property
-    def account_keys(self) -> List[str]:
-        """Get all account keys involved in this transaction."""
-        if self.message:
-            return self.message.account_keys
-        if self.transaction and isinstance(self.transaction, dict):
-            message = self.transaction.get('message', {})
-            return message.get('accountKeys', [])
-        return []
-
-    @property
-    def human_readable_time(self) -> Optional[str]:
-        """Get human readable timestamp in ISO format."""
-        if self.block_time is not None:
-            return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
-        return None
 
     def parse_raw_transaction(self) -> None:
         """Parse raw transaction data into structured format."""
