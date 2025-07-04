@@ -40,43 +40,104 @@ class TransactionMetaDetail(BaseModel):
     class Config:
         allow_population_by_field_name = True
 
+
 class TransactionDetail(BaseModel):
-    signatures: List[str] = Field(default_factory=list)
-    message: Optional[TransactionMessageDetail] = None
-    slot: Optional[int] = None
-    meta: Optional[TransactionMetaDetail] = None
-    block_time: Optional[int] = None
-    signature: str = Field(default="")
-    transaction: Optional[BaseTransaction] = None
-    is_multi_sig: bool = Field(default=False)
-    multi_sig_config: Optional[Dict[str, Any]] = Field(default=None)
-    error_details: Optional[str] = Field(default=None)
+    """Complete transaction details with enhanced metadata."""
+    # Basic transaction information
+    signatures: List[str] = Field(default_factory=list, description="List of all signatures on this transaction")
+    signature: str = Field(default="", description="Primary/main signature of the transaction")
+    
+    # Transaction structure
+    message: Optional[TransactionMessageDetail] = Field(
+        None, 
+        description="Detailed message structure of the transaction"
+    )
+    transaction: Optional[BaseTransaction] = Field(
+        None,
+        description="Base transaction information"
+    )
+    
+    # Blockchain metadata
+    slot: Optional[int] = Field(None, description="Slot number where this transaction was processed")
+    block_time: Optional[int] = Field(None, description="Unix timestamp of the block")
+    meta: Optional[TransactionMetaDetail] = Field(None, description="Transaction metadata including fees and balances")
+    
+    # Multi-signature specific fields
+    is_multi_sig: bool = Field(
+        default=False,
+        description="Indicates if this is a multi-signature transaction"
+    )
+    multi_sig_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Configuration details for multi-sig transactions"
+    )
+    
+    # Error handling
+    error_details: Optional[str] = Field(
+        default=None,
+        description="Detailed error message if transaction failed"
+    )
+
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            Decimal: str
+        }
+
+    @property
+    def account_keys(self) -> List[str]:
+        """Get all account keys involved in this transaction."""
+        if self.message:
+            return self.message.account_keys
+        if self.transaction and isinstance(self.transaction, dict):
+            message = self.transaction.get('message', {})
+            return message.get('accountKeys', [])
+        return []
 
     @property
     def human_readable_time(self) -> Optional[str]:
+        """Get human readable timestamp in ISO format."""
         if self.block_time is not None:
             return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
         return None
 
-    @property
-    def required_signatures(self) -> int:
-        return self.message.required_signatures if self.message else 1
+    def parse_raw_transaction(self) -> None:
+        """Parse raw transaction data into structured format."""
+        if self.transaction and isinstance(self.transaction, dict):
+            message_data = self.transaction.get('message', {})
+            if message_data:
+                self.message = TransactionMessageDetail(
+                    accountKeys=message_data.get('accountKeys', []),
+                    recentBlockhash=message_data.get('recentBlockhash', ''),
+                    instructions=message_data.get('instructions', []),
+                    header=message_data.get('header', {})
+                )
 
-    @property
-    def available_signatures(self) -> int:
-        return self.meta.available_signatures if self.meta else 0
-
-    @property
-    def signature_progress(self) -> Optional[float]:
+    def get_multi_sig_info(self) -> Dict[str, Any]:
+        """Get multi-signature configuration details."""
         if not self.is_multi_sig:
-            return None
-        req = self.required_signatures
-        if req <= 0:
-            return 0.0
-        return (self.available_signatures or 0) / req
+            return {}
+        return self.multi_sig_config or {}
 
-    class Config:
-        allow_population_by_field_name = True
+    def has_error(self) -> bool:
+        """Check if transaction has any errors."""
+        return bool(self.error_details) or (
+            self.meta and self.meta.err is not None
+        )
+
+    def get_fee(self) -> int:
+        """Get transaction fee in lamports."""
+        return self.meta.fee if self.meta else 0
+
+    def get_status(self) -> str:
+        """Get transaction status."""
+        if self.has_error():
+            return "failed"
+        if not self.slot:
+            return "pending"
+        return "confirmed"
 
 class TransferAmount(BaseModel):
     """Transfer amount details."""
