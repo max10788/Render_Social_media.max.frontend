@@ -23,3 +23,15 @@ class MultiSigAccessError(Exception):
         self.required_signers = required_signers
         self.available_signers = available_signers
         super().__init__(self.message)
+
+class TransactionValidationError(CryptoTrackerError):
+    """
+    Exception für Validierungsfehler bei Transaktionen.
+    
+    Wird geworfen, wenn eine Transaktion ungültige Daten enthält oder
+    nicht den erwarteten Formaten entspricht.
+    """
+    def __init__(self, message: str, validation_errors: dict = None):
+        self.message = message
+        self.validation_errors = validation_errors or {}
+        super().__init__(self.message)
