@@ -48,16 +48,22 @@ class TransactionService:
         self.scenario_detector = scenario_detector or ScenarioDetector()
         
     async def get_transaction_details(self, tx_hash: str) -> Optional[TransactionDetail]:
-        """
-        Ruft die Details einer Transaktion sicher ab.
-        
-        Args:
-            tx_hash: Die Transaktions-Hash
+        """Get transaction details with improved error handling."""
+        try:
+            tx_detail = await self._get_transaction_safe(tx_hash)
+            if not tx_detail:
+                logger.warning(f"Keine Transaktionsdetails gefunden für {tx_hash}")
+                return None
+                
+            # Prüfe auf Versionskompatibilität
+            if hasattr(tx_detail, 'version') and tx_detail.version > 0:
+                logger.info(f"Transaktion {tx_hash} verwendet Version {tx_detail.version}")
+                
+            return tx_detail
             
-        Returns:
-            TransactionDetail oder None wenn nicht gefunden
-        """
-        return await self._get_transaction_safe(tx_hash)
+        except Exception as e:
+            logger.error(f"Fehler beim Abrufen der Transaktionsdetails: {e}", exc_info=True)
+            return None
 
     @retry_with_exponential_backoff(max_retries=3)
     async def analyze_transaction_chain(
