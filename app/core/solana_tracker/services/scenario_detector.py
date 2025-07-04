@@ -15,20 +15,16 @@ from app.core.solana_tracker.models.scenario import (
     DetectedScenario,
     ScenarioRule,
     ScenarioConfig,
-    ScenarioPattern
+    AmountThreshold,
+    LargeDepositRule,
+    ScenarioPattern,
+    DeFiProtocol      
 )
 
 # Core exceptions
 from app.core.exceptions import MultiSigAccessError
 
 logger = logging.getLogger(__name__)
-
-@dataclass
-class ScenarioPattern:
-    """Pattern definition for scenario detection."""
-    type: ScenarioType
-    confidence_threshold: float
-    pattern_rules: Dict[str, Any]
 
 class ScenarioDetector:
     """Service for detecting transaction patterns and scenarios."""
