@@ -316,3 +316,116 @@ class TransactionService:
         import re
         # Solana Transaktion Hash Format
         return bool(re.match(r'^[1-9A-HJ-NP-Za-km-z]{87,88}$', tx_hash))
+
+    async def _create_tracked_transaction(
+        self,
+        tx_detail: TransactionDetail,
+        remaining_amount: Optional[Decimal] = None
+    ) -> Optional[TrackedTransaction]:
+        """
+        Erstellt eine TrackedTransaction aus den TransactionDetails.
+    
+        Args:
+            tx_detail: Die Transaktionsdetails
+            remaining_amount: Optional verbleibender zu trackender Betrag
+    
+        Returns:
+            TrackedTransaction oder None wenn die Transaktion nicht verarbeitet werden kann
+        """
+        try:
+            if not tx_detail or not tx_detail.message:
+                logger.warning("Keine gültigen Transaktionsdetails verfügbar")
+                return None
+    
+            # Extrahiere relevante Adressen
+            account_keys = tx_detail.account_keys
+            if not account_keys:
+                logger.warning("Keine Account Keys in der Transaktion gefunden")
+                return None
+    
+            # Bestimme From und To Wallets aus den Instructions
+            from_wallet = None
+            to_wallet = None
+            amount = Decimal('0')
+    
+            if tx_detail.message and tx_detail.message.instructions:
+                for instruction in tx_detail.message.instructions:
+                    # System Program Transfer
+                    if instruction.get('programIdIndex') == 11:  # System Program
+                        accounts = instruction.get('accounts', [])
+                        if len(accounts) >= 2:
+                            from_idx = accounts[0]
+                            to_idx = accounts[1]
+                            if 0 <= from_idx < len(account_keys) and 0 <= to_idx < len(account_keys):
+                                from_wallet = account_keys[from_idx]
+                                to_wallet = account_keys[to_idx]
+                                # Extrahiere Betrag aus den Instruction-Daten wenn möglich
+                                if 'data' in instruction:
+                                    try:
+                                        # Betrag in Lamports zu SOL konvertieren
+                                        amount = Decimal(instruction.get('amount', 0)) / Decimal(1e9)
+                                    except:
+                                        pass
+                                break
+    
+            if not from_wallet or not to_wallet:
+                logger.warning("Konnte From/To Wallets nicht bestimmen")
+                return None
+    
+            tracked_tx = TrackedTransaction(
+                tx_hash=tx_detail.signatures[0] if tx_detail.signatures else "",
+                from_wallet=from_wallet,
+                to_wallet=to_wallet,
+                amount=amount,
+                timestamp=datetime.fromtimestamp(tx_detail.block_time) if tx_detail.block_time else datetime.utcnow(),
+                value_in_target_currency=None,  # Könnte später hinzugefügt werden
+                status="success" if not tx_detail.error_details else "failed",
+                remaining_amount=remaining_amount
+            )
+    
+            logger.debug(
+                f"Tracked Transaction erstellt: von {tracked_tx.from_wallet} "
+                f"zu {tracked_tx.to_wallet}, Betrag: {tracked_tx.amount}"
+            )
+            return tracked_tx
+    
+        except Exception as e:
+            logger.error(f"Fehler beim Erstellen der TrackedTransaction: {e}", exc_info=True)
+            return None
+    
+    async def _get_next_transactions(
+        self,
+        tracked_tx: TrackedTransaction,
+        limit: int = 5
+    ) -> List[TrackedTransaction]:
+        """
+        Ermittelt die nächsten Transaktionen basierend auf einer TrackedTransaction.
+    
+        Args:
+            tracked_tx: Die aktuelle TrackedTransaction
+            limit: Maximale Anzahl der zurückzugebenden Transaktionen
+    
+        Returns:
+            Liste von TrackedTransactions
+        """
+        try:
+            # Hole Transaktionen für die Ziel-Wallet
+            batch = await self.solana_repo.get_transactions_for_address(
+                address=tracked_tx.to_wallet,
+                limit=limit
+            )
+    
+            next_txs = []
+            for tx_detail in batch.transactions:
+                next_tracked = await self._create_tracked_transaction(
+                    tx_detail,
+                    tracked_tx.remaining_amount
+                )
+                if next_tracked:
+                    next_txs.append(next_tracked)
+    
+            return next_txs
+    
+        except Exception as e:
+            logger.error(f"Fehler beim Abrufen der nächsten Transaktionen: {e}", exc_info=True)
+            return []
