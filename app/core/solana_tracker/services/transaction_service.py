@@ -451,7 +451,7 @@ class TransactionService:
             )
     
             next_txs = []
-            for tx_detail in batch.transactions:
+            for tx_detail in batch:
                 next_tracked = await self._create_tracked_transaction(
                     tx_detail,
                     tracked_tx.remaining_amount
