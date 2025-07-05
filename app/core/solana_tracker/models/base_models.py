@@ -70,6 +70,15 @@ class TransactionDetail(BaseModel):
             return datetime.fromtimestamp(self.block_time, tz=timezone.utc)
         return datetime.utcnow()
 
+    @property
+    def account_keys(self) -> list:
+        """
+        Gibt die Account Keys der Transaktion zurück (Kompatibilität zu älterem Code).
+        """
+        if self.message and hasattr(self.message, "accountKeys"):
+            return self.message.accountKeys
+        return []
+    
     class Config:
         allow_population_by_field_name = True
         json_encoders = {
