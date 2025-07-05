@@ -336,85 +336,87 @@ class TransactionService:
         self,
         tx_detail: TransactionDetail,
         remaining_amount: Optional[Decimal] = None,
-        data_level: str = "basic"  # Neuer Parameter für Datentiefe
+        data_level: str = "standard"
     ) -> Optional[TrackedTransaction]:
-        """
-        Erstellt eine TrackedTransaction aus den TransactionDetails mit kontrollierbarer Datentiefe.
-    
-        Args:
-            tx_detail: Die Transaktionsdetails
-            remaining_amount: Optional verbleibender zu trackender Betrag
-            data_level: Kontrollebene für zurückgegebene Daten:
-                       - "basic": Nur Wallet-Adressen und Transaktion-Hash
-                       - "standard": Basic + Beträge und Zeitstempel
-                       - "full": Alle verfügbaren Details
-        Returns:
-            TrackedTransaction oder None wenn die Transaktion nicht verarbeitet werden kann
-        """
         try:
             if not tx_detail or not tx_detail.message:
-                logger.warning("Keine gültigen Transaktionsdetails verfügbar")
                 return None
     
-            # Extrahiere relevante Adressen
-            account_keys = tx_detail.account_keys
+            # Get account keys and find system program index
+            account_keys = tx_detail.message.accountKeys
             if not account_keys:
-                logger.warning("Keine Account Keys in der Transaktion gefunden")
+                return None
+                
+            # Find system program index
+            system_program_index = None
+            for idx, key in enumerate(account_keys):
+                if key == "11111111111111111111111111111111":
+                    system_program_index = idx
+                    break
+                    
+            if system_program_index is None:
                 return None
     
-            # Bestimme From und To Wallets aus den Instructions
+            # Analyze balance changes
+            pre_balances = tx_detail.meta.pre_balances if tx_detail.meta else []
+            post_balances = tx_detail.meta.post_balances if tx_detail.meta else []
+            
+            if not pre_balances or not post_balances or len(pre_balances) != len(post_balances):
+                return None
+    
+            # Find accounts with significant balance changes
+            changes = []
+            for i in range(len(pre_balances)):
+                if i < len(account_keys):
+                    change = post_balances[i] - pre_balances[i]
+                    if abs(change) > 5000:  # Ignoriere kleine Änderungen (Gebühren)
+                        changes.append({
+                            'account': account_keys[i],
+                            'change': change,
+                            'pre': pre_balances[i],
+                            'post': post_balances[i]
+                        })
+    
+            # Determine from/to based on balance changes
             from_wallet = None
             to_wallet = None
             amount = Decimal('0')
     
-            if tx_detail.message and tx_detail.message.instructions:
-                for instruction in tx_detail.message.instructions:
-                    # System Program Transfer
-                    if instruction.get('programIdIndex') == 11:  # System Program
-                        accounts = instruction.get('accounts', [])
-                        if len(accounts) >= 2:
-                            from_idx = accounts[0]
-                            to_idx = accounts[1]
-                            if 0 <= from_idx < len(account_keys) and 0 <= to_idx < len(account_keys):
-                                from_wallet = account_keys[from_idx]
-                                to_wallet = account_keys[to_idx]
-                                if data_level in ["standard", "full"]:
-                                    # Extrahiere Betrag nur für standard und full
-                                    if 'data' in instruction:
-                                        try:
-                                            amount = Decimal(instruction.get('amount', 0)) / Decimal(1e9)
-                                        except:
-                                            pass
-                                break
+            if len(changes) >= 2:
+                # Sender hat negative Änderung, Empfänger positive
+                sender = next((c for c in changes if c['change'] < 0), None)
+                receiver = next((c for c in changes if c['change'] > 0), None)
+                
+                if sender and receiver:
+                    from_wallet = sender['account']
+                    to_wallet = receiver['account']
+                    amount = Decimal(abs(sender['change'])) / Decimal(1e9)  # Konvertiere Lamports zu SOL
     
             if not from_wallet or not to_wallet:
                 logger.warning("Konnte From/To Wallets nicht bestimmen")
                 return None
     
-            # Basis-Transaktion erstellen
-            tracked_tx = {
+            # Erstelle TrackedTransaction basierend auf data_level
+            tx_data = {
                 "tx_hash": tx_detail.signatures[0] if tx_detail.signatures else "",
                 "from_wallet": from_wallet,
                 "to_wallet": to_wallet,
             }
     
-            # Füge zusätzliche Daten basierend auf data_level hinzu
             if data_level in ["standard", "full"]:
-                tracked_tx.update({
+                tx_data.update({
                     "amount": amount,
                     "timestamp": datetime.fromtimestamp(tx_detail.block_time) if tx_detail.block_time else datetime.utcnow(),
                 })
     
             if data_level == "full":
-                tracked_tx.update({
-                    "value_in_target_currency": None,  # Könnte später hinzugefügt werden
-                    "status": "success" if not tx_detail.error_details else "failed",
-                    "remaining_amount": remaining_amount,
-                    "is_multi_sig": self._is_multi_sig_transaction(tx_detail),
-                    "required_signatures": len(tx_detail.signatures) if tx_detail.signatures else None,
+                tx_data.update({
+                    "value_in_target_currency": None,
+                    "status": "success" if not tx_detail.meta or not tx_detail.meta.err else "failed",
+                    "remaining_amount": remaining_amount
                 })
     
-            return TrackedTransaction(**tracked_tx)
+            return TrackedTransaction(**tx_data)
     
         except Exception as e:
             logger.error(f"Fehler beim Erstellen der TrackedTransaction: {e}", exc_info=True)
