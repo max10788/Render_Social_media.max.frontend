@@ -332,94 +332,94 @@ class TransactionService:
         # Solana Transaktion Hash Format
         return bool(re.match(r'^[1-9A-HJ-NP-Za-km-z]{87,88}$', tx_hash))
 
-async def _create_tracked_transaction(
-    self,
-    tx_detail: TransactionDetail,
-    remaining_amount: Optional[Decimal] = None,
-    data_level: str = "basic"  # Neuer Parameter für Datentiefe
-) -> Optional[TrackedTransaction]:
-    """
-    Erstellt eine TrackedTransaction aus den TransactionDetails mit kontrollierbarer Datentiefe.
-
-    Args:
-        tx_detail: Die Transaktionsdetails
-        remaining_amount: Optional verbleibender zu trackender Betrag
-        data_level: Kontrollebene für zurückgegebene Daten:
-                   - "basic": Nur Wallet-Adressen und Transaktion-Hash
-                   - "standard": Basic + Beträge und Zeitstempel
-                   - "full": Alle verfügbaren Details
-    Returns:
-        TrackedTransaction oder None wenn die Transaktion nicht verarbeitet werden kann
-    """
-    try:
-        if not tx_detail or not tx_detail.message:
-            logger.warning("Keine gültigen Transaktionsdetails verfügbar")
-            return None
-
-        # Extrahiere relevante Adressen
-        account_keys = tx_detail.account_keys
-        if not account_keys:
-            logger.warning("Keine Account Keys in der Transaktion gefunden")
-            return None
-
-        # Bestimme From und To Wallets aus den Instructions
-        from_wallet = None
-        to_wallet = None
-        amount = Decimal('0')
-
-        if tx_detail.message and tx_detail.message.instructions:
-            for instruction in tx_detail.message.instructions:
-                # System Program Transfer
-                if instruction.get('programIdIndex') == 11:  # System Program
-                    accounts = instruction.get('accounts', [])
-                    if len(accounts) >= 2:
-                        from_idx = accounts[0]
-                        to_idx = accounts[1]
-                        if 0 <= from_idx < len(account_keys) and 0 <= to_idx < len(account_keys):
-                            from_wallet = account_keys[from_idx]
-                            to_wallet = account_keys[to_idx]
-                            if data_level in ["standard", "full"]:
-                                # Extrahiere Betrag nur für standard und full
-                                if 'data' in instruction:
-                                    try:
-                                        amount = Decimal(instruction.get('amount', 0)) / Decimal(1e9)
-                                    except:
-                                        pass
-                            break
-
-        if not from_wallet or not to_wallet:
-            logger.warning("Konnte From/To Wallets nicht bestimmen")
-            return None
-
-        # Basis-Transaktion erstellen
-        tracked_tx = {
-            "tx_hash": tx_detail.signatures[0] if tx_detail.signatures else "",
-            "from_wallet": from_wallet,
-            "to_wallet": to_wallet,
-        }
-
-        # Füge zusätzliche Daten basierend auf data_level hinzu
-        if data_level in ["standard", "full"]:
-            tracked_tx.update({
-                "amount": amount,
-                "timestamp": datetime.fromtimestamp(tx_detail.block_time) if tx_detail.block_time else datetime.utcnow(),
-            })
-
-        if data_level == "full":
-            tracked_tx.update({
-                "value_in_target_currency": None,  # Könnte später hinzugefügt werden
-                "status": "success" if not tx_detail.error_details else "failed",
-                "remaining_amount": remaining_amount,
-                "is_multi_sig": self._is_multi_sig_transaction(tx_detail),
-                "required_signatures": len(tx_detail.signatures) if tx_detail.signatures else None,
-            })
-
-        return TrackedTransaction(**tracked_tx)
-
-    except Exception as e:
-        logger.error(f"Fehler beim Erstellen der TrackedTransaction: {e}", exc_info=True)
-        return None
+    async def _create_tracked_transaction(
+        self,
+        tx_detail: TransactionDetail,
+        remaining_amount: Optional[Decimal] = None,
+        data_level: str = "basic"  # Neuer Parameter für Datentiefe
+    ) -> Optional[TrackedTransaction]:
+        """
+        Erstellt eine TrackedTransaction aus den TransactionDetails mit kontrollierbarer Datentiefe.
     
+        Args:
+            tx_detail: Die Transaktionsdetails
+            remaining_amount: Optional verbleibender zu trackender Betrag
+            data_level: Kontrollebene für zurückgegebene Daten:
+                       - "basic": Nur Wallet-Adressen und Transaktion-Hash
+                       - "standard": Basic + Beträge und Zeitstempel
+                       - "full": Alle verfügbaren Details
+        Returns:
+            TrackedTransaction oder None wenn die Transaktion nicht verarbeitet werden kann
+        """
+        try:
+            if not tx_detail or not tx_detail.message:
+                logger.warning("Keine gültigen Transaktionsdetails verfügbar")
+                return None
+    
+            # Extrahiere relevante Adressen
+            account_keys = tx_detail.account_keys
+            if not account_keys:
+                logger.warning("Keine Account Keys in der Transaktion gefunden")
+                return None
+    
+            # Bestimme From und To Wallets aus den Instructions
+            from_wallet = None
+            to_wallet = None
+            amount = Decimal('0')
+    
+            if tx_detail.message and tx_detail.message.instructions:
+                for instruction in tx_detail.message.instructions:
+                    # System Program Transfer
+                    if instruction.get('programIdIndex') == 11:  # System Program
+                        accounts = instruction.get('accounts', [])
+                        if len(accounts) >= 2:
+                            from_idx = accounts[0]
+                            to_idx = accounts[1]
+                            if 0 <= from_idx < len(account_keys) and 0 <= to_idx < len(account_keys):
+                                from_wallet = account_keys[from_idx]
+                                to_wallet = account_keys[to_idx]
+                                if data_level in ["standard", "full"]:
+                                    # Extrahiere Betrag nur für standard und full
+                                    if 'data' in instruction:
+                                        try:
+                                            amount = Decimal(instruction.get('amount', 0)) / Decimal(1e9)
+                                        except:
+                                            pass
+                                break
+    
+            if not from_wallet or not to_wallet:
+                logger.warning("Konnte From/To Wallets nicht bestimmen")
+                return None
+    
+            # Basis-Transaktion erstellen
+            tracked_tx = {
+                "tx_hash": tx_detail.signatures[0] if tx_detail.signatures else "",
+                "from_wallet": from_wallet,
+                "to_wallet": to_wallet,
+            }
+    
+            # Füge zusätzliche Daten basierend auf data_level hinzu
+            if data_level in ["standard", "full"]:
+                tracked_tx.update({
+                    "amount": amount,
+                    "timestamp": datetime.fromtimestamp(tx_detail.block_time) if tx_detail.block_time else datetime.utcnow(),
+                })
+    
+            if data_level == "full":
+                tracked_tx.update({
+                    "value_in_target_currency": None,  # Könnte später hinzugefügt werden
+                    "status": "success" if not tx_detail.error_details else "failed",
+                    "remaining_amount": remaining_amount,
+                    "is_multi_sig": self._is_multi_sig_transaction(tx_detail),
+                    "required_signatures": len(tx_detail.signatures) if tx_detail.signatures else None,
+                })
+    
+            return TrackedTransaction(**tracked_tx)
+    
+        except Exception as e:
+            logger.error(f"Fehler beim Erstellen der TrackedTransaction: {e}", exc_info=True)
+            return None
+        
     async def _get_next_transactions(
         self,
         tracked_tx: TrackedTransaction,
