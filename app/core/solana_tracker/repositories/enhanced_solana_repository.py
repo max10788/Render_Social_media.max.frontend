@@ -37,7 +37,6 @@ class EnhancedSolanaRepository:
         self.last_request_time = 0
         self.request_count = 0
         self.monitor = RateLimitMonitor()
-        self._first_rpc_logged = False
         
         # Rate Limit Config verarbeiten
         if isinstance(self.config.rate_limit_capacity, int):
@@ -95,19 +94,12 @@ class EnhancedSolanaRepository:
     )
     async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
         """
-        Verbesserte RPC-Aufrufe mit Versionsunterstützung und Fehlerbehandlung.
+        Verbesserte RPC-Aufrufe mit detailliertem Logging.
         """
         urls = [self.current_rpc_url] + self.fallback_rpc_urls
         
-        # Füge Versionsunterstützung zu den Parametern hinzu
-        if method == "getTransaction" and isinstance(params, list) and len(params) > 0:
-            if len(params) == 1:
-                params.append({})
-            if isinstance(params[1], dict):
-                params[1].update({
-                    "maxSupportedTransactionVersion": 0,
-                    "encoding": "json"
-                })
+        # Logge die Anfrage
+        logger.info(f"Making RPC call: method={method}, params={params}")
 
         for url in urls:
             async with self.semaphore:
@@ -126,16 +118,15 @@ class EnhancedSolanaRepository:
                     response.raise_for_status()
                     response_data = response.json()
 
-                    if not self._first_rpc_logged:
-                        logger.info(f"First RPC response received: {response_data}")
-                        self._first_rpc_logged = True
+                    # Logge jede RPC-Antwort
+                    logger.info(f"RPC response for {method}: {response_data}")
 
                     if isinstance(response_data, dict):
-                        # Prüfe auf Version-Fehler
+                        # Prüfe auf Fehler und logge sie
                         if "error" in response_data:
                             error = response_data["error"]
-                            if error.get("code") == -32015:  # Version error
-                                logger.warning(f"Version error from {url}, retrying with version parameter")
+                            if error.get("code") == -32015:
+                                logger.warning(f"Version error from {url}: {error}")
                                 continue
                             logger.error(f"RPC error from {url}: {error}")
                             continue
@@ -145,15 +136,12 @@ class EnhancedSolanaRepository:
                             logger.debug(f"No 'result' in RPC response from {url}")
                             continue
 
+                        # Logge wichtige Transaktionsdaten
+                        if method == "getTransaction" and result:
+                            self._log_transaction_details(result)
+
                         return result
 
-                    else:
-                        logger.warning(f"Invalid RPC response type from {url}: {type(response_data)}")
-                        continue
-
-                except httpx.HTTPStatusError as e:
-                    logger.error(f"RPC error from {url}: {e.response.status_code} - {e.response.text}")
-                    continue
                 except Exception as e:
                     logger.error(f"Error making RPC call to {url}: {str(e)}")
                     continue
@@ -161,6 +149,74 @@ class EnhancedSolanaRepository:
         logger.error("All RPC endpoints failed.")
         return None
 
+    def _log_transaction_details(self, tx_result: Dict[str, Any]) -> None:
+        """
+        Loggt detaillierte Transaktionsinformationen.
+        """
+        try:
+            # Extrahiere wichtige Informationen
+            signatures = tx_result.get("transaction", {}).get("signatures", [])
+            block_time = tx_result.get("blockTime")
+            slot = tx_result.get("slot")
+            
+            # Balance Änderungen
+            meta = tx_result.get("meta", {})
+            pre_balances = meta.get("preBalances", [])
+            post_balances = meta.get("postBalances", [])
+            
+            # Account Keys
+            message = tx_result.get("transaction", {}).get("message", {})
+            account_keys = message.get("accountKeys", [])
+            
+            # Instructions
+            instructions = message.get("instructions", [])
+            
+            # Logge strukturierte Informationen
+            log_data = {
+                "transaction_details": {
+                    "signatures": signatures,
+                    "block_time": datetime.fromtimestamp(block_time).isoformat() if block_time else None,
+                    "slot": slot,
+                    "accounts_involved": len(account_keys),
+                    "instruction_count": len(instructions),
+                    "balance_changes": []
+                }
+            }
+            
+            # Füge Balance-Änderungen hinzu
+            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                if i < len(account_keys):
+                    change = post - pre
+                    if abs(change) > 5000:  # Nur signifikante Änderungen
+                        log_data["transaction_details"]["balance_changes"].append({
+                            "account": account_keys[i],
+                            "pre_balance": pre / 1e9,  # Konvertiere zu SOL
+                            "post_balance": post / 1e9,
+                            "change": change / 1e9
+                        })
+            
+            # Logge Programm-Interaktionen
+            program_interactions = []
+            for instr in instructions:
+                if "programIdIndex" in instr and instr["programIdIndex"] < len(account_keys):
+                    program_id = account_keys[instr["programIdIndex"]]
+                    program_interactions.append(program_id)
+            
+            log_data["transaction_details"]["program_interactions"] = program_interactions
+            
+            # Logge das Ergebnis
+            logger.info(f"Detailed transaction data: {json.dumps(log_data, indent=2)}")
+            
+            # Logge zusätzliche wichtige Ereignisse
+            if meta.get("err"):
+                logger.warning(f"Transaction error detected: {meta['err']}")
+            
+            if len(signatures) > 1:
+                logger.info(f"Multi-signature transaction detected with {len(signatures)} signatures")
+                
+        except Exception as e:
+            logger.error(f"Error logging transaction details: {e}")
+            
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         """
         Holt Transaktionsdetails mit verbesserter Versionsunterstützung.
