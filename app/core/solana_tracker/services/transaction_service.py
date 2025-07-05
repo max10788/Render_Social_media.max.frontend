@@ -174,10 +174,10 @@ class TransactionService:
         start_tx_hash: str,
         max_depth: int,
         amount: Optional[Decimal],
-        data_level: str = "standard"  # Neuer Parameter
+        data_level: str = "standard"  # Neuer Parameter für Datendetails
     ) -> List[TrackedTransaction]:
         """
-        Verfolgt eine Kette von Transaktionen mit kontrollierbarer Datentiefe.
+        Verfolgt eine Kette von Transaktionen mit verbesserter Multi-Sig Behandlung.
         """
         visited_txs = set()
         tracked_txs = []
@@ -200,22 +200,34 @@ class TransactionService:
                 if self._is_multi_sig_transaction(tx_detail):
                     await self._handle_multi_sig_transaction(tx_detail)
     
-                # Erstelle TrackedTransaction mit spezifiziertem data_level
-                tracked_tx = await self._create_tracked_transaction(
-                    tx_detail, 
-                    remaining_amount,
-                    data_level=data_level
+                # Erstelle TrackedTransaction mit data_level
+                tracked_tx = await self._create_tracked_transaction(  # Hier fehlte das await
+                    tx_detail=tx_detail,
+                    remaining_amount=remaining_amount,
+                    data_level=data_level  # Neuer Parameter
                 )
                 
                 if tracked_tx:
                     tracked_txs.append(tracked_tx)
     
-                    # Füge Folgetransaktionen zur Queue hinzu
-                    next_txs = await self._get_next_transactions(tracked_tx)
-                    for next_tx in next_txs:
-                        if next_tx.tx_hash not in visited_txs:
-                            queue.append((next_tx.tx_hash, tracked_tx.remaining_amount))
+                    # Füge Folgetransaktionen zur Queue hinzu wenn mehr Details gewünscht
+                    if data_level != "basic":  # Nur bei standard/full weitere Transaktionen laden
+                        next_txs = await self._get_next_transactions(tracked_tx)
+                        for next_tx in next_txs:
+                            if next_tx.tx_hash not in visited_txs:
+                                queue.append((next_tx.tx_hash, tracked_tx.remaining_amount))
     
+            except MultiSigAccessError as e:
+                logger.warning(f"Multi-Sig Zugriffsproblem bei {current_hash}: {e}")
+                if data_level == "full":  # Nur bei full-Details Multi-Sig Fehler hinzufügen
+                    tracked_txs.append(
+                        TrackedTransaction(
+                            tx_hash=current_hash,
+                            status="multi_sig_restricted",
+                            error_details=str(e)
+                        )
+                    )
+                
             except Exception as e:
                 logger.error(f"Fehler beim Tracking von {current_hash}: {e}")
                 continue
