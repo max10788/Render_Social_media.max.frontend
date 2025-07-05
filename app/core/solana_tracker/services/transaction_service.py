@@ -174,19 +174,24 @@ class TransactionService:
         start_tx_hash: str,
         max_depth: int,
         amount: Optional[Decimal],
-        data_level: str = "standard"  # Neuer Parameter für Datendetails
+        data_level: str = "standard"
     ) -> List[TrackedTransaction]:
         """
-        Verfolgt eine Kette von Transaktionen mit verbesserter Multi-Sig Behandlung.
+        Verfolgt eine Kette von Transaktionen mit verbessertem Logging.
         """
         visited_txs = set()
         tracked_txs = []
         queue = [(start_tx_hash, amount)]
+        
+        logger.info(f"Starting transaction chain tracking: hash={start_tx_hash}, max_depth={max_depth}, data_level={data_level}")
     
         while queue and len(tracked_txs) < max_depth:
             current_hash, remaining_amount = queue.pop(0)
             
+            logger.info(f"Processing transaction: {current_hash}")
+            
             if current_hash in visited_txs:
+                logger.debug(f"Transaction {current_hash} already processed, skipping")
                 continue
                 
             visited_txs.add(current_hash)
@@ -194,44 +199,45 @@ class TransactionService:
             try:
                 tx_detail = await self._get_transaction_safe(current_hash)
                 if not tx_detail:
+                    logger.warning(f"No transaction details found for {current_hash}")
                     continue
     
                 # Multi-Sig Handling
                 if self._is_multi_sig_transaction(tx_detail):
+                    logger.info(f"Multi-sig transaction detected: {current_hash}")
                     await self._handle_multi_sig_transaction(tx_detail)
     
-                # Erstelle TrackedTransaction mit data_level
-                tracked_tx = await self._create_tracked_transaction(  # Hier fehlte das await
+                # Create TrackedTransaction
+                tracked_tx = await self._create_tracked_transaction(
                     tx_detail=tx_detail,
                     remaining_amount=remaining_amount,
-                    data_level=data_level  # Neuer Parameter
+                    data_level=data_level
                 )
                 
                 if tracked_tx:
+                    logger.info(
+                        f"Transaction tracked: hash={tracked_tx.tx_hash}, "
+                        f"from={tracked_tx.from_wallet}, "
+                        f"to={tracked_tx.to_wallet}, "
+                        f"amount={tracked_tx.amount if hasattr(tracked_tx, 'amount') else 'N/A'}"
+                    )
                     tracked_txs.append(tracked_tx)
     
-                    # Füge Folgetransaktionen zur Queue hinzu wenn mehr Details gewünscht
-                    if data_level != "basic":  # Nur bei standard/full weitere Transaktionen laden
+                    if data_level != "basic":
                         next_txs = await self._get_next_transactions(tracked_tx)
+                        logger.info(f"Found {len(next_txs)} next transactions for {current_hash}")
                         for next_tx in next_txs:
                             if next_tx.tx_hash not in visited_txs:
                                 queue.append((next_tx.tx_hash, tracked_tx.remaining_amount))
     
-            except MultiSigAccessError as e:
-                logger.warning(f"Multi-Sig Zugriffsproblem bei {current_hash}: {e}")
-                if data_level == "full":  # Nur bei full-Details Multi-Sig Fehler hinzufügen
-                    tracked_txs.append(
-                        TrackedTransaction(
-                            tx_hash=current_hash,
-                            status="multi_sig_restricted",
-                            error_details=str(e)
-                        )
-                    )
-                
             except Exception as e:
-                logger.error(f"Fehler beim Tracking von {current_hash}: {e}")
+                logger.error(f"Error processing transaction {current_hash}: {str(e)}", exc_info=True)
                 continue
     
+        logger.info(
+            f"Chain tracking completed: processed {len(tracked_txs)} transactions, "
+            f"visited {len(visited_txs)} unique transactions"
+        )
         return tracked_txs
 
     async def _get_transaction_safe(
