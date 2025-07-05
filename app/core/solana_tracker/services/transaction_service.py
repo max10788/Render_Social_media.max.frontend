@@ -173,15 +173,16 @@ class TransactionService:
         self, 
         start_tx_hash: str,
         max_depth: int,
-        amount: Optional[Decimal]
+        amount: Optional[Decimal],
+        data_level: str = "standard"  # Neuer Parameter
     ) -> List[TrackedTransaction]:
         """
-        Verfolgt eine Kette von Transaktionen mit verbesserter Multi-Sig Behandlung.
+        Verfolgt eine Kette von Transaktionen mit kontrollierbarer Datentiefe.
         """
         visited_txs = set()
         tracked_txs = []
         queue = [(start_tx_hash, amount)]
-
+    
         while queue and len(tracked_txs) < max_depth:
             current_hash, remaining_amount = queue.pop(0)
             
@@ -194,37 +195,31 @@ class TransactionService:
                 tx_detail = await self._get_transaction_safe(current_hash)
                 if not tx_detail:
                     continue
-
+    
                 # Multi-Sig Handling
                 if self._is_multi_sig_transaction(tx_detail):
                     await self._handle_multi_sig_transaction(tx_detail)
-
-                # Erstelle TrackedTransaction
-                tracked_tx = await self._create_tracked_transaction(tx_detail, remaining_amount)
+    
+                # Erstelle TrackedTransaction mit spezifiziertem data_level
+                tracked_tx = await self._create_tracked_transaction(
+                    tx_detail, 
+                    remaining_amount,
+                    data_level=data_level
+                )
+                
                 if tracked_tx:
                     tracked_txs.append(tracked_tx)
-
+    
                     # Füge Folgetransaktionen zur Queue hinzu
                     next_txs = await self._get_next_transactions(tracked_tx)
                     for next_tx in next_txs:
                         if next_tx.tx_hash not in visited_txs:
                             queue.append((next_tx.tx_hash, tracked_tx.remaining_amount))
-
-            except MultiSigAccessError as e:
-                logger.warning(f"Multi-Sig Zugriffsproblem bei {current_hash}: {e}")
-                # Füge Transaktion trotzdem hinzu, aber markiere als nicht zugreifbar
-                tracked_txs.append(
-                    TrackedTransaction(
-                        tx_hash=current_hash,
-                        status="multi_sig_restricted",
-                        error_details=str(e)
-                    )
-                )
-                
+    
             except Exception as e:
                 logger.error(f"Fehler beim Tracking von {current_hash}: {e}")
                 continue
-
+    
         return tracked_txs
 
     async def _get_transaction_safe(
