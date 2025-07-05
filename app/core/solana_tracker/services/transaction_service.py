@@ -71,7 +71,8 @@ class TransactionService:
         start_tx_hash: str,
         max_depth: int = 10,
         target_currency: str = "USD",
-        amount: Optional[Decimal] = None
+        amount: Optional[Decimal] = None,
+        data_level: str = "standard"  # Neuer Parameter
     ) -> Dict[str, Any]:
         """
         Analysiert eine Transaktionskette mit verbesserter Fehlerbehandlung.
@@ -112,7 +113,8 @@ class TransactionService:
             tracked_txs = await self._track_transaction_chain(
                 start_tx_hash=start_tx_hash,
                 max_depth=max_depth,
-                amount=amount
+                amount=amount,
+                data_level=data_level  # Übergebe data_level
             )
 
             # Konvertiere Timestamps
