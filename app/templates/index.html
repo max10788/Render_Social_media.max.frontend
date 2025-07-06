@@ -70,6 +70,19 @@
     </div>
     <div id="transactionTree"></div>
     <div id="errorContainer" class="error-message" style="display: none;"></div>
+    <div class="stats">
+      <div><strong>Quelle:</strong> <div id="sourceWallet"></div></div>
+      <div><strong>Ziel:</strong> <div id="targetWallet"></div></div>
+      <div><strong>Transaktions-Hash:</strong> <div id="startHash"></div></div>
+      <div><strong>Anzahl Transaktionen:</strong> <div id="txCount"></div></div>
+      <div><strong>Gesamtwert:</strong> <div id="totalValue"></div></div>
+      <div><strong>Status:</strong> <div id="finalStatus"></div></div>
+      <div><strong>Zielwährung:</strong> <div id="targetCurrencyDisplay"></div></div>
+    
+      <!-- Diese beiden waren bisher Fehlend -->
+      <div><strong>Wechselkurs:</strong> <div id="exchangeRate"></div></div>
+      <div><strong>Umrechnungswert:</strong> <div id="convertedValue"></div></div>
+    </div>
     </div>
         <script type="module">
             import { TransactionGraph } from './modules/TransactionGraph.js';
