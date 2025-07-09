@@ -9,6 +9,7 @@ python-multipart==0.0.6
 email-validator==2.1.0
 jinja2==3.1.2
 httpx==0.24.1  # Fixierte Version für Stabilität
+setuptools<60.0
 
 # Twitter API
 tweepy==4.14.0
