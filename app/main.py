@@ -29,6 +29,13 @@ app = FastAPI(
     debug=True  # Optional für besseres Debugging
 )
 
+# Mount static files and templates
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates = Jinja2Templates(directory="app/templates")
+
+# Include API routes
+app.include_router(api_router, prefix="/api")
+
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
@@ -37,13 +44,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Mount static files and templates
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
-
-# Include API routes
-app.include_router(api_router, prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
