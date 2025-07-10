@@ -25,7 +25,8 @@ app = FastAPI(
     title="Social Media & Blockchain Analysis",
     description="Enterprise-grade social media and blockchain analysis system",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    debug=True  # Optional für besseres Debugging
 )
 
 # CORS configuration
@@ -37,10 +38,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files and templates
+# Mount static files and templates
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
+# Include API routes
 app.include_router(api_router, prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
