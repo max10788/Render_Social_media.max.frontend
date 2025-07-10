@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
+from app.api.endpoints import router as api_router  # Import nur den Haupt-Router
 from app.api.endpoints import router as api_router
 from app.core.config import Settings, get_settings
 from app.core.database import init_db
@@ -25,16 +26,8 @@ app = FastAPI(
     title="Social Media & Blockchain Analysis",
     description="Enterprise-grade social media and blockchain analysis system",
     version="1.0.0",
-    lifespan=lifespan,
-    debug=True  # Optional für besseres Debugging
+    lifespan=lifespan
 )
-
-# Mount static files and templates
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
-
-# Include API routes
-app.include_router(api_router, prefix="/api")
 
 # CORS configuration
 app.add_middleware(
@@ -44,6 +37,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static files and templates
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates = Jinja2Templates(directory="app/templates")
+
+# Include router
+app.include_router(api_router, prefix="/api/v1", tags=["API"])
+app.include_router(api_router, prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
