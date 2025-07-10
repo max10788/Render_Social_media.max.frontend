@@ -19,9 +19,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>   
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/de.min.js"></script>
     
-    <script type="module" src="/static/js/modules/TransactionGraph.js"></script>
-    <script type="module" src="/static/js/modules/TransactionStyles.js"></script>
-    <script type="module" src="/static/js/visualization.js"></script>
+    <script src="{{ url_for('static', filename='js/modules/TransactionGraph.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modules/TransactionStyles.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/visualization.js') }}"></script>>
 <head>
 <body>
     <div class="container">
