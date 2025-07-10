@@ -1,5 +1,5 @@
-import { TransactionGraph } from './modules/TransactionGraph.js';
-import { generateCSS } from './modules/TransactionStyles.js';
+import { TransactionGraph } from '/static/js/modules/TransactionGraph.js';
+import { generateCSS } from '/static/js/modules/TransactionStyles.js';
 
 // Initialize visualization
 document.addEventListener('DOMContentLoaded', () => {
