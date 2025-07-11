@@ -78,6 +78,12 @@ class TransactionDetail(BaseModel):
         if self.message and hasattr(self.message, "accountKeys"):
             return self.message.accountKeys
         return []
+
+    @property
+    def required_signatures(self) -> int:
+        if self.message and hasattr(self.message, 'header'):
+            return self.message.header.get('numRequiredSignatures', 0)
+        return 0
     
     class Config:
         allow_population_by_field_name = True
