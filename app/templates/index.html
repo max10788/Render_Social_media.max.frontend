@@ -207,7 +207,7 @@
                     throw new Error(errMsg);
                 }
 
-                tree.innerHTML = '';
+                const result = await response.json();
                 if (window.updateTransactionVisualization) {
                     window.updateTransactionVisualization(result);
                 } else {
@@ -225,7 +225,7 @@
                 document.getElementById('convertedValue').textContent = result.statistics?.converted_value ?? '-';
 
                 tree.classList.remove('loading');
-                tree.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+                tree.innerHTML = '';
 
             } catch (err) {
                 errorContainer.textContent = err.message;
