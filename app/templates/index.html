@@ -207,7 +207,7 @@
                     throw new Error(errMsg);
                 }
 
-                const result = await response.json();
+                tree.innerHTML = '';
                 if (window.updateTransactionVisualization) {
                     window.updateTransactionVisualization(result);
                 } else {
