@@ -110,3 +110,19 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Node clicked:', node);
     });
 });
+
+document.getElementById('zoomIn')?.addEventListener('click', () => {
+    const svg = d3.select('#transactionTree svg');
+    if (svg && svg.node()) {
+        const currentTransform = d3.zoomTransform(svg.node().viewport || svg.node());
+        svg.call(d3.zoom().transform, currentTransform.scaleBy(1.2));
+    }
+});
+
+document.getElementById('zoomOut')?.addEventListener('click', () => {
+    const svg = d3.select('#transactionTree svg');
+    if (svg && svg.node()) {
+        const currentTransform = d3.zoomTransform(svg.node().viewport || svg.node());
+        svg.call(d3.zoom().transform, currentTransform.scaleBy(0.8));
+    }
+});
