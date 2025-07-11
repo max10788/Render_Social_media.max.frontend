@@ -144,97 +144,209 @@
             });
         });
 
-        async function trackTransactions() {
+    <script type="module">
+        import { TransactionGraph } from './TransactionGraph.js';
+        import { generateCSS } from './TransactionStyles.js';
+    
+        // Initialize visualization
+        document.addEventListener('DOMContentLoaded', () => {
+          // Add styles to document
+          const styleSheet = document.createElement('style');
+          styleSheet.textContent = generateCSS();
+          document.head.appendChild(styleSheet);
+    
+          // Create container for visualization
+          const container = document.getElementById('transactionTree');
+          container.innerHTML = ''; // Clear existing content
+    
+          // Initialize graph with explicit dimensions
+          const graph = new TransactionGraph('#transactionTree', {
+            width: Math.max(800, window.innerWidth * 0.9),
+            height: Math.max(600, window.innerHeight * 0.7)
+          });
+    
+          // Tab switching functionality
+          document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+              // Remove active class from all tabs
+              document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+              document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+              // Add active class to clicked tab
+              tab.classList.add('active');
+              const tabId = tab.getAttribute('data-tab');
+              document.getElementById(tabId).classList.add('active');
+            });
+          });
+    
+          // Track transactions function
+          async function trackTransactions() {
             const startTx = document.getElementById('startTx').value.trim();
             const targetCurrency = document.getElementById('targetCurrency').value;
             const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
             const amount = parseFloat(document.getElementById('amount').value);
-
             const tree = document.getElementById('transactionTree');
             const errorContainer = document.getElementById('errorContainer');
+    
             tree.classList.add('loading');
             errorContainer.style.display = 'none';
             tree.innerHTML = '';
-
+    
             // Input validation
             if (!startTx || startTx.length < 64) {
-                errorContainer.textContent = 'Please enter a valid transaction hash (min. 64 characters).';
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-                return;
+              errorContainer.textContent = 'Please enter a valid transaction hash (min. 64 characters).';
+              errorContainer.style.display = 'block';
+              tree.classList.remove('loading');
+              return;
             }
             if (!["USD", "EUR", "GBP", "JPY", "SOL", "ETH"].includes(targetCurrency)) {
-                errorContainer.textContent = 'Please select a valid target currency.';
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-                return;
+              errorContainer.textContent = 'Please select a valid target currency.';
+              errorContainer.style.display = 'block';
+              tree.classList.remove('loading');
+              return;
             }
             if (isNaN(amount) || amount <= 0) {
-                errorContainer.textContent = 'Please enter a valid amount greater than zero.';
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-                return;
+              errorContainer.textContent = 'Please enter a valid amount greater than zero.';
+              errorContainer.style.display = 'block';
+              tree.classList.remove('loading');
+              return;
             }
             if (isNaN(numTransactions) || numTransactions < 1 || numTransactions > 100) {
-                errorContainer.textContent = 'Please enter a valid number of transactions (1-100).';
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-                return;
+              errorContainer.textContent = 'Please enter a valid number of transactions (1-100).';
+              errorContainer.style.display = 'block';
+              tree.classList.remove('loading');
+              return;
             }
-
+    
             const payload = {
-                start_tx_hash: startTx,
-                target_currency: targetCurrency,
-                amount: amount,
-                num_transactions: numTransactions
+              start_tx_hash: startTx,
+              target_currency: targetCurrency,
+              amount: amount,
+              num_transactions: numTransactions
             };
-
+    
             try {
-                const response = await fetch('/api/track-transactions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    let errMsg = 'Fehler bei der Transaktionsverfolgung.';
-                    try {
-                        const data = await response.json();
-                        errMsg = data.detail?.message || data.detail || errMsg;
-                    } catch (e) { /* ignore JSON parse errors */ }
-                    throw new Error(errMsg);
-                }
-
-                const result = await response.json();
-                if (window.updateTransactionVisualization) {
-                    window.updateTransactionVisualization(result);
-                } else {
-                    console.error('Visualization update function not found');
-                }
-
-                document.getElementById('sourceWallet').textContent = result.tracked_transactions[0]?.from_wallet || '-';
-                document.getElementById('targetWallet').textContent = result.final_wallet_address || '-';
-                document.getElementById('startHash').textContent = result.tracked_transactions[0]?.tx_hash || '-';
-                document.getElementById('txCount').textContent = result.total_transactions_tracked ?? '-';
-                document.getElementById('totalValue').textContent = result.statistics?.total_amount ?? '-';
-                document.getElementById('finalStatus').textContent = result.final_status ?? '-';
-                document.getElementById('targetCurrencyDisplay').textContent = result.target_currency ?? '-';
-                document.getElementById('exchangeRate').textContent = result.statistics?.exchange_rate ?? '-';
-                document.getElementById('convertedValue').textContent = result.statistics?.converted_value ?? '-';
-
-                tree.classList.remove('loading');
-                tree.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
-
+              // Simulate API call with mock data
+              const response = await fetch('/api/track-transactions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+              });
+    
+              if (!response.ok) {
+                let errMsg = 'Fehler bei der Transaktionsverfolgung.';
+                try {
+                  const data = await response.json();
+                  errMsg = data.detail?.message || data.detail || errMsg;
+                } catch (e) { /* ignore JSON parse errors */ }
+                throw new Error(errMsg);
+              }
+    
+              const result = await response.json();
+              if (window.updateTransactionVisualization) {
+                window.updateTransactionVisualization(result);
+              } else {
+                console.error('Visualization update function not found');
+              }
+    
+              document.getElementById('sourceWallet').textContent = result.tracked_transactions[0]?.from_wallet || '-';
+              document.getElementById('targetWallet').textContent = result.final_wallet_address || '-';
+              document.getElementById('startHash').textContent = result.tracked_transactions[0]?.tx_hash || '-';
+              document.getElementById('txCount').textContent = result.total_transactions_tracked ?? '-';
+              document.getElementById('totalValue').textContent = result.statistics?.total_amount ?? '-';
+              document.getElementById('finalStatus').textContent = result.final_status ?? '-';
+              document.getElementById('targetCurrencyDisplay').textContent = result.target_currency ?? '-';
+              document.getElementById('exchangeRate').textContent = result.statistics?.exchange_rate ?? '-';
+              document.getElementById('convertedValue').textContent = result.statistics?.converted_value ?? '-';
+    
+              tree.classList.remove('loading');
+              tree.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
             } catch (err) {
-                errorContainer.textContent = err.message;
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
+              errorContainer.textContent = err.message;
+              errorContainer.style.display = 'block';
+              tree.classList.remove('loading');
             }
-        }
-
-        document.getElementById('trackButton').addEventListener('click', trackTransactions);
+          }
+    
+          document.getElementById('trackButton').addEventListener('click', trackTransactions);
+        });
+    
+        // Update function for new transaction data
+        window.updateTransactionVisualization = (data) => {
+          const tree = document.getElementById('transactionTree');
+          const errorContainer = document.getElementById('errorContainer');
+    
+          // Clear previous content
+          tree.innerHTML = '';
+          errorContainer.style.display = 'none';
+          tree.classList.remove('loading');
+    
+          console.log('Updating visualization with data:', data);
+    
+          try {
+            if (!data || !data.tracked_transactions || data.tracked_transactions.length === 0) {
+              errorContainer.textContent = 'No transaction data available';
+              errorContainer.style.display = 'block';
+              return;
+            }
+    
+            // Create new TransactionGraph instance for each update
+            const newGraph = new TransactionGraph('#transactionTree', {
+              width: Math.max(800, window.innerWidth * 0.9),
+              height: Math.max(600, window.innerHeight * 0.7)
+            });
+    
+            // Process transactions
+            const transactions = data.tracked_transactions;
+            console.log('Processing transactions:', transactions);
+    
+            // Update the visualization
+            newGraph.update(transactions);
+    
+            // Update statistics panel if elements exist
+            if (document.getElementById('txCount')) {
+              document.getElementById('txCount').textContent = data.total_transactions_tracked;
+            }
+            if (document.getElementById('totalValue') && transactions.length > 0) {
+              document.getElementById('totalValue').textContent = `${transactions[0].amount.toFixed(4)} SOL`;
+            }
+            if (document.getElementById('sourceWallet') && transactions.length > 0) {
+              document.getElementById('sourceWallet').textContent = transactions[0].from_wallet;
+            }
+            if (document.getElementById('targetWallet') && data.final_wallet_address) {
+              document.getElementById('targetWallet').textContent = data.final_wallet_address;
+            }
+            if (document.getElementById('finalStatus')) {
+              document.getElementById('finalStatus').textContent = transactions.length > 1 ? 'funds_transferred' : 'single_transfer';
+            }
+            if (document.getElementById('targetCurrencyDisplay') && data.target_currency) {
+              document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
+            }
+          } catch (err) {
+            console.error('Error updating visualization:', err);
+            errorContainer.textContent = `Error displaying transactions: ${err.message}`;
+            errorContainer.style.display = 'block';
+          }
+        };
+    
+        // Handle window resize
+        window.addEventListener('resize', () => {
+          const width = Math.max(800, window.innerWidth * 0.9);
+          const height = Math.max(600, window.innerHeight * 0.7);
+    
+          // Create new graph with updated dimensions
+          const newGraph = new TransactionGraph('#transactionTree', {
+            width: width,
+            height: height
+          });
+    
+          // Re-render current data
+          if (window.currentTransactionData) {
+            newGraph.update(window.currentTransactionData.tracked_transactions);
+          }
+        });
     </script>
 </body>
 </html>
