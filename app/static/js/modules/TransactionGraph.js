@@ -21,27 +21,39 @@ export class TransactionGraph {
         this._init();
     }
 
-    _init() {
+   _init() {
         // Leere vorherigen Inhalt
         this.container.innerHTML = "";
-
+    
         // SVG erstellen
         this.svg = d3.select(this.container)
             .append("svg")
             .attr("width", this.width)
             .attr("height", this.height)
             .attr("class", "transaction-graph");
-
+    
+        // Zoom-Gruppe hinzufügen
+        this.zoomGroup = this.svg.append("g").attr("class", "zoom-group");
+    
         // Tooltip erstellen
         this.tooltip = d3.select(this.container)
             .append("div")
             .attr("class", "transaction-tooltip")
             .style("opacity", 0);
-
-        // Gruppen für Elemente
-        this.linksGroup = this.svg.append("g").attr("class", "links");
-        this.nodesGroup = this.svg.append("g").attr("class", "nodes");
-        this.labelsGroup = this.svg.append("g").attr("class", "labels");
+    
+        // Gruppen für Elemente (innerhalb der Zoom-Gruppe)
+        this.linksGroup = this.zoomGroup.append("g").attr("class", "links");
+        this.nodesGroup = this.zoomGroup.append("g").attr("class", "nodes");
+        this.labelsGroup = this.zoomGroup.append("g").attr("class", "labels");
+    
+        // Zoom-Verhalten initialisieren
+        this.zoomBehavior = d3.zoom()
+            .scaleExtent([0.1, 4]) // Min-/Max-Zoom
+            .on("zoom", (event) => {
+                this.zoomGroup.attr("transform", event.transform);
+            });
+    
+        this.svg.call(this.zoomBehavior);
     }
 
     update(data) {
