@@ -81,8 +81,9 @@ class TransactionDetail(BaseModel):
 
     @property
     def required_signatures(self) -> int:
-        if self.message and hasattr(self.message, 'header'):
-            return self.message.header.get('numRequiredSignatures', 0)
+        """Get the number of required signatures for this transaction."""
+        if self.message and hasattr(self.message, "header"):
+            return self.message.header.get("numRequiredSignatures", 0)
         return 0
     
     class Config:
