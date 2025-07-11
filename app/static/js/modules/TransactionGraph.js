@@ -1,288 +1,198 @@
-// TransactionGraph.js - Main visualization class
+// /static/js/modules/TransactionGraph.js
 export class TransactionGraph {
-    constructor(containerId, options = {}) {
-        this.container = d3.select(containerId);
-        this.options = {
-            width: options.width || '100%',
-            height: options.height || 800,
-            nodeRadius: options.nodeRadius || 30,
-            linkDistance: options.linkDistance || 150,
-            ...options
-        };
+    constructor(containerSelector, options = {}) {
+        this.container = document.querySelector(containerSelector);
+        if (!this.container) {
+            console.error(`Container "${containerSelector}" nicht gefunden`);
+            return;
+        }
 
-        this.init();
+        // Optionen
+        this.width = options.width || this.container.clientWidth;
+        this.height = options.height || 600;
+        this.nodeRadius = options.nodeRadius || 12;
+
+        // Internes Setup
+        this.svg = null;
+        this.simulation = null;
+        this.tooltip = null;
+
+        // Initialisiere SVG
+        this._init();
     }
 
-    init() {
-        // Create SVG container
-        this.svg = this.container
-            .append('svg')
-            .attr('width', this.options.width)
-            .attr('height', this.options.height)
-            .attr('class', 'transaction-graph');
+    _init() {
+        // Leere vorherigen Inhalt
+        this.container.innerHTML = "";
 
-        // Add zoom behavior
-        this.zoom = d3.zoom()
-            .scaleExtent([0.1, 4])
-            .on('zoom', (event) => {
-                this.graphGroup.attr('transform', event.transform);
-            });
+        // SVG erstellen
+        this.svg = d3.select(this.container)
+            .append("svg")
+            .attr("width", this.width)
+            .attr("height", this.height)
+            .attr("class", "transaction-graph");
 
-        this.svg.call(this.zoom);
+        // Tooltip erstellen
+        this.tooltip = d3.select(this.container)
+            .append("div")
+            .attr("class", "transaction-tooltip")
+            .style("opacity", 0);
 
-        // Create main graph group
-        this.graphGroup = this.svg.append('g')
-            .attr('class', 'graph-group');
-
-        // Initialize force simulation
-        this.simulation = d3.forceSimulation()
-            .force('link', d3.forceLink().id(d => d.id).distance(this.options.linkDistance))
-            .force('charge', d3.forceManyBody().strength(-500))
-            .force('center', d3.forceCenter(this.options.width / 2, this.options.height / 2))
-            .force('collision', d3.forceCollide().radius(this.options.nodeRadius * 1.5))
-            .on('tick', () => this._ticked());
-
-        // Create arrow marker definition
-        this.svg.append('defs').append('marker')
-            .attr('id', 'arrowhead')
-            .attr('viewBox', '-10 -10 20 20')
-            .attr('refX', 20)
-            .attr('refY', 0)
-            .attr('markerWidth', 8)
-            .attr('markerHeight', 8)
-            .attr('orient', 'auto')
-            .append('path')
-            .attr('d', 'M-10,-10 L0,0 L-10,10')
-            .attr('class', 'arrowhead');
-
-        // Initialize containers for links and nodes
-        this.linksGroup = this.graphGroup.append('g').attr('class', 'links');
-        this.nodesGroup = this.graphGroup.append('g').attr('class', 'nodes');
-
-        // Add tooltip
-        this.tooltip = d3.select('body').append('div')
-            .attr('class', 'transaction-tooltip')
-            .style('opacity', 0);
+        // Gruppen für Elemente
+        this.linksGroup = this.svg.append("g").attr("class", "links");
+        this.nodesGroup = this.svg.append("g").attr("class", "nodes");
+        this.labelsGroup = this.svg.append("g").attr("class", "labels");
     }
 
     update(data) {
-        // Process the transaction data
-        const { nodes, links } = this._processTransactionData(data);
+        const graphData = this._processData(data);
+        this.nodes = graphData.nodes;
+        this.links = graphData.links;
 
-        // Update links
-        this.links = this.linksGroup
-            .selectAll('.link')
-            .data(links, d => d.id)
-            .join(
-                enter => this._createLinks(enter),
-                update => this._updateLinks(update),
-                exit => this._removeLinks(exit)
-            );
+        // Simulation initialisieren
+        this.simulation = d3.forceSimulation(this.nodes)
+            .force("link", d3.forceLink(this.links).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-400))
+            .force("center", d3.forceCenter(this.width / 2, this.height / 2));
 
-        // Update nodes
-        this.nodes = this.nodesGroup
-            .selectAll('.node')
-            .data(nodes, d => d.id)
-            .join(
-                enter => this._createNodes(enter),
-                update => this._updateNodes(update),
-                exit => this._removeNodes(exit)
-            );
+        // Links rendern
+        this.linkElements = this.linksGroup.selectAll("line")
+            .data(this.links)
+            .join("line")
+            .attr("class", d => `link ${d.highlighted ? 'highlighted' : ''}`)
+            .style("stroke-width", d => Math.max(1, Math.log(d.value + 1)));
 
-        // Update simulation
-        this.simulation
-            .nodes(nodes)
-            .force('link').links(links);
+        // Nodes rendern
+        this.nodeElements = this.nodesGroup.selectAll("circle")
+            .data(this.nodes)
+            .join("circle")
+            .attr("r", this.nodeRadius)
+            .attr("class", d => {
+                let cls = "node";
+                if (d.type === "wallet") cls += " wallet";
+                if (d.start) cls += " start";
+                if (d.end) cls += " end";
+                if (d.highValue) cls += " high-value";
+                else if (d.mediumValue) cls += " medium-value";
+                else cls += " low-value";
+                return cls;
+            })
+            .call(this._drag(this.simulation))
+            .on("mouseover", (event, d) => this._showTooltip(event, d))
+            .on("mouseout", () => this._hideTooltip())
+            .on("click", (event, d) => this._dispatchNodeClick(event, d));
 
-        this.simulation.alpha(1).restart();
+        // Labels rendern
+        this.labelElements = this.labelsGroup.selectAll("text")
+            .data(this.nodes)
+            .join("text")
+            .attr("class", "node-label")
+            .text(d => this._shortenAddress(d.id))
+            .attr("dy", 4);
+
+        // Tick-Handler
+        this.simulation.on("tick", () => {
+            this.linkElements
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            this.nodeElements
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            this.labelElements
+                .attr("x", d => d.x)
+                .attr("y", d => d.y);
+        });
     }
 
-    _processTransactionData(transactions) {
-        const nodes = [];
+    _processData(transactions) {
+        const nodesMap = new Map();
         const links = [];
-        const nodeMap = new Map();
 
-        transactions.forEach((tx, index) => {
-            // Create wallet nodes
-            if (!nodeMap.has(tx.from_wallet)) {
-                nodeMap.set(tx.from_wallet, {
-                    id: tx.from_wallet,
-                    type: 'wallet',
-                    transactions: []
-                });
-                nodes.push(nodeMap.get(tx.from_wallet));
+        transactions.forEach(tx => {
+            const fromWallet = tx.from_wallet;
+            const changes = tx.balance_changes || [];
+
+            if (!nodesMap.has(fromWallet)) {
+                nodesMap.set(fromWallet, { id: fromWallet, type: "wallet", start: true });
             }
 
-            if (!nodeMap.has(tx.to_wallet)) {
-                nodeMap.set(tx.to_wallet, {
-                    id: tx.to_wallet,
-                    type: 'wallet',
-                    transactions: []
+            changes.forEach(change => {
+                const account = change.account;
+                const amount = Math.abs(change.change / 1e9); // SOL-Wert
+
+                if (!nodesMap.has(account)) {
+                    nodesMap.set(account, {
+                        id: account,
+                        type: "wallet",
+                        highValue: amount > 1,
+                        mediumValue: amount > 0.1 && amount <= 1,
+                        lowValue: amount <= 0.1
+                    });
+                }
+
+                links.push({
+                    source: fromWallet,
+                    target: account,
+                    value: amount,
+                    highlighted: change.change < 0
                 });
-                nodes.push(nodeMap.get(tx.to_wallet));
-            }
-
-            // Create transaction node
-            const txNode = {
-                id: tx.tx_hash,
-                type: 'transaction',
-                amount: tx.amount,
-                timestamp: tx.timestamp,
-                index
-            };
-            nodes.push(txNode);
-            nodeMap.get(tx.from_wallet).transactions.push(tx.tx_hash);
-
-            // Create links
-            links.push({
-                id: `${tx.from_wallet}-${tx.tx_hash}`,
-                source: tx.from_wallet,
-                target: tx.tx_hash,
-                amount: tx.amount
-            });
-
-            links.push({
-                id: `${tx.tx_hash}-${tx.to_wallet}`,
-                source: tx.tx_hash,
-                target: tx.to_wallet,
-                amount: tx.amount
             });
         });
 
-        return { nodes, links };
+        return {
+            nodes: Array.from(nodesMap.values()),
+            links
+        };
     }
 
-    _createNodes(enter) {
-        const nodeGroups = enter.append('g')
-            .attr('class', d => `node ${d.type}`)
-            .call(d3.drag()
-                .on('start', (event) => this._dragstarted(event))
-                .on('drag', (event) => this._dragged(event))
-                .on('end', (event) => this._dragended(event)));
-
-        // Add different shapes based on node type
-        nodeGroups.each(function(d) {
-            const group = d3.select(this);
-            if (d.type === 'wallet') {
-                group.append('circle')
-                    .attr('r', d => d.radius || 30)
-                    .attr('class', 'node-shape wallet');
-            } else {
-                group.append('path')
-                    .attr('d', d3.symbol().type(d3.symbolDiamond).size(500))
-                    .attr('class', 'node-shape transaction');
-            }
-        });
-
-        // Add labels
-        nodeGroups.append('text')
-            .attr('dy', '.35em')
-            .text(d => this._formatLabel(d))
-            .attr('class', 'node-label');
-
-        // Add hover behavior
-        nodeGroups
-            .on('mouseover', (event, d) => this._showTooltip(event, d))
-            .on('mouseout', () => this._hideTooltip())
-            .on('click', (event, d) => this._handleNodeClick(event, d));
-
-        return nodeGroups;
-    }
-
-    _formatLabel(node) {
-        if (node.type === 'wallet') {
-            return `${node.id.substring(0, 4)}...${node.id.substring(node.id.length - 4)}`;
-        }
-        return `${node.amount.toFixed(2)}`;
+    _drag(simulation) {
+        return d3.drag()
+            .on("start", (event, d) => {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            })
+            .on("drag", (event, d) => {
+                d.fx = event.x;
+                d.fy = event.y;
+            })
+            .on("end", (event, d) => {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            });
     }
 
     _showTooltip(event, d) {
-        const content = d.type === 'wallet' 
-            ? `Wallet: ${d.id}<br>Transactions: ${d.transactions.length}`
-            : `Amount: ${d.amount.toFixed(4)} SOL<br>Time: ${new Date(d.timestamp).toLocaleString()}`;
-
-        this.tooltip
-            .style('opacity', 1)
-            .html(`<div class="tooltip-header">${d.type.toUpperCase()}</div>
-                  <div class="tooltip-body">${content}</div>`)
-            .style('left', (event.pageX + 10) + 'px')
-            .style('top', (event.pageY - 10) + 'px');
+        this.tooltip.transition().duration(200).style("opacity", 0.9);
+        this.tooltip.html(`
+            <div class="tooltip-header">Konto</div>
+            <div class="tooltip-body">
+                <div><span class="amount-label">${this._shortenAddress(d.id)}</span></div>
+            </div>
+        `)
+        .style("left", (event.pageX + 10) + "px")
+        .style("top", (event.pageY - 28) + "px");
     }
 
     _hideTooltip() {
-        this.tooltip.style('opacity', 0);
+        this.tooltip.transition().duration(500).style("opacity", 0);
     }
 
-    _handleNodeClick(event, d) {
-        // Highlight connected nodes and links
-        this.nodes.classed('highlighted', n => 
-            n === d || this._isConnected(d, n));
-        this.links.classed('highlighted', l => 
-            l.source === d || l.target === d);
-
-        // Dispatch custom event
-        this.container.node().dispatchEvent(new CustomEvent('nodeClick', {
-            detail: { node: d }
-        }));
+    _shortenAddress(address) {
+        return address.length > 10 ? address.slice(0, 6) + "..." + address.slice(-4) : address;
     }
 
-    _isConnected(a, b) {
-        return this.links.data().some(l => 
-            (l.source === a && l.target === b) || 
-            (l.source === b && l.target === a));
-    }
-
-    _updateNodes(update) {
-        update.select('.node-label')
-            .text(d => this._formatLabel(d));
-        return update;
-    }
-
-    _removeNodes(exit) {
-        return exit.remove();
-    }
-
-    _createLinks(enter) {
-        return enter.append('line')
-            .attr('class', 'link')
-            .attr('marker-end', 'url(#arrowhead)');
-    }
-
-    _updateLinks(update) {
-        return update;
-    }
-
-    _removeLinks(exit) {
-        return exit.remove();
-    }
-
-    _dragstarted(event) {
-        if (!event.active) this.simulation.alphaTarget(0.3).restart();
-        event.subject.fx = event.subject.x;
-        event.subject.fy = event.subject.y;
-    }
-
-    _dragged(event) {
-        event.subject.fx = event.x;
-        event.subject.fy = event.y;
-    }
-
-    _dragended(event) {
-        if (!event.active) this.simulation.alphaTarget(0);
-        event.subject.fx = null;
-        event.subject.fy = null;
-    }
-
-    _ticked() {
-        // Update link positions
-        this.links
-            .attr('x1', d => d.source.x)
-            .attr('y1', d => d.source.y)
-            .attr('x2', d => d.target.x)
-            .attr('y2', d => d.target.y);
-
-        // Update node positions
-        this.nodes
-            .attr('transform', d => `translate(${d.x},${d.y})`);
+    _dispatchNodeClick(event, node) {
+        const customEvent = new CustomEvent('nodeClick', {
+            detail: { node },
+            bubbles: true,
+            cancelable: true
+        });
+        this.container.dispatchEvent(customEvent);
     }
 }
