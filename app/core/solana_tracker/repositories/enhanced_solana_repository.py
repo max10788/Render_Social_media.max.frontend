@@ -301,31 +301,35 @@ class EnhancedSolanaRepository:
             return []
 
     def _extract_balance_changes(self, transaction_data: dict) -> List[dict]:
-        """
-        Extrahiert alle Balance-Änderungen (in SOL) einer Transaktion.
-        """
         meta = transaction_data.get("meta", {})
         pre_balances = meta.get("preBalances", [])
         post_balances = meta.get("postBalances", [])
         account_keys = transaction_data.get("transaction", {}).get("message", {}).get("accountKeys", [])
-
-        if not account_keys or len(pre_balances) != len(account_keys):
-            self.logger.warning("Mismatch zwischen Account Keys und Balances.")
+    
+        if not account_keys:
+            self.logger.warning("Keine accountKeys gefunden")
             return []
-
+    
         balance_changes = []
         for idx, pubkey in enumerate(account_keys):
+            if idx >= len(pre_balances) or idx >= len(post_balances):
+                self.logger.debug(f"Skipping index {idx} - no balance data available")
+                continue
+    
             change_lamports = post_balances[idx] - pre_balances[idx]
-            change_sol = change_lamports / 1e9  # Lamports → SOL
-
-            if change_sol != 0:
-                balance_changes.append({
-                    "account": pubkey,
-                    "change": change_sol,
-                    "pre_balance": pre_balances[idx] / 1e9,
-                    "post_balance": post_balances[idx] / 1e9
-                })
-
+            if change_lamports == 0:
+                continue
+    
+            balance_changes.append({
+                "account": pubkey,
+                "change": change_lamports / 1e9,
+                "pre_balance": pre_balances[idx] / 1e9,
+                "post_balance": post_balances[idx] / 1e9
+            })
+    
+        if not balance_changes:
+            self.logger.warning("Keine validen Balance-Änderungen gefunden")
+    
         return balance_changes
 
     def _build_transaction_graph_data(self, transaction_detail: dict) -> Optional[dict]:
