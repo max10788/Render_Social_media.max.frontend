@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # Erstelle eine globale Konfiguration aus den Umgebungsvariablen
 solana_config = SolanaConfig()
 
-class EnhancedSolanaRepository:
+cclass EnhancedSolanaRepository:
     def __init__(self, config: SolanaConfig):
         self.config = config
         self.current_rpc_url = self.config.primary_rpc_url
@@ -38,6 +38,9 @@ class EnhancedSolanaRepository:
         self.last_request_time = 0
         self.request_count = 0
         self.monitor = RateLimitMonitor()
+
+        # ✅ Füge diesen Eintrag hinzu
+        self.logger = logging.getLogger(__name__)  # oder ein übergebenes logger-Objekt
         
         # Rate Limit Config verarbeiten
         if isinstance(self.config.rate_limit_capacity, int):
