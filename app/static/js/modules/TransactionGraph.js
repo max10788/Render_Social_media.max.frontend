@@ -57,7 +57,17 @@ export class TransactionGraph {
     }
 
     update(data) {
+        console.log("Empfangene Rohdaten:", data); // 👈 DEBUGGING
+    
         const graphData = this._processData(data);
+        console.log("Verarbeitete Graphdaten:", graphData); // 👈 DEBUGGING
+    
+        if (!graphData.nodes.length || !graphData.links.length) {
+            console.warn("Keine Knoten oder Links zum Zeichnen gefunden!");
+            this.container.innerHTML = "<div style='padding: 20px; color: #9ca3af;'>Keine darstellbaren Transaktionen gefunden.</div>";
+            return;
+        }
+
         this.nodes = graphData.nodes;
         this.links = graphData.links;
 
