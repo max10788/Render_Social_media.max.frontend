@@ -300,7 +300,7 @@ class EnhancedSolanaRepository:
             logger.error(f"Error fetching transactions for address {address}: {e}")
             return []
 
-    def _extract_balance_changes(self, transaction_ dict) -> List[dict]:
+    def _extract_balance_changes(self, transaction_data: dict) -> List[dict]:
         """
         Extrahiert alle Balance-Änderungen einer Transaktion.
         Gibt eine Liste von dicts zurück mit 'account' und 'change' (in SOL).
