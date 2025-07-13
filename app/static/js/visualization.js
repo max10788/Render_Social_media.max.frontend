@@ -1,6 +1,56 @@
 import { TransactionGraph } from '/static/js/modules/TransactionGraph.js';
 import { generateCSS } from '/static/js/modules/TransactionStyles.js';
 
+// ⬇️ Füge diese Funktion hier ein:
+function showFallbackGraph(data) {
+    const tree = document.getElementById('transactionTree');
+    if (!tree) return;
+
+    // Leeren vorheriger Inhalte
+    tree.innerHTML = '';
+
+    // Minimaler Graph mit nur zwei Knoten
+    const svg = d3.select(tree)
+        .append("svg")
+        .attr("width", 800)
+        .attr("height", 400);
+
+    const g = svg.append("g");
+
+    // Positionen
+    const source = data.tracked_transactions[0]?.from_wallet || 'Unknown';
+    const target = data.final_wallet_address || 'Final Wallet';
+
+    // Kreise zeichnen
+    g.append("circle").attr("cx", 200).attr("cy", 200).attr("r", 30).attr("class", "node start");
+    g.append("circle").attr("cx", 600).attr("cy", 200).attr("r", 30).attr("class", "node end");
+
+    // Linie zwischen Knoten
+    g.append("line")
+        .attr("x1", 200)
+        .attr("y1", 200)
+        .attr("x2", 600)
+        .attr("y2", 200)
+        .attr("stroke", "#00ffbd")
+        .attr("stroke-width", 2)
+        .attr("class", "link");
+
+    // Texte hinzufügen
+    g.append("text")
+        .attr("x", 200)
+        .attr("y", 250)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#fff")
+        .text("Quelle\n" + source.slice(0, 6) + "...");
+
+    g.append("text")
+        .attr("x", 600)
+        .attr("y", 250)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#fff")
+        .text("Ziel\n" + target.slice(0, 6) + "...");
+}
+
 // Initialize visualization
 document.addEventListener('DOMContentLoaded', () => {
     // Add styles to document
