@@ -219,43 +219,17 @@ class EnhancedSolanaRepository:
             logger.error(f"Error logging transaction details: {e}")
             
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
-        """
-        Holt Transaktionsdetails mit verbesserter Versionsunterstützung.
-        """
         try:
-            raw_result = await self._make_rpc_call("getTransaction", [
-                tx_hash,
-                {
-                    "maxSupportedTransactionVersion": 0,
-                    "encoding": "json"
-                }
-            ])
-
+            raw_result = await self._make_rpc_call("getTransaction", [tx_hash, {
+                "maxSupportedTransactionVersion": 0,
+                "encoding": "json"
+            }])
             if not raw_result:
                 return None
-
-            transaction_data = raw_result.get("transaction", {})
-            meta_data = raw_result.get("meta")
-            slot = raw_result.get("slot")
-
-            message_data = transaction_data.get("message", {})
-            message = TransactionMessageDetail(**message_data) if message_data else None
-
-            meta = TransactionMetaDetail(**(meta_data or {})) if meta_data else None
-
-            parsed_data = {
-                "signatures": transaction_data.get("signatures", []),
-                "message": message,
-                "slot": slot,
-                "meta": meta,
-                "block_time": raw_result.get("blockTime"),
-                "transaction": transaction_data  # Speichere die kompletten Transaktionsdaten
-            }
-
-            return TransactionDetail(**parsed_data)
-
+    
+            return self._build_transaction_graph_data(raw_result)
         except Exception as e:
-            logger.error(f"Error fetching transaction {tx_hash}: {str(e)}")
+            self.logger.error(f"Error fetching or processing transaction {tx_hash}: {str(e)}")
             return None
 
     async def get_signatures_for_address(
