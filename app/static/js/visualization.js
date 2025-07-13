@@ -10,19 +10,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Create container for visualization
     const container = document.getElementById('transactionTree');
-    container.innerHTML = ''; // Clear existing content
 
     // Initialize graph with explicit dimensions
-    const graph = new TransactionGraph('#transactionTree', {
-        width: Math.max(800, window.innerWidth * 0.9),
-        height: Math.max(600, window.innerHeight * 0.7)
-    });
+    let currentGraph = null;
+
+    // Function to create and initialize a new graph
+    function initTransactionGraph(data) {
+        const width = Math.max(800, window.innerWidth * 0.9);
+        const height = Math.max(600, window.innerHeight * 0.7);
+
+        // Clear previous content
+        container.innerHTML = '';
+
+        // Create new graph instance
+        currentGraph = new TransactionGraph('#transactionTree', {
+            width: width,
+            height: height
+        });
+
+        if (data && data.tracked_transactions?.length > 0) {
+            currentGraph.update(data.tracked_transactions);
+        }
+    }
 
     // Update function for new transaction data
     window.updateTransactionVisualization = (data) => {
         const tree = document.getElementById('transactionTree');
         const errorContainer = document.getElementById('errorContainer');
-        
+
         // Clear previous content
         tree.innerHTML = '';
         errorContainer.style.display = 'none';
@@ -37,27 +52,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Create new TransactionGraph instance for each update
-            const newGraph = new TransactionGraph('#transactionTree', {
-                width: Math.max(800, window.innerWidth * 0.9),
-                height: Math.max(600, window.innerHeight * 0.7)
-            });
+            // Store data globally for resize handling
+            window.currentTransactionData = data;
 
-            // Process transactions
-            const transactions = data.tracked_transactions;
-            console.log('Processing transactions:', transactions);
-
-            // Update the visualization
-            newGraph.update(transactions);
+            // Initialize the graph with new data
+            initTransactionGraph(data);
 
             // Update statistics panel
             document.getElementById('txCount').textContent = data.total_transactions_tracked;
             document.getElementById('totalValue').textContent = 
-                `${transactions[0].amount.toFixed(4)} SOL`;
+                `${data.tracked_transactions[0].amount?.toFixed(4) ?? 'N/A'} SOL`;
             document.getElementById('sourceWallet').textContent = data.tracked_transactions[0].from_wallet;
             document.getElementById('targetWallet').textContent = data.final_wallet_address;
             document.getElementById('finalStatus').textContent = 
-                transactions.length > 1 ? 'funds_transferred' : 'single_transfer';
+                data.tracked_transactions.length > 1 ? 'funds_transferred' : 'single_transfer';
             document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
 
         } catch (err) {
@@ -69,60 +77,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle window resize
     window.addEventListener('resize', () => {
-        const width = Math.max(800, window.innerWidth * 0.9);
-        const height = Math.max(600, window.innerHeight * 0.7);
-        
-        // Create new graph with updated dimensions
-        const newGraph = new TransactionGraph('#transactionTree', {
-            width: width,
-            height: height
-        });
-
-        // Re-render current data
         if (window.currentTransactionData) {
-            newGraph.update(window.currentTransactionData.tracked_transactions);
+            initTransactionGraph(window.currentTransactionData);
         }
-    });
-});
-
-    // Handle window resize
-    window.addEventListener('resize', () => {
-        if (!graph.svg) return;
-        
-        const width = window.innerWidth * 0.9;
-        const height = window.innerHeight * 0.7;
-        
-        graph.svg
-            .attr('width', width)
-            .attr('height', height);
-            
-        graph.simulation.force('center', d3.forceCenter(
-            width / 2,
-            height / 2
-        ));
-        
-        graph.simulation.alpha(0.3).restart();
     });
 
     // Listen for node clicks
-    document.getElementById('transactionTree').addEventListener('nodeClick', (event) => {
+    container.addEventListener('nodeClick', (event) => {
         const node = event.detail.node;
         console.log('Node clicked:', node);
     });
-});
 
-document.getElementById('zoomIn')?.addEventListener('click', () => {
-    const svg = d3.select('#transactionTree svg');
-    if (svg && svg.node()) {
-        const currentTransform = d3.zoomTransform(svg.node().viewport || svg.node());
-        svg.call(d3.zoom().transform, currentTransform.scaleBy(1.2));
-    }
-});
+    // Zoom controls
+    document.getElementById('zoomIn')?.addEventListener('click', () => {
+        if (currentGraph && currentGraph.svg) {
+            const svg = d3.select(currentGraph.svg.node().parentNode);
+            const currentTransform = d3.zoomTransform(svg.node());
+            svg.call(d3.zoom().transform, currentTransform.scaleBy(1.2));
+        }
+    });
 
-document.getElementById('zoomOut')?.addEventListener('click', () => {
-    const svg = d3.select('#transactionTree svg');
-    if (svg && svg.node()) {
-        const currentTransform = d3.zoomTransform(svg.node().viewport || svg.node());
-        svg.call(d3.zoom().transform, currentTransform.scaleBy(0.8));
-    }
+    document.getElementById('zoomOut')?.addEventListener('click', () => {
+        if (currentGraph && currentGraph.svg) {
+            const svg = d3.select(currentGraph.svg.node().parentNode);
+            const currentTransform = d3.zoomTransform(svg.node());
+            svg.call(d3.zoom().transform, currentTransform.scaleBy(0.8));
+        }
+    });
 });
