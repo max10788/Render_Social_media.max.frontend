@@ -1,15 +1,14 @@
 import { TransactionGraph } from '/static/js/modules/TransactionGraph.js';
 import { generateCSS } from '/static/js/modules/TransactionStyles.js';
 
-// ⬇️ Füge diese Funktion hier ein:
 function showFallbackGraph(data) {
     const tree = document.getElementById('transactionTree');
     if (!tree) return;
 
-    // Leeren vorheriger Inhalte
+    // Vorherigen Inhalt löschen
     tree.innerHTML = '';
 
-    // Minimaler Graph mit nur zwei Knoten
+    // SVG erstellen
     const svg = d3.select(tree)
         .append("svg")
         .attr("width", 800)
@@ -17,23 +16,33 @@ function showFallbackGraph(data) {
 
     const g = svg.append("g");
 
-    // Positionen
-    const source = data.tracked_transactions[0]?.from_wallet || 'Unknown';
+    // Quelle und Ziel aus Daten extrahieren
+    const source = data.tracked_transactions?.[0]?.from_wallet || 'Unknown';
     const target = data.final_wallet_address || 'Final Wallet';
 
     // Kreise zeichnen
-    g.append("circle").attr("cx", 200).attr("cy", 200).attr("r", 30).attr("class", "node start");
-    g.append("circle").attr("cx", 600).attr("cy", 200).attr("r", 30).attr("class", "node end");
+    g.append("circle")
+        .attr("cx", 200)
+        .attr("cy", 200)
+        .attr("r", 30)
+        .attr("class", "node start")
+        .style("fill", "#00ffbd");
 
-    // Linie zwischen Knoten
+    g.append("circle")
+        .attr("cx", 600)
+        .attr("cy", 200)
+        .attr("r", 30)
+        .attr("class", "node end")
+        .style("fill", "#f2a900");
+
+    // Linie dazwischen
     g.append("line")
         .attr("x1", 200)
         .attr("y1", 200)
         .attr("x2", 600)
         .attr("y2", 200)
-        .attr("stroke", "#00ffbd")
-        .attr("stroke-width", 2)
-        .attr("class", "link");
+        .attr("stroke", "#9ca3af")
+        .attr("stroke-width", 2);
 
     // Texte hinzufügen
     g.append("text")
@@ -41,14 +50,14 @@ function showFallbackGraph(data) {
         .attr("y", 250)
         .attr("text-anchor", "middle")
         .attr("fill", "#fff")
-        .text("Quelle\n" + source.slice(0, 6) + "...");
+        .text("Quelle\n" + (source.length > 10 ? source.slice(0, 6) + "..." : source));
 
     g.append("text")
         .attr("x", 600)
         .attr("y", 250)
         .attr("text-anchor", "middle")
         .attr("fill", "#fff")
-        .text("Ziel\n" + target.slice(0, 6) + "...");
+        .text("Ziel\n" + (target.length > 10 ? target.slice(0, 6) + "..." : target));
 }
 
 // Initialize visualization
