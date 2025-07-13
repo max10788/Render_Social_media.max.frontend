@@ -147,30 +147,26 @@
     <script>
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
-                // Remove active class from all tabs
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-                // Add active class to clicked tab
                 tab.classList.add('active');
                 const tabId = tab.getAttribute('data-tab');
                 document.getElementById(tabId).classList.add('active');
             });
         });
-
+    
         async function trackTransactions() {
             const startTx = document.getElementById('startTx').value.trim();
             const targetCurrency = document.getElementById('targetCurrency').value;
             const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
             const amount = parseFloat(document.getElementById('amount').value);
-
             const tree = document.getElementById('transactionTree');
             const errorContainer = document.getElementById('errorContainer');
+    
             tree.classList.add('loading');
             errorContainer.style.display = 'none';
-            tree.innerHTML = '';
-
-            // Input validation
+    
+            // Input validation bleibt unverändert
             if (!startTx || startTx.length < 64) {
                 errorContainer.textContent = 'Please enter a valid transaction hash (min. 64 characters).';
                 errorContainer.style.display = 'block';
@@ -195,39 +191,43 @@
                 tree.classList.remove('loading');
                 return;
             }
-
+    
             const payload = {
                 start_tx_hash: startTx,
                 target_currency: targetCurrency,
                 amount: amount,
                 num_transactions: numTransactions
             };
-
+    
             try {
                 const response = await fetch('/api/track-transactions', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
+    
                 if (!response.ok) {
                     let errMsg = 'Fehler bei der Transaktionsverfolgung.';
                     try {
                         const data = await response.json();
                         errMsg = data.detail?.message || data.detail || errMsg;
-                    } catch (e) { /* ignore JSON parse errors */ }
+                    } catch (e) {}
                     throw new Error(errMsg);
                 }
-
+    
                 const result = await response.json();
+    
+                console.log("API Response:", result); // 🔍 DEBUGGING: API-Daten anzeigen
+                console.log("SVG vor Visualisierung:", tree.querySelectorAll("svg").length);
+    
+                tree.innerHTML = ''; // ✅ Leeren VOR der neuen Visualisierung
                 if (window.updateTransactionVisualization) {
                     window.updateTransactionVisualization(result);
                 } else {
                     console.error('Visualization update function not found');
                 }
-
+    
+                // Statistiken anzeigen
                 document.getElementById('sourceWallet').textContent = result.tracked_transactions[0]?.from_wallet || '-';
                 document.getElementById('targetWallet').textContent = result.final_wallet_address || '-';
                 document.getElementById('startHash').textContent = result.tracked_transactions[0]?.tx_hash || '-';
@@ -237,16 +237,18 @@
                 document.getElementById('targetCurrencyDisplay').textContent = result.target_currency ?? '-';
                 document.getElementById('exchangeRate').textContent = result.statistics?.exchange_rate ?? '-';
                 document.getElementById('convertedValue').textContent = result.statistics?.converted_value ?? '-';
-
+    
+                console.log("SVG nach Visualisierung:", tree.querySelectorAll("svg").length); // 🔍 DEBUGGING
+    
                 tree.classList.remove('loading');
-
             } catch (err) {
                 errorContainer.textContent = err.message;
                 errorContainer.style.display = 'block';
                 tree.classList.remove('loading');
+                console.error("Error during transaction tracking:", err); // 🔍 DEBUGGING
             }
         }
-
+    
         document.getElementById('trackButton').addEventListener('click', trackTransactions);
     </script>
 </body>
