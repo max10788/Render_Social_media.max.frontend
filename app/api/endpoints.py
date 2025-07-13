@@ -316,6 +316,7 @@ def get_crypto_service() -> CryptoTrackingService:
 def get_app_settings() -> Settings:
     return get_settings()
 
+
 def get_solana_repository(
     settings: Settings = Depends(get_app_settings)
 ) -> EnhancedSolanaRepository:
@@ -343,10 +344,12 @@ def get_solana_repository(
     config = InlineSolanaConfig()
     return EnhancedSolanaRepository(config=config)
 
+
 def get_transaction_service() -> TransactionService:
     solana_repo = get_solana_repository()  
     return TransactionService(solana_repository=solana_repo)
-        
+    
+
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
 async def track_transactions(request: TransactionTrackRequest):
     try:
@@ -374,7 +377,8 @@ async def track_transactions(request: TransactionTrackRequest):
                     ),
                     "suggestion": "Überprüfen Sie die Transaktions-ID und versuchen Sie ggf. erneut."
                 },
-                statistics={}
+                statistics={},
+                graph_data=None  # Neue Feld hinzugefügt
             )
 
         tracking_result = await transaction_service.analyze_transaction_chain(
@@ -414,6 +418,15 @@ async def track_transactions(request: TransactionTrackRequest):
                 "suggested_actions": getattr(scenario, "next_steps", []) or []
             }
 
+        # 🔍 Füge hier die Visualisierungsdaten hinzu
+        solana_repo = get_solana_repository()
+        tx_raw = await solana_repo.get_transaction(request.start_tx_hash)
+
+        graph_data = None
+        if tx_raw:
+            tx_dict = tx_raw.dict() if hasattr(tx_raw, "dict") else tx_raw
+            graph_data = solana_repo._build_transaction_graph_data(tx_dict)
+
         logger.info(
             f"Successfully tracked {len(transactions)} transactions with "
             f"{len(scenarios)} detected scenarios"
@@ -428,7 +441,8 @@ async def track_transactions(request: TransactionTrackRequest):
             target_currency=request.target_currency,
             detected_scenarios=scenarios,
             scenario_details=scenario_details,
-            statistics=statistics
+            statistics=statistics,
+            graph_data=graph_data  # Neues Feld eingefügt
         )
     except ValueError as ve:
         logger.error(f"Validation error: {str(ve)}")
