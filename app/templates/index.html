@@ -239,7 +239,6 @@
                 document.getElementById('convertedValue').textContent = result.statistics?.converted_value ?? '-';
 
                 tree.classList.remove('loading');
-                tree.innerHTML = '';
 
             } catch (err) {
                 errorContainer.textContent = err.message;
