@@ -41,36 +41,61 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear previous content
         tree.innerHTML = '';
         errorContainer.style.display = 'none';
-        tree.classList.remove('loading');
 
-        console.log('Updating visualization with data:', data);
+        console.log("Empfangene Rohdaten:", data);
 
         try {
+            // 🔍 Prüfung auf tracked_transactions
             if (!data || !data.tracked_transactions || data.tracked_transactions.length === 0) {
-                errorContainer.textContent = 'No transaction data available';
-                errorContainer.style.display = 'block';
-                return;
+                throw new Error('Keine Transaktionsdaten zum Visualisieren.');
             }
 
-            // Store data globally for resize handling
+            // 🔍 Prüfung auf balance_changes
+            const allHaveBalanceChanges = data.tracked_transactions.every(tx =>
+                tx.balance_changes && Array.isArray(tx.balance_changes) && tx.balance_changes.length > 0
+            );
+
+            if (!allHaveBalanceChanges) {
+                console.warn("Einige Transaktionen haben keine balance_changes.");
+            }
+
+            // 🔍 Prüfung auf from_wallet
+            const allHaveFromWallet = data.tracked_transactions.every(tx =>
+                tx.from_wallet && typeof tx.from_wallet === 'string' && tx.from_wallet.length > 40
+            );
+
+            if (!allHaveFromWallet) {
+                console.warn("Einige Transaktionen haben kein gültiges from_wallet.");
+            }
+
+            // 🔍 Explizite Ausgabe von nodes, links und balance_changes
+            console.log("tracked_transactions:", data.tracked_transactions);
+            data.tracked_transactions.forEach((tx, i) => {
+                console.log(`tracked_transactions[${i}].from_wallet:`, tx.from_wallet);
+                console.log(`tracked_transactions[${i}].balance_changes:`, tx.balance_changes || []);
+            });
+
+            // Speichere Daten global für Resize
             window.currentTransactionData = data;
 
-            // Initialize the graph with new data
+            // Initiale Visualisierung
             initTransactionGraph(data);
 
-            // Update statistics panel
-            document.getElementById('txCount').textContent = data.total_transactions_tracked;
-            document.getElementById('totalValue').textContent = 
-                `${data.tracked_transactions[0].amount?.toFixed(4) ?? 'N/A'} SOL`;
-            document.getElementById('sourceWallet').textContent = data.tracked_transactions[0].from_wallet;
-            document.getElementById('targetWallet').textContent = data.final_wallet_address;
-            document.getElementById('finalStatus').textContent = 
+            // Statistikfelder befüllen
+            const firstTx = data.tracked_transactions[0];
+
+            document.getElementById('sourceWallet').textContent = firstTx?.from_wallet || '-';
+            document.getElementById('targetWallet').textContent = data.final_wallet_address || '-';
+            document.getElementById('txCount').textContent = data.total_transactions_tracked ?? '-';
+            document.getElementById('totalValue').textContent =
+                `${firstTx?.amount?.toFixed(4) ?? 'N/A'} SOL`;
+            document.getElementById('finalStatus').textContent =
                 data.tracked_transactions.length > 1 ? 'funds_transferred' : 'single_transfer';
             document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
 
         } catch (err) {
-            console.error('Error updating visualization:', err);
-            errorContainer.textContent = `Error displaying transactions: ${err.message}`;
+            console.error('Fehler bei der Visualisierung:', err);
+            errorContainer.textContent = `Fehler beim Anzeigen der Transaktionen: ${err.message}`;
             errorContainer.style.display = 'block';
         }
     };
