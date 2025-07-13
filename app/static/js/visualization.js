@@ -142,8 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const firstTx = data.tracked_transactions[0];
             document.getElementById('sourceWallet').textContent = firstTx?.from_wallet || '-';
             document.getElementById('targetWallet').textContent = data.final_wallet_address || '-';
-            document.getElementById('txCount').textContent = data.total_transactions_tracked ?? '-';
-            document.getElementById('totalValue').textContent = `${firstTx?.amount?.toFixed(4) ?? 'N/A'} SOL`;
+            document.getElementById('finalStatus').textContent = data.total_transactions_tracked > 0 ? 'chain_detected' : 'single_transfer';
             document.getElementById('finalStatus').textContent = data.tracked_transactions.length > 1 ? 'funds_transferred' : 'single_transfer';
             document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
     
