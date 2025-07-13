@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # Erstelle eine globale Konfiguration aus den Umgebungsvariablen
 solana_config = SolanaConfig()
 
-cclass EnhancedSolanaRepository:
+class EnhancedSolanaRepository:
     def __init__(self, config: SolanaConfig):
         self.config = config
         self.current_rpc_url = self.config.primary_rpc_url
