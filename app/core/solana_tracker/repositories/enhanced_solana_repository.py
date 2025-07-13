@@ -297,5 +297,56 @@ class EnhancedSolanaRepository:
             logger.error(f"Error fetching transactions for address {address}: {e}")
             return []
 
+    def _extract_balance_changes(self, transaction_data: dict) -> List[dict]:
+        """
+        Extrahiert alle Balance-Änderungen (in SOL) einer Transaktion.
+        """
+        meta = transaction_data.get("meta", {})
+        pre_balances = meta.get("preBalances", [])
+        post_balances = meta.get("postBalances", [])
+        account_keys = transaction_data.get("transaction", {}).get("message", {}).get("accountKeys", [])
+
+        if not account_keys or len(pre_balances) != len(account_keys):
+            self.logger.warning("Mismatch zwischen Account Keys und Balances.")
+            return []
+
+        balance_changes = []
+        for idx, pubkey in enumerate(account_keys):
+            change_lamports = post_balances[idx] - pre_balances[idx]
+            change_sol = change_lamports / 1e9  # Lamports → SOL
+
+            if change_sol != 0:
+                balance_changes.append({
+                    "account": pubkey,
+                    "change": change_sol,
+                    "pre_balance": pre_balances[idx] / 1e9,
+                    "post_balance": post_balances[idx] / 1e9
+                })
+
+        return balance_changes
+
+    def _build_transaction_graph_data(self, transaction_detail: dict) -> Optional[dict]:
+        """
+        Baut strukturierte Graph-Daten für D3.js basierend auf Transaktionsdetails.
+        """
+        tx_hash = transaction_detail.get("transaction", {}).get("signatures", [""])[0]
+        block_time = transaction_detail.get("blockTime")
+        message = transaction_detail.get("transaction", {}).get("message", {})
+        account_keys = message.get("accountKeys", [])
+        from_wallet = account_keys[0] if account_keys else None
+
+        balance_changes = self._extract_balance_changes(transaction_detail)
+
+        if not balance_changes:
+            self.logger.warning(f"Keine Balance-Änderungen für Transaktion {tx_hash}")
+            return None
+
+        return {
+            "signature": tx_hash,
+            "block_time": block_time,
+            "from_wallet": from_wallet,
+            "balance_changes": balance_changes
+        }
+
 # Instanz erstellen
 repository = EnhancedSolanaRepository(config=solana_config)
