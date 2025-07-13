@@ -127,10 +127,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
     
             // Wenn Daten unvollständig sind → Fallback anzeigen
-            if (!allHaveBalanceChanges || !allHaveFromWallet) {
-                showFallbackGraph(data);
-                return;
-            }
+            if not tx_detail or not hasattr(tx_detail, 'message'):
+                logger.error("Ungültige Transaktionsstruktur")
+                raise ValueError("Transaktionsdaten unvollständig")
     
             // Wenn alles OK ist → normale Visualisierung laden
             initTransactionGraph(data);
