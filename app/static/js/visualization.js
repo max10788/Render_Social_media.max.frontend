@@ -127,9 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
     
             // Wenn Daten unvollständig sind → Fallback anzeigen
-            if not tx_detail or not hasattr(tx_detail, 'message'):
-                logger.error("Ungültige Transaktionsstruktur")
-                raise ValueError("Transaktionsdaten unvollständig")
+            if (!data || !data.tracked_transactions?.length) {
+                showEmptyState(); // Zeige Hinweis: "Keine weiteren Transaktionen gefunden"
+            } else if (needsFallback) {
+                showFallbackGraph(data); // Nur eine direkte Übertragung
+            } else {
+                initTransactionGraph(data); // Normale Visualisierung
+            }
     
             // Wenn alles OK ist → normale Visualisierung laden
             initTransactionGraph(data);
