@@ -74,10 +74,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 tx.balance_changes && Array.isArray(tx.balance_changes) && tx.balance_changes.length > 0
             );
     
-            if (!allHaveBalanceChanges) {
-                console.warn("Einige Transaktionen haben keine balance_changes.");
-            }
-    
             // Prüfung auf from_wallet
             const allHaveFromWallet = data.tracked_transactions.every(tx =>
                 tx.from_wallet && typeof tx.from_wallet === 'string' && tx.from_wallet.length > 40
