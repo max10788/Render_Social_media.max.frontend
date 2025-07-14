@@ -125,6 +125,14 @@ class TransactionService:
             # Erkenne Szenarien
             scenarios = await self.scenario_detector.detect_scenarios(tracked_txs)
             logger.info(f"Szenarienerkennung abgeschlossen. {len(scenarios) if scenarios else 0} Szenarien gefunden.")
+            
+            if any(self._is_multi_sig_transaction(tx) for tx in tracked_txs):
+                scenarios.append({
+                    "type": "multi_sig_transfer",
+                    "description": "Erkannte Multi-Signatur-Transaktion innerhalb der Kette",
+                    "risk_level": "medium",
+                    "affected_transactions": [tx.tx_hash for tx in tracked_txs if self._is_multi_sig_transaction(tx)]
+                })
     
             # Berechne Statistiken
             stats = await self._calculate_chain_statistics(tracked_txs)
