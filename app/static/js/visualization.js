@@ -5,59 +5,20 @@ function showFallbackGraph(data) {
     const tree = document.getElementById('transactionTree');
     if (!tree) return;
 
-    // Vorherigen Inhalt löschen
-    tree.innerHTML = '';
+    // Zeige eine einfachere Visualisierung an
+    const source = data.tracked_transactions?.[0]?.from_wallet || 'Unbekannt';
+    const target = data.final_wallet_address || 'Ziel';
 
-    // SVG erstellen
-    const svg = d3.select(tree)
-        .append("svg")
-        .attr("width", 800)
-        .attr("height", 400);
-
-    const g = svg.append("g");
-
-    // Quelle und Ziel aus Daten extrahieren
-    const source = data.tracked_transactions?.[0]?.from_wallet || 'Unknown';
-    const target = data.final_wallet_address || 'Final Wallet';
-
-    // Kreise zeichnen
-    g.append("circle")
-        .attr("cx", 200)
-        .attr("cy", 200)
-        .attr("r", 30)
-        .attr("class", "node start")
-        .style("fill", "#00ffbd");
-
-    g.append("circle")
-        .attr("cx", 600)
-        .attr("cy", 200)
-        .attr("r", 30)
-        .attr("class", "node end")
-        .style("fill", "#f2a900");
-
-    // Linie dazwischen
-    g.append("line")
-        .attr("x1", 200)
-        .attr("y1", 200)
-        .attr("x2", 600)
-        .attr("y2", 200)
-        .attr("stroke", "#9ca3af")
-        .attr("stroke-width", 2);
-
-    // Texte hinzufügen
-    g.append("text")
-        .attr("x", 200)
-        .attr("y", 250)
-        .attr("text-anchor", "middle")
-        .attr("fill", "#fff")
-        .text("Quelle\n" + (source.length > 10 ? source.slice(0, 6) + "..." : source));
-
-    g.append("text")
-        .attr("x", 600)
-        .attr("y", 250)
-        .attr("text-anchor", "middle")
-        .attr("fill", "#fff")
-        .text("Ziel\n" + (target.length > 10 ? target.slice(0, 6) + "..." : target));
+    // Zeige eine einfachere Visualisierung an
+    tree.innerHTML = `
+        <div style="padding: 20px; color: #9ca3af;">
+            Nur eine einfache Übertragung gefunden:
+            <br><br>
+            <strong>Quelle:</strong> ${source.slice(0, 6)}...${source.slice(-4)}
+            <br>
+            <strong>Ziel:</strong> ${target.slice(0, 6)}...${target.slice(-4)}
+        </div>
+    `;
 }
 
 // Initialize visualization
