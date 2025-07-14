@@ -6,19 +6,9 @@ export class TransactionGraph {
             console.error(`Container "${containerSelector}" nicht gefunden`);
             return;
         }
-
-        // Optionen
-        this.width = options.width || this.container.clientWidth;
+        this.width = options.width || 800;
         this.height = options.height || 600;
-        this.nodeRadius = options.nodeRadius || 12;
-
-        // Internes Setup
-        this.svg = null;
-        this.simulation = null;
-        this.tooltip = null;
-
-        // Initialisiere SVG
-        this._init();
+        this.tooltip = d3.select("body").append("div").attr("class", "transaction-tooltip").style("opacity", 0);
     }
 
    _init() {
@@ -201,13 +191,12 @@ export class TransactionGraph {
     _showTooltip(event, d) {
         const tx = d.transaction || {};
         const meta = tx.meta || {};
-        const message = tx.transaction?.message || {};
-        const account_keys = message.accountKeys || [];
+        const account_keys = tx.transaction?.message?.accountKeys || [];
         const balance_changes = d.balance_changes || [];
-    
+
         const fee = meta.fee ? (meta.fee / 1e9).toFixed(6) + " SOL" : "N/A";
         const block_time = tx.block_time ? new Date(tx.block_time * 1000).toLocaleString() : "N/A";
-    
+
         let content = `
             <div class="tooltip-header">Konto: ${this._shortenAddress(d.id)}</div>
             <div class="tooltip-body">
@@ -217,20 +206,19 @@ export class TransactionGraph {
                 <div><strong>Beteiligte Accounts:</strong> (${account_keys.length})</div>
                 <ul>${account_keys.slice(0, 5).map((acc, i) => `<li title="${acc}">${acc.substring(0, 10)}...</li>`).join("")}</ul>
                 <div><strong>Balance-Änderungen:</strong></div>
-                <ul>
-                    ${balance_changes.map(change => {
-                        const sign = change.change > 0 ? "+" : "";
-                        return `<li>${change.account.substring(0, 10)}...: <span class="${sign.startsWith('+') ? 'amount-label' : 'error'}">${sign}${change.change.toFixed(4)} SOL</span></li>`;
-                    }).join("")}
-                </ul>
+                <ul>${balance_changes.map(change => {
+                    const sign = change.change > 0 ? "+" : "";
+                    return `<li>${change.account.substring(0, 10)}...: <span class="${sign.startsWith('+') ? 'amount-label' : 'error'}">${sign}${change.change.toFixed(4)} SOL</span></li>`;
+                }).join("")}</ul>
             </div>
         `;
-    
-        this.tooltip.transition().duration(200).style("opacity", 0.9);
+
         this.tooltip.html(content)
             .style("left", `${event.pageX + 10}px`)
-            .style("top", `${event.pageY - 28}px`);
+            .style("top", `${event.pageY - 28}px`)
+            .style("opacity", 0.9);
     }
+
 
     _hideTooltip() {
         this.tooltip.transition().duration(500).style("opacity", 0);
