@@ -301,36 +301,49 @@ class EnhancedSolanaRepository:
             return []
 
     def _extract_balance_changes(self, transaction_data: dict) -> List[dict]:
+        """
+        Extrahiert alle Balance-Änderungen einer Transaktion.
+        Gibt eine Liste von dicts zurück mit 'account' und 'change' (in SOL).
+        Berücksichtigt:
+        - Mismatch zwischen accountKeys und Balances
+        - Systemkonten (z. B. '11111111111111111111111111111111')
+        - Leere oder nicht existierende Daten
+        """
         meta = transaction_data.get("meta", {})
-        pre_balances = meta.get("preBalances")
-        post_balances = meta.get("postBalances")
+        pre_balances = meta.get("preBalances", [])
+        post_balances = meta.get("postBalances", [])
         message = transaction_data.get("transaction", {}).get("message", {})
-        account_keys = message.get("accountKeys")
+        account_keys = message.get("accountKeys", [])
     
         if not account_keys:
-            self.logger.debug("Keine accountKeys gefunden")
-            return []
-    
-        if not isinstance(pre_balances, list) or not isinstance(post_balances, list):
-            self.logger.warning("Ungültige Balancelisten in Transaktion")
+            self.logger.debug("Keine accountKeys gefunden")  # Geändert von warning zu debug
             return []
     
         balance_changes = []
         for idx, pubkey in enumerate(account_keys):
+            # Prüfe ob genug Balance-Daten vorhanden sind
             if idx >= len(pre_balances) or idx >= len(post_balances):
+                self.logger.debug(f"Skipping index {idx} - no balance data available")
                 continue
-            change = post_balances[idx] - pre_balances[idx]
-            if change == 0:
+    
+            pre_balance_lamports = pre_balances[idx]
+            post_balance_lamports = post_balances[idx]
+            change_lamports = post_balance_lamports - pre_balance_lamports
+    
+            # Überspringe Systemkonto oder keine Änderung
+            if pubkey == "11111111111111111111111111111111" or change_lamports == 0:
                 continue
+    
             balance_changes.append({
                 "account": pubkey,
-                "change": change / 1e9,
-                "pre_balance": pre_balances[idx] / 1e9,
-                "post_balance": post_balances[idx] / 1e9
+                "change": change_lamports / 1e9,  # Umrechnung von Lamports → SOL
+                "pre_balance": pre_balance_lamports / 1e9,
+                "post_balance": post_balance_lamports / 1e9
             })
     
         if not balance_changes:
-            self.logger.debug("Keine validen Balance-Änderungen gefunden")
+            self.logger.debug("Keine validen Balance-Änderungen gefunden")  # Geändert von warning zu debug
+    
         return balance_changes
 
     def _build_transaction_graph_data(self, transaction_detail: dict) -> Optional[dict]:
