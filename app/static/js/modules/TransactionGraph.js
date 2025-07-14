@@ -133,38 +133,57 @@ export class TransactionGraph {
     _processData(transactions) {
         const nodesMap = new Map();
         const links = [];
-
+    
         transactions.forEach(tx => {
             const fromWallet = tx.from_wallet;
-            const changes = tx.balance_changes || [];
-
-            if (!nodesMap.has(fromWallet)) {
-                nodesMap.set(fromWallet, { id: fromWallet, type: "wallet", start: true });
+            const txHash = tx.tx_hash || "N/A";
+            const blockTime = tx.timestamp || "N/A";
+            const fee = tx.meta?.fee ? (tx.meta.fee / 1e9).toFixed(6) : "N/A";
+            const balanceChanges = tx.balance_changes || [];
+    
+            // Füge Quell-Node hinzu
+            if (fromWallet && !nodesMap.has(fromWallet)) {
+                nodesMap.set(fromWallet, {
+                    id: fromWallet,
+                    type: "wallet",
+                    start: true,
+                    label: "Quelle"
+                });
             }
-
-            changes.forEach(change => {
+    
+            // Füge Ziele hinzu und erstelle Links
+            balanceChanges.forEach(change => {
                 const account = change.account;
-                const amount = Math.abs(change.change / 1e9); // SOL-Wert
-
-                if (!nodesMap.has(account)) {
+                const amount = Math.abs(change.change / 1e9); // SOL
+                const changeDirection = change.change < 0 ? "Abgang" : "Eingang";
+    
+                if (account && !nodesMap.has(account)) {
                     nodesMap.set(account, {
                         id: account,
                         type: "wallet",
                         highValue: amount > 1,
                         mediumValue: amount > 0.1 && amount <= 1,
-                        lowValue: amount <= 0.1
+                        lowValue: amount <= 0.1,
+                        label: `${changeDirection} (${amount.toFixed(4)} SOL)`
                     });
                 }
-
-                links.push({
-                    source: fromWallet,
-                    target: account,
-                    value: amount,
-                    highlighted: change.change < 0
-                });
+    
+                // Füge Link hinzu
+                if (fromWallet && account) {
+                    links.push({
+                        source: fromWallet,
+                        target: account,
+                        value: amount,
+                        highlighted: change.change < 0,
+                        txHash,
+                        amount: amount.toFixed(4),
+                        timestamp: blockTime,
+                        fee
+                    });
+                }
             });
         });
-
+    
         return {
             nodes: Array.from(nodesMap.values()),
             links
