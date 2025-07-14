@@ -211,19 +211,23 @@ export class TransactionGraph {
         const tx = d.transaction || {};
         const meta = tx.meta || {};
         const message = tx.transaction?.message || {};
-        const accountKeys = message.accountKeys || [];
+        const account_keys = message.accountKeys || [];
+        const balance_changes = d.balance_changes || [];
     
-        const tooltipContent = `
+        const fee = meta.fee ? (meta.fee / 1e9).toFixed(6) + " SOL" : "N/A";
+        const block_time = tx.block_time ? new Date(tx.block_time * 1000).toLocaleString() : "N/A";
+    
+        let content = `
             <div class="tooltip-header">Konto: ${this._shortenAddress(d.id)}</div>
             <div class="tooltip-body">
-                <div class="timestamp-label">Transaktion: ${tx.signature || "N/A"}</div>
-                <div class="timestamp-label">Datum: ${d.timestamp ? new Date(d.timestamp * 1000).toLocaleString() : "N/A"}</div>
-                <div class="amount-label">Gebühr: ${(meta.fee / 1e9).toFixed(6)} SOL</div>
-                <div><strong>Beteiligte Accounts:</strong> (${accountKeys.length})</div>
-                <ul>${accountKeys.slice(0, 5).map((acc, i) => `<li title="${acc}">${acc.substring(0, 10)}...</li>`).join("")}</ul>
+                <div class="timestamp-label">Transaktions-Hash: ${tx.signature || "N/A"}</div>
+                <div class="timestamp-label">Datum: ${block_time}</div>
+                <div class="amount-label">Gebühr: ${fee}</div>
+                <div><strong>Beteiligte Accounts:</strong> (${account_keys.length})</div>
+                <ul>${account_keys.slice(0, 5).map((acc, i) => `<li title="${acc}">${acc.substring(0, 10)}...</li>`).join("")}</ul>
                 <div><strong>Balance-Änderungen:</strong></div>
                 <ul>
-                    ${d.balance_changes?.map(change => {
+                    ${balance_changes.map(change => {
                         const sign = change.change > 0 ? "+" : "";
                         return `<li>${change.account.substring(0, 10)}...: <span class="${sign.startsWith('+') ? 'amount-label' : 'error'}">${sign}${change.change.toFixed(4)} SOL</span></li>`;
                     }).join("")}
@@ -232,9 +236,9 @@ export class TransactionGraph {
         `;
     
         this.tooltip.transition().duration(200).style("opacity", 0.9);
-        this.tooltip.html(tooltipContent)
-            .style("left", (event.pageX + 10) + "px")
-            .style("top", (event.pageY - 28) + "px");
+        this.tooltip.html(content)
+            .style("left", `${event.pageX + 10}px`)
+            .style("top", `${event.pageY - 28}px`);
     }
 
     _hideTooltip() {
