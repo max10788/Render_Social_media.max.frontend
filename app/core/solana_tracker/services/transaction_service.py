@@ -42,7 +42,6 @@ class TransactionService:
     def __init__(
         self,
         solana_repository: EnhancedSolanaRepository,
-        self.cache = {}  # Cache für Transaktionen
         scenario_detector: Optional[ScenarioDetector] = None
     ):
         self.solana_repo = solana_repository
