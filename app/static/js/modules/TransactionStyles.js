@@ -83,7 +83,6 @@ export const generateCSS = () => `
     .tooltip-header {
         font-weight: bold;
         margin-bottom: 6px;
-        padding-bottom: 6px;
         border-bottom: 1px solid #ddd;
         color: #2c3e50;
     }
@@ -93,9 +92,23 @@ export const generateCSS = () => `
         color: #34495e;
     }
 
+    .tooltip-body ul {
+        list-style: none;
+        padding-left: 0;
+    }
+
+    .tooltip-body li {
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
     .amount-label {
         font-weight: bold;
-        color: #2c3e50;
+        color: #27ae60;
+    }
+
+    .error {
+        color: #e74c3c;
     }
 
     .timestamp-label {
