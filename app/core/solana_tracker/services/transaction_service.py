@@ -346,16 +346,21 @@ class TransactionService:
 
     async def _create_tracked_transaction(
         self,
-        tx_detail: TransactionDetail,
+        tx_detail: dict,  # Now accepts a dictionary
         remaining_amount: Optional[Decimal] = None,
         data_level: str = "standard"
     ) -> Optional[TrackedTransaction]:
         try:
-            if not tx_detail or not tx_detail.message:
+            # Safely extract nested data
+            transaction_data = tx_detail.get("transaction", {})
+            message = transaction_data.get("message", {})
+            meta = tx_detail.get("meta", {})
+            
+            # Check required fields
+            if not message:
                 return None
-    
-            # Get account keys and find system program index
-            account_keys = tx_detail.message.accountKeys
+                
+            account_keys = message.get("accountKeys", [])
             if not account_keys:
                 return None
                 
@@ -369,62 +374,64 @@ class TransactionService:
             if system_program_index is None:
                 return None
     
-            # Analyze balance changes
-            pre_balances = tx_detail.meta.pre_balances if tx_detail.meta else []
-            post_balances = tx_detail.meta.post_balances if tx_detail.meta else []
+            # Extract balances
+            pre_balances = meta.get("pre_balances", [])
+            post_balances = meta.get("post_balances", [])
             
             if not pre_balances or not post_balances or len(pre_balances) != len(post_balances):
                 return None
     
-            # Find accounts with significant balance changes
+            # Analyze significant balance changes
             changes = []
             for i in range(len(pre_balances)):
                 if i < len(account_keys):
-                    change = post_balances[i] - pre_balances[i]
-                    if abs(change) > 5000:  # Ignoriere kleine Änderungen (Gebühren)
-                        changes.append({
-                            'account': account_keys[i],
-                            'change': change,
-                            'pre': pre_balances[i],
-                            'post': post_balances[i]
-                        })
+                    try:
+                        change = int(post_balances[i]) - int(pre_balances[i])
+                        if abs(change) > 5000:  # Ignore small fees
+                            changes.append({
+                                'account': account_keys[i],
+                                'change': change,
+                                'pre': pre_balances[i],
+                                'post': post_balances[i]
+                            })
+                    except (TypeError, ValueError):
+                        continue
     
-            # Determine from/to based on balance changes
+            # Determine sender/receiver
             from_wallet = None
             to_wallet = None
             amount = Decimal('0')
-    
+            
             if len(changes) >= 2:
-                # Sender hat negative Änderung, Empfänger positive
                 sender = next((c for c in changes if c['change'] < 0), None)
                 receiver = next((c for c in changes if c['change'] > 0), None)
-                
                 if sender and receiver:
                     from_wallet = sender['account']
                     to_wallet = receiver['account']
-                    amount = Decimal(abs(sender['change'])) / Decimal(1e9)  # Konvertiere Lamports zu SOL
+                    amount = Decimal(abs(sender['change'])) / Decimal(1e9)  # Convert lamports to SOL
     
             if not from_wallet or not to_wallet:
                 logger.warning("Konnte From/To Wallets nicht bestimmen")
                 return None
     
-            # Erstelle TrackedTransaction basierend auf data_level
+            # Build transaction data
             tx_data = {
-                "tx_hash": tx_detail.signatures[0] if tx_detail.signatures else "",
+                "tx_hash": signatures[0] if signatures else "",
                 "from_wallet": from_wallet,
                 "to_wallet": to_wallet,
             }
     
             if data_level in ["standard", "full"]:
+                block_time = tx_detail.get("blockTime")
                 tx_data.update({
                     "amount": amount,
-                    "timestamp": datetime.fromtimestamp(tx_detail.block_time) if tx_detail.block_time else datetime.utcnow(),
+                    "timestamp": datetime.fromtimestamp(block_time) if isinstance(block_time, int) else datetime.utcnow(),
                 })
-    
+            
             if data_level == "full":
                 tx_data.update({
                     "value_in_target_currency": None,
-                    "status": "success" if not tx_detail.meta or not tx_detail.meta.err else "failed",
+                    "status": "success" if not meta.get("err") else "failed",
                     "remaining_amount": remaining_amount
                 })
     
