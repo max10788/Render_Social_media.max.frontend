@@ -263,9 +263,15 @@ class TransactionService:
     def _is_multi_sig_transaction(self, tx_detail: TransactionDetail) -> bool:
         """Check if transaction is multi-sig."""
         try:
-            if not tx_detail or not tx_detail.get("transaction", {}).get("message"):
-                return False
-                
+            # Safely extract the message using .get() to handle missing keys
+            transaction_data = tx_detail.get("transaction", {})
+            message = transaction_data.get("message")
+            
+            if not tx_detail or not message:
+                # Handle missing transaction/message case
+                logger.error("Missing transaction or message in RPC response")
+                return None
+                            
             # Account keys are in the message structure
             account_keys = tx_detail.message.accountKeys if hasattr(tx_detail.message, 'accountKeys') else []
             
