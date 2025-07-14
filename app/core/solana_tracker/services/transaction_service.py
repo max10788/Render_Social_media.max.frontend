@@ -260,33 +260,16 @@ class TransactionService:
             logger.error(f"Fehler beim Abruf der Transaktion {tx_hash}: {e}", exc_info=True)
             return None
 
-    def _is_multi_sig_transaction(self, tx_detail: TransactionDetail) -> bool:
-        """Check if transaction is multi-sig."""
+    def _is_multi_sig_transaction(self, tx_detail: Dict[str, Any]) -> bool:
         try:
-            # Safely extract the message using .get() to handle missing keys
-            transaction_data = tx_detail.get("transaction", {})
-            message = transaction_data.get("message")
-            
-            if not tx_detail or not message:
-                # Handle missing transaction/message case
-                logger.error("Missing transaction or message in RPC response")
-                return None
-                            
-            # Account keys are in the message structure
-            account_keys = tx_detail.message.accountKeys if hasattr(tx_detail.message, 'accountKeys') else []
-            
-            # Check for MultiSig accounts in the account keys
-            has_multi_sig = any("MultiSig" in account for account in account_keys)
-            
-            # Check required signatures from header
-            if hasattr(tx_detail.message, 'header'):
-                required_sigs = tx_detail.message.header.get('numRequiredSignatures', 1)
-                if required_sigs > 1:
-                    return True
-                    
-            return has_multi_sig
+            # Sicherer Zugriff auf verschachtelte Daten
+            message = tx_detail.get("transaction", {}).get("message", {})
+            account_keys = message.get("accountKeys", [])
+            header = message.get("header", {})
+            required_sigs = header.get("numRequiredSignatures", 1)
+            return required_sigs > 1 or any("MultiSig" in str(acc) for acc in account_keys)
         except Exception as e:
-            logger.error(f"Error checking multi-sig transaction: {e}")
+            self.logger.warning(f"Fehler beim Prüfen der Multi-Sig-Eigenschaft: {e}")
             return False
 
     async def _validate_multi_sig_access(self, tx_detail: TransactionDetail) -> None:
