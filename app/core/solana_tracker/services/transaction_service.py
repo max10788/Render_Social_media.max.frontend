@@ -263,7 +263,7 @@ class TransactionService:
     def _is_multi_sig_transaction(self, tx_detail: TransactionDetail) -> bool:
         """Check if transaction is multi-sig."""
         try:
-            if not tx_detail or not tx_detail.message:
+            if not tx_detail or not tx_detail.get("transaction", {}).get("message"):
                 return False
                 
             # Account keys are in the message structure
