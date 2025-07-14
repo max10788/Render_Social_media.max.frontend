@@ -307,7 +307,7 @@ class EnhancedSolanaRepository:
         account_keys = transaction_data.get("transaction", {}).get("message", {}).get("accountKeys", [])
     
         if not account_keys:
-            self.logger.debug("Keine accountKeys gefunden (DEBUG statt WARNING)")
+            self.logger.debug("Keine accountKeys gefunden")
             return []
     
         balance_changes = []
@@ -324,8 +324,6 @@ class EnhancedSolanaRepository:
                 "post_balance": post_balances[idx] / 1e9
             })
     
-        if not balance_changes:
-            self.logger.debug("Keine validen Balance-Änderungen gefunden (DEBUG statt WARNING)")
         return balance_changes
 
     def _build_transaction_graph_data(self, transaction_detail: dict) -> Optional[dict]:
