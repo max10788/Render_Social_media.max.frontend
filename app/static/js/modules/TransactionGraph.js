@@ -209,15 +209,33 @@ export class TransactionGraph {
     }
 
     _showTooltip(event, d) {
-        this.tooltip.transition().duration(200).style("opacity", 0.9);
-        this.tooltip.html(`
-            <div class="tooltip-header">Konto</div>
+        const tx = d.transaction || {};
+        const meta = tx.meta || {};
+        const message = tx.transaction?.message || {};
+        const accountKeys = message.accountKeys || [];
+    
+        const tooltipContent = `
+            <div class="tooltip-header">Konto: ${this._shortenAddress(d.id)}</div>
             <div class="tooltip-body">
-                <div><span class="amount-label">${this._shortenAddress(d.id)}</span></div>
+                <div class="timestamp-label">Transaktion: ${tx.signature || "N/A"}</div>
+                <div class="timestamp-label">Datum: ${d.timestamp ? new Date(d.timestamp * 1000).toLocaleString() : "N/A"}</div>
+                <div class="amount-label">Gebühr: ${(meta.fee / 1e9).toFixed(6)} SOL</div>
+                <div><strong>Beteiligte Accounts:</strong> (${accountKeys.length})</div>
+                <ul>${accountKeys.slice(0, 5).map((acc, i) => `<li title="${acc}">${acc.substring(0, 10)}...</li>`).join("")}</ul>
+                <div><strong>Balance-Änderungen:</strong></div>
+                <ul>
+                    ${d.balance_changes?.map(change => {
+                        const sign = change.change > 0 ? "+" : "";
+                        return `<li>${change.account.substring(0, 10)}...: <span class="${sign.startsWith('+') ? 'amount-label' : 'error'}">${sign}${change.change.toFixed(4)} SOL</span></li>`;
+                    }).join("")}
+                </ul>
             </div>
-        `)
-        .style("left", (event.pageX + 10) + "px")
-        .style("top", (event.pageY - 28) + "px");
+        `;
+    
+        this.tooltip.transition().duration(200).style("opacity", 0.9);
+        this.tooltip.html(tooltipContent)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
     }
 
     _hideTooltip() {
