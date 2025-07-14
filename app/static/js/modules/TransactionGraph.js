@@ -57,20 +57,19 @@ export class TransactionGraph {
     }
 
     update(data) {
-        console.log("Empfangene Rohdaten:", data); // 👈 DEBUGGING
-    
+        console.log("Empfangene Rohdaten:", data);
         const graphData = this._processData(data);
-        console.log("Verarbeitete Graphdaten:", graphData); // 👈 DEBUGGING
+        console.log("Verarbeitete Graphdaten:", graphData);
     
         if (!graphData.nodes.length || !graphData.links.length) {
             console.warn("Keine Knoten oder Links zum Zeichnen gefunden!");
             this.container.innerHTML = "<div style='padding: 20px; color: #9ca3af;'>Keine darstellbaren Transaktionen gefunden.</div>";
             return;
         }
-
+    
         this.nodes = graphData.nodes;
         this.links = graphData.links;
-
+    
         // Simulation initialisieren
         this.simulation = d3.forceSimulation(this.nodes)
             .force("link", d3.forceLink(this.links).id(d => d.id).distance(150))
