@@ -27,6 +27,7 @@ __all__ = [
 class ScenarioType(str, Enum):
     """Types of scenarios that can be detected."""
     # Basic Scenarios
+    SIMPLE_TRANSFER = "simple_transfer"
     large_transfer = "large_transfer"
     token_swap = "token_swap"
     delegated_staking = "delegated_staking"
