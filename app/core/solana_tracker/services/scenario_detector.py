@@ -50,6 +50,14 @@ class ScenarioDetector:
         
     def _load_patterns(self):
         self.patterns = [
+            ScenarioPattern(
+                type=ScenarioType.SIMPLE_TRANSFER,
+                confidence_threshold=0.7,
+                pattern_rules={
+                    "min_amount": Decimal("0.000001"),
+                    "description": "Erkennt einfache SOL-Transfers zwischen Wallets."
+                }
+            ),
             # 1. Token Swap
             ScenarioPattern(
                 type=ScenarioType.token_swap,
