@@ -240,7 +240,6 @@ class ChainTracker:
                             })
             
             elif isinstance(tx_detail, TransactionDetail):
-                # Verarbeite bereits geparschte Transfers
                 if hasattr(tx_detail, 'transfers'):
                     for transfer in tx_detail.transfers:
                         if transfer.amount >= self.MIN_AMOUNT:
@@ -249,9 +248,6 @@ class ChainTracker:
                                 "to": transfer.to_address,
                                 "amount": transfer.amount
                             })
-            
-            else:
-                logger.warning("Unsupported tx_detail type for transfer extraction: %s", type(tx_detail).__name__)
             
             return transfers
         except Exception as e:
