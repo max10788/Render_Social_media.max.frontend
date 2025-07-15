@@ -347,7 +347,7 @@ class TransactionService:
         # Solana Transaktion Hash Format
         return bool(re.match(r'^[1-9A-HJ-NP-Za-km-z]{87,88}$', tx_hash))
 
-    def _create_tracked_transaction(
+    async def _create_tracked_transaction(
         self,
         tx_detail: dict,  # Now accepts a dictionary
         remaining_amount: Optional[Decimal] = None,
@@ -361,7 +361,6 @@ class TransactionService:
             
             # Extrahiere Signatur
             signatures = tx_detail.get("signatures", [])
-
             if not transaction_data or not message or not meta:
                 logger.warning("Unvollständige Transaktionsdaten")
                 return None
@@ -429,8 +428,6 @@ class TransactionService:
                 logger.warning("Konnte From/To Wallets nicht bestimmen")
                 return None
     
-            # Build transaction data
-            signatures = transaction_data.get("signatures", [])
             tx_data = {
                 "tx_hash": signatures[0] if signatures else "",
                 "from_wallet": from_wallet,
