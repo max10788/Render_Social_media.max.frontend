@@ -221,34 +221,46 @@ class ChainTracker:
 
     def _extract_transfers(self, tx_detail: Union[TransactionDetail, Dict]) -> List[Dict]:
         transfers = []
-        if isinstance(tx_detail, dict):
-            meta = tx_detail.get('result', {}).get('meta', {})
-            pre_balances = meta.get('pre_balances', [])
-            post_balances = meta.get('post_balances', [])
-            account_keys = tx_detail.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
+        logger.debug("Starting transfer extraction from tx_detail type: %s", type(tx_detail).__name__)
+        try:
+            if isinstance(tx_detail, dict):
+                logger.debug("Processing raw dictionary from RPC response")
+                result = tx_detail.get('result', {})
+                meta = result.get('meta', {})
+                pre_balances = meta.get('pre_balances', [])
+                post_balances = meta.get('post_balances', [])
+                account_keys = result.get('transaction', {}).get('message', {}).get('accountKeys', [])
+                
+                # Extrahiere Transfer aus Balance-Änderungen
+                for i in range(min(len(pre_balances), len(post_balances), len(account_keys))):
+                    change = post_balances[i] - pre_balances[i]
+                    if abs(change) > 5000:  # Nur signifikante Änderungen (>0,000005 SOL)
+                        amount_sol = Decimal(abs(change)) / Decimal(1_000_000_000)
+                        if change < 0:  # Sender
+                            transfers.append({
+                                "from": account_keys[i],
+                                "to": account_keys[(i+1)%len(account_keys)],  # Empfänger als nächstes Konto (vereinfacht)
+                                "amount": amount_sol
+                            })
+                return transfers
             
-            # Map account indices to balance changes
-            balance_changes = []
-            for i in range(min(len(pre_balances), len(post_balances), len(account_keys))):
-                change = post_balances[i] - pre_balances[i]
-                if abs(change) > 5000:  # Ignore small fees
-                    balance_changes.append({
-                        'account': account_keys[i],
-                        'change': change
-                    })
-            
-            # Find sender and receiver
-            sender = next((item for item in balance_changes if item['change'] < 0), None)
-            receiver = next((item for item in balance_changes if item['change'] > 0), None)
-            
-            if sender and receiver:
-                amount_sol = Decimal(abs(sender['change'])) / Decimal(1_000_000_000)
-                transfers.append({
-                    "from": sender['account'],
-                    "to": receiver['account'],
-                    "amount": amount_sol
-                })
-        return transfers
+            elif isinstance(tx_detail, TransactionDetail):
+                # Verarbeite bereits geparschte Transfers
+                if hasattr(tx_detail, 'transfers'):
+                    for transfer in tx_detail.transfers:
+                        if transfer.amount >= self.MIN_AMOUNT:
+                            transfers.append({
+                                "from": transfer.from_address,
+                                "to": transfer.to_address,
+                                "amount": transfer.amount
+                            })
+                return transfers
+            else:
+                logger.warning("Unsupported tx_detail type for transfer extraction: %s", type(tx_detail).__name__)
+                return []
+        except Exception as e:
+            logger.error("Error extracting transfers: %s", e, exc_info=True)
+            return transfers
 
     async def _find_next_transactions(
         self,
