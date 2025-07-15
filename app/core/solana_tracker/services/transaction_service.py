@@ -418,6 +418,7 @@ class TransactionService:
                 return None
     
             # Build transaction data
+            signatures = transaction_data.get("signatures", [])
             tx_data = {
                 "tx_hash": signatures[0] if signatures else "",
                 "from_wallet": from_wallet,
