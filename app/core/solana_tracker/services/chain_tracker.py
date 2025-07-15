@@ -221,28 +221,22 @@ class ChainTracker:
 
     def _extract_transfers(self, tx_detail: Union[TransactionDetail, Dict]) -> List[Dict]:
         transfers = []
-        logger.debug("Starting transfer extraction from tx_detail type: %s", type(tx_detail).__name__)
-        try:
-            if isinstance(tx_detail, dict):
-                logger.debug("Processing raw dictionary from RPC response")
-                result = tx_detail.get('result', {})
-                meta = result.get('meta', {})
-                pre_balances = meta.get('pre_balances', [])
-                post_balances = meta.get('post_balances', [])
-                account_keys = result.get('transaction', {}).get('message', {}).get('accountKeys', [])
-                
-                # Extrahiere Transfer aus Balance-Änderungen
-                for i in range(min(len(pre_balances), len(post_balances), len(account_keys))):
-                    change = post_balances[i] - pre_balances[i]
-                    if abs(change) > 5000:  # Nur signifikante Änderungen (>0,000005 SOL)
-                        amount_sol = Decimal(abs(change)) / Decimal(1_000_000_000)
-                        if change < 0:  # Sender
-                            transfers.append({
-                                "from": account_keys[i],
-                                "to": account_keys[(i+1)%len(account_keys)],  # Empfänger als nächstes Konto (vereinfacht)
-                                "amount": amount_sol
-                            })
-                return transfers
+        if isinstance(tx_detail, dict):
+            meta = tx_detail.get('result', {}).get('meta', {})
+            pre_balances = meta.get('pre_balances', [])
+            post_balances = meta.get('post_balances', [])
+            account_keys = tx_detail.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
+            
+            for i in range(min(len(pre_balances), len(post_balances), len(account_keys))):
+                change = post_balances[i] - pre_balances[i]
+                if abs(change) > 5000:  # Nur signifikante Änderungen (>0,000005 SOL)
+                    amount_sol = Decimal(abs(change)) / Decimal(1_000_000_000)
+                    if change < 0:  # Sender
+                        transfers.append({
+                            "from": account_keys[i],
+                            "to": account_keys[(i+1)%len(account_keys)],  # Empfänger als nächstes Konto
+                            "amount": amount_sol
+                        })
             
             elif isinstance(tx_detail, TransactionDetail):
                 # Verarbeite bereits geparschte Transfers
