@@ -354,6 +354,11 @@ class TransactionService:
         data_level: str = "standard"
     ) -> Optional[TrackedTransaction]:
         try:
+
+            if not transaction_data or not message or not meta:
+                logger.warning("Unvollständige Transaktionsdaten")
+                return None
+            
             # Safely extract nested data
             transaction_data = tx_detail.get("transaction", {})
             message = transaction_data.get("message", {})
