@@ -245,9 +245,8 @@ class ChainTracker:
                             "amount": Decimal(abs(amount)) / Decimal(1e9)
                         })
         return transfers
-        except Exception as e:
-            logger.error("Error extracting transfers: %s", e, exc_info=True)
-            return transfers
+    except Exception as e:
+        logger.error("Error extracting transfers: %s", e, exc_info=True)
 
     async def _find_next_transactions(
         self,
