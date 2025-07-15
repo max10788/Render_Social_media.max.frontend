@@ -248,13 +248,9 @@ class TransactionService:
         )
         return tracked_txs
 
-    async def _get_transaction_safe(
-        self,
-        tx_hash: str
-    ) -> Optional[TransactionDetail]:
-        """
-        Ruft eine Transaktion sicher ab mit verbessertem Error Handling.
-        """
+    @retry_with_exponential_backoff(max_retries=3)
+    async def _get_transaction_safe(self, tx_hash: str) -> Optional[TransactionDetail]:
+        """Ruft eine Transaktion sicher ab mit Wiederholungslogik."""
         logger.debug(f"Rufe Transaktion sicher ab für {tx_hash}")
         try:
             tx_detail = await self.solana_repo.get_transaction(tx_hash)
@@ -263,11 +259,10 @@ class TransactionService:
                 return tx_detail
             logger.warning(f"Transaktion {tx_hash} nicht gefunden")
             return None
-            
         except Exception as e:
             logger.error(f"Fehler beim Abruf der Transaktion {tx_hash}: {e}", exc_info=True)
             return None
-
+            
     def _is_multi_sig_transaction(self, tx_detail: Dict[str, Any]) -> bool:
         """
         Prüft, ob eine Transaktion eine Multi-Sig-Transaktion ist.
