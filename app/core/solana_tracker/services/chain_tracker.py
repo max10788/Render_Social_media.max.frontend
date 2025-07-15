@@ -221,35 +221,30 @@ class ChainTracker:
 
     def _extract_transfers(self, tx_detail: Union[TransactionDetail, Dict]) -> List[Dict]:
         transfers = []
-        try:
-            if isinstance(tx_detail, dict):
-                meta = tx_detail.get('result', {}).get('meta', {})
-                pre_balances = meta.get('pre_balances', [])
-                post_balances = meta.get('post_balances', [])
-                account_keys = tx_detail.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
-                
-                for i in range(min(len(pre_balances), len(post_balances), len(account_keys))):
-                    change = post_balances[i] - pre_balances[i]
-                    if abs(change) > 5000:  # Nur signifikante Änderungen (>0,000005 SOL)
-                        amount_sol = Decimal(abs(change)) / Decimal(1_000_000_000)
-                        if change < 0:  # Sender
-                            transfers.append({
-                                "from": account_keys[i],
-                                "to": account_keys[(i+1) % len(account_keys)],  # Empfänger als nächstes Konto
-                                "amount": amount_sol
-                            })
+        if isinstance(tx_detail, dict):
+            meta = tx_detail.get('result', {}).get('meta', {})
+            pre_balances = meta.get('pre_balances', [])
+            post_balances = meta.get('post_balances', [])
+            account_keys = tx_detail.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
             
-            elif isinstance(tx_detail, TransactionDetail):
-                if hasattr(tx_detail, 'transfers'):
-                    for transfer in tx_detail.transfers:
-                        if transfer.amount >= self.MIN_AMOUNT:
-                            transfers.append({
-                                "from": transfer.from_address,
-                                "to": transfer.to_address,
-                                "amount": transfer.amount
-                            })
+            # Finde Sender (negative Balance-Änderung)
+            sender = None
+            for i, change in enumerate(post_balances):
+                if change < 0:
+                    sender_index = i
+                    amount = abs(change)
+                    break
             
-            return transfers
+            if sender_index is not None:
+                # Finde Empfänger (positive Balance-Änderung)
+                for i, change in enumerate(post_balances):
+                    if change > 0 and i < len(account_keys):
+                        transfers.append({
+                            "from": account_keys[sender_index],
+                            "to": account_keys[i],
+                            "amount": Decimal(abs(amount)) / Decimal(1e9)
+                        })
+        return transfers
         except Exception as e:
             logger.error("Error extracting transfers: %s", e, exc_info=True)
             return transfers
