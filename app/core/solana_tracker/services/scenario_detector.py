@@ -575,6 +575,24 @@ class ScenarioDetector:
         except Exception as e:
             logger.error(f"Error in DeFi detection: {e}")
             return 0.0, set()
+
+    def _detect_simple_transfer(
+        self,
+        transactions: List[TrackedTransaction],
+        rules: Dict[str, Any]
+    ) -> tuple[float, Set[str]]:
+        """Detect simple SOL transfer pattern."""
+        confidence = 0.0
+        matched_txs = set()
+        try:
+            for tx in transactions:
+                if tx.amount >= rules["min_amount"]:
+                    confidence = 0.7
+                    matched_txs.add(tx.tx_hash)
+            return confidence, matched_txs
+        except Exception as e:
+            logger.error(f"Error in simple transfer detection: {e}")
+            return 0.0, set()
             
     def _create_scenario_details(
         self,
