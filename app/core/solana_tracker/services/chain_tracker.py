@@ -226,19 +226,29 @@ class ChainTracker:
             pre_balances = meta.get('pre_balances', [])
             post_balances = meta.get('post_balances', [])
             account_keys = tx_detail.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
-    
+            
+            # Map account indices to balance changes
+            balance_changes = []
             for i in range(min(len(pre_balances), len(post_balances), len(account_keys))):
                 change = post_balances[i] - pre_balances[i]
-                if abs(change) > 5000:  # Nur signifikante Änderungen (>0,000005 SOL)
-                    amount_sol = Decimal(abs(change)) / Decimal(1_000_000_000)
-                    if change < 0:  # Sender
-                        transfers.append({
-                            "from": account_keys[i],
-                            "to": account_keys[(i+1)%len(account_keys)],  # Empfänger als nächstes Konto (vereinfacht)
-                            "amount": amount_sol
-                        })
+                if abs(change) > 5000:  # Ignore small fees
+                    balance_changes.append({
+                        'account': account_keys[i],
+                        'change': change
+                    })
+            
+            # Find sender and receiver
+            sender = next((item for item in balance_changes if item['change'] < 0), None)
+            receiver = next((item for item in balance_changes if item['change'] > 0), None)
+            
+            if sender and receiver:
+                amount_sol = Decimal(abs(sender['change'])) / Decimal(1_000_000_000)
+                transfers.append({
+                    "from": sender['account'],
+                    "to": receiver['account'],
+                    "amount": amount_sol
+                })
         return transfers
-
 
     async def _find_next_transactions(
         self,
