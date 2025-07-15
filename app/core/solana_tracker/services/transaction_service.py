@@ -347,13 +347,20 @@ class TransactionService:
         # Solana Transaktion Hash Format
         return bool(re.match(r'^[1-9A-HJ-NP-Za-km-z]{87,88}$', tx_hash))
 
-    async def _create_tracked_transaction(
+    def _create_tracked_transaction(
         self,
         tx_detail: dict,  # Now accepts a dictionary
         remaining_amount: Optional[Decimal] = None,
         data_level: str = "standard"
     ) -> Optional[TrackedTransaction]:
         try:
+            # Safely extract nested data
+            transaction_data = tx_detail.get("transaction", {})
+            message = transaction_data.get("message", {})
+            meta = tx_detail.get("meta", {})
+            
+            # Extrahiere Signatur
+            signatures = tx_detail.get("signatures", [])
 
             if not transaction_data or not message or not meta:
                 logger.warning("Unvollständige Transaktionsdaten")
