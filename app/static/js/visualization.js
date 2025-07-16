@@ -64,34 +64,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Empfangene Daten:", data);
     
         try {
-            // Prüfung auf tracked_transactions
-            if (!data || !data.tracked_transactions?.length) {
-                throw new Error('Keine Transaktionsdaten zum Visualisieren.');
-            }
-    
-            // Prüfung auf balance_changes
-            const allHaveBalanceChanges = data.tracked_transactions.every(tx =>
-                tx.balance_changes && Array.isArray(tx.balance_changes) && tx.balance_changes.length > 0
-            );
-    
-            // Prüfung auf from_wallet
-            const allHaveFromWallet = data.tracked_transactions.every(tx =>
-                tx.from_wallet && typeof tx.from_wallet === 'string' && tx.from_wallet.length > 40
-            );
-    
-            if (!allHaveFromWallet) {
-                console.warn("Einige Transaktionen haben kein gültiges from_wallet.");
-            }
-    
-            // Wenn Daten unvollständig sind → Fallback anzeigen
-            if (!data || !data.tracked_transactions?.length) {
-                showEmptyState(); // Zeige Hinweis: "Keine weiteren Transaktionen gefunden"
-            } else if (needsFallback) {
-                showFallbackGraph(data); // Nur eine direkte Übertragung
-            } else {
-                initTransactionGraph(data); // Normale Visualisierung
-            }
-    
             // Wenn alles OK ist → normale Visualisierung laden
             initTransactionGraph(data);
     
