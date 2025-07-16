@@ -177,6 +177,15 @@ class TransactionService:
                 }
             )
 
+    async def _get_transaction_safe(self, tx_hash: str) -> Optional[Dict[str, Any]]:
+        """Retrieve a transaction with error handling."""
+        try:
+            # Fetch from repository (which uses Solana's RPC internally)
+            return await self.solana_repo.get_transaction(tx_hash)
+        except Exception as e:
+            logger.error(f"Error fetching transaction {tx_hash}: {e}")
+            return None
+    
     async def _track_transaction_chain(
         self, 
         start_tx_hash: str,
