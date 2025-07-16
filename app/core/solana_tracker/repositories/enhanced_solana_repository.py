@@ -93,65 +93,51 @@ class EnhancedSolanaRepository:
             return wrapper
         return decorator
 
-    @enhanced_retry_with_backoff(
-        max_retries=5, base_delay=2.0, max_delay=30.0, retry_on=(Exception,)
-    )
-    async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
-        """
-        Verbesserte RPC-Aufrufe mit detailliertem Logging.
-        """
-        urls = [self.current_rpc_url] + self.fallback_rpc_urls
-        
-        # Logge die Anfrage
-        logger.info(f"Making RPC call: method={method}, params={params}")
-
-        for url in urls:
-            async with self.semaphore:
+        @enhanced_retry_with_backoff(max_retries=5, base_delay=2.0, max_delay=30.0)
+        async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
+            """Verbesserter RPC-Aufruf mit detailliertem Logging und Fehlertoleranz"""
+            urls = [self.current_rpc_url] + self.fallback_rpc_urls
+            
+            for url in urls:
                 try:
-                    response = await self.client.post(
-                        url,
-                        json={
-                            "jsonrpc": "2.0",
-                            "id": 1,
-                            "method": method,
-                            "params": params
-                        },
-                        headers={"Content-Type": "application/json"},
-                        timeout=10
+                    # Strukturierte Logging-Ausgabe
+                    self.logger.debug(
+                        f"RPC-Anfrage: {method} an {url} mit Parametern {params[:5]}..."  # Kürzung bei langen Parametern
                     )
-                    response.raise_for_status()
-                    response_data = response.json()
-
-                    # Logge jede RPC-Antwort
-                    logger.info(f"RPC response for {method}: {response_data}")
-
-                    if isinstance(response_data, dict):
-                        # Prüfe auf Fehler und logge sie
-                        if "error" in response_data:
-                            error = response_data["error"]
-                            if error.get("code") == -32015:
-                                logger.warning(f"Version error from {url}: {error}")
-                                continue
-                            logger.error(f"RPC error from {url}: {error}")
+                    
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        response = await client.post(
+                            url,
+                            json={
+                                "jsonrpc": "2.0",
+                                "id": 1,
+                                "method": method,
+                                "params": params
+                            },
+                            headers={"Content-Type": "application/json"}
+                        )
+                        
+                        response.raise_for_status()
+                        
+                        # Prüfung auf leere Antworten
+                        result = response.json().get("result")
+                        if not result:
+                            self.logger.warning(f"Leere Antwort von {url} für {method}")
                             continue
-
-                        result = response_data.get("result")
-                        if result is None:
-                            logger.debug(f"No 'result' in RPC response from {url}")
-                            continue
-
-                        # Logge wichtige Transaktionsdaten
-                        if method == "getTransaction" and result:
-                            self._log_transaction_details(result)
-
+                        
+                        # Detaillierte Antwortprotokollierung
+                        self.logger.debug(
+                            f"RPC-Antwort: {method} für {params[0][:10]}... | Status: {response.status_code}"
+                        )
+                        
                         return result
-
-                except Exception as e:
-                    logger.error(f"Error making RPC call to {url}: {str(e)}")
+                        
+                except httpx.HTTPError as e:
+                    self.logger.error(f"HTTP-Fehler bei {url}: {str(e)}")
                     continue
-
-        logger.error("All RPC endpoints failed.")
-        return None
+                    
+            self.logger.error("Alle RPC-Endpunkte sind nicht erreichbar")
+            return None
 
     def _log_transaction_details(self, tx_result: Dict[str, Any]) -> None:
         """
