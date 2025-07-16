@@ -248,20 +248,23 @@ class TransactionService:
         )
         return tracked_txs
 
-    @retry_with_exponential_backoff(max_retries=3)
-    async def _get_transaction_safe(self, tx_hash: str) -> Optional[TransactionDetail]:
-        """Ruft eine Transaktion sicher ab mit Wiederholungslogik."""
-        logger.debug(f"Rufe Transaktion sicher ab für {tx_hash}")
-        try:
-            tx_detail = await self.solana_repo.get_transaction(tx_hash)
-            if tx_detail:
-                logger.debug(f"Transaktion {tx_hash} erfolgreich abgerufen")
-                return tx_detail
-            logger.warning(f"Transaktion {tx_hash} nicht gefunden")
-            return None
-        except Exception as e:
-            logger.error(f"Fehler beim Abruf der Transaktion {tx_hash}: {e}", exc_info=True)
-            return None
+    def retry_with_exponential_backoff(max_retries=3, initial_delay=1):
+        def decorator(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                retries = 0
+                current_delay = initial_delay
+                while retries < max_retries:
+                    try:
+                        return await func(*args, **kwargs)  # ✅ Korrekt
+                    except Exception as e:
+                        retries += 1
+                        if retries == max_retries:
+                            logger.error(f"Max retries ({max_retries}) reached for {func.__name__}")
+                            raise e
+                # ❌ Fehlender return hier!
+            return wrapper  # ❌ Fehlender return hier!
+        return decorator  # ❌ Fehlender return hier!
             
     def _is_multi_sig_transaction(self, tx_detail: Dict[str, Any]) -> bool:
         """
