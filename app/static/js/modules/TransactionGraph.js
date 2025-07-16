@@ -119,42 +119,40 @@ export class TransactionGraph {
         });
     }
 
-    __processData(transactions) {
+    _processData(transactions) {
         const nodesMap = new Map();
         const links = [];
-    
+        
         transactions.forEach(tx => {
             const fromWallet = tx.from_wallet;
             const changes = tx.balance_changes || [];
-    
+            
             if (!nodesMap.has(fromWallet)) {
                 nodesMap.set(fromWallet, {
                     id: fromWallet,
                     type: "wallet",
                     start: true,
                     label: "Quelle",
-                    transaction: tx, // 🔥 Füge die komplette Transaktion hinzu
+                    transaction: tx,
                     balance_changes: changes
                 });
             }
-    
+            
             changes.forEach(change => {
                 const account = change.account;
                 const amount = Math.abs(change.change / 1e9);
-    
+                
+                // Entferne die Prüfung auf signifikante Beträge
                 if (!nodesMap.has(account)) {
                     nodesMap.set(account, {
                         id: account,
                         type: "wallet",
-                        highValue: amount > 1,
-                        mediumValue: amount > 0.1 && amount <= 1,
-                        lowValue: amount <= 0.1,
                         label: `±${amount.toFixed(4)} SOL`,
-                        transaction: tx, // 🔥 Füge die komplette Transaktion hinzu
+                        transaction: tx,
                         balance_changes: changes
                     });
                 }
-    
+                
                 links.push({
                     source: fromWallet,
                     target: account,
@@ -163,7 +161,7 @@ export class TransactionGraph {
                 });
             });
         });
-    
+        
         return {
             nodes: Array.from(nodesMap.values()),
             links
