@@ -351,20 +351,18 @@ class EnhancedSolanaRepository:
 
     def _log_transaction_details(self, tx_result: Dict[str, Any]) -> None:
         try:
-            # Entferne die Prüfung auf signifikante Balance-Änderungen
+            # Logge alle Konten mit Balance-Änderungen
+            pre_balances = tx_result.get('result', {}).get('meta', {}).get('pre_balances', [])
+            post_balances = tx_result.get('result', {}).get('meta', {}).get('post_balances', [])
+            account_keys = tx_result.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
+            
             for idx, pubkey in enumerate(account_keys):
                 if idx >= len(pre_balances) or idx >= len(post_balances):
                     continue
+                    
                 change = post_balances[idx] - pre_balances[idx]
-                if change == 0:
-                    continue  # Optional: Behalten Sie diese Zeile, um leere Änderungen zu überspringen
-                
-                balance_changes.append({
-                    "account": pubkey,
-                    "change": change / 1e9,
-                    "pre_balance": pre_balances[idx] / 1e9,
-                    "post_balance": post_balances[idx] / 1e9
-                })
+                if change != 0:  # Logge nur Konten mit Änderungen
+                    logger.info(f"Konto: {pubkey} | Vorher: {pre_balances[idx]/1e9:.9f} SOL | Nachher: {post_balances[idx]/1e9:.9f} SOL | Änderung: {change/1e9:.9f} SOL")
         except Exception as e:
             logger.error(f"Fehler beim Loggen der Transaktionsdetails: {e}")
 
