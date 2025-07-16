@@ -347,85 +347,63 @@ class TransactionService:
 
     async def _create_tracked_transaction(
         self,
-        tx_detail: dict,  # Now accepts a dictionary
+        tx_detail: dict,
         remaining_amount: Optional[Decimal] = None,
         data_level: str = "standard"
     ) -> Optional[TrackedTransaction]:
         try:
-            # Safely extract nested data
+            # Extrahiere Signatur und Basisdaten
+            signatures = tx_detail.get("signatures", [])
             transaction_data = tx_detail.get("transaction", {})
             message = transaction_data.get("message", {})
             meta = tx_detail.get("meta", {})
             
-            # Extrahiere Signatur
-            signatures = tx_detail.get("signatures", [])
+            # Validierung auf vollständige Transaktionsdaten
             if not transaction_data or not message or not meta:
                 logger.warning("Unvollständige Transaktionsdaten")
                 return None
             
-            # Safely extract nested data
-            transaction_data = tx_detail.get("transaction", {})
-            message = transaction_data.get("message", {})
-            meta = tx_detail.get("meta", {})
-            
-            # Check required fields
-            if not message:
-                return None
-                
             account_keys = message.get("accountKeys", [])
             if not account_keys:
-                return None
-                
-            # Find system program index
-            system_program_index = None
-            for idx, key in enumerate(account_keys):
-                if key == "11111111111111111111111111111111":
-                    system_program_index = idx
-                    break
-                    
-            if system_program_index is None:
+                logger.warning("Keine Account-Keys in der Transaktion")
                 return None
     
-            # Extract balances
+            # Extrahiere Balance-Änderungen
             pre_balances = meta.get("pre_balances", [])
             post_balances = meta.get("post_balances", [])
             
             if not pre_balances or not post_balances or len(pre_balances) != len(post_balances):
+                logger.warning("Ungültige oder ungleiche Balance-Daten")
                 return None
     
-            # Analyze significant balance changes
+            # Finde Sender und Empfänger basierend auf Balance-Änderungen
             changes = []
             for i in range(len(pre_balances)):
-                if i < len(account_keys):
-                    try:
-                        change = int(post_balances[i]) - int(pre_balances[i])
-                        if abs(change) > 5000:  # Ignore small fees
-                            changes.append({
-                                'account': account_keys[i],
-                                'change': change,
-                                'pre': pre_balances[i],
-                                'post': post_balances[i]
-                            })
-                    except (TypeError, ValueError):
-                        continue
+                if i >= len(account_keys):
+                    continue
+                try:
+                    change = int(post_balances[i]) - int(pre_balances[i])
+                    if abs(change) > 5000:  # Nur signifikante Änderungen (>0,000005 SOL)
+                        changes.append({
+                            "account": account_keys[i],
+                            "change": change
+                        })
+                except (TypeError, ValueError):
+                    continue
     
-            # Determine sender/receiver
-            from_wallet = None
-            to_wallet = None
-            amount = Decimal('0')
-            
-            if len(changes) >= 2:
-                sender = next((c for c in changes if c['change'] < 0), None)
-                receiver = next((c for c in changes if c['change'] > 0), None)
-                if sender and receiver:
-                    from_wallet = sender['account']
-                    to_wallet = receiver['account']
-                    amount = Decimal(abs(sender['change'])) / Decimal(1e9)  # Convert lamports to SOL
+            # Bestimme Sender (negativer Betrag) und Empfänger (positiver Betrag)
+            sender = next((c for c in changes if c["change"] < 0), None)
+            receiver = next((c for c in changes if c["change"] > 0), None)
     
-            if not from_wallet or not to_wallet:
-                logger.warning("Konnte From/To Wallets nicht bestimmen")
+            if not sender or not receiver:
+                logger.warning("Konnte Sender oder Empfänger nicht identifizieren")
                 return None
     
+            from_wallet = sender["account"]
+            to_wallet = receiver["account"]
+            amount = Decimal(abs(sender["change"])) / Decimal(1e9)  # Lamports → SOL
+    
+            # Baue Transaktionsdaten
             tx_data = {
                 "tx_hash": signatures[0] if signatures else "",
                 "from_wallet": from_wallet,
@@ -437,13 +415,6 @@ class TransactionService:
                 tx_data.update({
                     "amount": amount,
                     "timestamp": datetime.fromtimestamp(block_time) if isinstance(block_time, int) else datetime.utcnow(),
-                })
-            
-            if data_level == "full":
-                tx_data.update({
-                    "value_in_target_currency": None,
-                    "status": "success" if not meta.get("err") else "failed",
-                    "remaining_amount": remaining_amount
                 })
     
             return TrackedTransaction(**tx_data)
