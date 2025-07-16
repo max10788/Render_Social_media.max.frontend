@@ -221,32 +221,38 @@ class ChainTracker:
 
     def _extract_transfers(self, tx_detail: Union[TransactionDetail, Dict]) -> List[Dict]:
         transfers = []
-        if isinstance(tx_detail, dict):
-            meta = tx_detail.get('result', {}).get('meta', {})
-            pre_balances = meta.get('pre_balances', [])
-            post_balances = meta.get('post_balances', [])
-            account_keys = tx_detail.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
-            
-            # Finde Sender (negative Balance-Änderung)
-            sender = None
-            for i, change in enumerate(post_balances):
-                if change < 0:
-                    sender_index = i
-                    amount = abs(change)
-                    break
-            
-            if sender_index is not None:
-                # Finde Empfänger (positive Balance-Änderung)
-                for i, change in enumerate(post_balances):
-                    if change > 0 and i < len(account_keys):
-                        transfers.append({
-                            "from": account_keys[sender_index],
-                            "to": account_keys[i],
-                            "amount": Decimal(abs(amount)) / Decimal(1e9)
-                        })
-        return transfers
-    except Exception as e:
-        logger.error("Error extracting transfers: %s", e, exc_info=True)
+        try:
+            if isinstance(tx_detail, dict):
+                meta = tx_detail.get('result', {}).get('meta', {})
+                pre_balances = meta.get('pre_balances', [])
+                post_balances = meta.get('post_balances', [])
+                account_keys = tx_detail.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
+                
+                # Finde Sender (negative Balance-Änderung)
+                sender_index = None
+                sender_change = 0
+                for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                    change = post - pre
+                    if change < 0:  # Sender (Geld geht weg)
+                        sender_index = i
+                        sender_change = abs(change)
+                        break
+                
+                if sender_index is not None:
+                    # Finde Empfänger (positive Balance-Änderung)
+                    for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                        change = post - pre
+                        if change > 0 and i < len(account_keys):  # Empfänger (Geld kommt an)
+                            transfers.append({
+                                "from": account_keys[sender_index],
+                                "to": account_keys[i],
+                                "amount": Decimal(sender_change) / Decimal(1_000_000_000)
+                            })
+                            break  # Nur einen Empfänger pro Transaktion
+            return transfers
+        except Exception as e:
+            logger.error("Error extracting transfers: %s", e, exc_info=True)
+            return transfers
 
     async def _find_next_transactions(
         self,
