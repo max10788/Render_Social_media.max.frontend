@@ -349,5 +349,24 @@ class EnhancedSolanaRepository:
             "balance_changes": balance_changes
         }
 
+    def _log_transaction_details(self, tx_result: Dict[str, Any]) -> None:
+        try:
+            # Entferne die Prüfung auf signifikante Balance-Änderungen
+            for idx, pubkey in enumerate(account_keys):
+                if idx >= len(pre_balances) or idx >= len(post_balances):
+                    continue
+                change = post_balances[idx] - pre_balances[idx]
+                if change == 0:
+                    continue  # Optional: Behalten Sie diese Zeile, um leere Änderungen zu überspringen
+                
+                balance_changes.append({
+                    "account": pubkey,
+                    "change": change / 1e9,
+                    "pre_balance": pre_balances[idx] / 1e9,
+                    "post_balance": post_balances[idx] / 1e9
+                })
+        except Exception as e:
+            logger.error(f"Fehler beim Loggen der Transaktionsdetails: {e}")
+
 # Instanz erstellen
 repository = EnhancedSolanaRepository(config=solana_config)
