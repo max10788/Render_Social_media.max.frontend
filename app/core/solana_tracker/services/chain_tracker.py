@@ -228,27 +228,27 @@ class ChainTracker:
                 post_balances = meta.get('post_balances', [])
                 account_keys = tx_detail.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
                 
-                # Entferne die strikte MIN_AMOUNT-Prüfung hier
+                # Finde Sender (negativer Betrag)
+                sender_index = None
                 for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-                    change = post - pre
-                    if change < 0:  # Sender
+                    if post - pre < 0:  # Sender
                         sender_index = i
-                        sender_change = abs(change)
                         break
                 
                 if sender_index is not None:
+                    # Finde Empfänger (positiver Betrag)
                     for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-                        change = post - pre
-                        if change > 0 and i < len(account_keys):  # Empfänger
+                        if i != sender_index and post - pre > 0:  # Empfänger
                             transfers.append({
                                 "from": account_keys[sender_index],
                                 "to": account_keys[i],
-                                "amount": Decimal(sender_change) / Decimal(1_000_000_000)
+                                "amount": Decimal(abs(post - pre)) / Decimal(1_000_000_000)
                             })
-                            break
+                            break  # Nur den ersten Empfänger nehmen
+                            
             return transfers
         except Exception as e:
-            logger.error(f"Error extracting transfers: {e}")
+            logger.error(f"Fehler beim Extrahieren von Transfers: {e}")
             return transfers
 
     async def _find_next_transactions(
