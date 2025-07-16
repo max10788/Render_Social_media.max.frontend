@@ -35,7 +35,7 @@ class ChainTracker:
     """Chain tracking service for monitoring blockchain activity."""
 
     # Class level constants
-    MIN_AMOUNT = Decimal('0.000001')
+    MIN_AMOUNT = Decimal('0.001')
 
     def __init__(self, solana_repo: Optional[EnhancedSolanaRepository] = None):
         """Initialize the chain tracker."""
@@ -228,30 +228,27 @@ class ChainTracker:
                 post_balances = meta.get('post_balances', [])
                 account_keys = tx_detail.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
                 
-                # Finde Sender (negative Balance-Änderung)
-                sender_index = None
-                sender_change = 0
+                # Entferne die strikte MIN_AMOUNT-Prüfung hier
                 for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
                     change = post - pre
-                    if change < 0:  # Sender (Geld geht weg)
+                    if change < 0:  # Sender
                         sender_index = i
                         sender_change = abs(change)
                         break
                 
                 if sender_index is not None:
-                    # Finde Empfänger (positive Balance-Änderung)
                     for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
                         change = post - pre
-                        if change > 0 and i < len(account_keys):  # Empfänger (Geld kommt an)
+                        if change > 0 and i < len(account_keys):  # Empfänger
                             transfers.append({
                                 "from": account_keys[sender_index],
                                 "to": account_keys[i],
                                 "amount": Decimal(sender_change) / Decimal(1_000_000_000)
                             })
-                            break  # Nur einen Empfänger pro Transaktion
+                            break
             return transfers
         except Exception as e:
-            logger.error("Error extracting transfers: %s", e, exc_info=True)
+            logger.error(f"Error extracting transfers: {e}")
             return transfers
 
     async def _find_next_transactions(
