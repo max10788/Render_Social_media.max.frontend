@@ -93,52 +93,34 @@ class EnhancedSolanaRepository:
             return wrapper
         return decorator
 
-        @enhanced_retry_with_backoff(max_retries=5, base_delay=2.0, max_delay=30.0)
-        async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
-            """Verbesserter RPC-Aufruf mit detailliertem Logging und Fehlertoleranz"""
-            urls = [self.current_rpc_url] + self.fallback_rpc_urls
-            
-            for url in urls:
-                try:
-                    # Strukturierte Logging-Ausgabe
-                    self.logger.debug(
-                        f"RPC-Anfrage: {method} an {url} mit Parametern {params[:5]}..."  # Kürzung bei langen Parametern
+    @retry_with_exponential_backoff(max_retries=5, initial_delay=2)
+    async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
+        """Sichere RPC-Anfrage mit Fallback-URLs und detailliertem Logging."""
+        urls = [self.current_rpc_url] + self.fallback_rpc_urls
+        
+        for url in urls:
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        url,
+                        json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
                     )
+                    response.raise_for_status()
                     
-                    async with httpx.AsyncClient(timeout=30.0) as client:
-                        response = await client.post(
-                            url,
-                            json={
-                                "jsonrpc": "2.0",
-                                "id": 1,
-                                "method": method,
-                                "params": params
-                            },
-                            headers={"Content-Type": "application/json"}
-                        )
-                        
-                        response.raise_for_status()
-                        
-                        # Prüfung auf leere Antworten
-                        result = response.json().get("result")
-                        if not result:
-                            self.logger.warning(f"Leere Antwort von {url} für {method}")
-                            continue
-                        
-                        # Detaillierte Antwortprotokollierung
-                        self.logger.debug(
-                            f"RPC-Antwort: {method} für {params[0][:10]}... | Status: {response.status_code}"
-                        )
-                        
-                        return result
-                        
-                except httpx.HTTPError as e:
-                    self.logger.error(f"HTTP-Fehler bei {url}: {str(e)}")
-                    continue
+                    result = response.json().get("result")
+                    if not result:
+                        self.logger.warning(f"Leere Antwort von {url} für {method}")
+                        continue
                     
-            self.logger.error("Alle RPC-Endpunkte sind nicht erreichbar")
-            return None
-
+                    return result
+                    
+            except httpx.HTTPError as e:
+                self.logger.error(f"HTTP-Fehler bei {url}: {str(e)}")
+                continue
+        
+        self.logger.error("Alle RPC-Endpunkte sind nicht erreichbar")
+        return None
+        
     def _log_transaction_details(self, tx_result: Dict[str, Any]) -> None:
         """
         Loggt detaillierte Transaktionsinformationen.
