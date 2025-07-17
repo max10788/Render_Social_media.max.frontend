@@ -3,6 +3,16 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
 
+class InstructionDetail(BaseModel):
+    """Details einer Solana-Instruktion (z.B. Token-Transfer)."""
+    programIdIndex: int = Field(..., description="Index des Programms in accountKeys")
+    accounts: List[int] = Field(default_factory=list, description="Beteiligte Konten (Indizes in accountKeys)")
+    data: str = Field(..., description="Base58-kodierte Instruktionsdaten")  # z.B. "3gJqkocMWaMm"
+    stackHeight: Optional[int] = Field(default=None, description="Stack-Höhe bei Programmausführung")  # [[4]]
+
+    class Config:
+        allow_population_by_field_name = True
+
 class BaseTransaction(BaseModel):
     """Base Transaction DTO with common fields."""
     tx_hash: str = Field(..., description="Transaction signature/hash")
