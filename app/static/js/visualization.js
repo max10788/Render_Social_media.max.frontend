@@ -62,26 +62,90 @@ document.addEventListener('DOMContentLoaded', () => {
         errorContainer.style.display = 'none';
     
         console.log("Empfangene Daten:", data);
-    
+
         try {
-            // Wenn alles OK ist → normale Visualisierung laden
-            initTransactionGraph(data);
-    
-            // Statistikfelder befüllen
-            const firstTx = data.tracked_transactions[0];
-            document.getElementById('sourceWallet').textContent = firstTx?.from_wallet || '-';
-            document.getElementById('targetWallet').textContent = data.final_wallet_address || '-';
-            document.getElementById('finalStatus').textContent = data.total_transactions_tracked > 0 ? 'chain_detected' : 'single_transfer';
-            document.getElementById('finalStatus').textContent = data.tracked_transactions.length > 1 ? 'funds_transferred' : 'single_transfer';
-            document.getElementById('targetCurrencyDisplay').textContent = data.target_currency;
-    
+            // Validiere und bereite Daten vor
+            let processedData = {
+                tracked_transactions: [],
+                final_wallet_address: 'Ziel',
+                target_currency: 'SOL'
+            };
+
+            // Fallback für fehlende Daten
+            if (!data || !data.tracked_transactions) {
+                logger.warn('Keine Transaktionsdaten vorhanden');
+                processedData.tracked_transactions = [{
+                    from_wallet: 'Unbekannt',
+                    balance_changes: []
+                }];
+                processedData.final_wallet_address = 'Ziel';
+            } else {
+                // Bereinige und validiere vorhandene Daten
+                processedData = {
+                    ...data,
+                    tracked_transactions: data.tracked_transactions.map(tx => ({
+                        ...tx,
+                        from_wallet: tx.from_wallet || 'Unbekannt',
+                        balance_changes: tx.balance_changes || []
+                    }))
+                };
+            }
+
+            // Statistikfelder befüllen mit Fallback-Werten
+            const firstTx = processedData.tracked_transactions[0] || {};
+            
+            document.getElementById('sourceWallet').textContent = 
+                (firstTx.from_wallet || 'Unbekannt').slice(0, 6) + '...' || '-';
+            
+            document.getElementById('targetWallet').textContent = 
+                processedData.final_wallet_address?.slice(0, 6) + '...' || 'Ziel';
+            
+            document.getElementById('targetCurrencyDisplay').textContent = 
+                processedData.target_currency || 'SOL';
+            
+            document.getElementById('txCount').textContent = 
+                processedData.tracked_transactions.length || '0';
+
+            // Wenn es nur eine Transaktion gibt und Zieladresse bekannt
+            if (processedData.tracked_transactions.length === 1 && 
+                processedData.final_wallet_address && 
+                processedData.final_wallet_address !== 'Ziel') {
+                
+                // Füge eine leere End-Transaktion hinzu für bessere Visualisierung
+                processedData.tracked_transactions.push({
+                    from_wallet: processedData.final_wallet_address,
+                    to_wallet: 'Ende der Kette',
+                    balance_changes: []
+                });
+            }
+
+            // Prüfung auf notwendigen Fallback-Modus
+            const needsFallback = (
+                !processedData.tracked_transactions.length ||
+                processedData.tracked_transactions.every(tx => 
+                    !tx.from_wallet || 
+                    !tx.balance_changes?.length
+                )
+            );
+
+            // Zeige Fallback an wenn nötig
+            if (needsFallback) {
+                showFallbackGraph(processedData);
+            } else {
+                // Normale Visualisierung laden
+                initTransactionGraph(processedData);
+            }
+            
         } catch (err) {
             console.error('Fehler bei der Visualisierung:', err);
             errorContainer.textContent = `Fehler beim Anzeigen der Transaktionen: ${err.message}`;
             errorContainer.style.display = 'block';
-    
-            // Trotz Fehler Fallback anzeigen
-            showFallbackGraph(data);
+            
+            // Zeige Fallback bei kritischen Fehlern
+            showFallbackGraph(data || {
+                tracked_transactions: [],
+                final_wallet_address: 'Ziel'
+            });
         }
     };
 
