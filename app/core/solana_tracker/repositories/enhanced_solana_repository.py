@@ -332,7 +332,7 @@ class EnhancedSolanaRepository:
             return False
     
     def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
-        """Extrahiert Balance-Änderungen aus Transaktionsdetails mit Fallback-Werten."""
+        """Extrahiert Balance-Änderungen mit Fallback-Werten."""
         try:
             meta = tx_detail.get("meta", {})
             pre_balances = meta.get("pre_balances", [])
@@ -360,7 +360,7 @@ class EnhancedSolanaRepository:
         except Exception as e:
             logger.error(f"Fehler beim Extrahieren von Balance-Änderungen: {str(e)}")
             return []
-
+        
     def _build_transaction_graph_data(self, transaction_detail: dict) -> Optional[dict]:
         """
         Baut strukturierte Graph-Daten für D3.js basierend auf Transaktionsdetails.
