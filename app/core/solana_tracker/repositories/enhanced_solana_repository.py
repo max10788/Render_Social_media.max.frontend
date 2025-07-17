@@ -318,6 +318,37 @@ class EnhancedSolanaRepository:
             transfers = [{"from": "Fehler", "to": "Fehler", "amount": Decimal("0")}]
         
         return transfers
+
+    def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
+        """Extrahiert Balance-Änderungen aus Transaktionsdetails mit Fallback-Werten."""
+        try:
+            meta = tx_detail.get("meta", {})
+            pre_balances = meta.get("pre_balances", [])
+            post_balances = meta.get("post_balances", [])
+            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            
+            # Fallback für fehlende accountKeys
+            if not account_keys:
+                logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
+                return []
+            
+            changes = []
+            for idx, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                if idx >= len(account_keys):
+                    continue
+                change = post - pre
+                if change != 0:
+                    changes.append({
+                        "account": account_keys[idx],
+                        "change": Decimal(change) / Decimal(1e9),
+                        "pre_balance": Decimal(pre) / Decimal(1e9),
+                        "post_balance": Decimal(post) / Decimal(1e9)
+                    })
+            return changes
+        except Exception as e:
+            logger.error(f"Fehler beim Extrahieren von Balance-Änderungen: {str(e)}")
+            return []
+
     def _build_transaction_graph_data(self, transaction_detail: dict) -> Optional[dict]:
         """
         Baut strukturierte Graph-Daten für D3.js basierend auf Transaktionsdetails.
