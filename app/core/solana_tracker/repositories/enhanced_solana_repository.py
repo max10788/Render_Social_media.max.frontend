@@ -334,50 +334,6 @@ class EnhancedSolanaRepository:
             logger.error(f"Error fetching transactions for address {address}: {e}")
             return []
 
-    def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
-        """Extrahiert Transfers mit Fallback-Werten für fehlende Daten."""
-        transfers = []
-        try:
-            meta = tx_detail.get("meta", {})
-            pre_balances = meta.get("pre_balances", [])
-            post_balances = meta.get("post_balances", [])
-            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
-            # Fallback für fehlende accountKeys
-            if not account_keys:
-                logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
-                return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
-            # Finde Sender (negativer Betrag)
-            sender_index = None
-            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-                if post - pre < 0:  # Sender
-                    sender_index = i
-                    break
-            # Fallback für fehlenden Sender
-            if sender_index is None:
-                logger.warning("Kein Sender gefunden. Setze Platzhalter ein.")
-                return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
-            # Finde Empfänger (positiver Betrag)
-            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-                if i != sender_index and post - pre > 0:  # Empfänger
-                    transfers.append({
-                        "from": account_keys[sender_index],
-                        "to": account_keys[i],
-                        "amount": Decimal(abs(post - pre)) / Decimal(1e9)
-                    })
-                    break
-            # Fallback für fehlende Empfänger
-            if not transfers:
-                logger.warning("Keine Empfänger gefunden. Setze Platzhalter ein.")
-                transfers.append({
-                    "from": account_keys[sender_index],
-                    "to": "Ziel",
-                    "amount": Decimal("0")
-                })
-        except Exception as e:
-            logger.error("Fehler beim Extrahieren von Transfers: %s", str(e))
-            transfers = [{"from": "Fehler", "to": "Fehler", "amount": Decimal("0")}]
-        return transfers
-
     def _validate_rpc_response(self, tx_detail: Dict) -> bool:
         """Prüft, ob die RPC-Antwort vollständige Daten enthält."""
         try:
