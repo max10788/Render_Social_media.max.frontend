@@ -100,10 +100,12 @@ class EnhancedSolanaRepository:
         for url in urls:
             try:
                 async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.post(
-                        url,
-                        json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
-                    )
+                    result = response.json().get("result")
+                    if not result:
+                        self.logger.warning(f"Leere Antwort von {url} für {method}")
+                        continue
+                    
+                    self.logger.debug(f"Raw RPC Response [{method}]: {json.dumps(result, indent=2)}")
                     response.raise_for_status()
                     result = response.json().get("result")
                     if not result:
