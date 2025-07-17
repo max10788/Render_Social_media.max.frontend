@@ -111,12 +111,18 @@ class TransactionDetail(BaseModel):
         if self.transaction and isinstance(self.transaction, dict):
             message_data = self.transaction.get('message', {})
             if message_data:
-                self.message = TransactionMessageDetail(**message_data)
-            meta_data = self.transaction.get('meta', {})
-            if meta_data:
-                self.meta = TransactionMetaDetail(**meta_data)
-            self.block_time = self.transaction.get('blockTime')  # [[8]]
-
+                # Extrahiere und konvertiere Instruktionen
+                instructions = [
+                    InstructionDetail(**inst) 
+                    for inst in message_data.get('instructions', [])
+                ]
+                self.message = TransactionMessageDetail(
+                    accountKeys=message_data.get('accountKeys', []),
+                    recentBlockhash=message_data.get('recentBlockhash', ''),
+                    instructions=instructions,  # Jetzt mit strukturierten Instruktionen
+                    header=message_data.get('header', {})
+                )
+                
     def get_multi_sig_info(self) -> Dict[str, Any]:
         """Get multi-signature configuration details."""
         if not self.is_multi_sig:
