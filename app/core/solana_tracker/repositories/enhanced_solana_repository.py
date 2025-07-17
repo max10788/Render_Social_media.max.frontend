@@ -8,6 +8,15 @@ import httpx
 import logging
 import time
 
+from solana_tracker.models import (
+    TransactionDetail,
+    InstructionDetail,
+    TokenBalanceDetail,
+    TokenAmountDetail,
+    TransactionMessageDetail,
+    TransactionMetaDetail
+)
+
 from app.core.config import SolanaConfig
 from app.core.solana_tracker.models.base_models import (
     TransactionDetail,
