@@ -276,24 +276,20 @@ class EnhancedSolanaRepository:
             pre_balances = meta.get("pre_balances", [])
             post_balances = meta.get("post_balances", [])
             account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
-            
             # Fallback für fehlende accountKeys
             if not account_keys:
                 logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
                 return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
-            
             # Finde Sender (negativer Betrag)
             sender_index = None
             for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
                 if post - pre < 0:  # Sender
                     sender_index = i
                     break
-            
             # Fallback für fehlenden Sender
             if sender_index is None:
                 logger.warning("Kein Sender gefunden. Setze Platzhalter ein.")
                 return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
-    
             # Finde Empfänger (positiver Betrag)
             for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
                 if i != sender_index and post - pre > 0:  # Empfänger
@@ -303,7 +299,6 @@ class EnhancedSolanaRepository:
                         "amount": Decimal(abs(post - pre)) / Decimal(1e9)
                     })
                     break
-            
             # Fallback für fehlende Empfänger
             if not transfers:
                 logger.warning("Keine Empfänger gefunden. Setze Platzhalter ein.")
@@ -312,13 +307,30 @@ class EnhancedSolanaRepository:
                     "to": "Ziel",
                     "amount": Decimal("0")
                 })
-                    
         except Exception as e:
             logger.error("Fehler beim Extrahieren von Transfers: %s", str(e))
             transfers = [{"from": "Fehler", "to": "Fehler", "amount": Decimal("0")}]
-        
         return transfers
 
+    def _validate_rpc_response(self, tx_detail: Dict) -> bool:
+        """Prüft, ob die RPC-Antwort vollständige Daten enthält."""
+        try:
+            meta = tx_detail.get("meta", {})
+            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            
+            if not account_keys:
+                logger.warning("Transaktion enthält keine accountKeys")
+                return False
+                
+            if not meta.get("pre_balances") or not meta.get("post_balances"):
+                logger.warning("Transaktion enthält keine Balance-Daten")
+                return False
+                
+            return True
+        except Exception as e:
+            logger.error(f"Fehler bei der Validierung der RPC-Antwort: {str(e)}")
+            return False
+    
     def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
         """Extrahiert Balance-Änderungen aus Transaktionsdetails mit Fallback-Werten."""
         try:
@@ -358,13 +370,10 @@ class EnhancedSolanaRepository:
         message = transaction_detail.get("transaction", {}).get("message", {})
         account_keys = message.get("accountKeys", [])
         from_wallet = account_keys[0] if account_keys else None
-
         balance_changes = self._extract_balance_changes(transaction_detail)
-
         if not balance_changes:
             self.logger.warning(f"Keine Balance-Änderungen für Transaktion {tx_hash}")
             return None
-
         return {
             "signature": tx_hash,
             "block_time": block_time,
