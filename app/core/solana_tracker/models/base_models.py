@@ -7,8 +7,8 @@ class InstructionDetail(BaseModel):
     """Details einer Solana-Instruktion (z.B. Token-Transfer)."""
     programIdIndex: int = Field(..., description="Index des Programms in accountKeys")
     accounts: List[int] = Field(default_factory=list, description="Beteiligte Konten (Indizes in accountKeys)")
-     str = Field(..., description="Base58-kodierte Instruktionsdaten")  # ← Hier ist das Feld
-    data: str = Field(..., description="Base58-kodierte Instruktionsdaten")  # z.B. "3gJqkocMWaMm"
+    str = Field(..., description="Base58-kodierte Instruktionsdaten")  # ← Hier ist das Feld
+    data: str = Field(..., description="Base58-kodierte Instruktionsdaten")  # Correctly indented
     stackHeight: Optional[int] = Field(default=None, description="Stack-Höhe bei Programmausführung")  # [[4]]
 
     class Config:
