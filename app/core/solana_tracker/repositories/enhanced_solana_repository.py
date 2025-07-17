@@ -2,7 +2,6 @@ from datetime import datetime
 from decimal import Decimal
 from functools import wraps
 from typing import Any, Dict, List, Optional
-
 import json
 import asyncio
 import httpx
@@ -28,6 +27,7 @@ logger = logging.getLogger(__name__)
 # Erstelle eine globale Konfiguration aus den Umgebungsvariablen
 solana_config = SolanaConfig()
 
+
 class EnhancedSolanaRepository:
     def __init__(self, config: SolanaConfig):
         self.config = config
@@ -38,10 +38,7 @@ class EnhancedSolanaRepository:
         self.last_request_time = 0
         self.request_count = 0
         self.monitor = RateLimitMonitor()
-
-        # ✅ Füge diesen Eintrag hinzu
-        self.logger = logging.getLogger(__name__)  # oder ein übergebenes logger-Objekt
-        
+        self.logger = logging.getLogger(__name__)
         # Rate Limit Config verarbeiten
         if isinstance(self.config.rate_limit_capacity, int):
             self.rate_limit_config = {
@@ -57,7 +54,6 @@ class EnhancedSolanaRepository:
                     "rate": 50,
                     "capacity": 100
                 }
-
         self.endpoint_manager = RpcEndpointManager(
             primary_url=self.config.primary_rpc_url,
             fallback_urls=self.config.fallback_rpc_urls
@@ -95,97 +91,179 @@ class EnhancedSolanaRepository:
 
     @retry_with_exponential_backoff(max_retries=5, initial_delay=2)
     async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
-        """Sichere RPC-Anfrage mit Fallback-URLs und detailliertem Logging."""
         urls = [self.current_rpc_url] + self.fallback_rpc_urls
         for url in urls:
             try:
                 async with httpx.AsyncClient(timeout=30.0) as client:
-                    result = response.json().get("result")
-                    if not result:
-                        self.logger.warning(f"Leere Antwort von {url} für {method}")
-                        continue
-                    
-                    self.logger.debug(f"Raw RPC Response [{method}]: {json.dumps(result, indent=2)}")
+                    response = await client.post(url, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
                     response.raise_for_status()
                     result = response.json().get("result")
                     if not result:
                         self.logger.warning(f"Leere Antwort von {url} für {method}")
                         continue
+                    self.logger.debug(f"Raw RPC Response [{method}]: {json.dumps(result, indent=2)}")
                     return result
             except httpx.HTTPError as e:
                 self.logger.error(f"HTTP-Fehler bei {url}: {str(e)}")
                 continue
         self.logger.error("Alle RPC-Endpunkte sind nicht erreichbar")
         return None
-        
-    def _log_transaction_details(self, tx_result: Dict[str, Any]) -> None:
+
+    def _log_unprocessed_fields(self, data: dict, context: str = "root"):
         """
-        Loggt detaillierte Transaktionsinformationen.
+        Durchsucht die gesamte Antwort nach unbekannten Feldern und loggt diese.
         """
+        known_fields = {
+            "signature", "block_time", "slot", "from_wallet", "balance_changes",
+            "transfers", "meta", "message", "accountKeys", "preBalances", "postBalances",
+            "instructions", "signatures", "raw", "transaction_type"
+        }
+
+        for key, value in data.items():
+            full_key = f"{context}.{key}" if context != "root" else key
+            if isinstance(value, dict):
+                self._log_unprocessed_fields(value, full_key)
+            elif isinstance(value, list) and value and isinstance(value[0], dict):
+                for idx, item in enumerate(value):
+                    self._log_unprocessed_fields(item, f"{full_key}[{idx}]")
+            else:
+                if key not in known_fields:
+                    self.logger.warning(f"Unverarbeitetes Feld gefunden: {full_key} = {value}")
+
+    def _detect_transaction_type(self, tx_detail: dict) -> str:
+        message = tx_detail.get("transaction", {}).get("message", {})
+        instructions = message.get("instructions", [])
+        account_keys = message.get("accountKeys", [])
+
+        if account_keys and len(instructions) == 1:
+            instr = instructions[0]
+            if "programIdIndex" in instr and account_keys[instr["programIdIndex"]] == "11111111111111111111111111111111":
+                return "system_transfer"
+
+        if any(
+            account_keys[instr["programIdIndex"]] == "TokenkegQfeZyiNwAJbNbGKL6Q5cd3TtgZ1SLrPpQ8Yz"
+            for instr in instructions
+            if "programIdIndex" in instr and instr["programIdIndex"] < len(account_keys)
+        ):
+            return "spl_token_transfer"
+
+        return "unknown"
+
+    def _build_transaction_graph_data(self, transaction_detail: dict) -> Optional[dict]:
+        if not transaction_detail:
+            self.logger.warning("Leere Transaktionsantwort. Keine Daten zum Verarbeiten.")
+            return None
+
+        tx_hash = transaction_detail.get("transaction", {}).get("signatures", [""])[0]
+        block_time = transaction_detail.get("blockTime")
+        slot = transaction_detail.get("slot")
+        meta = transaction_detail.get("meta", {})
+        message = transaction_detail.get("transaction", {}).get("message", {})
+        account_keys = message.get("accountKeys", [])
+        from_wallet = account_keys[0] if account_keys else None
+
+        balance_changes = self._extract_balance_changes(transaction_detail)
+        transfers = self._extract_transfers(transaction_detail)
+
+        transaction_type = self._detect_transaction_type(transaction_detail)
+
+        # Zeige nicht verarbeitete Felder im Log
+        self._log_unprocessed_fields(transaction_detail)
+
+        return {
+            "signature": tx_hash,
+            "block_time": block_time,
+            "slot": slot,
+            "from_wallet": from_wallet,
+            "balance_changes": balance_changes,
+            "transfers": transfers,
+            "meta": meta,
+            "message": message,
+            "raw": transaction_detail,
+            "transaction_type": transaction_type
+        }
+
+    def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
+        transfers = []
         try:
-            # Extrahiere wichtige Informationen
-            signatures = tx_result.get("transaction", {}).get("signatures", [])
-            block_time = tx_result.get("blockTime")
-            slot = tx_result.get("slot")
-            
-            # Balance Änderungen
-            meta = tx_result.get("meta", {})
-            pre_balances = meta.get("preBalances", [])
-            post_balances = meta.get("postBalances", [])
-            
-            # Account Keys
-            message = tx_result.get("transaction", {}).get("message", {})
-            account_keys = message.get("accountKeys", [])
-            
-            # Instructions
-            instructions = message.get("instructions", [])
-            
-            # Logge strukturierte Informationen
-            log_data = {
-                "transaction_details": {
-                    "signatures": signatures,
-                    "block_time": datetime.fromtimestamp(block_time).isoformat() if block_time else None,
-                    "slot": slot,
-                    "accounts_involved": len(account_keys),
-                    "instruction_count": len(instructions),
-                    "balance_changes": []
-                }
-            }
-            
-            # Füge Balance-Änderungen hinzu
+            meta = tx_detail.get("meta", {})
+            pre_balances = meta.get("pre_balances", [])
+            post_balances = meta.get("post_balances", [])
+            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            if not account_keys:
+                logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
+                return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
+            sender_index = None
             for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-                if i < len(account_keys):
-                    change = post - pre
-                    if abs(change) > 5000:  # Nur signifikante Änderungen
-                        log_data["transaction_details"]["balance_changes"].append({
-                            "account": account_keys[i],
-                            "pre_balance": pre / 1e9,  # Konvertiere zu SOL
-                            "post_balance": post / 1e9,
-                            "change": change / 1e9
-                        })
-            
-            # Logge Programm-Interaktionen
-            program_interactions = []
-            for instr in instructions:
-                if "programIdIndex" in instr and instr["programIdIndex"] < len(account_keys):
-                    program_id = account_keys[instr["programIdIndex"]]
-                    program_interactions.append(program_id)
-            
-            log_data["transaction_details"]["program_interactions"] = program_interactions
-            
-            # Logge das Ergebnis
-            logger.info(f"Detailed transaction data: {json.dumps(log_data, indent=2)}")
-            
-            # Logge zusätzliche wichtige Ereignisse
-            if meta.get("err"):
-                logger.warning(f"Transaction error detected: {meta['err']}")
-            
-            if len(signatures) > 1:
-                logger.info(f"Multi-signature transaction detected with {len(signatures)} signatures")
-                
+                if post - pre < 0:
+                    sender_index = i
+                    break
+            if sender_index is None:
+                logger.warning("Kein Sender gefunden. Setze Platzhalter ein.")
+                return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
+
+            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                if i != sender_index and post - pre > 0:
+                    transfers.append({
+                        "from": account_keys[sender_index],
+                        "to": account_keys[i],
+                        "amount": Decimal(abs(post - pre)) / Decimal(1e9)
+                    })
+                    break
+            if not transfers:
+                logger.warning("Keine Empfänger gefunden. Setze Platzhalter ein.")
+                transfers.append({
+                    "from": account_keys[sender_index],
+                    "to": "Ziel",
+                    "amount": Decimal("0")
+                })
         except Exception as e:
-            logger.error(f"Error logging transaction details: {e}")
-            
+            logger.error("Fehler beim Extrahieren von Transfers: %s", str(e))
+            transfers = [{"from": "Fehler", "to": "Fehler", "amount": Decimal("0")}]
+
+        return transfers
+
+    def _validate_rpc_response(self, tx_detail: Dict) -> bool:
+        try:
+            meta = tx_detail.get("meta", {})
+            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            if not account_keys:
+                logger.warning("Transaktion enthält keine accountKeys")
+                return False
+            if not meta.get("pre_balances") or not meta.get("post_balances"):
+                logger.warning("Transaktion enthält keine Balance-Daten")
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"Fehler bei der Validierung der RPC-Antwort: {str(e)}")
+            return False
+
+    def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
+        try:
+            meta = tx_detail.get("meta", {})
+            pre_balances = meta.get("pre_balances", [])
+            post_balances = meta.get("post_balances", [])
+            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            if not account_keys:
+                logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
+                return []
+            changes = []
+            for idx, (pre, post) in enumerate(zip(pre_balances, post_balances)):
+                if idx >= len(account_keys):
+                    continue
+                change = post - pre
+                if change != 0:
+                    changes.append({
+                        "account": account_keys[idx],
+                        "change": Decimal(change) / Decimal(1e9),
+                        "pre_balance": Decimal(pre) / Decimal(1e9),
+                        "post_balance": Decimal(post) / Decimal(1e9)
+                    })
+            return changes
+        except Exception as e:
+            logger.error(f"Fehler beim Extrahieren von Balance-Änderungen: {str(e)}")
+            return []
+
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
         try:
             raw_result = await self._make_rpc_call("getTransaction", [tx_hash, {
@@ -194,7 +272,6 @@ class EnhancedSolanaRepository:
             }])
             if not raw_result:
                 return None
-    
             return self._build_transaction_graph_data(raw_result)
         except Exception as e:
             self.logger.error(f"Error fetching or processing transaction {tx_hash}: {str(e)}")
@@ -229,9 +306,6 @@ class EnhancedSolanaRepository:
         before: Optional[str] = None,
         limit: int = 10
     ) -> List[TransactionDetail]:
-        """
-        Holt Transaktionen für eine bestimmte Adresse.
-        """
         try:
             params = [
                 address,
@@ -242,15 +316,12 @@ class EnhancedSolanaRepository:
             ]
             if before:
                 params[1]["before"] = before
-
             signatures = await self._make_rpc_call(
                 "getSignaturesForAddress",
                 params
             )
-
             if not signatures:
                 return []
-
             transactions = []
             for sig_info in signatures:
                 tx_hash = sig_info.get("signature")
@@ -258,9 +329,7 @@ class EnhancedSolanaRepository:
                     tx_detail = await self.get_transaction(tx_hash)
                     if tx_detail:
                         transactions.append(tx_detail)
-
             return transactions
-
         except Exception as e:
             logger.error(f"Error fetching transactions for address {address}: {e}")
             return []
