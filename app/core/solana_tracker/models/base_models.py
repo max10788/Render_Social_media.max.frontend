@@ -40,17 +40,17 @@ class TransactionMessageDetail(BaseModel):
         allow_population_by_field_name = True
 
 class TransactionMetaDetail(BaseModel):
-    fee: int = Field(default=0, description="Transaktionsgebühr in Lamports")  # [[5]]
+    fee: int = Field(default=0)
     pre_balances: List[int] = Field(default_factory=list, alias="preBalances")
     post_balances: List[int] = Field(default_factory=list, alias="postBalances")
-    preTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list, description="Token-Salden vor der Transaktion")  # [[4]]
-    postTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list, description="Token-Salden nach der Transaktion")  # [[4]]
+    preTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list)
+    postTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list)
     inner_instructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list, alias="innerInstructions")
-    log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages", description="Programm-Log-Nachrichten (z.B. 'Instruction: TransferChecked')")  # [[4]]
+    log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages")
     err: Optional[Dict[str, Any]] = Field(default=None, description="Fehlerdetails der Transaktion")
     available_signatures: Optional[int] = Field(default=None)
-    computeUnitsConsumed: Optional[int] = Field(default=None, description="Verbrauchte Compute Units")  # [[4]]
-    loadedAddresses: Dict[str, List[str]] = Field(default_factory=lambda: {"readonly": [], "writable": []}, description="Externe Adressen für Lese-/Schreibzugriff")  # [[4]]
+    computeUnitsConsumed: Optional[int] = Field(default=None)
+    loadedAddresses: Dict[str, List[str]] = Field(default_factory=lambda: {"readonly": [], "writable": []})
     status: Dict[str, Any] = Field(default={"Ok": None}, description="Transaktionsstatus (z.B. {'Ok': None})")  # [[4]]
     rewards: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # [[4]]
 
