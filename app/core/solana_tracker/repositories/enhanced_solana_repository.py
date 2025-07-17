@@ -343,20 +343,25 @@ class EnhancedSolanaRepository:
 
     def _log_transaction_details(self, tx_result: Dict[str, Any]) -> None:
         try:
-            # Logge alle Konten mit Balance-Änderungen
-            pre_balances = tx_result.get('result', {}).get('meta', {}).get('pre_balances', [])
-            post_balances = tx_result.get('result', {}).get('meta', {}).get('post_balances', [])
+            meta = tx_result.get('result', {}).get('meta', {})
+            pre_balances = meta.get('pre_balances', [])
+            post_balances = meta.get('post_balances', [])
             account_keys = tx_result.get('result', {}).get('transaction', {}).get('message', {}).get('accountKeys', [])
+            
+            logger.info("Transaktionsdetails:")
+            logger.info(f"accountKeys: {account_keys or 'Fehlend'}")
+            logger.info(f"pre_balances: {pre_balances}")
+            logger.info(f"post_balances: {post_balances}")
             
             for idx, pubkey in enumerate(account_keys):
                 if idx >= len(pre_balances) or idx >= len(post_balances):
+                    logger.warning(f"Index {idx} außerhalb der Balancelisten")
                     continue
-                    
                 change = post_balances[idx] - pre_balances[idx]
-                if change != 0:  # Logge nur Konten mit Änderungen
+                if change != 0:
                     logger.info(f"Konto: {pubkey} | Vorher: {pre_balances[idx]/1e9:.9f} SOL | Nachher: {post_balances[idx]/1e9:.9f} SOL | Änderung: {change/1e9:.9f} SOL")
         except Exception as e:
-            logger.error(f"Fehler beim Loggen der Transaktionsdetails: {e}")
+            logger.error(f"Fehler beim Loggen der Transaktionsdetails: {str(e)}")
 
 # Instanz erstellen
 repository = EnhancedSolanaRepository(config=solana_config)
