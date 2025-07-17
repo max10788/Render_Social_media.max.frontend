@@ -18,24 +18,30 @@ class BaseTransaction(BaseModel):
         allow_population_by_field_name = True
 
 class TransactionMessageDetail(BaseModel):
-    """Message details within a transaction."""
     accountKeys: List[str] = Field(default_factory=list)
-    recentBlockhash: str = Field(default="")
-    instructions: List[Dict[str, Any]] = Field(default_factory=list)
+    recentBlockhash: str = Field(default="", description="Letzter Blockhash für die Transaktion")  # [[2]]
+    instructions: List[InstructionDetail] = Field(default_factory=list)
     header: Dict[str, Any] = Field(default_factory=dict)
-    
+    addressTableLookups: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Address Lookup Table Einträge")  # [[4]]
+
     class Config:
         arbitrary_types_allowed = True
         allow_population_by_field_name = True
 
 class TransactionMetaDetail(BaseModel):
-    fee: int = Field(default=0)
+    fee: int = Field(default=0, description="Transaktionsgebühr in Lamports")  # [[5]]
     pre_balances: List[int] = Field(default_factory=list, alias="preBalances")
     post_balances: List[int] = Field(default_factory=list, alias="postBalances")
+    preTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list, description="Token-Salden vor der Transaktion")  # [[4]]
+    postTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list, description="Token-Salden nach der Transaktion")  # [[4]]
     inner_instructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list, alias="innerInstructions")
-    log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages")
-    err: Optional[Dict[str, Any]] = Field(default=None)
+    log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages", description="Programm-Log-Nachrichten (z.B. 'Instruction: TransferChecked')")  # [[4]]
+    err: Optional[Dict[str, Any]] = Field(default=None, description="Fehlerdetails der Transaktion")
     available_signatures: Optional[int] = Field(default=None)
+    computeUnitsConsumed: Optional[int] = Field(default=None, description="Verbrauchte Compute Units")  # [[4]]
+    loadedAddresses: Dict[str, List[str]] = Field(default_factory=lambda: {"readonly": [], "writable": []}, description="Externe Adressen für Lese-/Schreibzugriff")  # [[4]]
+    status: Dict[str, Any] = Field(default={"Ok": None}, description="Transaktionsstatus (z.B. {'Ok': None})")  # [[4]]
+    rewards: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # [[4]]
 
     class Config:
         allow_population_by_field_name = True
@@ -46,9 +52,9 @@ class TransactionDetail(BaseModel):
     message: Optional[TransactionMessageDetail] = None
     slot: Optional[int] = None
     meta: Optional[TransactionMetaDetail] = None
-    block_time: Optional[int] = None
+    block_time: Optional[int] = Field(default=None, description="Unix-Zeitstempel der Transaktion")  # [[8]]
     signature: str = Field(default="")
-    transaction: Optional[Dict[str, Any]] = None  # Geändert von BaseTransaction zu Dict
+    transaction: Optional[Dict[str, Any]] = None
 
     @property
     def human_readable_time(self) -> Optional[str]:
@@ -56,6 +62,12 @@ class TransactionDetail(BaseModel):
             return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
         return None
 
+    @property
+    def account_keys(self) -> list:
+        if self.message and hasattr(self.message, "accountKeys"):
+            return self.message.accountKeys
+        return []
+        
     @property
     def tx_hash(self) -> str:
         """Get the transaction hash from signatures or signature."""
@@ -69,15 +81,6 @@ class TransactionDetail(BaseModel):
         if self.block_time is not None:
             return datetime.fromtimestamp(self.block_time, tz=timezone.utc)
         return datetime.utcnow()
-
-    @property
-    def account_keys(self) -> list:
-        """
-        Gibt die Account Keys der Transaktion zurück (Kompatibilität zu älterem Code).
-        """
-        if self.message and hasattr(self.message, "accountKeys"):
-            return self.message.accountKeys
-        return []
 
     @property
     def required_signatures(self) -> int:
@@ -98,12 +101,11 @@ class TransactionDetail(BaseModel):
         if self.transaction and isinstance(self.transaction, dict):
             message_data = self.transaction.get('message', {})
             if message_data:
-                self.message = TransactionMessageDetail(
-                    accountKeys=message_data.get('accountKeys', []),
-                    recentBlockhash=message_data.get('recentBlockhash', ''),
-                    instructions=message_data.get('instructions', []),
-                    header=message_data.get('header', {})
-                )
+                self.message = TransactionMessageDetail(**message_data)
+            meta_data = self.transaction.get('meta', {})
+            if meta_data:
+                self.meta = TransactionMetaDetail(**meta_data)
+            self.block_time = self.transaction.get('blockTime')  # [[8]]
 
     def get_multi_sig_info(self) -> Dict[str, Any]:
         """Get multi-signature configuration details."""
@@ -235,3 +237,21 @@ class TransactionBatch(BaseModel):
             datetime: lambda v: v.isoformat(),
             Decimal: str
         }
+
+class TokenAmountDetail(BaseModel):
+    """Token-Betrag mit Dezimalstellen."""
+    amount: str = Field(..., description="Token-Betrag als String (z.B. '38890113466767')")  # [[7]]
+    decimals: int = Field(..., description="Anzahl der Dezimalstellen (z.B. 9)")
+    uiAmount: float = Field(..., description="Menschlesbarer Token-Betrag (z.B. 38890.113466767)")
+    uiAmountString: str = Field(..., description="Formatierte Betragsdarstellung als String")  # [[7]]
+
+class TokenBalanceDetail(BaseModel):
+    """Token-Saldo vor/nach der Transaktion."""
+    accountIndex: int = Field(..., description="Index des Kontos in accountKeys")
+    mint: str = Field(..., description="Mint-Adresse des Tokens (z.B. 'So11111111111111111111111111111111111111112')")  # [[4]]
+    owner: str = Field(..., description="Besitzer des Kontos (z.B. 'MfDuWeqSHEqTFVYZ7LoexgAK9dxk7cy4DFJWjWMGVWa')")  # [[4]]
+    programId: str = Field(..., description="Programm-ID (z.B. 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')")  # [[4]]
+    uiTokenAmount: TokenAmountDetail = Field(...)  # [[7]]
+
+    class Config:
+        allow_population_by_field_name = True
