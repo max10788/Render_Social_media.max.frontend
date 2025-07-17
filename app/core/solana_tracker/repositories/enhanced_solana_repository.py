@@ -129,30 +129,23 @@ class EnhancedSolanaRepository:
             self.logger.warning("Leere Transaktionsantwort. Keine Daten zum Verarbeiten.")
             return None
 
-        tx_hash = transaction_detail.get("transaction", {}).get("signatures", [""])[0]
-        block_time = transaction_detail.get("blockTime")
-        slot = transaction_detail.get("slot")
-        meta = transaction_detail.get("meta", {})
-        message = transaction_detail.get("transaction", {}).get("message", {})
-        account_keys = message.get("accountKeys", [])
-        from_wallet = account_keys[0] if account_keys else None
-
+        # Parse raw data first
+        parsed_tx = self.parse_transaction(transaction_detail)
+        
+        # Zusätzliche Verarbeitungsschritte
         balance_changes = self._extract_balance_changes(transaction_detail)
         transfers = self._extract_transfers(transaction_detail)
         transaction_type = self._detect_transaction_type(transaction_detail)
 
-        # Zeige nicht verarbeitete Felder im Log
-        self._log_unprocessed_fields(transaction_detail)
-
         return {
-            "signature": tx_hash,
-            "block_time": block_time,
-            "slot": slot,
-            "from_wallet": from_wallet,
+            "signature": parsed_tx.signature,
+            "block_time": parsed_tx.block_time,
+            "slot": transaction_detail.get("slot"),
+            "from_wallet": parsed_tx.message.accountKeys[0] if parsed_tx.message.accountKeys else None,
             "balance_changes": balance_changes,
             "transfers": transfers,
-            "meta": meta,
-            "message": message,
+            "meta": parsed_tx.meta.dict(),
+            "message": parsed_tx.message.dict(),
             "raw": transaction_detail,
             "transaction_type": transaction_type
         }
