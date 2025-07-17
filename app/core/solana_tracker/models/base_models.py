@@ -38,25 +38,6 @@ class TransactionMessageDetail(BaseModel):
         arbitrary_types_allowed = True
         allow_population_by_field_name = True
 
-class TransactionMetaDetail(BaseModel):
-    fee: int = Field(default=0)
-    pre_balances: List[int] = Field(default_factory=list, alias="preBalances")
-    post_balances: List[int] = Field(default_factory=list, alias="postBalances")
-    preTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list)
-    postTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list)
-    inner_instructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list, alias="innerInstructions")
-    log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages")
-    err: Optional[Dict[str, Any]] = Field(default=None, description="Fehlerdetails der Transaktion")
-    available_signatures: Optional[int] = Field(default=None)
-    computeUnitsConsumed: Optional[int] = Field(default=None)
-    loadedAddresses: Dict[str, List[str]] = Field(default_factory=lambda: {"readonly": [], "writable": []})
-    status: Dict[str, Any] = Field(default={"Ok": None}, description="Transaktionsstatus (z.B. {'Ok': None})")  # [[4]]
-    rewards: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # [[4]]
-
-    class Config:
-        allow_population_by_field_name = True
-
-
 class TransactionDetail(BaseModel):
     signatures: List[str] = Field(default_factory=list)
     message: Optional[TransactionMessageDetail] = None
@@ -254,13 +235,6 @@ class TransactionBatch(BaseModel):
             Decimal: str
         }
 
-class TokenAmountDetail(BaseModel):
-    """Token-Betrag mit Dezimalstellen."""
-    amount: str = Field(..., description="Token-Betrag als String (z.B. '38890113466767')")  # [[7]]
-    decimals: int = Field(..., description="Anzahl der Dezimalstellen (z.B. 9)")
-    uiAmount: float = Field(..., description="Menschlesbarer Token-Betrag (z.B. 38890.113466767)")
-    uiAmountString: str = Field(..., description="Formatierte Betragsdarstellung als String")  # [[7]]
-
 class TokenBalanceDetail(BaseModel):
     """Token-Saldo vor/nach der Transaktion."""
     accountIndex: int = Field(..., description="Index des Kontos in accountKeys")
@@ -268,6 +242,31 @@ class TokenBalanceDetail(BaseModel):
     owner: str = Field(..., description="Besitzer des Kontos (z.B. 'MfDuWeqSHEqTFVYZ7LoexgAK9dxk7cy4DFJWjWMGVWa')")  # [[4]]
     programId: str = Field(..., description="Programm-ID (z.B. 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA')")  # [[4]]
     uiTokenAmount: TokenAmountDetail = Field(...)  # [[7]]
+
+    class Config:
+        allow_population_by_field_name = True
+
+class TokenAmountDetail(BaseModel):
+    """Token-Betrag mit Dezimalstellen."""
+    amount: str = Field(..., description="Token-Betrag als String (z.B. '38890113466767')")  # [[7]]
+    decimals: int = Field(..., description="Anzahl der Dezimalstellen (z.B. 9)")
+    uiAmount: float = Field(..., description="Menschlesbarer Token-Betrag (z.B. 38890.113466767)")
+    uiAmountString: str = Field(..., description="Formatierte Betragsdarstellung als String")  # [[7]]
+
+class TransactionMetaDetail(BaseModel):
+    fee: int = Field(default=0)
+    pre_balances: List[int] = Field(default_factory=list, alias="preBalances")
+    post_balances: List[int] = Field(default_factory=list, alias="postBalances")
+    preTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list)
+    postTokenBalances: List[TokenBalanceDetail] = Field(default_factory=list)
+    inner_instructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list, alias="innerInstructions")
+    log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages")
+    err: Optional[Dict[str, Any]] = Field(default=None, description="Fehlerdetails der Transaktion")
+    available_signatures: Optional[int] = Field(default=None)
+    computeUnitsConsumed: Optional[int] = Field(default=None)
+    loadedAddresses: Dict[str, List[str]] = Field(default_factory=lambda: {"readonly": [], "writable": []})
+    status: Dict[str, Any] = Field(default={"Ok": None}, description="Transaktionsstatus (z.B. {'Ok': None})")  # [[4]]
+    rewards: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # [[4]]
 
     class Config:
         allow_population_by_field_name = True
