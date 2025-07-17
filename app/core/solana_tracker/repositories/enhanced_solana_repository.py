@@ -269,6 +269,7 @@ class EnhancedSolanaRepository:
             return []
 
     def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
+        """Extrahiert Transfers mit Fallback-Werten für fehlende Daten."""
         transfers = []
         try:
             meta = tx_detail.get("meta", {})
@@ -278,9 +279,9 @@ class EnhancedSolanaRepository:
             
             # Fallback für fehlende accountKeys
             if not account_keys:
-                logger.warning("Keine accountKeys gefunden. Setze Platzhalter ein.")
+                logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
                 return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
-    
+            
             # Finde Sender (negativer Betrag)
             sender_index = None
             for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
@@ -313,8 +314,7 @@ class EnhancedSolanaRepository:
                 })
                     
         except Exception as e:
-            logger.error(f"Fehler beim Extrahieren von Transfers: {str(e)}")
-            # Fallback bei kritischen Fehlern
+            logger.error("Fehler beim Extrahieren von Transfers: %s", str(e))
             transfers = [{"from": "Fehler", "to": "Fehler", "amount": Decimal("0")}]
         
         return transfers
