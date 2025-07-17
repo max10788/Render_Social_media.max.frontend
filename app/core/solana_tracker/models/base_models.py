@@ -42,7 +42,7 @@ class TransactionDetail(BaseModel):
     signatures: List[str] = Field(default_factory=list)
     message: Optional[TransactionMessageDetail] = None
     slot: Optional[int] = None
-    meta: Optional[TransactionMetaDetail] = None
+    meta: Optional['TransactionMetaDetail'] = None
     block_time: Optional[int] = Field(default=None, description="Unix-Zeitstempel der Transaktion")  # [[8]]
     signature: str = Field(default="")
     transaction: Optional[Dict[str, Any]] = None
