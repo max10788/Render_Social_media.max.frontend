@@ -244,6 +244,67 @@ class EnhancedSolanaRepository:
 
         return transfers
 
+    # _validate_rpc_response
+    def _validate_rpc_response(self, tx_detail: Dict) -> bool:
+        try:
+            meta = tx_detail.get("meta", {})
+            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            if not account_keys:
+                logger.warning("Transaktion enthält keine accountKeys")
+                return False
+            if not meta.get("pre_balances") or not meta.get("post_balances"):
+                logger.warning("Transaktion enthält keine Balance-Daten")
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"Fehler bei der Validierung der RPC-Antwort: {str(e)}")
+            return False
+
+    def parse_transaction(self, raw_tx: Dict[str, Any]) -> TransactionDetail:
+        """Parse raw transaction data into structured TransactionDetail object"""
+        message_data = raw_tx.get("message", {})
+        meta_data = raw_tx.get("meta", {})
+
+        # Instruktionen konvertieren
+        instructions = [
+            InstructionDetail(**inst) for inst in message_data.get("instructions", [])
+        ]
+
+        # Token-Balances konvertieren
+        pre_token_balances = [
+            TokenBalanceDetail(**balance) for balance in meta_data.get("preTokenBalances", [])
+        ]
+        post_token_balances = [
+            TokenBalanceDetail(**balance) for balance in meta_data.get("postTokenBalances", [])
+        ]
+
+        # Message und Meta erstellen
+        message = TransactionMessageDetail(
+            accountKeys=message_data.get("accountKeys", []),
+            recentBlockhash=message_data.get("recentBlockhash", ""),
+            instructions=instructions,
+            header=message_data.get("header", {})
+        )
+
+        meta = TransactionMetaDetail(
+            fee=meta_data.get("fee", 0),
+            pre_balances=meta_data.get("preBalances", []),
+            post_balances=meta_data.get("postBalances", []),
+            preTokenBalances=pre_token_balances,
+            postTokenBalances=post_token_balances,
+            log_messages=meta_data.get("logMessages", []),
+            computeUnitsConsumed=meta_data.get("computeUnitsConsumed"),
+            loadedAddresses=meta_data.get("loadedAddresses", {})
+        )
+
+        return TransactionDetail(
+            signatures=raw_tx.get("signatures", []),
+            message=message,
+            meta=meta,
+            block_time=raw_tx.get("blockTime"),
+            signature=raw_tx.get("signature", "")
+        )
+
     # _extract_balance_changes
     def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
         try:
@@ -273,21 +334,7 @@ class EnhancedSolanaRepository:
             logger.error(f"Fehler beim Extrahieren von Balance-Änderungen: {str(e)}")
             return []
 
-    # _validate_rpc_response
-    def _validate_rpc_response(self, tx_detail: Dict) -> bool:
-        try:
-            meta = tx_detail.get("meta", {})
-            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
-            if not account_keys:
-                logger.warning("Transaktion enthält keine accountKeys")
-                return False
-            if not meta.get("pre_balances") or not meta.get("post_balances"):
-                logger.warning("Transaktion enthält keine Balance-Daten")
-                return False
-            return True
-        except Exception as e:
-            logger.error(f"Fehler bei der Validierung der RPC-Antwort: {str(e)}")
-            return False
+
 
     # Öffentliche Methoden
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
