@@ -97,7 +97,6 @@ class EnhancedSolanaRepository:
     async def _make_rpc_call(self, method: str, params: list) -> Optional[Dict[str, Any]]:
         """Sichere RPC-Anfrage mit Fallback-URLs und detailliertem Logging."""
         urls = [self.current_rpc_url] + self.fallback_rpc_urls
-        
         for url in urls:
             try:
                 async with httpx.AsyncClient(timeout=30.0) as client:
@@ -106,18 +105,14 @@ class EnhancedSolanaRepository:
                         json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
                     )
                     response.raise_for_status()
-                    
                     result = response.json().get("result")
                     if not result:
                         self.logger.warning(f"Leere Antwort von {url} für {method}")
                         continue
-                    
                     return result
-                    
             except httpx.HTTPError as e:
                 self.logger.error(f"HTTP-Fehler bei {url}: {str(e)}")
                 continue
-        
         self.logger.error("Alle RPC-Endpunkte sind nicht erreichbar")
         return None
         
