@@ -67,92 +67,140 @@ class ChainTracker:
             logger.error("Invalid signature format for '%s': %s", signature, e)
             return False
 
-    async def track_chain(
-        self,
-        start_tx_hash: str,
-        max_depth: int = 10,
-        amount: Optional[Decimal] = None
-    ) -> List[TrackedTransaction]:
-        logger.info("Begin tracking chain from %s (max_depth=%d, amount=%s)", start_tx_hash, max_depth, amount)
+    async def track_chain(self, start_tx_hash: str, max_depth: int = 10, amount: Optional[Decimal] = None) -> List[TrackedTransaction]:
+        """Verfolgt eine Transaktionskette mit Fallback-Werten für unvollständige Daten."""
+        logger.info("Starte Kettenverfolgung für %s (max_depth=%d, amount=%s)", start_tx_hash, max_depth, amount)
+        
         if not self.validate_transaction_signature(start_tx_hash):
-            logger.error("Invalid transaction signature format: %s", start_tx_hash)
-            return []
+            logger.error("Ungültige Transaktions-Signatur: %s", start_tx_hash)
+            return [TrackedTransaction(
+                tx_hash="Fehler",
+                from_wallet="Unbekannt",
+                to_wallet="Ziel",
+                amount=Decimal("0"),
+                timestamp=datetime.now().timestamp(),
+                value_in_target_currency=None
+            )]
+        
         result_transactions: List[TrackedTransaction] = []
         visited_addresses: Set[str] = set()
+        
         try:
             async with self.solana_repo as repo:
+                # Extrahiere Starttransaktion
                 tx_detail = await self._get_transaction_safe(start_tx_hash)
                 if not tx_detail:
-                    logger.error("Initial transaction %s not found", start_tx_hash)
-                    return []
+                    logger.warning("Starttransaktion nicht gefunden: %s", start_tx_hash)
+                    return [TrackedTransaction(
+                        tx_hash=start_tx_hash,
+                        from_wallet="Unbekannt",
+                        to_wallet="Ziel",
+                        amount=Decimal("0"),
+                        timestamp=datetime.now().timestamp(),
+                        value_in_target_currency=None
+                    )]
+                
+                # Extrahiere erste Transfers
                 transfers = self._extract_transfers(tx_detail)
-                logger.info("First parsed transfers: %s", transfers)
                 if not transfers:
-                    logger.warning("No valid transfers in initial tx %s", start_tx_hash)
-                    return []
+                    logger.warning("Keine Transfers in der Starttransaktion: %s", start_tx_hash)
+                    result_transactions.append(TrackedTransaction(
+                        tx_hash=start_tx_hash,
+                        from_wallet="Unbekannt",
+                        to_wallet="Ziel",
+                        amount=Decimal("0"),
+                        timestamp=tx_detail.get("blockTime", datetime.now().timestamp()),
+                        value_in_target_currency=None
+                    ))
+                    return result_transactions
+                
+                # Füge erste Transaktion hinzu
                 main_transfer = max(transfers, key=lambda t: t["amount"])
-                current_wallet = main_transfer["to"]
                 result_transactions.append(TrackedTransaction(
-                    tx_hash=tx_detail.signature,
+                    tx_hash=tx_detail["signature"],
                     from_wallet=main_transfer["from"],
-                    to_wallet=current_wallet,
+                    to_wallet=main_transfer["to"],
                     amount=main_transfer["amount"],
-                    timestamp=tx_detail.transaction.timestamp,
+                    timestamp=tx_detail.get("blockTime", datetime.now().timestamp()),
                     value_in_target_currency=None
                 ))
+                
+                current_wallet = main_transfer["to"]
+                
+                # Verfolge weitere Transaktionen
                 for depth in range(1, max_depth):
                     if not current_wallet or current_wallet in visited_addresses:
-                        logger.info("End of chain reached at depth=%d", depth)
+                        logger.info("Kette endet bei Tiefe %d", depth)
                         break
+                    
                     visited_addresses.add(current_wallet)
-                    sol_balance_response = await repo._make_rpc_call(
-                        "getBalance", [current_wallet]
-                    )
-                    log_rpc_json("getBalance", [current_wallet], sol_balance_response)
-                    sol_balance = sol_balance_response.get('result', {}).get('value', 0)
-                    get_sigs_params = [current_wallet, {"limit": 10}]
-                    sigs_response = await repo._make_rpc_call(
-                        "getSignaturesForAddress", get_sigs_params
-                    )
-                    log_rpc_json("getSignaturesForAddress", get_sigs_params, sigs_response)
-                    sig_infos = sigs_response.get("result", [])
-                    if not sig_infos:
-                        logger.info(f"No outgoing signatures found for {current_wallet}, chain ends here.")
+                    
+                    # Hole Signaturen für das aktuelle Wallet
+                    sigs_response = await repo._make_rpc_call("getSignaturesForAddress", [current_wallet, {"limit": 10}])
+                    if not sigs_response or not isinstance(sigs_response, list):
+                        logger.warning("Keine Signaturen für %s gefunden", current_wallet)
+                        result_transactions.append(TrackedTransaction(
+                            tx_hash="",
+                            from_wallet=current_wallet,
+                            to_wallet="Ende der Kette",
+                            amount=Decimal("0"),
+                            timestamp=datetime.now().timestamp(),
+                            value_in_target_currency=None
+                        ))
                         break
+                    
                     found_next = False
-                    for sig_info in sig_infos:
+                    for sig_info in sigs_response:
                         tx_hash = sig_info.get("signature")
                         if not tx_hash:
                             continue
-                        next_tx_detail = await self._get_transaction_safe(tx_hash)
-                        if not next_tx_detail:
+                        
+                        next_tx = await self._get_transaction_safe(tx_hash)
+                        if not next_tx:
                             continue
-                        tx_transfers = self._extract_transfers(next_tx_detail)
-                        out_transfers = [
-                            t for t in tx_transfers
-                            if t["from"] == current_wallet and t["amount"] >= self.MIN_AMOUNT
-                        ]
+                        
+                        next_transfers = self._extract_transfers(next_tx)
+                        out_transfers = [t for t in next_transfers if t["from"] == current_wallet and t["amount"] > 0]
+                        
                         if out_transfers:
                             next_transfer = max(out_transfers, key=lambda t: t["amount"])
                             result_transactions.append(TrackedTransaction(
-                                tx_hash=next_tx_detail.signature,
-                                from_wallet=current_wallet,
+                                tx_hash=tx_hash,
+                                from_wallet=next_transfer["from"],
                                 to_wallet=next_transfer["to"],
                                 amount=next_transfer["amount"],
-                                timestamp=next_tx_detail.transaction.timestamp,
+                                timestamp=next_tx.get("blockTime", datetime.now().timestamp()),
                                 value_in_target_currency=None
                             ))
                             current_wallet = next_transfer["to"]
                             found_next = True
                             break
+                    
                     if not found_next:
-                        logger.info(f"No outgoing transfer found from {current_wallet}, chain ends here.")
+                        logger.info("Keine weiteren Transaktionen von %s gefunden", current_wallet)
+                        result_transactions.append(TrackedTransaction(
+                            tx_hash="",
+                            from_wallet=current_wallet,
+                            to_wallet="Ende der Kette",
+                            amount=Decimal("0"),
+                            timestamp=datetime.now().timestamp(),
+                            value_in_target_currency=None
+                        ))
                         break
-                logger.info("Chain tracking finished. Found %d transactions.", len(result_transactions))
+                
+                logger.info("Kettenverfolgung abgeschlossen. %d Transaktionen gefunden.", len(result_transactions))
                 return result_transactions
+        
         except Exception as e:
-            logger.error("Error tracking transaction chain from %s: %s", start_tx_hash, e, exc_info=True)
-            return []
+            logger.error("Fehler bei der Kettenverfolgung: %s", str(e), exc_info=True)
+            return [TrackedTransaction(
+                tx_hash="Fehler",
+                from_wallet="Unbekannt",
+                to_wallet="Ziel",
+                amount=Decimal("0"),
+                timestamp=datetime.now().timestamp(),
+                value_in_target_currency=None
+            )]
 
     def retry_with_exponential_backoff(max_retries=3, initial_delay=1):
         """Decorator für exponentielles Backoff bei Wiederholungsversuchen."""
