@@ -338,9 +338,11 @@ class EnhancedSolanaRepository:
             }])
             if not raw_result:
                 return None
-            return self._build_transaction_graph_data(raw_result)
+                
+            # Direkt geparstes Objekt zurückgeben
+            return self.parse_transaction(raw_result)
         except Exception as e:
-            self.logger.error(f"Error fetching or processing transaction {tx_hash}: {str(e)}")
+            self.logger.error(f"Error fetching transaction {tx_hash}: {str(e)}")
             return None
 
     async def get_signatures_for_address(
