@@ -7,7 +7,6 @@ class InstructionDetail(BaseModel):
     """Details einer Solana-Instruktion (z.B. Token-Transfer)."""
     programIdIndex: int = Field(..., description="Index des Programms in accountKeys")
     accounts: List[int] = Field(default_factory=list, description="Beteiligte Konten (Indizes in accountKeys)")
-    instruction_data: str = Field(..., description="Base58-kodierte Instruktionsdaten")  # Renamed field
     data: str = Field(..., description="Base58-kodierte Instruktionsdaten")
     stackHeight: Optional[int] = Field(default=None, description="Stack-Höhe bei Programmausführung")
     
