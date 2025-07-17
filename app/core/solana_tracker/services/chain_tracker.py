@@ -68,9 +68,9 @@ class ChainTracker:
             return False
 
     async def track_chain(self, start_tx_hash: str, max_depth: int = 10, amount: Optional[Decimal] = None) -> List[TrackedTransaction]:
-        """Verfolgt eine Transaktionskette mit Fallback-Werten für unvollständige Daten."""
+        """Verfolgt eine Transaktionskette mit verbesserten Fallback-Werten für unvollständige oder fehlende Daten."""
         logger.info("Starte Kettenverfolgung für %s (max_depth=%d, amount=%s)", start_tx_hash, max_depth, amount)
-        
+    
         if not self.validate_transaction_signature(start_tx_hash):
             logger.error("Ungültige Transaktions-Signatur: %s", start_tx_hash)
             return [TrackedTransaction(
@@ -81,29 +81,30 @@ class ChainTracker:
                 timestamp=datetime.now().timestamp(),
                 value_in_target_currency=None
             )]
-        
+    
         result_transactions: List[TrackedTransaction] = []
         visited_addresses: Set[str] = set()
-        
+    
         try:
             async with self.solana_repo as repo:
                 # Extrahiere Starttransaktion
                 tx_detail = await self._get_transaction_safe(start_tx_hash)
                 if not tx_detail:
                     logger.warning("Starttransaktion nicht gefunden: %s", start_tx_hash)
-                    return [TrackedTransaction(
+                    result_transactions.append(TrackedTransaction(
                         tx_hash=start_tx_hash,
                         from_wallet="Unbekannt",
                         to_wallet="Ziel",
                         amount=Decimal("0"),
                         timestamp=datetime.now().timestamp(),
                         value_in_target_currency=None
-                    )]
-                
+                    ))
+                    return result_transactions
+    
                 # Extrahiere erste Transfers
                 transfers = self._extract_transfers(tx_detail)
-                if not transfers:
-                    logger.warning("Keine Transfers in der Starttransaktion: %s", start_tx_hash)
+                if not transfers or all(t["amount"] == Decimal("0") for t in transfers):
+                    logger.warning("Keine gültigen Transfers in der Starttransaktion: %s", start_tx_hash)
                     result_transactions.append(TrackedTransaction(
                         tx_hash=start_tx_hash,
                         from_wallet="Unbekannt",
@@ -113,8 +114,16 @@ class ChainTracker:
                         value_in_target_currency=None
                     ))
                     return result_transactions
-                
-                # Füge erste Transaktion hinzu
+    
+                # Filtere nach optionaler Betragsübereinstimmung
+                if amount is not None:
+                    filtered = [t for t in transfers if abs(t["amount"] - amount) <= self.MIN_AMOUNT]
+                    if filtered:
+                        transfers = filtered
+                    else:
+                        logger.warning("Keine Transfer mit dem gesuchten Betrag: %s", amount)
+    
+                # Wähle den größten Transfer
                 main_transfer = max(transfers, key=lambda t: t["amount"])
                 result_transactions.append(TrackedTransaction(
                     tx_hash=tx_detail["signature"],
@@ -124,17 +133,17 @@ class ChainTracker:
                     timestamp=tx_detail.get("blockTime", datetime.now().timestamp()),
                     value_in_target_currency=None
                 ))
-                
+    
                 current_wallet = main_transfer["to"]
-                
+    
                 # Verfolge weitere Transaktionen
                 for depth in range(1, max_depth):
                     if not current_wallet or current_wallet in visited_addresses:
                         logger.info("Kette endet bei Tiefe %d", depth)
                         break
-                    
+    
                     visited_addresses.add(current_wallet)
-                    
+    
                     # Hole Signaturen für das aktuelle Wallet
                     sigs_response = await repo._make_rpc_call("getSignaturesForAddress", [current_wallet, {"limit": 10}])
                     if not sigs_response or not isinstance(sigs_response, list):
@@ -148,20 +157,23 @@ class ChainTracker:
                             value_in_target_currency=None
                         ))
                         break
-                    
+    
                     found_next = False
                     for sig_info in sigs_response:
                         tx_hash = sig_info.get("signature")
                         if not tx_hash:
                             continue
-                        
+    
                         next_tx = await self._get_transaction_safe(tx_hash)
                         if not next_tx:
                             continue
-                        
+    
                         next_transfers = self._extract_transfers(next_tx)
+                        if amount is not None:
+                            next_transfers = [t for t in next_transfers if abs(t["amount"] - amount) <= self.MIN_AMOUNT]
+    
                         out_transfers = [t for t in next_transfers if t["from"] == current_wallet and t["amount"] > 0]
-                        
+    
                         if out_transfers:
                             next_transfer = max(out_transfers, key=lambda t: t["amount"])
                             result_transactions.append(TrackedTransaction(
@@ -175,7 +187,7 @@ class ChainTracker:
                             current_wallet = next_transfer["to"]
                             found_next = True
                             break
-                    
+    
                     if not found_next:
                         logger.info("Keine weiteren Transaktionen von %s gefunden", current_wallet)
                         result_transactions.append(TrackedTransaction(
@@ -187,10 +199,10 @@ class ChainTracker:
                             value_in_target_currency=None
                         ))
                         break
-                
+    
                 logger.info("Kettenverfolgung abgeschlossen. %d Transaktionen gefunden.", len(result_transactions))
                 return result_transactions
-        
+
         except Exception as e:
             logger.error("Fehler bei der Kettenverfolgung: %s", str(e), exc_info=True)
             return [TrackedTransaction(
@@ -298,6 +310,28 @@ class ChainTracker:
         except Exception as e:
             logger.error(f"Fehler beim Extrahieren von Transfers: {e}")
             return transfers
+
+    async def _get_initial_sender(self, tx_hash: str) -> Optional[str]:
+        """
+        Lädt die Starttransaktion und gibt den Sender zurück.
+        Gibt None zurück, wenn die Transaktion nicht gefunden wird oder keine Senderdaten enthält.
+        """
+        try:
+            tx_detail = await self.solana_repo.get_transaction(tx_hash)
+            if not tx_detail:
+                logger.warning(f"Starttransaktion {tx_hash} nicht gefunden.")
+                return None
+    
+            transfers = self._extract_transfers(tx_detail)
+            if not transfers:
+                logger.warning(f"Keine Transfers in der Starttransaktion {tx_hash} gefunden.")
+                return None
+    
+            # Nutze den ersten Sender
+            return transfers[0]["from"]
+        except Exception as e:
+            logger.error(f"Fehler beim Extrahieren des Senders aus {tx_hash}: {str(e)}")
+            return None
 
     async def _find_next_transactions(
         self,
