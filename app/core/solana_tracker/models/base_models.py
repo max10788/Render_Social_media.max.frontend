@@ -39,114 +39,6 @@ class TransactionMessageDetail(BaseModel):
         arbitrary_types_allowed = True
         allow_population_by_field_name = True
 
-class TransactionMetaDetail(BaseModel):
-    fee: int = Field(default=0)
-    pre_balances: List[int] = Field(default_factory=list, alias="preBalances")
-    post_balances: List[int] = Field(default_factory=list, alias="postBalances")
-    preTokenBalances: List['TokenBalanceDetail'] = Field(default_factory=list)
-    postTokenBalances: List['TokenBalanceDetail'] = Field(default_factory=list)
-    inner_instructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list, alias="innerInstructions")
-    log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages")
-    err: Optional[Dict[str, Any]] = Field(default=None, description="Fehlerdetails der Transaktion")
-    available_signatures: Optional[int] = Field(default=None)
-    computeUnitsConsumed: Optional[int] = Field(default=None)
-    loadedAddresses: Dict[str, List[str]] = Field(default_factory=lambda: {"readonly": [], "writable": []})
-    status: Dict[str, Any] = Field(default={"Ok": None}, description="Transaktionsstatus (z.B. {'Ok': None})")  # [[4]]
-    rewards: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # [[4]]
-
-    class Config:
-        allow_population_by_field_name = True
-
-class TransactionDetail(BaseModel):
-    signatures: List[str] = Field(default_factory=list)
-    message: Optional[TransactionMessageDetail] = None
-    slot: Optional[int] = None
-    meta: Optional['TransactionMetaDetail'] = None
-    block_time: Optional[int] = Field(default=None, description="Unix-Zeitstempel der Transaktion")  # [[8]]
-    signature: str = Field(default="")
-    transaction: Optional[Dict[str, Any]] = None
-
-    @property
-    def human_readable_time(self) -> Optional[str]:
-        if self.block_time is not None:
-            return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
-        return None
-
-    @property
-    def account_keys(self) -> list:
-        if self.message and hasattr(self.message, "accountKeys"):
-            return self.message.accountKeys
-        return []
-        
-    @property
-    def tx_hash(self) -> str:
-        """Get the transaction hash from signatures or signature."""
-        if self.signatures and len(self.signatures) > 0:
-            return self.signatures[0]
-        return self.signature
-
-    @property
-    def timestamp(self) -> datetime:
-        """Get transaction timestamp from block_time."""
-        if self.block_time is not None:
-            return datetime.fromtimestamp(self.block_time, tz=timezone.utc)
-        return datetime.utcnow()
-
-    @property
-    def required_signatures(self) -> int:
-        """Get the number of required signatures for this transaction."""
-        if self.message and hasattr(self.message, "header"):
-            return self.message.header.get("numRequiredSignatures", 0)
-        return 0
-    
-    class Config:
-        allow_population_by_field_name = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            Decimal: str
-        }
-
-    def parse_raw_transaction(self) -> None:
-        """Parse raw transaction data into structured format."""
-        if self.transaction and isinstance(self.transaction, dict):
-            message_data = self.transaction.get('message', {})
-            if message_data:
-                # Extrahiere und konvertiere Instruktionen
-                instructions = [
-                    InstructionDetail(**inst) 
-                    for inst in message_data.get('instructions', [])
-                ]
-                self.message = TransactionMessageDetail(
-                    accountKeys=message_data.get('accountKeys', []),
-                    recentBlockhash=message_data.get('recentBlockhash', ''),
-                    instructions=instructions,  # Jetzt mit strukturierten Instruktionen
-                    header=message_data.get('header', {})
-                )
-                
-    def get_multi_sig_info(self) -> Dict[str, Any]:
-        """Get multi-signature configuration details."""
-        if not self.is_multi_sig:
-            return {}
-        return self.multi_sig_config or {}
-
-    def has_error(self) -> bool:
-        """Check if transaction has any errors."""
-        return bool(self.error_details) or (
-            self.meta and self.meta.err is not None
-        )
-
-    def get_fee(self) -> int:
-        """Get transaction fee in lamports."""
-        return self.meta.fee if self.meta else 0
-
-    def get_status(self) -> str:
-        """Get transaction status."""
-        if self.has_error():
-            return "failed"
-        if not self.slot:
-            return "pending"
-        return "confirmed"
-
 class TransferAmount(BaseModel):
     """Transfer amount details."""
     amount: Decimal = Field(..., ge=0)
@@ -272,4 +164,115 @@ class TokenBalanceDetail(BaseModel):
     class Config:
         allow_population_by_field_name = True
 
+class TransactionMetaDetail(BaseModel):
+    fee: int = Field(default=0)
+    pre_balances: List[int] = Field(default_factory=list, alias="preBalances")
+    post_balances: List[int] = Field(default_factory=list, alias="postBalances")
+    preTokenBalances: List['TokenBalanceDetail'] = Field(default_factory=list)
+    postTokenBalances: List['TokenBalanceDetail'] = Field(default_factory=list)
+    inner_instructions: Optional[List[Dict[str, Any]]] = Field(default_factory=list, alias="innerInstructions")
+    log_messages: Optional[List[str]] = Field(default_factory=list, alias="logMessages")
+    err: Optional[Dict[str, Any]] = Field(default=None, description="Fehlerdetails der Transaktion")
+    available_signatures: Optional[int] = Field(default=None)
+    computeUnitsConsumed: Optional[int] = Field(default=None)
+    loadedAddresses: Dict[str, List[str]] = Field(default_factory=lambda: {"readonly": [], "writable": []})
+    status: Dict[str, Any] = Field(default={"Ok": None}, description="Transaktionsstatus (z.B. {'Ok': None})")  # [[4]]
+    rewards: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # [[4]]
+
+    class Config:
+        allow_population_by_field_name = True
+
+class TransactionDetail(BaseModel):
+    signatures: List[str] = Field(default_factory=list)
+    message: Optional[TransactionMessageDetail] = None
+    slot: Optional[int] = None
+    meta: Optional['TransactionMetaDetail'] = None
+    block_time: Optional[int] = Field(default=None, description="Unix-Zeitstempel der Transaktion")  # [[8]]
+    signature: str = Field(default="")
+    transaction: Optional[Dict[str, Any]] = None
+
+    @property
+    def human_readable_time(self) -> Optional[str]:
+        if self.block_time is not None:
+            return datetime.fromtimestamp(self.block_time, tz=timezone.utc).isoformat()
+        return None
+
+    @property
+    def account_keys(self) -> list:
+        if self.message and hasattr(self.message, "accountKeys"):
+            return self.message.accountKeys
+        return []
+        
+    @property
+    def tx_hash(self) -> str:
+        """Get the transaction hash from signatures or signature."""
+        if self.signatures and len(self.signatures) > 0:
+            return self.signatures[0]
+        return self.signature
+
+    @property
+    def timestamp(self) -> datetime:
+        """Get transaction timestamp from block_time."""
+        if self.block_time is not None:
+            return datetime.fromtimestamp(self.block_time, tz=timezone.utc)
+        return datetime.utcnow()
+
+    @property
+    def required_signatures(self) -> int:
+        """Get the number of required signatures for this transaction."""
+        if self.message and hasattr(self.message, "header"):
+            return self.message.header.get("numRequiredSignatures", 0)
+        return 0
+    
+    class Config:
+        allow_population_by_field_name = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            Decimal: str
+        }
+
+    def parse_raw_transaction(self) -> None:
+        """Parse raw transaction data into structured format."""
+        if self.transaction and isinstance(self.transaction, dict):
+            message_data = self.transaction.get('message', {})
+            if message_data:
+                # Extrahiere und konvertiere Instruktionen
+                instructions = [
+                    InstructionDetail(**inst) 
+                    for inst in message_data.get('instructions', [])
+                ]
+                self.message = TransactionMessageDetail(
+                    accountKeys=message_data.get('accountKeys', []),
+                    recentBlockhash=message_data.get('recentBlockhash', ''),
+                    instructions=instructions,  # Jetzt mit strukturierten Instruktionen
+                    header=message_data.get('header', {})
+                )
+                
+    def get_multi_sig_info(self) -> Dict[str, Any]:
+        """Get multi-signature configuration details."""
+        if not self.is_multi_sig:
+            return {}
+        return self.multi_sig_config or {}
+
+    def has_error(self) -> bool:
+        """Check if transaction has any errors."""
+        return bool(self.error_details) or (
+            self.meta and self.meta.err is not None
+        )
+
+    def get_fee(self) -> int:
+        """Get transaction fee in lamports."""
+        return self.meta.fee if self.meta else 0
+
+    def get_status(self) -> str:
+        """Get transaction status."""
+        if self.has_error():
+            return "failed"
+        if not self.slot:
+            return "pending"
+        return "confirmed"
+
+
 TransactionDetail.update_forward_refs(TransactionMetaDetail=TransactionMetaDetail)
+
+
