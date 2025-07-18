@@ -1,8 +1,8 @@
+from __future__ import annotations  # ✅ Erste Zeile
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
-from __future__ import annotations
 
 class InstructionDetail(BaseModel):
     """Details einer Solana-Instruktion (z.B. Token-Transfer)."""
