@@ -265,15 +265,17 @@ class TransactionService:
                 current_delay = initial_delay
                 while retries < max_retries:
                     try:
-                        return await func(*args, **kwargs)  # ✅ Korrekt
+                        return await func(*args, **kwargs)  # ✅ Return hinzugefügt
                     except Exception as e:
                         retries += 1
                         if retries == max_retries:
                             logger.error(f"Max retries ({max_retries}) reached for {func.__name__}")
                             raise e
-                # ❌ Fehlender return hier!
-            return wrapper  # ❌ Fehlender return hier!
-        return decorator  # ❌ Fehlender return hier!
+                        await asyncio.sleep(current_delay)
+                        current_delay *= 2  # ✅ Exponentielles Backoff
+                return None  # ✅ Default-Rückgabe
+            return wrapper  # ✅ Return hinzugefügt
+        return decorator  # ✅ Return hinzugefügt
             
     def _is_multi_sig_transaction(self, tx_detail: Dict[str, Any]) -> bool:
         """
