@@ -2,6 +2,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, validator
 from decimal import Decimal
+from __future__ import annotations
 
 class InstructionDetail(BaseModel):
     """Details einer Solana-Instruktion (z.B. Token-Transfer)."""
@@ -270,3 +271,5 @@ class TokenBalanceDetail(BaseModel):
 
     class Config:
         allow_population_by_field_name = True
+
+TransactionDetail.update_forward_refs(TransactionMetaDetail=TransactionMetaDetail)
