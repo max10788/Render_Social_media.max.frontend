@@ -289,6 +289,8 @@ class EnhancedSolanaRepository:
             computeUnitsConsumed=meta_data.get("computeUnitsConsumed"),
             loadedAddresses=meta_data.get("loadedAddresses", {})
         )
+        if not raw_tx:
+            return TransactionDetail(signatures=[], transaction=TransactionMessageDetail(...), meta=TransactionMetaDetail(...))
 
         return TransactionDetail(
             signatures=raw_tx.get("signatures", []),
