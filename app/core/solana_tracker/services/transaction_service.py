@@ -366,10 +366,10 @@ class TransactionService:
     ) -> Optional[TrackedTransaction]:
         try:
             # Extrahiere Signatur und Basisdaten
-            signatures = tx_detail.get("signatures", [])
+            signatures = tx_detail.signatures if tx_detail.signatures is not None else []
             transaction_data = tx_detail.get("transaction", {})
-            message = transaction_data.get("message", {})
-            meta = tx_detail.get("meta", {})
+            message = tx_detail.transaction.message if tx_detail.transaction and tx_detail.transaction.message else {}
+            meta = tx_detail.meta if tx_detail.meta is not None else {}
             
             # Validierung auf vollständige Transaktionsdaten
             if not transaction_data or not message or not meta:
