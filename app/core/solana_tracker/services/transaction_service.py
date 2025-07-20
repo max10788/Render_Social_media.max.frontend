@@ -284,25 +284,29 @@ class TransactionService:
         Prüft, ob eine Transaktion eine Multi-Sig-Transaktion ist.
         """
         try:
-            # Sicherer Zugriff auf verschachtelte Daten
-            message = tx_detail.get("transaction", {}).get("message", {})
-            account_keys = message.get("accountKeys", [])
+            if not tx_detail:
+                logger.warning("Keine Transaktionsdaten zum Prüfen der Multi-Sig-Eigenschaft")
+                return False
+    
+            transaction = tx_detail.get("transaction", {})
+            message = transaction.get("message", {})
             header = message.get("header", {})
+    
             required_sigs = header.get("numRequiredSignatures", 1)
+            account_keys = message.get("accountKeys", [])
     
             if required_sigs > 1:
                 logger.info(f"Multi-signature transaction detected with {required_sigs} signatures")
                 return True
-    
             if any("MultiSig" in str(acc) for acc in account_keys):
                 logger.info(f"Multi-signature transaction detected by account key check")
                 return True
-    
             return False
+    
         except Exception as e:
             logger.warning(f"Fehler beim Prüfen der Multi-Sig-Eigenschaft: {e}")
             return False
-
+        
     async def _validate_multi_sig_access(self, tx_detail: TransactionDetail) -> None:
         """
         Validiert den Zugriff auf eine Multi-Sig Transaktion.
