@@ -254,31 +254,51 @@ class EnhancedSolanaRepository:
             return False
 
     def parse_transaction(self, raw_tx: Dict[str, Any]) -> TransactionDetail:
-        """Parse raw transaction data into structured TransactionDetail object"""
+        if not raw_tx:
+            logger.warning("Received empty raw_tx in parse_transaction")
+            return TransactionDetail(
+                signatures=[],
+                message=TransactionMessageDetail(
+                    accountKeys=[],
+                    recentBlockhash="",
+                    instructions=[],
+                    header={}
+                ),
+                meta=TransactionMetaDetail(
+                    fee=0,
+                    pre_balances=[],
+                    post_balances=[],
+                    preTokenBalances=[],
+                    postTokenBalances=[],
+                    log_messages=[],
+                    computeUnitsConsumed=None,
+                    loadedAddresses={}
+                ),
+                block_time=None,
+                signature=""
+            )
+    
         message_data = raw_tx.get("message", {})
         meta_data = raw_tx.get("meta", {})
-
-        # Instruktionen konvertieren
+    
         instructions = [
             InstructionDetail(**inst) for inst in message_data.get("instructions", [])
         ]
-
-        # Token-Balances konvertieren
+    
         pre_token_balances = [
             TokenBalanceDetail(**balance) for balance in meta_data.get("preTokenBalances", [])
         ]
         post_token_balances = [
             TokenBalanceDetail(**balance) for balance in meta_data.get("postTokenBalances", [])
         ]
-
-        # Message und Meta erstellen
+    
         message = TransactionMessageDetail(
             accountKeys=message_data.get("accountKeys", []),
             recentBlockhash=message_data.get("recentBlockhash", ""),
             instructions=instructions,
             header=message_data.get("header", {})
         )
-
+    
         meta = TransactionMetaDetail(
             fee=meta_data.get("fee", 0),
             pre_balances=meta_data.get("preBalances", []),
@@ -289,9 +309,7 @@ class EnhancedSolanaRepository:
             computeUnitsConsumed=meta_data.get("computeUnitsConsumed"),
             loadedAddresses=meta_data.get("loadedAddresses", {})
         )
-        if not raw_tx:
-            return TransactionDetail(signatures=[], transaction=TransactionMessageDetail(...), meta=TransactionMetaDetail(...))
-
+    
         return TransactionDetail(
             signatures=raw_tx.get("signatures", []),
             message=message,
