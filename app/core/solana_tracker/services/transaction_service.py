@@ -178,8 +178,36 @@ class TransactionService:
             )
 
     def _validate_transaction_data(self, tx_data: Dict[str, Any]) -> bool:
+        """
+        Prüft, ob die Transaktionsdaten alle erforderlichen Felder enthalten.
+        """
+        if not tx_data:
+            logger.warning("Leere Transaktionsdaten übergeben")
+            return False
+    
         required_fields = ["signatures", "transaction", "meta"]
-        return all(field in tx_data for field in required_fields)
+        missing_fields = [field for field in required_fields if field not in tx_data]
+    
+        if missing_fields:
+            logger.warning(f"Transaktionsdaten fehlen erforderliche Felder: {missing_fields}")
+            return False
+    
+        transaction = tx_data.get("transaction")
+        if not transaction or not isinstance(transaction, dict):
+            logger.warning("Ungültige oder fehlende 'transaction'-Daten")
+            return False
+    
+        message = transaction.get("message")
+        if not message or not isinstance(message, dict):
+            logger.warning("Ungültige oder fehlende 'message'-Daten")
+            return False
+    
+        meta = tx_data.get("meta")
+        if not meta or not isinstance(meta, dict):
+            logger.warning("Ungültige oder fehlende 'meta'-Daten")
+            return False
+    
+        return True
     
     async def _get_transaction_safe(self, tx_hash: str) -> Optional[Dict[str, Any]]:
         try:
