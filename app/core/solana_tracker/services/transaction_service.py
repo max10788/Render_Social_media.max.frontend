@@ -360,31 +360,32 @@ class TransactionService:
 
     async def _create_tracked_transaction(
         self,
-        tx_detail: dict,
+        tx_detail: TransactionDetail,
         remaining_amount: Optional[Decimal] = None,
         data_level: str = "standard"
     ) -> Optional[TrackedTransaction]:
         try:
-            # Extrahiere Signatur und Basisdaten
-            signatures = tx_detail.signatures if tx_detail.signatures is not None else []
-            transaction_data = tx_detail.get("transaction", {})
-            message = tx_detail.transaction.message if tx_detail.transaction and tx_detail.transaction.message else {}
-            meta = tx_detail.meta if tx_detail.meta is not None else {}
-            
             # Validierung mit der zentralen Methode
             if not self._validate_transaction_data(tx_detail):
                 logger.warning("Transaktionsdaten sind ungültig oder unvollständig")
                 return None
-            
-            account_keys = message.get("accountKeys", [])
+    
+            # Extrahiere Signatur und Basisdaten
+            signatures = tx_detail.signatures if tx_detail.signatures is not None else []
+            transaction_data = tx_detail.transaction
+            message = transaction_data.message if transaction_data and transaction_data.message else None
+            meta = tx_detail.meta if tx_detail.meta is not None else None
+    
+            # Extrahiere AccountKeys
+            account_keys = message.accountKeys if message and hasattr(message, "accountKeys") else []
             if not account_keys:
                 logger.warning("Keine Account-Keys in der Transaktion")
                 return None
     
             # Extrahiere Balance-Änderungen
-            pre_balances = meta.get("pre_balances", [])
-            post_balances = meta.get("post_balances", [])
-            
+            pre_balances = meta.pre_balances if meta and hasattr(meta, "pre_balances") else []
+            post_balances = meta.post_balances if meta and hasattr(meta, "post_balances") else []
+    
             if not pre_balances or not post_balances or len(pre_balances) != len(post_balances):
                 logger.warning("Ungültige oder ungleiche Balance-Daten")
                 return None
@@ -396,7 +397,7 @@ class TransactionService:
                     continue
                 try:
                     change = int(post_balances[i]) - int(pre_balances[i])
-                    if abs(change) > 5000:  # Nur signifikante Änderungen (>0,000005 SOL)
+                    if abs(change) > 5000:  # Nur signifikante Änderungen (>0.000005 SOL)
                         changes.append({
                             "account": account_keys[i],
                             "change": change
@@ -423,11 +424,12 @@ class TransactionService:
                 "to_wallet": to_wallet,
             }
     
+            # Füge zusätzliche Daten hinzu, wenn nötig
             if data_level in ["standard", "full"]:
-                block_time = tx_detail.get("blockTime")
+                block_time = tx_detail.block_time if hasattr(tx_detail, "block_time") and tx_detail.block_time else None
                 tx_data.update({
                     "amount": amount,
-                    "timestamp": datetime.fromtimestamp(block_time) if isinstance(block_time, int) else datetime.utcnow(),
+                    "timestamp": datetime.fromtimestamp(block_time, tz=timezone.utc) if block_time else datetime.now(timezone.utc),
                 })
     
             return TrackedTransaction(**tx_data)
