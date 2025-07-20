@@ -199,27 +199,31 @@ class EnhancedSolanaRepository:
 
     # _extract_transfers
     def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
-        transfers = []
+        if not tx_detail:  # Null check
+            logger.warning("Received empty tx_detail for transfers")
+            return []
+    
         try:
             meta = tx_detail.get("meta", {})
             pre_balances = meta.get("pre_balances", [])
             post_balances = meta.get("post_balances", [])
-            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
-            
+            message = tx_detail.get("transaction", {}).get("message", {})
+            account_keys = message.get("accountKeys", [])
             if not account_keys:
                 logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
                 return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
-                
+    
             sender_index = None
             for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
                 if post - pre < 0:
                     sender_index = i
                     break
-                    
+    
             if sender_index is None:
                 logger.warning("Kein Sender gefunden. Setze Platzhalter ein.")
                 return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
-
+    
+            transfers = []
             for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
                 if i != sender_index and post - pre > 0:
                     transfers.append({
@@ -228,19 +232,10 @@ class EnhancedSolanaRepository:
                         "amount": Decimal(abs(post - pre)) / Decimal(1e9)
                     })
                     break
-                    
-            if not transfers:
-                logger.warning("Keine Empfänger gefunden. Setze Platzhalter ein.")
-                transfers.append({
-                    "from": account_keys[sender_index],
-                    "to": "Ziel",
-                    "amount": Decimal("0")
-                })
+            return transfers
         except Exception as e:
             logger.error("Fehler beim Extrahieren von Transfers: %s", str(e))
-            transfers = [{"from": "Fehler", "to": "Fehler", "amount": Decimal("0")}]
-
-        return transfers
+            return []
 
     # _validate_rpc_response
     def _validate_rpc_response(self, tx_detail: Dict) -> bool:
