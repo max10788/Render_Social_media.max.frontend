@@ -128,27 +128,32 @@ class EnhancedSolanaRepository:
         if not transaction_detail:
             self.logger.warning("Leere Transaktionsantwort. Keine Daten zum Verarbeiten.")
             return None
-
-        # Parse raw data first
-        parsed_tx = self.parse_transaction(transaction_detail)
-        
-        # Zusätzliche Verarbeitungsschritte
-        balance_changes = self._extract_balance_changes(transaction_detail)
-        transfers = self._extract_transfers(transaction_detail)
-        transaction_type = self._detect_transaction_type(transaction_detail)
-
-        return {
-            "signature": parsed_tx.signature,
-            "block_time": parsed_tx.block_time,
-            "slot": transaction_detail.get("slot"),
-            "from_wallet": parsed_tx.message.accountKeys[0] if parsed_tx.message.accountKeys else None,
-            "balance_changes": balance_changes,
-            "transfers": transfers,
-            "meta": parsed_tx.meta.dict(),
-            "message": parsed_tx.message.dict(),
-            "raw": transaction_detail,
-            "transaction_type": transaction_type
-        }
+    
+        try:
+            parsed_tx = self.parse_transaction(transaction_detail)
+            if not parsed_tx:
+                self.logger.warning("Fehler beim Parsen der Transaktion")
+                return None
+    
+            balance_changes = self._extract_balance_changes(transaction_detail)
+            transfers = self._extract_transfers(transaction_detail)
+            transaction_type = self._detect_transaction_type(transaction_detail)
+    
+            return {
+                "signature": parsed_tx.signature,
+                "block_time": parsed_tx.block_time,
+                "slot": transaction_detail.get("slot"),
+                "from_wallet": parsed_tx.message.accountKeys[0] if parsed_tx.message.accountKeys else None,
+                "balance_changes": balance_changes,
+                "transfers": transfers,
+                "meta": parsed_tx.meta.dict(),
+                "message": parsed_tx.message.dict(),
+                "raw": transaction_detail,
+                "transaction_type": transaction_type
+            }
+        except Exception as e:
+            logger.error(f"Fehler beim Erstellen des Transaktionsgraphen: {str(e)}")
+            return None
 
     # _detect_transaction_type
     def _detect_transaction_type(self, tx_detail: dict) -> str:
