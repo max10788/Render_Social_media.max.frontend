@@ -371,9 +371,9 @@ class TransactionService:
             message = tx_detail.transaction.message if tx_detail.transaction and tx_detail.transaction.message else {}
             meta = tx_detail.meta if tx_detail.meta is not None else {}
             
-            # Validierung auf vollständige Transaktionsdaten
-            if not transaction_data or not message or not meta:
-                logger.warning("Unvollständige Transaktionsdaten")
+            # Validierung mit der zentralen Methode
+            if not self._validate_transaction_data(tx_detail):
+                logger.warning("Transaktionsdaten sind ungültig oder unvollständig")
                 return None
             
             account_keys = message.get("accountKeys", [])
