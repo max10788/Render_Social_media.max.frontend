@@ -302,16 +302,21 @@ class EnhancedSolanaRepository:
 
     # _extract_balance_changes
     def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
+        if not tx_detail:
+            logger.warning("Received empty tx_detail for balance changes")
+            return []
+    
         try:
             meta = tx_detail.get("meta", {})
             pre_balances = meta.get("pre_balances", [])
             post_balances = meta.get("post_balances", [])
-            account_keys = tx_detail.get("transaction", {}).get("message", {}).get("accountKeys", [])
-            
+            message = tx_detail.get("transaction", {}).get("message", {})
+            account_keys = message.get("accountKeys", [])
+    
             if not account_keys:
                 logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
                 return []
-                
+    
             changes = []
             for idx, (pre, post) in enumerate(zip(pre_balances, post_balances)):
                 if idx >= len(account_keys):
@@ -328,8 +333,6 @@ class EnhancedSolanaRepository:
         except Exception as e:
             logger.error(f"Fehler beim Extrahieren von Balance-Änderungen: {str(e)}")
             return []
-
-
 
     # Öffentliche Methoden
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
