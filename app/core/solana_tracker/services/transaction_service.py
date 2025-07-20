@@ -376,19 +376,34 @@ class TransactionService:
     
             # Extrahiere Signatur und Basisdaten
             signatures = tx_detail.signatures if tx_detail.signatures is not None else []
+            if not signatures:
+                logger.warning("Keine Signaturen in der Transaktion")
+                return None
+    
             transaction_data = tx_detail.transaction
-            message = transaction_data.message if transaction_data and transaction_data.message else None
+            if not transaction_data:
+                logger.warning("Keine Transaktionsdaten in der Transaktion")
+                return None
+    
+            message = transaction_data.message if hasattr(transaction_data, "message") and transaction_data.message else None
+            if not message:
+                logger.warning("Keine Message in der Transaktion")
+                return None
+    
             meta = tx_detail.meta if tx_detail.meta is not None else None
+            if not meta:
+                logger.warning("Keine Meta-Daten in der Transaktion")
+                return None
     
             # Extrahiere AccountKeys
-            account_keys = message.accountKeys if message and hasattr(message, "accountKeys") else []
+            account_keys = message.accountKeys if hasattr(message, "accountKeys") and message.accountKeys else []
             if not account_keys:
                 logger.warning("Keine Account-Keys in der Transaktion")
                 return None
     
             # Extrahiere Balance-Änderungen
-            pre_balances = meta.pre_balances if meta and hasattr(meta, "pre_balances") else []
-            post_balances = meta.post_balances if meta and hasattr(meta, "post_balances") else []
+            pre_balances = meta.pre_balances if hasattr(meta, "pre_balances") and meta.pre_balances else []
+            post_balances = meta.post_balances if hasattr(meta, "post_balances") and meta.post_balances else []
     
             if not pre_balances or not post_balances or len(pre_balances) != len(post_balances):
                 logger.warning("Ungültige oder ungleiche Balance-Daten")
@@ -423,7 +438,7 @@ class TransactionService:
     
             # Baue Transaktionsdaten
             tx_data = {
-                "tx_hash": signatures[0] if signatures else "",
+                "tx_hash": signatures[0],
                 "from_wallet": from_wallet,
                 "to_wallet": to_wallet,
             }
