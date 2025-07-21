@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 class TransactionService:
     def __init__(
         self,
-        solana_repository: EnhancedSolanaRepository,
+        solana_repository: EnhancedSolanaRepository = solana_repo,
         scenario_detector: Optional[ScenarioDetector] = None
     ):
         self.solana_repo = solana_repository
