@@ -46,6 +46,23 @@ class TransactionService:
     ):
         self.solana_repo = solana_repository
         self.scenario_detector = scenario_detector or ScenarioDetector()
+
+    async def _get_transaction_safe(self, tx_hash: str) -> Optional[TransactionDetail]:
+        try:
+            tx_detail = await self.solana_repo.get_transaction(tx_hash)
+            if not tx_detail:
+                logger.warning(f"Keine Transaktionsdetails gefunden für {tx_hash}")
+                return None
+            if not tx_detail.signatures:
+                logger.warning(f"Transaktion {tx_hash} hat keine Signaturen")
+            if not tx_detail.message:
+                logger.warning(f"Transaktion {tx_hash} hat keine Message")
+            if not tx_detail.meta:
+                logger.warning(f"Transaktion {tx_hash} hat keine Meta-Daten")
+            return tx_detail
+        except Exception as e:
+            logger.error(f"Fehler beim Abrufen der Transaktionsdetails: {e}")
+            return None
         
     async def get_transaction_details(self, tx_hash: str) -> Optional[TransactionDetail]:
         """Get transaction details with improved error handling."""
