@@ -37,8 +37,7 @@ class ChainTracker:
     # Class level constants
     MIN_AMOUNT = Decimal('0.001')
 
-    def __init__(self, solana_repo: Optional[EnhancedSolanaRepository] = None):
-        """Initialize the chain tracker."""
+    def __init__(self, solana_repo: EnhancedSolanaRepository = solana_repo):
         self.solana_repo = solana_repo
         self.last_update = datetime.utcnow()
         self.active = False
