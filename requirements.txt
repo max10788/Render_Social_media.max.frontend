@@ -1,5 +1,5 @@
 # Core Framework & Server
-fastapi==0.95.2  # Kompatibel mit pydantic <2.0.0
+fastapi==0.95.2
 uvicorn==0.23.1
 gunicorn==21.2.0
 
@@ -8,7 +8,7 @@ aiohttp==3.9.1
 python-multipart==0.0.6
 email-validator==2.1.0
 jinja2==3.1.2
-httpx==0.24.1  # Fixierte Version für Stabilität
+httpx==0.24.1
 setuptools<60.0
 
 # Twitter API
@@ -28,20 +28,17 @@ joblib==1.3.2
 numpy==1.23.5
 pandas==2.0.3
 
-# Optional: Scikit-learn nur installieren, wenn absolut notwendig
-scikit-learn==1.3.0  # ❌ Deaktivieren, wenn nicht benötigt
-
 # Ethereum
 web3==6.17.1
 python-bitcoinrpc==1.0
 
-# Solana
-solana>=0.31.0
-solders>=0.18.0
-base58>=2.1.1
+# Solana (angepasste Versionen für Kompatibilität)
+solana==0.30.0  # Fixierte Version für Stabilität (älter, da neuere Probleme mit `get_transaction` haben)
+solders==0.17.0  # Kompatibel mit solana==0.30.0
+base58==2.1.1
 
 # JSON RPC + Validierung
-pydantic==1.10.12  # Behalten wie gewünscht
+pydantic==1.10.12
 python-dotenv==1.0.0
 jsonschema==4.19.0
 
@@ -60,4 +57,4 @@ flower==1.2.0
 
 # Wechselkurse
 requests==2.31.0
-urllib3==2.0.4  # Kompatibel mit requests 2.31.0
+urllib3==2.0.4
