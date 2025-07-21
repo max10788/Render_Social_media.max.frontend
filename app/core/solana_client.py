@@ -412,32 +412,7 @@ class SolanaClient:
             logger.error(f"Error fetching wallet history for {wallet_address}: {e}")
             raise
 
-    async def _get_transaction_with_retry(self, tx_signature: str, retries: int = 3, delay: float = 1.0):
-        """
-        Fetch a transaction with retries in case of failure.
-
-        Args:
-            tx_signature (str): The transaction signature to fetch.
-            retries (int): Number of retry attempts.
-            delay (float): Delay in seconds between retries.
-
-        Returns:
-            dict: Transaction details if successful.
-
-        Raises:
-            HTTPException: If the transaction cannot be fetched after retries.
-        """
-        for attempt in range(retries):
-            try:
-                response = self.client.get_transaction(tx_signature)
-                if response and response.get("result"):
-                    return response["result"]
-                logger.warning(f"Attempt {attempt + 1}: Transaction {tx_signature} not found.")
-            except Exception as e:
-                logger.error(f"Attempt {attempt + 1} failed with error: {e}")
-            await asyncio.sleep(delay)
-        logger.error(f"Failed to fetch transaction {tx_signature} after {retries} attempts.")
-        raise HTTPException(status_code=404, detail=f"Transaction {tx_signature} not found after retries.")
+    
     
     @handle_rpc_errors
     async def track_transaction_chain(
