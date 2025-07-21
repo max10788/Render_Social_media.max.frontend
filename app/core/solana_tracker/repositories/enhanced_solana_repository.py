@@ -211,7 +211,7 @@ class EnhancedSolanaRepository:
     def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
         if not tx_detail or "meta" not in tx_detail or "transaction" not in tx_detail:
             logger.warning("Received incomplete tx_detail for transfers")
-            return []]
+            return []
     
         try:
             meta = tx_detail.get("meta", {})
