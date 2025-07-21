@@ -8,7 +8,7 @@ aiohttp==3.9.1
 python-multipart==0.0.6
 email-validator==2.1.0
 jinja2==3.1.2
-httpx==0.24.1
+httpx==0.23.3  # Herabgestufte Version für solana-Kompatibilität
 setuptools<60.0
 
 # Twitter API
@@ -33,8 +33,8 @@ web3==6.17.1
 python-bitcoinrpc==1.0
 
 # Solana (angepasste Versionen für Kompatibilität)
-solana>=0.31.0 # Fixierte Version für Stabilität (älter, da neuere Probleme mit `get_transaction` haben)
-solders==0.17.0  # Kompatibel mit solana==0.30.0
+solana==0.30.0
+solders==0.17.0  # Wird von solana 0.30.0 akzeptiert
 base58==2.1.1
 
 # JSON RPC + Validierung
