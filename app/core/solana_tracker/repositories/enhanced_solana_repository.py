@@ -208,50 +208,53 @@ class EnhancedSolanaRepository:
                     self.logger.warning(f"Unverarbeitetes Feld gefunden: {full_key} = {value}")
 
     # _extract_transfers
-    def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
-        if not tx_detail or "meta" not in tx_detail or "transaction" not in tx_detail:
-            logger.warning("Received incomplete tx_detail for transfers")
+def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
+    if not tx_detail or "meta" not in tx_detail or "transaction" not in tx_detail:
+        logger.warning("Received incomplete tx_detail for transfers")
+        return []
+
+    try:
+        meta = tx_detail.get("meta", {})
+        if not meta:
+            logger.warning("Meta-Informationen fehlen in den Transaktionsdetails.")
             return []
-    
-        try:
-            meta = tx_detail.get("meta", {})
-            if not meta:
-                logger.warning("Meta-Informationen fehlen in den Transaktionsdetails.")
-                return []
-    
-            pre_balances = meta.get("preBalances", [])  # Corrected key
-            post_balances = meta.get("postBalances", []) # Corrected key
-            message = tx_detail.get("transaction", {}).get("message", {})
-            account_keys = message.get("accountKeys", [])
-            if not all([pre_balances, post_balances, account_keys]):
-                logger.warning("Unvollständige Daten für die Extraktion von Transfers.")
-                return []
-    
-            balance_changes = [post - pre for pre, post in zip(pre_balances, post_balances)]
-    
-            # Find sender (negative change) and receiver (positive change)
-            sender_indices = [i for i, change in enumerate(balance_changes) if change < 0]
-            receiver_indices = [i for i, change in enumerate(balance_changes) if change > 0]
-    
-            transfers = []
-            # Handle simple transfers (one sender, one receiver)
-            if len(sender_indices) == 1 and len(receiver_indices) == 1:
-                sender_idx = sender_indices[0]
-                receiver_idx = receiver_indices[0]
-                amount = Decimal(abs(balance_changes[sender_idx])) / Decimal(1e9)
-                transfers.append({
-                    "from": account_keys[sender_idx],
-                    "to": account_keys[receiver_idx],
-                    "amount": amount
-                })
-            else:
-                # Handle more complex scenarios if necessary, or log them
-            logger.error(f"Fehler beim Extrahieren von Transfers: {e}", exc_info=True)
+
+        pre_balances = meta.get("preBalances", [])  # Corrected key
+        post_balances = meta.get("postBalances", [])  # Corrected key
+        transaction = tx_detail.get("transaction", {})
+        message = transaction.get("message", {})
+        account_keys = message.get("accountKeys", [])
+        
+        if not all([pre_balances, post_balances, account_keys]):
+            logger.warning("Unvollständige Daten für die Extraktion von Transfers.")
             return []
-            return transfers
-        except Exception as e:
-            logger.error("Fehler beim Extrahieren von Transfers: %s", str(e))
-            return []
+
+        balance_changes = [post - pre for pre, post in zip(pre_balances, post_balances)]
+
+        # Find sender (negative change) and receiver (positive change)
+        sender_indices = [i for i, change in enumerate(balance_changes) if change < 0]
+        receiver_indices = [i for i, change in enumerate(balance_changes) if change > 0]
+
+        transfers = []
+        # Handle simple transfers (one sender, one receiver)
+        if len(sender_indices) == 1 and len(receiver_indices) == 1:
+            sender_idx = sender_indices[0]
+            receiver_idx = receiver_indices[0]
+            amount = Decimal(abs(balance_changes[sender_idx])) / Decimal(1e9)
+            transfers.append({
+                "from": account_keys[sender_idx],
+                "to": account_keys[receiver_idx],
+                "amount": amount
+            })
+        else:
+            # Handle more complex scenarios if necessary, or log them
+            logger.warning("Komplexe Transferszenarien nicht unterstützt")
+
+        return transfers
+
+    except Exception as e:
+        logger.error(f"Fehler beim Extrahieren von Transfers: {e}", exc_info=True)
+        return []
 
     # _validate_rpc_response
     def _validate_rpc_response(self, tx_detail: Dict) -> bool:
