@@ -17,7 +17,7 @@ from app.core.solana_tracker.models.scenario import (
 )
 
 # Repository
-from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
+from app.core.solana_tracker.repositories.enhanced_solana_repository import repository as solana_repo
 
 # Core exceptions
 from app.core.exceptions import (
