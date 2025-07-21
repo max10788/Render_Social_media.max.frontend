@@ -338,7 +338,7 @@ def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
         )
 
     # _extract_balance_changes
-    def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
+   def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
         if not tx_detail or "meta" not in tx_detail or "transaction" not in tx_detail:
             logger.warning("Received incomplete tx_detail for balance changes")
             return []
@@ -353,21 +353,22 @@ def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
             
             message = tx_detail.get("transaction", {}).get("message", {})
             account_keys = message.get("accountKeys", [])
+    
             if not all([pre_balances, post_balances, account_keys]):
                 logger.warning("Unvollständige Daten für die Extraktion von Balance-Änderungen.")
                 return []
     
             changes = []
             for idx, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-            if idx < len(account_keys):
-                change = post - pre
-                if change != 0:
-                    changes.append({
-                        "account": account_keys[idx],
-                        "change": Decimal(change) / Decimal(1e9),
-                        "pre_balance": Decimal(pre) / Decimal(1e9),
-                        "post_balance": Decimal(post) / Decimal(1e9)
-                    })
+                if idx < len(account_keys):
+                    change = post - pre
+                    if change != 0:
+                        changes.append({
+                            "account": account_keys[idx],
+                            "change": Decimal(change) / Decimal(1e9),
+                            "pre_balance": Decimal(pre) / Decimal(1e9),
+                            "post_balance": Decimal(post) / Decimal(1e9)
+                        })
             return changes
         except Exception as e:
             logger.error(f"Fehler beim Extrahieren von Balance-Änderungen: {e}", exc_info=True)
