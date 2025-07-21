@@ -195,21 +195,30 @@ class TransactionService:
             )
 
     def _validate_transaction_data(self, tx_detail: TransactionDetail) -> bool:
-        if not tx_detail:
-            logger.warning("Leere Transaktionsdaten übergeben")
+        if not isinstance(tx_data, dict):
+            logger.warning("Transaktionsdaten sind kein Dictionary.")
             return False
     
-        # Check if required fields are present and not empty
-        if not tx_detail.signatures:
-            logger.warning("Transaktionsdaten fehlen 'signatures'")
+        # Check for top-level keys
+        if "transaction" not in tx_data or "meta" not in tx_data:
+            logger.warning("Fehlende 'transaction' oder 'meta' Schlüssel in den Transaktionsdaten.")
             return False
     
-        if not tx_detail.message:
-            logger.warning("Transaktionsdaten fehlen 'message'")
+        # Check nested structures
+        transaction = tx_data["transaction"]
+        meta = tx_data["meta"]
+
+        if not isinstance(transaction, dict) or not isinstance(meta, dict):
+            logger.warning("'transaction' oder 'meta' sind keine Dictionaries.")
             return False
     
-        if not tx_detail.meta:
-            logger.warning("Transaktionsdaten fehlen 'meta'")
+        if "accountKeys" not in transaction["message"]:
+            logger.warning("Fehlender 'accountKeys'-Schlüssel in der Nachricht.")
+            return False
+    
+       # Check for balance arrays (can be empty, but must exist)
+        if "preBalances" not in meta or "postBalances" not in meta:
+            logger.warning("Fehlende 'preBalances' oder 'postBalances' in den Metadaten.")
             return False
     
         return True
@@ -312,7 +321,7 @@ class TransactionService:
             return wrapper  # ✅ Return hinzugefügt
         return decorator  # ✅ Return hinzugefügt
             
-    def _is_multi_sig_transaction(self, tx_detail: TransactionDetail) -> bool:
+    def _is_multi_sig_transaction(self, tx_detail: Dict[str, Any]) -> bool:
         """
         Prüft, ob eine Transaktion eine Multi-Sig-Transaktion ist.
         """
@@ -321,22 +330,29 @@ class TransactionService:
                 logger.warning("Keine Transaktionsdaten zum Prüfen der Multi-Sig-Eigenschaft")
                 return False
     
-            message = getattr(tx_detail.message, 'accountKeys', [])
-            header = getattr(tx_detail.message, 'header', {})
-            required_sigs = getattr(header, 'numRequiredSignatures', 1)
+            # Safely access nested keys
+            message = tx_detail.get("transaction", {}).get("message", {})
+            if not message:
+                return False
     
+            header = message.get("header", {})
+            required_sigs = header.get("numRequiredSignatures", 1)
+            
+            # Check based on required signatures
             if required_sigs > 1:
                 logger.info(f"Multi-signature transaction detected with {required_sigs} signatures")
                 return True
     
-            if any("MultiSig" in str(acc) for acc in message):
-                logger.info("Multi-signature transaction detected by account key check")
+            # Fallback check based on account keys (less reliable)
+            account_keys = message.get("accountKeys", [])
+            if any("MultiSig" in str(acc) for acc in account_keys):
+                logger.info("Multi-signature detected by account key name (fallback check)")
                 return True
     
             return False
     
         except Exception as e:
-            logger.warning(f"Fehler beim Prüfen der Multi-Sig-Eigenschaft: {e}")
+            logger.warning(f"Fehler beim Prüfen der Multi-Sig-Eigenschaft: {e}", exc_info=True)
             return False
         
     async def _validate_multi_sig_access(self, tx_detail: TransactionDetail) -> None:
