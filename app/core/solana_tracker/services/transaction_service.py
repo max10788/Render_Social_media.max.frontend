@@ -53,12 +53,6 @@ class TransactionService:
             if not tx_detail:
                 logger.warning(f"Keine Transaktionsdetails gefunden für {tx_hash}")
                 return None
-            if not tx_detail.signatures:
-                logger.warning(f"Transaktion {tx_hash} hat keine Signaturen")
-            if not tx_detail.message:
-                logger.warning(f"Transaktion {tx_hash} hat keine Message")
-            if not tx_detail.meta:
-                logger.warning(f"Transaktion {tx_hash} hat keine Meta-Daten")
             return tx_detail
         except Exception as e:
             logger.error(f"Fehler beim Abrufen der Transaktionsdetails: {e}")
