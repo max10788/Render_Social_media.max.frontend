@@ -130,6 +130,16 @@ class EnhancedSolanaRepository:
             return None
     
         try:
+            transaction_data = transaction_detail.get("transaction", {})
+            if not transaction_data:
+                self.logger.warning("Transaktions-Schlüssel fehlt oder ist leer.")
+                return None
+    
+            message = transaction_data.get("message", {})
+            if not message:
+                self.logger.warning("Message-Schlüssel fehlt oder ist leer.")
+                return None
+    
             parsed_tx = self.parse_transaction(transaction_detail)
             if not parsed_tx:
                 self.logger.warning("Fehler beim Parsen der Transaktion")
@@ -143,11 +153,11 @@ class EnhancedSolanaRepository:
                 "signature": parsed_tx.signature,
                 "block_time": parsed_tx.block_time,
                 "slot": transaction_detail.get("slot"),
-                "from_wallet": parsed_tx.message.accountKeys[0] if parsed_tx.message.accountKeys else None,
+                "from_wallet": from_wallet,
                 "balance_changes": balance_changes,
                 "transfers": transfers,
-                "meta": parsed_tx.meta.dict(),
-                "message": parsed_tx.message.dict(),
+                "meta": parsed_tx.meta.dict() if parsed_tx.meta else None,
+                "message": parsed_tx.message.dict() if parsed_tx.message else None,
                 "raw": transaction_detail,
                 "transaction_type": transaction_type
             }
@@ -199,39 +209,45 @@ class EnhancedSolanaRepository:
 
     # _extract_transfers
     def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
-        if not tx_detail:  # Null check
-            logger.warning("Received empty tx_detail for transfers")
-            return []
+        if not tx_detail or "meta" not in tx_detail or "transaction" not in tx_detail:
+            logger.warning("Received incomplete tx_detail for transfers")
+            return []]
     
         try:
             meta = tx_detail.get("meta", {})
-            pre_balances = meta.get("pre_balances", [])
-            post_balances = meta.get("post_balances", [])
+            if not meta:
+                logger.warning("Meta-Informationen fehlen in den Transaktionsdetails.")
+                return []
+    
+            pre_balances = meta.get("preBalances", [])  # Corrected key
+            post_balances = meta.get("postBalances", []) # Corrected key
             message = tx_detail.get("transaction", {}).get("message", {})
             account_keys = message.get("accountKeys", [])
-            if not account_keys:
-                logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
-                return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
+            if not all([pre_balances, post_balances, account_keys]):
+                logger.warning("Unvollständige Daten für die Extraktion von Transfers.")
+                return []
     
-            sender_index = None
-            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-                if post - pre < 0:
-                    sender_index = i
-                    break
+            balance_changes = [post - pre for pre, post in zip(pre_balances, post_balances)]
     
-            if sender_index is None:
-                logger.warning("Kein Sender gefunden. Setze Platzhalter ein.")
-                return [{"from": "Unbekannt", "to": "Ziel", "amount": Decimal("0")}]
+            # Find sender (negative change) and receiver (positive change)
+            sender_indices = [i for i, change in enumerate(balance_changes) if change < 0]
+            receiver_indices = [i for i, change in enumerate(balance_changes) if change > 0]
     
             transfers = []
-            for i, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-                if i != sender_index and post - pre > 0:
-                    transfers.append({
-                        "from": account_keys[sender_index],
-                        "to": account_keys[i],
-                        "amount": Decimal(abs(post - pre)) / Decimal(1e9)
-                    })
-                    break
+            # Handle simple transfers (one sender, one receiver)
+            if len(sender_indices) == 1 and len(receiver_indices) == 1:
+                sender_idx = sender_indices[0]
+                receiver_idx = receiver_indices[0]
+                amount = Decimal(abs(balance_changes[sender_idx])) / Decimal(1e9)
+                transfers.append({
+                    "from": account_keys[sender_idx],
+                    "to": account_keys[receiver_idx],
+                    "amount": amount
+                })
+            else:
+                # Handle more complex scenarios if necessary, or log them
+            logger.error(f"Fehler beim Extrahieren von Transfers: {e}", exc_info=True)
+            return []
             return transfers
         except Exception as e:
             logger.error("Fehler beim Extrahieren von Transfers: %s", str(e))
@@ -320,25 +336,27 @@ class EnhancedSolanaRepository:
 
     # _extract_balance_changes
     def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
-        if not tx_detail:
-            logger.warning("Received empty tx_detail for balance changes")
+        if not tx_detail or "meta" not in tx_detail or "transaction" not in tx_detail:
+            logger.warning("Received incomplete tx_detail for balance changes")
             return []
     
         try:
             meta = tx_detail.get("meta", {})
-            pre_balances = meta.get("pre_balances", [])
-            post_balances = meta.get("post_balances", [])
+            if not meta:
+                return []
+    
+            pre_balances = meta.get("preBalances", [])   # Corrected key
+            post_balances = meta.get("postBalances", [])  # Corrected key
+            
             message = tx_detail.get("transaction", {}).get("message", {})
             account_keys = message.get("accountKeys", [])
-    
-            if not account_keys:
-                logger.warning("Transaktion enthält keine accountKeys. Setze Platzhalter ein.")
+            if not all([pre_balances, post_balances, account_keys]):
+                logger.warning("Unvollständige Daten für die Extraktion von Balance-Änderungen.")
                 return []
     
             changes = []
             for idx, (pre, post) in enumerate(zip(pre_balances, post_balances)):
-                if idx >= len(account_keys):
-                    continue
+            if idx < len(account_keys):
                 change = post - pre
                 if change != 0:
                     changes.append({
@@ -349,7 +367,7 @@ class EnhancedSolanaRepository:
                     })
             return changes
         except Exception as e:
-            logger.error(f"Fehler beim Extrahieren von Balance-Änderungen: {str(e)}")
+            logger.error(f"Fehler beim Extrahieren von Balance-Änderungen: {e}", exc_info=True)
             return []
 
     # Öffentliche Methoden
