@@ -417,92 +417,59 @@ class TransactionService:
         data_level: str = "standard"
     ) -> Optional[TrackedTransaction]:
         try:
-            # Validierung mit der zentralen Methode
-            if not self._validate_transaction_data(tx_detail):
-                logger.warning("Transaktionsdaten sind ungültig oder unvollständig")
+            if not tx_detail or not tx_detail.signatures:
+                logger.warning("Ungültige oder unvollständige Transaktionsdetails")
                 return None
     
-            # Extrahiere Signatur und Basisdaten
-            signatures = tx_detail.signatures if tx_detail.signatures is not None else []
-            if not signatures:
-                logger.warning("Keine Signaturen in der Transaktion")
+            # Safely access nested attributes
+            message = tx_detail.message
+            meta = tx_detail.meta
+    
+            if not message or not meta or not message.accountKeys:
+                logger.warning("Unvollständige Nachrichten- oder Meta-Daten")
                 return None
     
-            transaction_data = tx_detail.transaction
-            if not transaction_data:
-                logger.warning("Keine Transaktionsdaten in der Transaktion")
+            # Balance changes
+            pre_balances = meta.pre_balances or []
+            post_balances = meta.post_balances or []
+    
+            if len(pre_balances) != len(post_balances) or len(pre_balances) != len(message.accountKeys):
+                logger.warning("Diskrepanz bei den Balance- und Kontodaten")
                 return None
     
-            message = transaction_data.message if hasattr(transaction_data, "message") and transaction_data.message else None
-            if not message:
-                logger.warning("Keine Message in der Transaktion")
+            balance_changes = [post - pre for pre, post in zip(post_balances, pre_balances)]
+    
+            # Find sender and receiver
+            from_wallet, to_wallet, amount = None, None, Decimal("0")
+            
+            # Simple transfer logic
+            senders = [i for i, change in enumerate(balance_changes) if change < 0]
+            receivers = [i for i, change in enumerate(balance_changes) if change > 0]
+    
+            if len(senders) == 1 and len(receivers) == 1:
+                from_wallet = message.accountKeys[senders[0]]
+                to_wallet = message.accountKeys[receivers[0]]
+                amount = Decimal(abs(balance_changes[senders[0]])) / Decimal(1e9)
+            else:
+                logger.info(f"Komplexe Transaktion mit {len(senders)} Sendern und {len(receivers)} Empfängern.")
+                # Fallback or more complex logic can be added here
                 return None
     
-            meta = tx_detail.meta if tx_detail.meta is not None else None
-            if not meta:
-                logger.warning("Keine Meta-Daten in der Transaktion")
-                return None
-    
-            # Extrahiere AccountKeys
-            account_keys = message.accountKeys if hasattr(message, "accountKeys") and message.accountKeys else []
-            if not account_keys:
-                logger.warning("Keine Account-Keys in der Transaktion")
-                return None
-    
-            # Extrahiere Balance-Änderungen
-            pre_balances = meta.pre_balances if hasattr(meta, "pre_balances") and meta.pre_balances else []
-            post_balances = meta.post_balances if hasattr(meta, "post_balances") and meta.post_balances else []
-    
-            if not pre_balances or not post_balances or len(pre_balances) != len(post_balances):
-                logger.warning("Ungültige oder ungleiche Balance-Daten")
-                return None
-    
-            # Finde Sender und Empfänger basierend auf Balance-Änderungen
-            changes = []
-            for i in range(len(pre_balances)):
-                if i >= len(account_keys):
-                    continue
-                try:
-                    change = int(post_balances[i]) - int(pre_balances[i])
-                    if abs(change) > 5000:  # Nur signifikante Änderungen (>0.000005 SOL)
-                        changes.append({
-                            "account": account_keys[i],
-                            "change": change
-                        })
-                except (TypeError, ValueError):
-                    continue
-    
-            # Bestimme Sender (negativer Betrag) und Empfänger (positiver Betrag)
-            sender = next((c for c in changes if c["change"] < 0), None)
-            receiver = next((c for c in changes if c["change"] > 0), None)
-    
-            if not sender or not receiver:
-                logger.warning("Konnte Sender oder Empfänger nicht identifizieren")
-                return None
-    
-            from_wallet = sender["account"]
-            to_wallet = receiver["account"]
-            amount = Decimal(abs(sender["change"])) / Decimal(1e9)  # Lamports → SOL
-    
-            # Baue Transaktionsdaten
+            # Build transaction data
             tx_data = {
-                "tx_hash": signatures[0],
+                "tx_hash": tx_detail.signatures[0],
                 "from_wallet": from_wallet,
                 "to_wallet": to_wallet,
             }
     
-            # Füge zusätzliche Daten hinzu, wenn nötig
             if data_level in ["standard", "full"]:
-                block_time = tx_detail.block_time if hasattr(tx_detail, "block_time") and tx_detail.block_time else None
-                tx_data.update({
-                    "amount": amount,
-                    "timestamp": datetime.fromtimestamp(block_time, tz=timezone.utc) if block_time else datetime.now(timezone.utc),
-                })
+                tx_data["amount"] = amount
+                tx_data["timestamp"] = tx_detail.block_time
     
             return TrackedTransaction(**tx_data)
     
         except Exception as e:
-            logger.error(f"Fehler beim Erstellen der TrackedTransaction: {e}", exc_info=True)
+            logger.error(f"Fehler beim Erstellen von TrackedTransaction: {e}", exc_info=True)
             return None
         
     async def _get_next_transactions(
