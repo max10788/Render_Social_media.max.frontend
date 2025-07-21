@@ -338,7 +338,7 @@ def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
         )
 
     # _extract_balance_changes
-   def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
+    def _extract_balance_changes(self, tx_detail: Dict) -> List[Dict]:
         if not tx_detail or "meta" not in tx_detail or "transaction" not in tx_detail:
             logger.warning("Received incomplete tx_detail for balance changes")
             return []
@@ -373,6 +373,7 @@ def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
         except Exception as e:
             logger.error(f"Fehler beim Extrahieren von Balance-Änderungen: {e}", exc_info=True)
             return []
+
 
     # Öffentliche Methoden
     async def get_transaction(self, tx_hash: str) -> Optional[TransactionDetail]:
