@@ -34,7 +34,7 @@ python-bitcoinrpc==1.0
 
 # Solana (angepasste Versionen für Kompatibilität)
 solana==0.30.0
-solders==0.17.0  # Wird von solana 0.30.0 akzeptiert
+solders==0.15.1
 base58==2.1.1
 
 # JSON RPC + Validierung
