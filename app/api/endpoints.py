@@ -345,7 +345,7 @@ def get_solana_repository(
     return EnhancedSolanaRepository(config=config)
 
 
-ef get_transaction_service(
+def get_transaction_service(
     repo: EnhancedSolanaRepository = Depends(get_solana_repository)
 ) -> TransactionService:
     return TransactionService(solana_repository=repo)
