@@ -307,7 +307,7 @@ class TransactionService:
             return wrapper  # ✅ Return hinzugefügt
         return decorator  # ✅ Return hinzugefügt
             
-    def _is_multi_sig_transaction(self, tx_detail: Dict[str, Any]) -> bool:
+    def _is_multi_sig_transaction(self, tx_detail: TransactionDetail) -> bool:
         """
         Prüft, ob eine Transaktion eine Multi-Sig-Transaktion ist.
         """
@@ -316,19 +316,18 @@ class TransactionService:
                 logger.warning("Keine Transaktionsdaten zum Prüfen der Multi-Sig-Eigenschaft")
                 return False
     
-            transaction = tx_detail.get("transaction", {})
-            message = transaction.get("message", {})
-            header = message.get("header", {})
-    
-            required_sigs = header.get("numRequiredSignatures", 1)
-            account_keys = message.get("accountKeys", [])
+            message = getattr(tx_detail.message, 'accountKeys', [])
+            header = getattr(tx_detail.message, 'header', {})
+            required_sigs = getattr(header, 'numRequiredSignatures', 1)
     
             if required_sigs > 1:
                 logger.info(f"Multi-signature transaction detected with {required_sigs} signatures")
                 return True
-            if any("MultiSig" in str(acc) for acc in account_keys):
-                logger.info(f"Multi-signature transaction detected by account key check")
+    
+            if any("MultiSig" in str(acc) for acc in message):
+                logger.info("Multi-signature transaction detected by account key check")
                 return True
+    
             return False
     
         except Exception as e:
