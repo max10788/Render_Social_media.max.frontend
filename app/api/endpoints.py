@@ -359,10 +359,7 @@ async def track_transactions(
     try:
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
         amount = Decimal(str(request.amount)) if request.amount is not None else None
-
-        transaction_service = get_transaction_service()
         tx_detail = await transaction_service.get_transaction_details(request.start_tx_hash)
-
         if not tx_detail:
             logger.error(f"No transactions found or accessible for transaction hash {request.start_tx_hash}")
             return TransactionTrackResponse(
@@ -382,20 +379,17 @@ async def track_transactions(
                     "suggestion": "Überprüfen Sie die Transaktions-ID und versuchen Sie ggf. erneut."
                 },
                 statistics={},
-                graph_data=None  # Neue Feld hinzugefügt
+                graph_data=None
             )
-
         tracking_result = await transaction_service.analyze_transaction_chain(
             start_tx_hash=request.start_tx_hash,
             max_depth=10,
             target_currency=request.target_currency,
             amount=amount
         )
-
         scenarios = tracking_result.get("scenarios", [])
         transactions = tracking_result.get("transactions", [])
         statistics = tracking_result.get("statistics", {})
-
         final_status = FinalStatusEnum.still_in_same_wallet
         for scenario in scenarios:
             if scenario.type == "burned":
@@ -406,12 +400,10 @@ async def track_transactions(
                 final_status = FinalStatusEnum.bridged_to_other_chain
             elif scenario.type == "converted_to_stablecoin":
                 final_status = FinalStatusEnum.converted_to_stable
-
         final_tx = transactions[-1] if transactions else None
         final_wallet = final_tx.to_wallet if final_tx else None
         final_amount = final_tx.amount if final_tx else request.amount
         scenario_details = {}
-
         for scenario in scenarios:
             scenario_details[scenario.type] = {
                 "description": getattr(scenario.details, "user_message", ""),
@@ -421,16 +413,12 @@ async def track_transactions(
                 "user_action_required": getattr(scenario.details, "user_action_required", False),
                 "suggested_actions": getattr(scenario, "next_steps", []) or []
             }
-
-        # 🔍 Füge hier die Visualisierungsdaten hinzu
         solana_repo = get_solana_repository()
         tx_raw = await solana_repo.get_transaction(request.start_tx_hash)
-
         graph_data = None
         if tx_raw:
             tx_dict = tx_raw.dict() if hasattr(tx_raw, "dict") else tx_raw
             graph_data = solana_repo._build_transaction_graph_data(tx_dict)
-
         logger.info(
             f"Successfully tracked {len(transactions)} transactions with "
             f"{len(scenarios)} detected scenarios"
@@ -446,7 +434,7 @@ async def track_transactions(
             detected_scenarios=scenarios,
             scenario_details=scenario_details,
             statistics=statistics,
-            graph_data=graph_data  # Neues Feld eingefügt
+            graph_data=graph_data
         )
     except ValueError as ve:
         logger.error(f"Validation error: {str(ve)}")
