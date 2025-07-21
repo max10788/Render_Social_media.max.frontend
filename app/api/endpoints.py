@@ -345,13 +345,17 @@ def get_solana_repository(
     return EnhancedSolanaRepository(config=config)
 
 
-def get_transaction_service() -> TransactionService:
-    solana_repo = get_solana_repository()  
-    return TransactionService(solana_repository=solana_repo)
+ef get_transaction_service(
+    repo: EnhancedSolanaRepository = Depends(get_solana_repository)
+) -> TransactionService:
+    return TransactionService(solana_repository=repo)
     
 
 @router.post("/track-transactions", response_model=TransactionTrackResponse)
-async def track_transactions(request: TransactionTrackRequest):
+async def track_transactions(
+    request: TransactionTrackRequest,
+    transaction_service: TransactionService = Depends(get_transaction_service)
+):
     try:
         logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
         amount = Decimal(str(request.amount)) if request.amount is not None else None
