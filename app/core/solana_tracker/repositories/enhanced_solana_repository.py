@@ -384,8 +384,6 @@ def _extract_transfers(self, tx_detail: Dict) -> List[Dict]:
             }])
             if not raw_result:
                 return None
-                
-            # Direkt geparstes Objekt zurückgeben
             return self.parse_transaction(raw_result)
         except Exception as e:
             self.logger.error(f"Error fetching transaction {tx_hash}: {str(e)}")
