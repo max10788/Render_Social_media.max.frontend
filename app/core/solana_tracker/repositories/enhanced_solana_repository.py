@@ -1,20 +1,21 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
-from app.core.blockchain.interfaces import BlockchainRepository, BlockchainConfig
-from app.core.models.base_models import TransactionDetail, InstructionDetail
+import httpx
+from app.core.solana_tracker.repositories.irepository import IEnhancedSolanaRepository
+from app.core.solana_tracker.models.transaction import TransactionDetail, OperationDetail, OperationType
+from app.core.blockchain.interfaces import BlockchainConfig
 from app.core.utils.rate_limit import RateLimiter
 from app.core.utils.rpc_endpoint_manager import RpcEndpointManager
 
-class EnhancedSolanaRepository(BlockchainRepository):
+class EnhancedSolanaRepository(IEnhancedSolanaRepository):
     def __init__(self, config: BlockchainConfig):
-        super().__init__(config)
         self.endpoint_manager = RpcEndpointManager(
             primary_url=config.primary_rpc_url,
             fallback_urls=config.fallback_rpc_urls
         )
         self.rate_limiter = RateLimiter(config.rate_limit_config)
-    
+
     async def get_transaction(self, tx_hash: str) -> TransactionDetail:
         await self.rate_limiter.wait()
         url = await self.endpoint_manager.get_healthy_endpoint()
@@ -41,9 +42,9 @@ class EnhancedSolanaRepository(BlockchainRepository):
         
         return TransactionDetail(
             tx_hash=data["transaction"]["signatures"][0],
-            from_address=message["accountKeys"][0],
-            to_address=message["accountKeys"][1] if len(message["accountKeys"]) > 1 else None,
-            value=Decimal(meta["postBalances"][0] - meta["preBalances"][0]) / Decimal(1e9),
+            from_wallet=message["accountKeys"][0],
+            to_wallet=message["accountKeys"][1] if len(message["accountKeys"]) > 1 else None,
+            amount=Decimal(meta["postBalances"][0] - meta["preBalances"][0]) / Decimal(1e9),
             fee=Decimal(meta["fee"]) / Decimal(1e9),
             timestamp=datetime.utcfromtimestamp(data["blockTime"]),
             status="confirmed" if meta["err"] is None else "failed",
@@ -69,3 +70,44 @@ class EnhancedSolanaRepository(BlockchainRepository):
                     ))
         
         return operations
+
+    async def get_balance(self, address: str) -> Decimal:
+        await self.rate_limiter.wait()
+        url = await self.endpoint_manager.get_healthy_endpoint()
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "getBalance",
+                    "params": [address]
+                }
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return Decimal(data["result"]["value"]) / Decimal(1e9)
+            return Decimal(0)
+
+    async def get_transactions_for_address(self, address: str, limit: int) -> List[TransactionDetail]:
+        await self.rate_limiter.wait()
+        url = await self.endpoint_manager.get_healthy_endpoint()
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "getSignaturesForAddress",
+                    "params": [address, {"limit": limit}]
+                }
+            )
+            if response.status_code == 200:
+                signatures = response.json()["result"]
+                transactions = []
+                for sig in signatures:
+                    tx = await self.get_transaction(sig["signature"])
+                    if tx:
+                        transactions.append(tx)
+                return transactions
+            return []

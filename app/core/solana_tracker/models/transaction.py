@@ -22,11 +22,11 @@ class OperationDetail(BaseModel):
 
 class TransactionDetail(BaseModel):
     tx_hash: str
-    from_address: str
-    to_address: Optional[str]
-    value: Decimal
+    from_wallet: str
+    to_wallet: Optional[str]
+    amount: Decimal
     fee: Decimal
     timestamp: datetime
     status: str
-    operations: List[OperationDetail]
+    operations: List['OperationDetail']
     raw_data: Dict
