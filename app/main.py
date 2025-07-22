@@ -1,79 +1,59 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import logging
+import asyncio
+import sys
+from app.core.solana_tracker.blockchain.interfaces import BlockchainConfig
+from app.core.solana_tracker.repositories.enhanced_solana_repository import EnhancedSolanaRepository
+from app.core.solana_tracker.repositories.cache import RedisCache
+from app.core.solana_tracker.services.chain_tracker import ChainTracker, CrossChainOpFinder, ValueMatchFinder
+from app.core.solana_tracker.services.scenario_detector import ScenarioDetector
 
-from app.api.endpoints import router as api_router  # Import nur den Haupt-Router
-from app.api.endpoints import router as api_router
-from app.core.config import Settings, get_settings
-from app.core.database import init_db
-
-logger = logging.getLogger(__name__)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Lifecycle manager for FastAPI application."""
-    settings = get_settings()
-    init_db()
-    logger.info(f"Starting {settings.PROJECT_NAME}")
-    yield
-    logger.info(f"Shutting down {settings.PROJECT_NAME}")
-
-app = FastAPI(
-    title="Social Media & Blockchain Analysis",
-    description="Enterprise-grade social media and blockchain analysis system",
-    version="1.0.0",
-    lifespan=lifespan
-)
-
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Static files and templates
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
-
-# Include router
-app.include_router(api_router, prefix="/api/v1", tags=["API"])
-app.include_router(api_router, prefix="/api")
-
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    """Application root endpoint."""
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request}
+async def main(tx_hash: str):
+    # 1. Configuration
+    solana_config = BlockchainConfig(
+        chain_id="solana",
+        name="Solana",
+        primary_rpc="https://api.mainnet-beta.solana.com",
+        fallback_rpcs=["https://solana-api.projectserum.com"],
+        currency="SOL",
+        decimals=9
     )
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "version": "1.0.0",
-        "services": {
-            "social_analysis": "active",
-            "blockchain_tracking": "active"
-        }
-    }
+    # 2. Initialize Components
+    redis_cache = RedisCache(redis_url="redis://localhost")
+    await redis_cache.connect()
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "Internal Server Error",
-            "detail": str(exc) if app.debug else "An unexpected error occurred"
-        }
+    solana_repo = EnhancedSolanaRepository(config=solana_config, cache=redis_cache)
+
+    chain_tracker = ChainTracker(
+        repositories={"solana": solana_repo},
+        finders=[CrossChainOpFinder(), ValueMatchFinder()]
     )
+
+    scenario_detector = ScenarioDetector()
+
+    # 3. Track Chain
+    print(f"Tracking chain for transaction: {tx_hash}")
+    chain_result = await chain_tracker.track_chain(tx_hash)
+
+    print("\n--- Chain Tracking Result ---")
+    for item in chain_result["chain"]:
+        print(f"  Chain: {item['chain']}, TX: {item['transaction'].tx_hash}")
+
+    # 4. Detect Scenarios
+    transactions = [item["transaction"] for item in chain_result["chain"]]
+    scenarios = scenario_detector.detect_scenarios(transactions)
+
+    print("\n--- Scenario Detection Result ---")
+    if scenarios:
+        for scenario in scenarios:
+            print(f"  - Type: {scenario['type']}, TX: {scenario['tx_hash']}, Confidence: {scenario['confidence']:.2f}")
+            print(f"    Metadata: {scenario['metadata']}")
+    else:
+        print("  No specific scenarios detected.")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python app/main.py <transaction_hash>")
+        sys.exit(1)
+
+    tx_hash = sys.argv[1]
+    asyncio.run(main(tx_hash))

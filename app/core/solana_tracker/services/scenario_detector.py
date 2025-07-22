@@ -1,11 +1,25 @@
+import os
+import importlib
 from typing import List, Dict
-from app.core.models.transaction import TransactionDetail
-from app.core.models.scenario import ScenarioType, ScenarioRule
+from app.core.solana_tracker.models.transaction import TransactionDetail
+from app.core.solana_tracker.rules.base import ScenarioRule
 
 class ScenarioDetector:
-    def __init__(self, rules: List[ScenarioRule]):
-        self.rules = rules
+    def __init__(self, rules_dir: str = "app/core/solana_tracker/rules"):
+        self.rules = self._load_rules(rules_dir)
     
+    def _load_rules(self, rules_dir: str) -> List[ScenarioRule]:
+        rules = []
+        for filename in os.listdir(rules_dir):
+            if filename.endswith(".py") and filename != "base.py" and not filename.startswith("__"):
+                module_name = f"{rules_dir.replace('/', '.')}.{filename[:-3]}"
+                module = importlib.import_module(module_name)
+                for item in dir(module):
+                    obj = getattr(module, item)
+                    if isinstance(obj, type) and issubclass(obj, ScenarioRule) and obj is not ScenarioRule:
+                        rules.append(obj())
+        return rules
+
     def detect_scenarios(self, transactions: List[TransactionDetail]) -> List[Dict]:
         scenarios = []
         
@@ -20,35 +34,3 @@ class ScenarioDetector:
                     })
         
         return scenarios
-
-# Beispiel für eine Flashloan-Regel
-class FlashloanRule:
-    type = "flashloan"
-    confidence = 0.85
-    
-    def matches(self, tx: TransactionDetail) -> bool:
-        return (tx.value > Decimal("1000") and 
-                any(op.type == "contract_call" and op.value > tx.value * Decimal("0.9") 
-                    for op in tx.operations))
-    
-    def get_metadata(self, tx: TransactionDetail) -> Dict:
-        return {
-            "total_value": str(tx.value),
-            "contract_interactions": len([op for op in tx.operations if op.type == "contract_call"]),
-            "risk_level": "high"
-        }
-
-# Beispiel für eine Cross-Chain-Regel
-class CrossChainRule:
-    type = "cross_chain"
-    confidence = 0.95
-    
-    def matches(self, tx: TransactionDetail) -> bool:
-        return any(op.type == "cross_chain" for op in tx.operations)
-    
-    def get_metadata(self, tx: TransactionDetail) -> Dict:
-        cross_ops = [op for op in tx.operations if op.type == "cross_chain"]
-        return {
-            "bridges_used": list(set(op.raw_data.get("bridge") for op in cross_ops)),
-            "target_chains": list(set(op.raw_data.get("target_chain") for op in cross_ops))
-        }
