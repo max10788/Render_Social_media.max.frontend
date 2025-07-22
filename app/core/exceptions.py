@@ -1,62 +1,83 @@
-class CryptoTrackerError(Exception):
-    """Basis-Exception für Crypto-Tracker Fehler"""
-    pass
+from typing import Optional, Dict
+from fastapi import HTTPException
 
-class APIError(CryptoTrackerError):
-    """Fehler bei API-Aufrufen"""
-    pass
-
-class CurrencyNotSupportedError(CryptoTrackerError):
-    """Nicht unterstützte Währung"""
-    pass
-
-class TransactionNotFoundError(CryptoTrackerError):
-    """Transaktion nicht gefunden"""
-    pass
-
-class TransactionValidationError(CryptoTrackerError):
-    """Fehler bei der Transaktionsvalidierung"""
-    def __init__(self, message: str, validation_errors: dict = None):
+class MultiSigAccessError(Exception):
+    """Fehler bei Zugriff auf Multi-Signatur-Transaktion"""
+    def __init__(self, message: str, restricted_wallet: str):
         self.message = message
-        self.validation_errors = validation_errors or {}
-        super().__init__(self.message)
+        self.restricted_wallet = restricted_wallet
+        super().__init__(message)
 
-class MultiSigAccessError(CryptoTrackerError):
-    """
-    Exception für Multi-Sig Zugriffsprobleme.
-    Wird geworfen, wenn eine Multi-Sig-Transaktion nicht die erforderlichen Unterschriften hat.
-    """
-    def __init__(
-        self, 
-        message: str, 
-        required_signers: int = None,
-        available_signers: int = None,
-        wallet_address: str = None
-    ):
+class TransactionNotFoundError(Exception):
+    """Transaktion wurde auf der Blockchain nicht gefunden"""
+    def __init__(self, tx_hash: str):
+        self.tx_hash = tx_hash
+        super().__init__(f"Transaktion nicht gefunden: {tx_hash}")
+
+class TransactionValidationError(Exception):
+    """Transaktionsdaten sind ungültig"""
+    def __init__(self, message: str):
         self.message = message
-        self.required_signers = required_signers
-        self.available_signers = available_signers
-        self.wallet_address = wallet_address
-        super().__init__(self.message)
+        super().__init__(message)
 
-class RateLimitExceededError(CryptoTrackerError):
-    """Rate Limit überschritten"""
-    def __init__(self, message: str, retry_after: int = None):
+class RateLimitExceededError(Exception):
+    """RPC-Rate-Limit wurde überschritten"""
+    def __init__(self, chain: str):
+        self.chain = chain
+        super().__init__(f"Rate-Limit überschritten für {chain}")
+
+class BlockchainConnectionError(Exception):
+    """Verbindungsfehler zur Blockchain"""
+    def __init__(self, chain: str, endpoint: str):
+        self.chain = chain
+        self.endpoint = endpoint
+        super().__init__(f"Verbindungsfehler zu {chain} auf {endpoint}")
+
+class ScenarioDetectionError(Exception):
+    """Fehler bei Szenarienerkennung"""
+    def __init__(self, message: str):
         self.message = message
-        self.retry_after = retry_after
-        super().__init__(self.message)
+        super().__init__(message)
 
-class BlockchainConnectionError(CryptoTrackerError):
-    """Fehler bei der Blockchain-Verbindung"""
-    pass
-
-class InvalidConfigurationError(CryptoTrackerError):
-    """Ungültige Konfiguration"""
-    pass
-
-class ScenarioDetectionError(CryptoTrackerError):
-    """Fehler bei der Szenario-Erkennung"""
-    def __init__(self, message: str, scenario_type: str = None):
+class InternalServerError(Exception):
+    """Interner Serverfehler"""
+    def __init__(self, message: str = "Interner Serverfehler"):
         self.message = message
-        self.scenario_type = scenario_type
-        super().__init__(self.message)
+        super().__init__(message)
+
+def handle_blockchain_errors(func):
+    """Dekorator für zentrale Fehlerbehandlung"""
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except MultiSigAccessError as e:
+            raise HTTPException(status_code=403, detail={
+                "error": "multi_sig_access_denied",
+                "message": str(e),
+                "restricted_wallet": e.restricted_wallet
+            })
+        except TransactionNotFoundError as e:
+            raise HTTPException(status_code=404, detail={
+                "error": "transaction_not_found",
+                "message": str(e),
+                "tx_hash": e.tx_hash
+            })
+        except RateLimitExceededError as e:
+            raise HTTPException(status_code=429, detail={
+                "error": "rate_limit_exceeded",
+                "message": str(e),
+                "chain": e.chain
+            })
+        except BlockchainConnectionError as e:
+            raise HTTPException(status_code=503, detail={
+                "error": "blockchain_connection_failed",
+                "message": str(e),
+                "chain": e.chain,
+                "endpoint": e.endpoint
+            })
+        except Exception as e:
+            raise HTTPException(status_code=500, detail={
+                "error": "internal_server_error",
+                "message": str(e)
+            })
+    return wrapper
