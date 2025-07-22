@@ -312,150 +312,45 @@ def get_crypto_service() -> CryptoTrackingService:
 # track-transaction
 #--------------------------i
 
-# Dependency für die Settings
-def get_app_settings() -> Settings:
-    return get_settings()
+router = APIRouter()
+config = MultiChainConfig()
 
+# Erstelle Repositories für alle Chains
+repositories = {
+    chain: EthereumRepository(chain_config)  # oder BitcoinRepository, SolanaRepository usw.
+    for chain, chain_config in config.chains.items()
+}
 
-def get_solana_repository(
-    settings: Settings = Depends(get_app_settings)
-) -> EnhancedSolanaRepository:
-    # Lies Werte aus Umgebungsvariablen (oder Settings)
-    primary_rpc_url = os.getenv("SOLANA_RPC_URL")
-    fallback_rpc_urls_str = os.getenv("SOLANA_FALLBACK_RPC_URLS", "")
-    
-    fallback_rpc_urls = [
-        url.strip() for url in fallback_rpc_urls_str.split(",")
-    ] if fallback_rpc_urls_str else []
+# Initialisiere ChainTracker
+chain_tracker = ChainTracker(repositories)
 
-    # Rate Limiting
-    rate_limit_rate = int(os.getenv("SOLANA_RATE_LIMIT_RATE", "50"))
-    rate_limit_capacity = os.getenv("SOLANA_RATE_LIMIT_CAPACITY", "100")
-
-    # Erstelle eine manuelle SolanaConfig-ähnliche Instanz
-    class InlineSolanaConfig:
-        def __init__(self):
-            self.primary_rpc_url = primary_rpc_url
-            self.fallback_rpc_urls = fallback_rpc_urls
-            self.rate_limit_rate = rate_limit_rate
-            self.rate_limit_capacity = rate_limit_capacity
-            self.health_check_interval = 60  # Optional: Standardwert setzen
-
-    config = InlineSolanaConfig()
-    return EnhancedSolanaRepository(config=config)
-
-
-def get_transaction_service(
-    repo: EnhancedSolanaRepository = Depends(get_solana_repository)
-) -> TransactionService:
-    return TransactionService(solana_repository=repo)
-    
-
-@router.post("/track-transactions", response_model=TransactionTrackResponse)
-async def track_transactions(
-    request: TransactionTrackRequest,
-    transaction_service: TransactionService = Depends(get_transaction_service)
+@router.get("/track")
+async def track_transaction(
+    tx_hash: str,
+    chain: str = Query("ethereum", description="Ziel-Blockchain (ethereum, bitcoin, solana, etc.)"),
+    max_depth: int = 10
 ):
-    try:
-        logger.info(f"Processing transaction tracking request for {request.start_tx_hash}")
-        amount = Decimal(str(request.amount)) if request.amount is not None else None
-        tx_detail = await transaction_service.get_transaction_details(request.start_tx_hash)
-        if not tx_detail:
-            logger.error(f"No transactions found or accessible for transaction hash {request.start_tx_hash}")
-            return TransactionTrackResponse(
-                status="no_data",
-                total_transactions_tracked=0,
-                tracked_transactions=[],
-                final_status="no_transactions_found",
-                final_wallet_address=None,
-                remaining_amount=request.amount,
-                target_currency=request.target_currency,
-                detected_scenarios=[],
-                scenario_details={
-                    "user_message": (
-                        "Für die angegebene Transaktion konnten keine Daten abgerufen werden. "
-                        "Bitte prüfen Sie, ob die Transaktions-ID korrekt ist und ob die Transaktion auf der Blockchain existiert."
-                    ),
-                    "suggestion": "Überprüfen Sie die Transaktions-ID und versuchen Sie ggf. erneut."
-                },
-                statistics={},
-                graph_data=None
-            )
-        tracking_result = await transaction_service.analyze_transaction_chain(
-            start_tx_hash=request.start_tx_hash,
-            max_depth=10,
-            target_currency=request.target_currency,
-            amount=amount
-        )
-        scenarios = tracking_result.get("scenarios", [])
-        transactions = tracking_result.get("transactions", [])
-        statistics = tracking_result.get("statistics", {})
-        final_status = FinalStatusEnum.still_in_same_wallet
-        for scenario in scenarios:
-            if scenario.type == "burned":
-                final_status = FinalStatusEnum.permanently_lost
-            elif scenario.type == "delegated_staking":
-                final_status = FinalStatusEnum.staked
-            elif scenario.type == "cross_chain_bridge":
-                final_status = FinalStatusEnum.bridged_to_other_chain
-            elif scenario.type == "converted_to_stablecoin":
-                final_status = FinalStatusEnum.converted_to_stable
-        final_tx = transactions[-1] if transactions else None
-        final_wallet = final_tx.to_wallet if final_tx else None
-        final_amount = final_tx.amount if final_tx else request.amount
-        scenario_details = {}
-        for scenario in scenarios:
-            scenario_details[scenario.type] = {
-                "description": getattr(scenario.details, "user_message", ""),
-                "confidence": scenario.confidence,
-                "is_terminal": getattr(scenario.details, "is_terminal", False),
-                "can_be_recovered": getattr(scenario.details, "can_be_recovered", True),
-                "user_action_required": getattr(scenario.details, "user_action_required", False),
-                "suggested_actions": getattr(scenario, "next_steps", []) or []
-            }
-        solana_repo = get_solana_repository()
-        tx_raw = await solana_repo.get_transaction(request.start_tx_hash)
-        graph_data = None
-        if tx_raw:
-            tx_dict = tx_raw.dict() if hasattr(tx_raw, "dict") else tx_raw
-            graph_data = solana_repo._build_transaction_graph_data(tx_dict)
-        logger.info(
-            f"Successfully tracked {len(transactions)} transactions with "
-            f"{len(scenarios)} detected scenarios"
-        )
-        return TransactionTrackResponse(
-            status="complete",
-            total_transactions_tracked=len(transactions),
-            tracked_transactions=transactions,
-            final_status=final_status,
-            final_wallet_address=final_wallet,
-            remaining_amount=final_amount,
-            target_currency=request.target_currency,
-            detected_scenarios=scenarios,
-            scenario_details=scenario_details,
-            statistics=statistics,
-            graph_data=graph_data
-        )
-    except ValueError as ve:
-        logger.error(f"Validation error: {str(ve)}")
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "Invalid request parameters",
-                "message": str(ve),
-                "suggestion": "Please verify the transaction hash and parameters"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error tracking transactions: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Transaction tracking failed",
-                "message": str(e),
-                "suggestion": "Please try again later oder kontaktieren Sie den Support"
-            }
-        )
+    if chain not in repositories:
+        return {"error": f"Unsupported chain: {chain}"}
+    
+    result = await chain_tracker.track_chain(tx_hash, max_depth)
+    return result
+
+@router.get("/balance")
+async def get_balance(
+    address: str,
+    chain: str = Query("ethereum", description="Ziel-Blockchain")
+):
+    if chain not in repositories:
+        return {"error": f"Unsupported chain: {chain}"}
+    
+    balance = await repositories[chain].get_balance(address)
+    return {
+        "chain": chain,
+        "address": address,
+        "balance": str(balance),
+        "currency": config.chains[chain].currency
+    }
 #--------------------------i
 # ML-basierte Analyse
 #--------------------------i
