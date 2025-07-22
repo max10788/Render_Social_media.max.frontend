@@ -1,6 +1,17 @@
 from typing import Optional, Dict
 from fastapi import HTTPException
 
+class CryptoTrackerError(Exception):
+    """Base exception for the crypto tracker application."""
+    pass
+
+class APIError(CryptoTrackerError):
+    """Raised when an API call fails."""
+    def __init__(self, message: str, status_code: int = 500):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
+
 class MultiSigAccessError(Exception):
     """Fehler bei Zugriff auf Multi-Signatur-Transaktion"""
     def __init__(self, message: str, restricted_wallet: str):
