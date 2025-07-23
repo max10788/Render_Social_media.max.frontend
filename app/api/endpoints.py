@@ -293,7 +293,6 @@ def get_crypto_service() -> CryptoTrackingService:
 #--------------------------i
 
 router = APIRouter()
-config = MultiChainConfig()
 
 # Erstelle Repositories für alle Chains
 repositories = {
