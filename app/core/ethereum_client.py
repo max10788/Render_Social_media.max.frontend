@@ -5,7 +5,6 @@ from datetime import datetime
 import aiohttp
 from web3 import Web3
 from app.core.crypto_tracker import BlockchainClient, Transaction, Currency
-from app.core.exceptions import APIError, TransactionNotFoundError
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
