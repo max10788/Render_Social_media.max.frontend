@@ -1,40 +1,32 @@
-import requests
-import os
-import json
-from typing import Dict
+from typing import Dict, List
 
-class SolanaAPIClient:
-    def __init__(self):
-        self.rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+class SPLTokenService:
+    def __init__(self, solana_client):
+        self.solana_client = solana_client
 
-    def get_transaction(self, tx_hash: str) -> Dict:
-        """Holt Solana-Transaktionsdetails [[8]]"""
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getConfirmedTransaction",
-            "params": [tx_hash]
-        }
-        try:
-            response = requests.post(self.rpc_url, json=payload)
-            response.raise_for_status()
-            return response.json()["result"]
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"Solana RPC Fehler: {str(e)}")
+    def parse_token_transfers(self, tx_data: Dict) -> List[Dict]:
+        """Extrahiert SPL-Token-Transfers aus einer Transaktion"""
+        meta = tx_data.get("meta", {})
+        pre_balances = meta.get("preTokenBalances", [])
+        post_balances = meta.get("postTokenBalances", [])
+        transfers = []
 
-    def get_account_info(self, account_pubkey: str) -> Dict:
-        """Holt Account-Informationen"""
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getAccountInfo",
-            "params": [account_pubkey]
-        }
-        response = requests.post(self.rpc_url, json=payload)
-        return response.json()["result"]["value"]
+        for pre, post in zip(pre_balances, post_balances):
+            if pre["uiTokenAmount"]["amount"] != post["uiTokenAmount"]["amount"]:
+                delta = int(post["uiTokenAmount"]["amount"]) - int(pre["uiTokenAmount"]["amount"])
+                transfers.append({
+                    "account": pre["accountPubkey"],
+                    "token": pre["mint"],
+                    "change": delta,
+                    "decimals": pre["uiTokenAmount"]["decimals"]
+                })
+        return transfers
 
 # Beispiel-Nutzung:
 if __name__ == "__main__":
-    client = SolanaAPIClient()
+    from solana_api import SolanaAPIClient
+    sol_client = SolanaAPIClient()
+    token_service = SPLTokenService(sol_client)
     tx_hash = "abc123..."  # Ersetze mit gültigem SOL-Hash
-    print(json.dumps(client.get_transaction(tx_hash), indent=2))
+    tx_data = sol_client.get_transaction(tx_hash)
+    print(token_service.parse_token_transfers(tx_data))
