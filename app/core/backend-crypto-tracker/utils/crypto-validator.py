@@ -25,8 +25,3 @@ class CryptoValidator:
         """Validiert Solana-Adresse (Base58)"""
         return bool(re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", address))
 
-# Beispiel-Nutzung:
-if __name__ == "__main__":
-    validator = CryptoValidator()
-    print(validator.validate_address("btc", "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"))  # True
-    print(validator.validate_address("eth", "0xAbc123..."))  # True
