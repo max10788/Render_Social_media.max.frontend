@@ -292,44 +292,6 @@ def get_crypto_service() -> CryptoTrackingService:
 # track-transaction
 #--------------------------i
 
-router = APIRouter()
-
-# Erstelle Repositories für alle Chains
-repositories = {
-    chain: EthereumRepository(chain_config)  # oder BitcoinRepository, SolanaRepository usw.
-    for chain, chain_config in config.chains.items()
-}
-
-# Initialisiere ChainTracker
-chain_tracker = ChainTracker(repositories)
-
-@router.get("/track")
-async def track_transaction(
-    tx_hash: str,
-    chain: str = Query("ethereum", description="Ziel-Blockchain (ethereum, bitcoin, solana, etc.)"),
-    max_depth: int = 10
-):
-    if chain not in repositories:
-        return {"error": f"Unsupported chain: {chain}"}
-    
-    result = await chain_tracker.track_chain(tx_hash, max_depth)
-    return result
-
-@router.get("/balance")
-async def get_balance(
-    address: str,
-    chain: str = Query("ethereum", description="Ziel-Blockchain")
-):
-    if chain not in repositories:
-        return {"error": f"Unsupported chain: {chain}"}
-    
-    balance = await repositories[chain].get_balance(address)
-    return {
-        "chain": chain,
-        "address": address,
-        "balance": str(balance),
-        "currency": config.chains[chain].currency
-    }
 #--------------------------i
 # ML-basierte Analyse
 #--------------------------i
