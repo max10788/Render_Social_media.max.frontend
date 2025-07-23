@@ -52,13 +52,6 @@ from app.models.schemas import (
     FinalStatusEnum
 )
 
-# Solana Tracker Imports
-from app.core.solana_tracker.models.base_models import (
-    TransactionDetail,
-    TrackedTransaction,
-    TransactionMessageDetail,
-    BaseTransaction
-)
 from app.core.solana_tracker.models.scenario import (
     ScenarioType,
     ScenarioDetails,
