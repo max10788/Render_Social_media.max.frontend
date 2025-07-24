@@ -1,5 +1,4 @@
 from sqlalchemy import Column, String, Integer, Float, JSON, DateTime
-from database import Base
 from datetime import datetime
 
 class Transaction(Base):
