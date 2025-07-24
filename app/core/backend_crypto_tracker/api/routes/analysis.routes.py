@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from ..processor.transaction_graph import TransactionGraph
+from app.core.backend_crypto_tracker.processor.transaction_graph import TransactionGraph
 from database import get_db
 
 router = APIRouter()
