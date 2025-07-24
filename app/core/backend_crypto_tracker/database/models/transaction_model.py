@@ -1,5 +1,7 @@
 from sqlalchemy import Column, String, Integer, Float, JSON, DateTime
 from datetime import datetime
+from app.core.backend_crypto_tracker.database.base import Base  # 🔴 Wichtig: Base importieren
+
 
 class Transaction(Base):
     __tablename__ = "transactions"
