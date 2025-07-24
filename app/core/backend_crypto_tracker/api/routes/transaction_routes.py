@@ -9,7 +9,7 @@ from app.core.backend_crypto_tracker.services.eth.etherscan_api import Etherscan
 from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
 
 # Database
-from app.core.backend_crypto_tracker.database.models.transaction_model import TrackTransactionRequest, TransactionResponse
+from app.core.backend_crypto_tracker.database.models.transaction_model import Transaction
 from app.core.backend_crypto_tracker.database import get_db
 
 router = APIRouter()
