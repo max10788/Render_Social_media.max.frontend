@@ -10,7 +10,7 @@ from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPICli
 
 # Database
 from app.core.backend_crypto_tracker.database.models.transaction_model import Transaction
-from app.core.backend_crypto_tracker.database import get_db
+from app.core.backend_crypto_tracker.database.base import Base
 
 router = APIRouter()
 
