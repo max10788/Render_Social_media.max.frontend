@@ -155,99 +155,82 @@
             });
         });
     
-        async function trackTransactions() {
-            const startTx = document.getElementById('startTx').value.trim();
-            const targetCurrency = document.getElementById('targetCurrency').value;
-            const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
-            const amount = parseFloat(document.getElementById('amount').value);
-            const tree = document.getElementById('transactionTree');
-            const errorContainer = document.getElementById('errorContainer');
-    
-            tree.classList.add('loading');
-            errorContainer.style.display = 'none';
-    
-            // Input validation bleibt unverändert
-            if (!startTx || startTx.length < 64) {
-                errorContainer.textContent = 'Please enter a valid transaction hash (min. 64 characters).';
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-                return;
-            }
-            if (!["USD", "EUR", "GBP", "JPY", "SOL", "ETH"].includes(targetCurrency)) {
-                errorContainer.textContent = 'Please select a valid target currency.';
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-                return;
-            }
-            if (isNaN(amount) || amount <= 0) {
-                errorContainer.textContent = 'Please enter a valid amount greater than zero.';
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-                return;
-            }
-            if (isNaN(numTransactions) || numTransactions < 1 || numTransactions > 100) {
-                errorContainer.textContent = 'Please enter a valid number of transactions (1-100).';
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-                return;
-            }
-    
-            const payload = {
-                start_tx_hash: startTx,
-                target_currency: targetCurrency,
-                amount: amount,
-                num_transactions: numTransactions
-            };
-    
-            try {
-                const response = await fetch('/api/track-transactions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-    
-                if (!response.ok) {
-                    let errMsg = 'Fehler bei der Transaktionsverfolgung.';
-                    try {
-                        const data = await response.json();
-                        errMsg = data.detail?.message || data.detail || errMsg;
-                    } catch (e) {}
-                    throw new Error(errMsg);
-                }
-    
-                const result = await response.json();
-    
-                console.log("API Response:", result); // 🔍 DEBUGGING: API-Daten anzeigen
-                console.log("SVG vor Visualisierung:", tree.querySelectorAll("svg").length);
-    
-                tree.innerHTML = ''; // ✅ Leeren VOR der neuen Visualisierung
-                if (window.updateTransactionVisualization) {
-                    window.updateTransactionVisualization(result);
-                } else {
-                    console.error('Visualization update function not found');
-                }
-    
-                // Statistiken anzeigen
-                document.getElementById('sourceWallet').textContent = result.tracked_transactions[0]?.from_wallet || '-';
-                document.getElementById('targetWallet').textContent = result.final_wallet_address || '-';
-                document.getElementById('startHash').textContent = result.tracked_transactions[0]?.tx_hash || '-';
-                document.getElementById('txCount').textContent = result.total_transactions_tracked ?? '-';
-                document.getElementById('totalValue').textContent = result.statistics?.total_amount ?? '-';
-                document.getElementById('finalStatus').textContent = result.final_status ?? '-';
-                document.getElementById('targetCurrencyDisplay').textContent = result.target_currency ?? '-';
-                document.getElementById('exchangeRate').textContent = result.statistics?.exchange_rate ?? '-';
-                document.getElementById('convertedValue').textContent = result.statistics?.converted_value ?? '-';
-    
-                console.log("SVG nach Visualisierung:", tree.querySelectorAll("svg").length); // 🔍 DEBUGGING
-    
-                tree.classList.remove('loading');
-            } catch (err) {
-                errorContainer.textContent = err.message;
-                errorContainer.style.display = 'block';
-                tree.classList.remove('loading');
-                console.error("Error during transaction tracking:", err); // 🔍 DEBUGGING
-            }
+    async function trackTransactions() {
+        const startTx = document.getElementById('startTx').value.trim();
+        const targetCurrency = document.getElementById('targetCurrency').value;
+        const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
+        const amount = parseFloat(document.getElementById('amount').value);
+        const tree = document.getElementById('transactionTree');
+        const errorContainer = document.getElementById('errorContainer');
+        
+        tree.classList.add('loading');
+        errorContainer.style.display = 'none';
+        
+        // Validierung
+        if (!startTx || startTx.length < 64) {
+            errorContainer.textContent = 'Bitte geben Sie einen gültigen Transaktionshash ein (min. 64 Zeichen).';
+            errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
+            return;
         }
+        
+        // API-Anfrage
+        try {
+            const response = await fetch('/api/track', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    blockchain: "eth",  // Diese Zeile anpassen, falls du die Blockchain auswählen willst
+                    tx_hash: startTx,
+                    depth: numTransactions,
+                    include_metadata: true
+                })
+            });
+    
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Fehler bei der Transaktionsverfolgung.');
+            }
+    
+            const data = await response.json();
+            console.log("API Response:", data);  // 🔍 DEBUGGING
+            
+            // Visualisierung aktualisieren
+            tree.innerHTML = '';
+            if (window.updateTransactionVisualization) {
+                window.updateTransactionVisualization(data);
+            } else {
+                console.error('Visualisierungsfunktion nicht gefunden');
+            }
+            
+            // Statistiken anzeigen
+            document.getElementById('sourceWallet').textContent = data.from_address || '-';
+            document.getElementById('targetWallet').textContent = data.to_address || '-';
+            document.getElementById('startHash').textContent = data.tx_hash || '-';
+            document.getElementById('txCount').textContent = countTransactions(data);
+            document.getElementById('totalValue').textContent = `${data.amount} ${data.currency}`;
+            document.getElementById('finalStatus').textContent = data.status || 'Abgeschlossen';
+            
+            tree.classList.remove('loading');
+            
+        } catch (err) {
+            errorContainer.textContent = err.message;
+            errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
+            console.error("Fehler bei der Transaktionsverfolgung:", err);  // 🔍 DEBUGGING
+        }
+    }
+    
+    // Hilfsfunktion für Transaktionszähler
+    function countTransactions(data) {
+        let count = 1;
+        if (data.next_transactions && data.next_transactions.length > 0) {
+            data.next_transactions.forEach(tx => {
+                count += countTransactions(tx);
+            });
+        }
+        return count;
+    }
     
         document.getElementById('trackButton').addEventListener('click', trackTransactions);
     </script>
