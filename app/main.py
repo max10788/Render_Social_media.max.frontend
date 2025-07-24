@@ -45,6 +45,7 @@ templates = Jinja2Templates(directory="app/templates")
 # Include router
 app.include_router(api_router, prefix="/api/v1", tags=["API"])
 app.include_router(api_router, prefix="/api")
+app.include_router(transaction_router, prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
