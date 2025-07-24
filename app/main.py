@@ -8,7 +8,7 @@ import logging
 
 # ✅ Importiere den transaction_router
 from app.api.endpoints import router as api_router
-from app.api.routes.transaction.routes import router as transaction_router
+from app.core.backend-crypto-tracker.api.routes.transaction.routes import router as transaction_router
 from app.core.config import Settings, get_settings
 from app.core.database import init_db
 
