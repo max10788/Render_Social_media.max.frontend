@@ -1,13 +1,14 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
-from app.api.endpoints import router as api_router  # Import nur den Haupt-Router
+# ✅ Importiere den transaction_router
 from app.api.endpoints import router as api_router
+from app.api.routes.transaction.routes import router as transaction_router
 from app.core.config import Settings, get_settings
 from app.core.database import init_db
 
@@ -42,10 +43,10 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# Include router
+# ✅ Registriere die Router
 app.include_router(api_router, prefix="/api/v1", tags=["API"])
-app.include_router(api_router, prefix="/api")
-app.include_router(transaction_router, prefix="/api")
+app.include_router(api_router, prefix="/api")  # Optional: Legacy-Route
+app.include_router(transaction_router, prefix="/api")  # ✅ Registriere den transaction_router
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
