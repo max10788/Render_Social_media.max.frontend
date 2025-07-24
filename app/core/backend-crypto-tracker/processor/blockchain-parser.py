@@ -1,50 +1,55 @@
-
-from typing import Dict, Any
+from datetime import datetime
 
 class BlockchainParser:
-    def parse_transaction(self, chain: str, raw_data: Dict) -> Dict:
+    def parse_transaction(self, chain: str, raw_data: dict) -> dict:
         """Normalisiert Transaktionsdaten für alle Chains"""
         if chain == "btc":
-            return self._parse_btc_transaction(raw_data)
+            return self._parse_btc(raw_data)
         elif chain == "eth":
-            return self._parse_eth_transaction(raw_data)
+            return self._parse_eth(raw_data)
         elif chain == "sol":
-            return self._parse_sol_transaction(raw_data)
+            return self._parse_sol(raw_data)
         else:
             raise ValueError(f"Unbekannte Chain: {chain}")
 
-    def _parse_btc_transaction(self, data: Dict) -> Dict:
-        """Extrahiert BTC-Transaktionsdetails"""
+    def _parse_btc(self, data: dict) -> dict:
+        """BTC-Transaktionsparser"""
         return {
-            "hash": data["hash"],
-            "timestamp": data["time"],
-            "inputs": [{"address": inp["recipient"], "value": inp["value"]} for inp in data["inputs"]],
-            "outputs": [{"address": out["recipient"], "value": out["value"]} for out in data["outputs"]],
-            "fee": data["fee"],
-            "chain": "btc"
+            "tx_hash": data["hash"],
+            "chain": "btc",
+            "timestamp": datetime.fromtimestamp(data["time"]),
+            "from_address": data["inputs"][0]["recipient"] if data["inputs"] else None,
+            "to_address": data["outputs"][0]["recipient"] if data["outputs"] else None,
+            "amount": float(data["value"]),
+            "currency": "BTC",
+            "fee": float(data["fee"]),
+            "next_hashes": [tx["hash"] for tx in data.get("next_transactions", [])]
         }
 
-    def _parse_eth_transaction(self, data: Dict) -> Dict:
-        """Extrahiert ETH-Transaktionsdetails"""
+    def _parse_eth(self, data: dict) -> dict:
+        """ETH-Transaktionsparser"""
         return {
-            "hash": data["hash"],
-            "timestamp": int(data["timestamp"], 16),
+            "tx_hash": data["hash"],
+            "chain": "eth",
+            "timestamp": datetime.fromtimestamp(int(data["timestamp"], 16)),
             "from_address": data["from"],
             "to_address": data["to"],
-            "value": int(data["value"], 16) / 1e18,
+            "amount": float(int(data["value"], 16) / 1e18),
+            "currency": "ETH",
             "contract_interactions": self._parse_eth_logs(data.get("logs", [])),
-            "chain": "eth"
+            "next_hashes": []  # ETH benötigt andere Logik für nächste Transaktionen
         }
 
-    def _parse_sol_transaction(self, data: Dict) -> Dict:
-        """Extrahiert Solana-Transaktionsdetails"""
+    def _parse_sol(self, data: dict) -> dict:
+        """Solana-Transaktionsparser"""
         meta = data["meta"]
         return {
-            "hash": data["transaction"]["message"]["recentBlockhash"],
-            "timestamp": meta["blockTime"],
+            "tx_hash": data["transaction"]["message"]["recentBlockhash"],
+            "chain": "sol",
+            "timestamp": datetime.fromtimestamp(meta["blockTime"]),
             "signers": data["transaction"]["message"]["accountKeys"],
             "token_transfers": self._parse_sol_token_transfers(meta.get("postTokenBalances", [])),
-            "chain": "sol"
+            "next_hashes": []  # Solana benötigt andere Logik für nächste Transaktionen
         }
 
     def _parse_sol_token_transfers(self, balances: list) -> list:
@@ -54,20 +59,7 @@ class BlockchainParser:
             transfers.append({
                 "account": balance["accountPubkey"],
                 "token": balance["mint"],
-                "amount": balance["uiTokenAmount"]["amount"],
+                "amount": float(balance["uiTokenAmount"]["amount"]),
                 "decimals": balance["uiTokenAmount"]["decimals"]
             })
         return transfers
-
-    def _parse_eth_logs(self, logs: list) -> list:
-        """Parst ETH-Logs (z.B. ERC-20 Transfers)"""
-        from web3 import Web3
-        parser = ContractParser()
-        return parser.parse_logs(logs)
-
-# Beispiel-Nutzung:
-if __name__ == "__main__":
-    parser = BlockchainParser()
-    # Beispiel: Rohdaten von Blockchair/Etherscan/Solana
-    btc_data = {"hash": "abc123...", "time": "2025-07-23T12:00:00Z", "inputs": [...], "outputs": [...], "fee": 0.0001}
-    print(parser.parse_transaction("btc", btc_data))
