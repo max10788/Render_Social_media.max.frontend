@@ -1,7 +1,7 @@
 # app/controllers/transaction_controller.py
 from fastapi import HTTPException
 from app.utils.crypto_validator import validate_tx_hash
-from ..workers.transaction_worker import process_transactionn
+from app.workers.transaction_worker import process_transaction
 
 def track_transaction(hash: str, blockchain: str):
     if not validate_tx_hash(hash, blockchain):
