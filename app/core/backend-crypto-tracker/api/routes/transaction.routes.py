@@ -30,7 +30,7 @@ class TransactionResponse(BaseModel):
 # Rekursive Modellreferenz
 TransactionResponse.update_forward_refs()
 
-@router.post("/api/track", response_model=TransactionResponse)
+@router.post("/track", response_model=TransactionResponse)
 def track_transaction(
     request: TrackTransactionRequest,
     db: Session = Depends(get_db)
