@@ -3,11 +3,14 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
-from ..services.btc.transaction_service import BlockchairBTCClient
-from ..services.eth.etherscan_api import EtherscanETHClient
-from ..services.sol.solana_api import SolanaAPIClient
-from ..database.models.transaction import Transaction
-from ..database import get_db
+# Services
+from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
+from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
+from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
+
+# Database
+from app.core.backend_crypto_tracker.database.models.transaction import Transaction
+from app.core.backend_crypto_tracker.database import get_db
 
 router = APIRouter()
 
