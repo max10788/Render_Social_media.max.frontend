@@ -12,6 +12,8 @@ from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPICli
 from app.core.backend_crypto_tracker.database.models.transaction_model import Transaction
 from app.core.backend_crypto_tracker.database.base import Base
 
+from app.core.database import get_db
+
 router = APIRouter()
 
 class TrackTransactionRequest(BaseModel):
