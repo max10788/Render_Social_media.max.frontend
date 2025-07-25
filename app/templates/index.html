@@ -155,16 +155,44 @@
     async function trackTransactions() {
         const startTx = document.getElementById('startTx').value.trim();
         const targetCurrency = document.getElementById('targetCurrency').value;
-        const blockchain = document.getElementById('blockchain').value; // GET SELECTED BLOCKCHAIN
+        const blockchain = document.getElementById('blockchain')?.value || 'eth'; // Sicherer Zugriff
         const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
         const amount = parseFloat(document.getElementById('amount').value);
+        const tree = document.getElementById('transactionTree');
+        const errorContainer = document.getElementById('errorContainer');
         
         tree.classList.add('loading');
         errorContainer.style.display = 'none';
         
-        // Validierung
-        if (!startTx || startTx.length < 64) {
-            errorContainer.textContent = 'Bitte geben Sie einen gültigen Transaktionshash ein (min. 64 Zeichen).';
+        // Dynamische Validierung basierend auf Blockchain
+        let minHashLength;
+        let blockchainName;
+        
+        switch(blockchain) {
+            case 'eth':
+            case 'btc':
+                minHashLength = 64;
+                blockchainName = blockchain === 'eth' ? 'Ethereum' : 'Bitcoin';
+                break;
+            case 'sol':
+                minHashLength = 44;
+                blockchainName = 'Solana';
+                break;
+            default:
+                minHashLength = 64;
+                blockchainName = 'Blockchain';
+        }
+        
+        // Validierung mit dynamischer Länge
+        if (!startTx) {
+            errorContainer.textContent = 'Bitte geben Sie einen Transaktionshash ein.';
+            errorContainer.style.display = 'block';
+            tree.classList.remove('loading');
+            return;
+        }
+        
+        if (startTx.length < minHashLength) {
+            errorContainer.textContent = `Bitte geben Sie einen gültigen ${blockchainName}-Transaktionshash ein (min. ${minHashLength} Zeichen).`;
             errorContainer.style.display = 'block';
             tree.classList.remove('loading');
             return;
@@ -176,7 +204,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    blockchain: blockchain, // NOT HARD CODED ANYMORE
+                    blockchain: blockchain,
                     tx_hash: startTx,
                     depth: numTransactions,
                     include_metadata: true
