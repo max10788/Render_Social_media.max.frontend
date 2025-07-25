@@ -155,10 +155,9 @@
     async function trackTransactions() {
         const startTx = document.getElementById('startTx').value.trim();
         const targetCurrency = document.getElementById('targetCurrency').value;
+        const blockchain = document.getElementById('blockchain').value; // GET SELECTED BLOCKCHAIN
         const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
         const amount = parseFloat(document.getElementById('amount').value);
-        const tree = document.getElementById('transactionTree');
-        const errorContainer = document.getElementById('errorContainer');
         
         tree.classList.add('loading');
         errorContainer.style.display = 'none';
@@ -177,7 +176,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    blockchain: "eth",  // Diese Zeile anpassen, falls du die Blockchain auswählen willst
+                    blockchain: blockchain, // NOT HARD CODED ANYMORE
                     tx_hash: startTx,
                     depth: numTransactions,
                     include_metadata: true
