@@ -46,7 +46,7 @@ templates = Jinja2Templates(directory="app/templates")
 # ✅ Registriere die Router
 app.include_router(api_router, prefix="/api/v1", tags=["API"])
 app.include_router(api_router, prefix="/api")  # Optional: Legacy-Route
-app.include_router(transaction_router, prefix="/api")  # ✅ Registriere den transaction_router
+app.include_router(transaction_routes, prefix="/api")  # ✅ Registriere den transaction_router
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
