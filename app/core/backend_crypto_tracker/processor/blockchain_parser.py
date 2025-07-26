@@ -1,51 +1,86 @@
 from datetime import datetime
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+logger = get_logger(__name__)
 
 class BlockchainParser:
     def parse_transaction(self, blockchain, raw_data):
+        logger.info(f"START: Parsing von Transaktionsdaten für Blockchain '{blockchain}'")
+        
         if blockchain == "eth":
+            logger.debug("Wähle Ethereum-Parsing-Logik aus")
             return self._parse_eth_transaction(raw_data)
         elif blockchain == "btc":
+            logger.debug("Wähle Bitcoin-Parsing-Logik aus")
             return self._parse_btc_transaction(raw_data)
         elif blockchain == "sol":
+            logger.debug("Wähle Solana-Parsing-Logik aus")
             return self._parse_sol_transaction(raw_data)
         else:
+            logger.error(f"Ungültige Blockchain für Parsing: '{blockchain}'")
             raise ValueError(f"Unsupported blockchain: {blockchain}")
-    
+
     def _parse_eth_transaction(self, raw_data):
-        """Parse Ethereum transaction data from Etherscan API response."""
-        # 1. Extrahiere grundlegende Transaktionsinformationen
-        tx_hash = raw_data["hash"]
-        timestamp = datetime.fromtimestamp(int(raw_data["timeStamp"]))
+        logger.info("START: Ethereum-Transaktionsparsing")
+        logger.debug(f"Eingang: Rohdaten erhalten (Größe: {len(str(raw_data))} Zeichen)")
         
-        # 2. Bestimme Quell- und Zieladressen
-        from_address = raw_data["from"].lower()
-        to_address = raw_data["to"].lower() if raw_data["to"] else None
-        
-        # 3. Berechne den übertragenen Betrag (in ETH)
-        # Wert ist in Wei (10^-18 ETH)
-        amount = float(raw_data["value"]) / 10**18
-        
-        # 4. Extrahiere Transaktionsstatus
-        status = "success" if raw_data["isError"] == "0" and raw_data["txreceipt_status"] == "1" else "failed"
-        
-        # 5. Berechne die Gebühr
-        gas = int(raw_data["gas"])
-        gas_price = int(raw_data["gasPrice"])
-        fee = (gas * gas_price) / 10**18  # in ETH
-        
-        # 6. Erstelle ein einheitliches Format für die Visualisierung
-        return {
-            "tx_hash": tx_hash,
-            "chain": "eth",
-            "timestamp": timestamp,
-            "from_address": from_address,
-            "to_address": to_address,
-            "amount": amount,
-            "currency": "ETH",
-            "fee": fee,
-            "status": status,
-            "raw_data": raw_data
-        }
+        try:
+            # 1. Extrahiere grundlegende Transaktionsinformationen
+            logger.debug("Schritt 1: Extrahiere grundlegende Transaktionsinformationen")
+            tx_hash = raw_data["hash"]
+            logger.info(f"Transaktions-Hash extrahiert: {tx_hash}")
+            
+            timestamp = datetime.fromtimestamp(int(raw_data["timeStamp"]))
+            logger.debug(f"Zeitstempel extrahiert: {timestamp}")
+            
+            # 2. Bestimme Quell- und Zieladressen
+            logger.debug("Schritt 2: Bestimme Quell- und Zieladressen")
+            from_address = raw_data["from"].lower()
+            logger.info(f"Quelladresse extrahiert: {from_address[:10]}...")
+            
+            to_address = raw_data["to"].lower() if raw_data["to"] else None
+            logger.info(f"Zieladresse extrahiert: {to_address[:10]}..." if to_address else "Keine Zieladresse (Vertragserstellung?)")
+            
+            # 3. Berechne den übertragenen Betrag (in ETH)
+            logger.debug("Schritt 3: Berechne übertragenen Betrag")
+            amount = float(raw_data["value"]) / 10**18
+            logger.info(f"Berechneter Betrag: {amount} ETH")
+            
+            # 4. Extrahiere Transaktionsstatus
+            logger.debug("Schritt 4: Extrahiere Transaktionsstatus")
+            status = "success" if raw_data["isError"] == "0" and raw_data["txreceipt_status"] == "1" else "failed"
+            logger.info(f"Transaktionsstatus: {status}")
+            
+            # 5. Berechne die Gebühr
+            logger.debug("Schritt 5: Berechne Transaktionsgebühr")
+            gas = int(raw_data["gas"])
+            gas_price = int(raw_data["gasPrice"])
+            fee = (gas * gas_price) / 10**18  # in ETH
+            logger.info(f"Gebühr berechnet: {fee} ETH (Gas: {gas}, GasPrice: {gas_price})")
+            
+            # 6. Erstelle ein einheitliches Format für die Visualisierung
+            logger.debug("Schritt 6: Erstelle einheitliches Antwortformat")
+            result = {
+                "tx_hash": tx_hash,
+                "chain": "eth",
+                "timestamp": timestamp,
+                "from_address": from_address,
+                "to_address": to_address,
+                "amount": amount,
+                "currency": "ETH",
+                "fee": fee,
+                "status": status,
+                "raw_data": raw_data
+            }
+            logger.info(f"ERFOLG: Ethereum-Transaktion erfolgreich geparsed")
+            return result
+            
+        except KeyError as e:
+            logger.error(f"Fehler beim Parsen der Ethereum-Transaktion: Fehlendes Feld {str(e)}", exc_info=True)
+            logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
+            raise
+        except Exception as e:
+            logger.critical(f"UNERWARTETER FEHLER beim Ethereum-Parsing: {str(e)}", exc_info=True)
+            raise
     
     def _parse_btc_transaction(self, raw_data):
         """Parse Bitcoin transaction data from Blockchair API response."""
