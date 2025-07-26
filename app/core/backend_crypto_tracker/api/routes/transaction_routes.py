@@ -3,6 +3,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+logger = get_logger(__name__)
+
 # Services
 from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
 from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
@@ -41,52 +44,92 @@ def track_transaction(
     db: Session = Depends(get_db)
 ):
     try:
+        logger.info(f"START: Transaktionsverfolgung gestartet für Blockchain '{request.blockchain}' mit Hash '{request.tx_hash}'")
+        
         # 1. Blockchain-Client auswählen
+        logger.debug(f"Schritt 1: Blockchain-Client wird ausgewählt für '{request.blockchain}'")
         if request.blockchain == "btc":
+            logger.info("Blockchain-Client: BlockchairBTCClient wird verwendet")
             client = BlockchairBTCClient()
         elif request.blockchain == "eth":
+            logger.info("Blockchain-Client: EtherscanETHClient wird verwendet")
             client = EtherscanETHClient()
         elif request.blockchain == "sol":
+            logger.info("Blockchain-Client: SolanaAPIClient wird verwendet")
             client = SolanaAPIClient()
         else:
+            logger.error(f"Ungültige Blockchain angegeben: '{request.blockchain}'")
             raise HTTPException(status_code=400, detail="Unsupported blockchain")
         
         # 2. Transaktionsdetails abrufen
+        logger.debug(f"Schritt 2: Transaktionsdetails werden abgerufen für Hash '{request.tx_hash}'")
         try:
+            logger.info(f"Aufruf: client.get_transaction('{request.tx_hash}') wird ausgeführt")
             raw_data = client.get_transaction(request.tx_hash)
+            logger.info(f"Erfolg: Transaktionsdetails erfolgreich abgerufen (Rohdaten erhalten)")
         except Exception as e:
-            logger.error(f"Error fetching {request.blockchain} transaction {request.tx_hash}: {str(e)}")
+            logger.error(f"Fehler bei Abruf der Transaktionsdetails: {str(e)}", exc_info=True)
             raise HTTPException(status_code=400, detail=f"Invalid transaction hash: {str(e)}")
         
         # 3. Daten parsen
+        logger.debug("Schritt 3: Transaktionsdaten werden geparsed")
         try:
+            logger.info("Aufruf: BlockchainParser().parse_transaction() wird gestartet")
             parser = BlockchainParser()
             parsed_data = parser.parse_transaction(request.blockchain, raw_data)
+            logger.info(f"Erfolg: Transaktionsdaten erfolgreich geparsed (Amount: {parsed_data.get('amount')}, From: {parsed_data.get('from_address')[:10]}...)")
         except Exception as e:
-            logger.error(f"Error parsing {request.blockchain} transaction {request.tx_hash}: {str(e)}")
-            logger.error(f"Raw data structure: {json.dumps(raw_data, indent=2)[:1000]}")  # Nur die ersten 1000 Zeichen
+            logger.error(f"Fehler beim Parsen der Transaktionsdaten: {str(e)}", exc_info=True)
+            logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
             raise HTTPException(status_code=400, detail=f"Could not parse transaction: {str(e)}")
         
         # 4. In DB speichern
-        db_transaction = Transaction(
-            hash=parsed_data["tx_hash"],
-            chain=parsed_data["chain"],
-            timestamp=parsed_data["timestamp"],
-            raw_data=raw_data,
-            parsed_data=parsed_data
-        )
-        db.add(db_transaction)
-        db.commit()
-        db.refresh(db_transaction)
+        logger.debug("Schritt 4: Transaktionsdaten werden in die Datenbank gespeichert")
+        try:
+            logger.info(f"DB-Speicherung: Neue Transaktion mit Hash '{parsed_data['tx_hash']}' wird vorbereitet")
+            db_transaction = Transaction(
+                hash=parsed_data["tx_hash"],
+                chain=parsed_data["chain"],
+                timestamp=parsed_data["timestamp"],
+                raw_data=raw_data,
+                parsed_data=parsed_data
+            )
+            logger.debug(f"DB: Transaktionsobjekt erstellt: {db_transaction}")
+            db.add(db_transaction)
+            db.commit()
+            db.refresh(db_transaction)
+            logger.info(f"Erfolg: Transaktion erfolgreich in DB gespeichert (ID: {db_transaction.id})")
+        except Exception as e:
+            logger.error(f"Fehler bei DB-Speicherung: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Database error")
         
-        # 5. Rekursive Verarbeitung (falls depth > 1)
+        # 5. Rekursive Verarbeitung
+        logger.debug(f"Schritt 5: Rekursive Verarbeitung wird gestartet (Tiefe: {request.depth})")
         next_transactions = []
         if request.depth > 1:
-            # Hier müssten Sie die nächsten Transaktionen für die Zieladresse abfragen
-            # Dies ist blockchain-spezifisch und sollte in einem Service-Modul implementiert werden
-            pass
+            logger.info(f"Rekursion: Verarbeite nächste Transaktionen (Tiefe: {request.depth-1})")
+            try:
+                # Hier müssten Sie die nächsten Transaktionen für die Zieladresse abfragen
+                # Dies ist blockchain-spezifisch und sollte in einem Service-Modul implementiert werden
+                logger.warning("WARNUNG: Rekursive Verarbeitung ist derzeit nicht vollständig implementiert")
+                
+                # Beispiel für die Implementierung:
+                # next_hashes = get_next_transactions(request.blockchain, parsed_data["to_address"], request.depth-1)
+                # for next_hash in next_hashes:
+                #     next_request = TrackTransactionRequest(
+                #         blockchain=request.blockchain,
+                #         tx_hash=next_hash,
+                #         depth=request.depth - 1
+                #     )
+                #     next_result = track_transaction(next_request, db)
+                #     next_transactions.append(next_result)
+                
+                logger.info(f"Rekursion: {len(next_transactions)} nächste Transaktionen gefunden")
+            except Exception as e:
+                logger.error(f"Fehler bei rekursiver Verarbeitung: {str(e)}", exc_info=True)
         
-        # 6. Erstelle die Antwort im erwarteten Format
+        # 6. Antwort vorbereiten
+        logger.debug("Schritt 6: API-Antwort wird vorbereitet")
         response = {
             "tx_hash": parsed_data["tx_hash"],
             "chain": parsed_data["chain"],
@@ -97,11 +140,12 @@ def track_transaction(
             "currency": parsed_data["currency"],
             "next_transactions": next_transactions
         }
-        
+        logger.info(f"ERFOLG: Transaktionsverfolgung abgeschlossen für Hash '{request.tx_hash}'")
         return response
     
     except HTTPException as he:
+        logger.warning(f"HTTP-Fehler ({he.status_code}): {he.detail}")
         raise he
     except Exception as e:
-        logger.exception("Unexpected error in track_transaction")
+        logger.critical(f"UNERWARTETER FEHLER in track_transaction: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
