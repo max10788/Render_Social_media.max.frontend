@@ -36,33 +36,45 @@
             </div>
         </div>
         <!-- Transaction Tracker Tab -->
-        <div class="tab-content active" id="transaction-tracker" role="tabpanel">
-            <div class="controls">
-                <div class="control-item">
-                    <label for="startTx">Starttransaktion:</label>
-                    <input type="text" id="startTx" placeholder="Transaktions-Hash eingeben" style="width: 100%;">
-                </div>
-                <div class="control-item">
-                    <label for="blockchain">Blockchain:</label>
-                    <select id="blockchain" required>
-                        <option value="ethereum">Ethereum</option>
-                        <option value="binance">Binance</option>
-                        <option value="polygon">Polygon</option>
-                        <option value="solana">Solana</option>
-                    </select>
-                </div>
-                <div class="control-item">
-                    <label for="numTransactions">Anzahl Transaktionen:</label>
-                    <input type="number" id="numTransactions" min="1" max="100" value="10" style="width: 100%;">
-                </div>
-                <div class="control-item">
-                    <label for="amount">Betrag:</label>
-                    <input type="number" id="amount" step="any" min="0.000000001" placeholder="Betrag (z.B. 1.5)" style="width: 100%;">
-                </div>
-                <div class="control-item">
-                    <button id="trackButton" type="button" style="width: 100%;">Transaktionen verfolgen</button>
-                </div>
+        <div class="controls">
+            <div class="control-item">
+                <label for="tx_blockchain">Blockchain:</label>
+                <select id="tx_blockchain" style="width: 100%;">
+                    <option value="eth" selected>Ethereum</option>
+                    <option value="btc">Bitcoin</option>
+                    <option value="sol">Solana</option>
+                    <option value="polygon">Polygon</option>
+                    <option value="binance">Binance Smart Chain</option>
+                </select>
+                <small>Wählen Sie die Blockchain für die Transaktionsverfolgung</small>
             </div>
+            <div class="control-item">
+                <label for="startTx">Starttransaktion:</label>
+                <input type="text" id="startTx" placeholder="Transaktions-Hash eingeben" style="width: 100%;">
+            </div>
+            <div class="control-item">
+                <label for="targetCurrency">Zielwährung:</label>
+                <select id="targetCurrency" style="width: 100%;">
+                    <option value="USD" selected>USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="JPY">JPY</option>
+                    <option value="SOL">SOL</option>
+                    <option value="ETH">ETH</option>
+                </select>
+            </div>
+            <div class="control-item">
+                <label for="numTransactions">Anzahl Transaktionen:</label>
+                <input type="number" id="numTransactions" min="1" max="100" value="10" style="width: 100%;">
+            </div>
+            <div class="control-item">
+                <label for="amount">Betrag:</label>
+                <input type="number" id="amount" step="any" min="0.000000001" placeholder="Betrag (z.B. 1.5)" style="width: 100%;">
+            </div>
+            <div class="control-item">
+                <button id="trackButton" type="button" style="width: 100%;">Transaktionen verfolgen</button>
+            </div>
+        </div>
             <div id="transactionTree"></div>
             <div class="zoom-controls">
                 <button id="zoomIn"><i class="fas fa-plus"></i></button>
