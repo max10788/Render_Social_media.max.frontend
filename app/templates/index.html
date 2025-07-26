@@ -43,11 +43,14 @@
                     <input type="text" id="startTx" placeholder="Transaktions-Hash eingeben" style="width: 100%;">
                 </div>
                 <div class="control-item">
-                    <label for="blockchain">Blockchain:</label>
-                    <select id="blockchain" style="width: 100%;">
-                        <option value="eth">Ethereum</option>
-                        <option value="sol" selected>Solana</option>
-                        <option value="btc">Bitcoin</option>
+                    <label for="targetCurrency">Zielwährung:</label>
+                    <select id="targetCurrency" style="width: 100%;">
+                        <option value="USD" selected>USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                        <option value="JPY">JPY</option>
+                        <option value="SOL">SOL</option>
+                        <option value="ETH">ETH</option>
                     </select>
                 </div>
                 <div class="control-item">
@@ -229,7 +232,27 @@
                 target_currency: targetCurrency
             };
             
-            // Rekursive Funktion zum Durchlaufen der Transaktionskette
+            // Hilfsfunktionen für Adressenextraktion
+            const getSourceAddress = (tx) => {
+                if (tx.from_address) return tx.from_address;
+                if (tx.next_transactions && tx.next_transactions.length > 0) {
+                    return getSourceAddress(tx.next_transactions[0]);
+                }
+                return 'Unbekannt';
+            };
+            
+            const getTargetAddress = (tx) => {
+                if (tx.next_transactions && tx.next_transactions.length > 0) {
+                    return getTargetAddress(tx.next_transactions[tx.next_transactions.length - 1]);
+                }
+                return tx.to_address || 'Unbekannt';
+            };
+            
+            // Extrahiere Quell- und Zieladresse für Statistiken
+            const sourceAddress = getSourceAddress(apiData);
+            const targetAddress = getTargetAddress(apiData);
+            
+            // Rekursive Funktion zum Durchlaufen der gesamten Transaktionskette
             function processTransaction(tx, depth = 0) {
                 if (depth >= numTransactions) return;
                 
@@ -253,15 +276,28 @@
                 } 
                 // Für Solana (spezielle Struktur)
                 else if (blockchain === 'sol') {
-                    // Hier müssten die spezifischen Solana-Balance-Änderungen verarbeitet werden
-                    // Dies ist ein vereinfachtes Beispiel
-                    if (tx.from_address) {
+                    // Verwende die Rohdaten für präzise Balance-Änderungen
+                    if (tx.raw_data?.meta?.postBalances && tx.raw_data?.meta?.preBalances) {
+                        const accounts = tx.raw_data.transaction.message.accountKeys;
+                        const preBalances = tx.raw_data.meta.preBalances;
+                        const postBalances = tx.raw_data.meta.postBalances;
+                        
+                        for (let i = 0; i < accounts.length; i++) {
+                            const change = (postBalances[i] - preBalances[i]) / 1e9; // Lamports zu SOL
+                            if (change !== 0) {
+                                balanceChanges.push({
+                                    account: accounts[i],
+                                    change: change
+                                });
+                            }
+                        }
+                    }
+                    // Fallback für einfache Fälle
+                    else if (tx.from_address && tx.to_address) {
                         balanceChanges.push({
                             account: tx.from_address,
                             change: -tx.amount
                         });
-                    }
-                    if (tx.to_address) {
                         balanceChanges.push({
                             account: tx.to_address,
                             change: tx.amount
@@ -269,19 +305,34 @@
                     }
                 }
                 
+                // Meta-Daten sammeln
+                const meta = {
+                    fee: 0,
+                    slot: null
+                };
+                
+                if (tx.raw_data) {
+                    if (blockchain === 'sol' && tx.raw_data.meta?.fee) {
+                        meta.fee = tx.raw_data.meta.fee / 1e9; // Lamports zu SOL
+                    }
+                    if (tx.raw_data.slot) {
+                        meta.slot = tx.raw_data.slot;
+                    }
+                }
+                
                 visualizationData.tracked_transactions.push({
                     from_wallet: tx.from_address || 'Unbekannt',
                     signature: tx.tx_hash,
-                    block_time: tx.timestamp ? new Date(tx.timestamp).getTime() / 1000 : null,
+                    block_time: tx.timestamp ? new Date(tx.timestamp).getTime() / 1000 : (tx.raw_data?.blockTime || null),
                     balance_changes: balanceChanges,
-                    meta: {
-                        fee: 0 // In einer echten Implementierung müssten Gebühren hier eingefügt werden
-                    }
+                    meta: meta
                 });
                 
-                // Rekursiv die nächsten Transaktionen verarbeiten
+                // WICHTIG: Verarbeite ALLE nachfolgenden Transaktionen, nicht nur eine
                 if (tx.next_transactions && tx.next_transactions.length > 0) {
-                    processTransaction(tx.next_transactions[0], depth + 1);
+                    tx.next_transactions.forEach(nextTx => {
+                        processTransaction(nextTx, depth + 1);
+                    });
                 }
             }
             
