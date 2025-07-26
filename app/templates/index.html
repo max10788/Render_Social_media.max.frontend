@@ -170,7 +170,7 @@
             
             const startTx = document.getElementById('startTx').value.trim();
             const targetCurrency = document.getElementById('targetCurrency').value;
-            const blockchain = document.getElementById('blockchain')?.value || 'eth'; // Sicherer Zugriff
+            const blockchain = document.getElementById('tx_blockchain').value;
             const numTransactions = parseInt(document.getElementById('numTransactions').value, 10);
             const amount = parseFloat(document.getElementById('amount').value);
             const tree = document.getElementById('transactionTree');
