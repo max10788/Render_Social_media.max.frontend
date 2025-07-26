@@ -64,11 +64,12 @@ def track_transaction(
             parsed_data = parser.parse_transaction(request.blockchain, raw_data)
         except Exception as e:
             logger.error(f"Error parsing {request.blockchain} transaction {request.tx_hash}: {str(e)}")
+            logger.error(f"Raw data structure: {json.dumps(raw_data, indent=2)[:1000]}")  # Nur die ersten 1000 Zeichen
             raise HTTPException(status_code=400, detail=f"Could not parse transaction: {str(e)}")
         
         # 4. In DB speichern
         db_transaction = Transaction(
-            hash=parsed_data["hash"],
+            hash=parsed_data["tx_hash"],
             chain=parsed_data["chain"],
             timestamp=parsed_data["timestamp"],
             raw_data=raw_data,
@@ -79,19 +80,28 @@ def track_transaction(
         db.refresh(db_transaction)
         
         # 5. Rekursive Verarbeitung (falls depth > 1)
+        next_transactions = []
         if request.depth > 1:
-            next_transactions = []
-            for next_hash in parsed_data.get("next_hashes", [])[:5]:  # Max. 5 nächste Transaktionen
-                next_request = TrackTransactionRequest(
-                    blockchain=request.blockchain,
-                    tx_hash=next_hash,
-                    depth=request.depth - 1
-                )
-                next_result = track_transaction(next_request, db)
-                next_transactions.append(next_result)
-            parsed_data["next_transactions"] = next_transactions
+            # Hier müssten Sie die nächsten Transaktionen für die Zieladresse abfragen
+            # Dies ist blockchain-spezifisch und sollte in einem Service-Modul implementiert werden
+            pass
         
-        return parsed_data
+        # 6. Erstelle die Antwort im erwarteten Format
+        response = {
+            "tx_hash": parsed_data["tx_hash"],
+            "chain": parsed_data["chain"],
+            "timestamp": parsed_data["timestamp"],
+            "from_address": parsed_data["from_address"],
+            "to_address": parsed_data["to_address"],
+            "amount": parsed_data["amount"],
+            "currency": parsed_data["currency"],
+            "next_transactions": next_transactions
+        }
+        
+        return response
     
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Unexpected error in track_transaction")
+        raise HTTPException(status_code=500, detail="Internal server error")
