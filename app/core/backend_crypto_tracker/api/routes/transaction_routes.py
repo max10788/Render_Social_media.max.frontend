@@ -52,11 +52,19 @@ def track_transaction(
             raise HTTPException(status_code=400, detail="Unsupported blockchain")
         
         # 2. Transaktionsdetails abrufen
-        raw_data = client.get_transaction(request.tx_hash)
+        try:
+            raw_data = client.get_transaction(request.tx_hash)
+        except Exception as e:
+            logger.error(f"Error fetching {request.blockchain} transaction {request.tx_hash}: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Invalid transaction hash: {str(e)}")
         
         # 3. Daten parsen
-        parser = BlockchainParser()
-        parsed_data = parser.parse_transaction(request.blockchain, raw_data)
+        try:
+            parser = BlockchainParser()
+            parsed_data = parser.parse_transaction(request.blockchain, raw_data)
+        except Exception as e:
+            logger.error(f"Error parsing {request.blockchain} transaction {request.tx_hash}: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Could not parse transaction: {str(e)}")
         
         # 4. In DB speichern
         db_transaction = Transaction(
