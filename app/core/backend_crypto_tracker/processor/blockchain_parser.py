@@ -83,109 +83,175 @@ class BlockchainParser:
             raise
     
     def _parse_btc_transaction(self, raw_data):
-        """Parse Bitcoin transaction data from Blockchair API response."""
-        # 1. Extrahiere grundlegende Transaktionsinformationen
-        tx_hash = raw_data["data"]["hash"]
-        timestamp = datetime.fromtimestamp(raw_data["data"]["time"])
+        logger.info("START: Bitcoin-Transaktionsparsing")
+        logger.debug(f"Eingang: Rohdaten erhalten (Größe: {len(str(raw_data))} Zeichen)")
         
-        # 2. Verarbeite alle Inputs (Quelladressen)
-        inputs = raw_data["data"]["inputs"]
-        from_addresses = []
-        total_input_value = 0
-        
-        for input in inputs:
-            if "recipient" in input:
-                from_addresses.append(input["recipient"])
-            total_input_value += input["value"]
-        
-        # 3. Verarbeite alle Outputs (Zieladressen)
-        outputs = raw_data["data"]["outputs"]
-        to_addresses = []
-        amounts = []
-        total_output_value = 0
-        
-        for output in outputs:
-            if "recipient" in output:
-                to_addresses.append(output["recipient"])
-                amounts.append(output["value"])
-                total_output_value += output["value"]
-        
-        # 4. Berechne den übertragenen Betrag und die Gebühr
-        # Die Gebühr ist die Differenz zwischen Input- und Output-Werten
-        fee = (total_input_value - total_output_value) / 10**8  # in BTC
-        amount = total_output_value / 10**8  # in BTC
-        
-        # 5. Bestimme die primäre Zieladresse (meist die erste mit Wert)
-        to_address = None
-        if outputs:
+        try:
+            # 1. Extrahiere grundlegende Transaktionsinformationen
+            logger.debug("Schritt 1: Extrahiere grundlegende Transaktionsinformationen")
+            tx_hash = raw_data["data"]["hash"]
+            logger.info(f"Transaktions-Hash extrahiert: {tx_hash}")
+            
+            timestamp = datetime.fromtimestamp(raw_data["data"]["time"])
+            logger.debug(f"Zeitstempel extrahiert: {timestamp}")
+            
+            # 2. Verarbeite alle Inputs (Quelladressen)
+            logger.debug("Schritt 2: Verarbeite alle Inputs (Quelladressen)")
+            inputs = raw_data["data"]["inputs"]
+            from_addresses = []
+            total_input_value = 0
+            
+            for input in inputs:
+                if "recipient" in input:
+                    from_addresses.append(input["recipient"])
+                total_input_value += input["value"]
+            
+            logger.info(f"Anzahl Quelladressen: {len(from_addresses)}")
+            if from_addresses:
+                logger.info(f"Beispielhafte Quelladresse: {from_addresses[0][:10]}...")
+            
+            # 3. Verarbeite alle Outputs (Zieladressen)
+            logger.debug("Schritt 3: Verarbeite alle Outputs (Zieladressen)")
+            outputs = raw_data["data"]["outputs"]
+            to_addresses = []
+            amounts = []
+            total_output_value = 0
+            
             for output in outputs:
-                if "recipient" in output and output["value"] > 0:
-                    to_address = output["recipient"]
-                    break
-        
-        # 6. Erstelle ein einheitliches Format für die Visualisierung
-        return {
-            "tx_hash": tx_hash,
-            "chain": "btc",
-            "timestamp": timestamp,
-            "from_address": from_addresses[0] if from_addresses else None,
-            "to_address": to_address,
-            "amount": amount,
-            "currency": "BTC",
-            "fee": fee,
-            "status": "success",  # Bitcoin hat keinen expliziten Status
-            "raw_data": raw_data
-        }
+                if "recipient" in output:
+                    to_addresses.append(output["recipient"])
+                    amounts.append(output["value"])
+                    total_output_value += output["value"]
+            
+            logger.info(f"Anzahl Zieladressen: {len(to_addresses)}")
+            if to_addresses:
+                logger.info(f"Beispielhafte Zieladresse: {to_addresses[0][:10]}...")
+            
+            # 4. Berechne den übertragenen Betrag und die Gebühr
+            logger.debug("Schritt 4: Berechne den übertragenen Betrag und die Gebühr")
+            # Die Gebühr ist die Differenz zwischen Input- und Output-Werten
+            fee = (total_input_value - total_output_value) / 10**8  # in BTC
+            amount = total_output_value / 10**8  # in BTC
+            
+            logger.info(f"Berechneter Betrag: {amount} BTC")
+            logger.info(f"Berechnete Gebühr: {fee} BTC")
+            
+            # 5. Bestimme die primäre Zieladresse (meist die erste mit Wert)
+            logger.debug("Schritt 5: Bestimme die primäre Zieladresse")
+            to_address = None
+            if outputs:
+                for output in outputs:
+                    if "recipient" in output and output["value"] > 0:
+                        to_address = output["recipient"]
+                        break
+            
+            logger.info(f"Primäre Zieladresse: {to_address[:10]}..." if to_address else "Keine primäre Zieladresse gefunden")
+            
+            # 6. Erstelle ein einheitliches Format für die Visualisierung
+            logger.debug("Schritt 6: Erstelle einheitliches Antwortformat")
+            result = {
+                "tx_hash": tx_hash,
+                "chain": "btc",
+                "timestamp": timestamp,
+                "from_address": from_addresses[0] if from_addresses else None,
+                "to_address": to_address,
+                "amount": amount,
+                "currency": "BTC",
+                "fee": fee,
+                "status": "success",  # Bitcoin hat keinen expliziten Status
+                "raw_data": raw_data
+            }
+            logger.info(f"ERFOLG: Bitcoin-Transaktion erfolgreich geparsed")
+            return result
+            
+        except KeyError as e:
+            logger.error(f"Fehler beim Parsen der Bitcoin-Transaktion: Fehlendes Feld {str(e)}", exc_info=True)
+            logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
+            raise
+        except Exception as e:
+            logger.critical(f"UNERWARTETER FEHLER beim Bitcoin-Parsing: {str(e)}", exc_info=True)
+            raise
     
     def _parse_sol_transaction(self, raw_data):
-        """Parse Solana transaction data from Solana Web3 API response."""
-        # 1. Extrahiere grundlegende Transaktionsinformationen
-        tx_hash = raw_data["transaction"]["signatures"][0]
-        block_time = raw_data["blockTime"]
-        timestamp = datetime.fromtimestamp(block_time) if block_time else datetime.now()
+        logger.info("START: Solana-Transaktionsparsing")
+        logger.debug(f"Eingang: Rohdaten erhalten (Größe: {len(str(raw_data))} Zeichen)")
         
-        # 2. Extrahiere Account-Keys und Balances
-        account_keys = [key["pubkey"] if isinstance(key, dict) else key for key in raw_data["transaction"]["message"]["accountKeys"]]
-        pre_balances = raw_data["meta"]["preBalances"]
-        post_balances = raw_data["meta"]["postBalances"]
-        
-        # 3. Bestimme Quell- und Zieladressen durch Balance-Vergleich
-        from_address = None
-        to_address = None
-        amount = 0
-        
-        # Finde die Adresse mit Balance-Abnahme (Quelle)
-        for i in range(len(account_keys)):
-            if pre_balances[i] > post_balances[i]:
-                from_address = account_keys[i]
-                amount = (pre_balances[i] - post_balances[i]) / 1e9  # Lamports zu SOL
-                break
-        
-        # Finde die Adresse mit Balance-Zunahme (Ziel)
-        for i in range(len(account_keys)):
-            if post_balances[i] > pre_balances[i]:
-                to_address = account_keys[i]
-                break
-        
-        # 4. Extrahiere Transaktionsstatus
-        status = "failed" if raw_data["meta"]["err"] else "success"
-        
-        # 5. Berechne die Transaktionsgebühr
-        fee = raw_data["meta"]["fee"] / 1e9  # Lamports zu SOL
-        
-        # 6. Erstelle ein einheitliches Format für die Visualisierung
-        return {
-            "tx_hash": tx_hash,
-            "chain": "sol",
-            "timestamp": timestamp,
-            "from_address": from_address,
-            "to_address": to_address,
-            "amount": amount,
-            "currency": "SOL",
-            "fee": fee,
-            "status": status,
-            "raw_data": raw_data
-        }
+        try:
+            # 1. Extrahiere grundlegende Transaktionsinformationen
+            logger.debug("Schritt 1: Extrahiere grundlegende Transaktionsinformationen")
+            tx_hash = raw_data["transaction"]["signatures"][0]
+            logger.info(f"Transaktions-Hash extrahiert: {tx_hash}")
+            
+            block_time = raw_data["blockTime"]
+            timestamp = datetime.fromtimestamp(block_time) if block_time else datetime.now()
+            logger.debug(f"Zeitstempel extrahiert: {timestamp}")
+            
+            # 2. Extrahiere Account-Keys und Balances
+            logger.debug("Schritt 2: Extrahiere Account-Keys und Balances")
+            account_keys = [key["pubkey"] if isinstance(key, dict) else key for key in raw_data["transaction"]["message"]["accountKeys"]]
+            pre_balances = raw_data["meta"]["preBalances"]
+            post_balances = raw_data["meta"]["postBalances"]
+            
+            logger.info(f"Anzahl Accounts in der Transaktion: {len(account_keys)}")
+            logger.debug(f"Beispielhafte Accounts: {account_keys[:3]}")
+            
+            # 3. Bestimme Quell- und Zieladressen durch Balance-Vergleich
+            logger.debug("Schritt 3: Bestimme Quell- und Zieladressen durch Balance-Vergleich")
+            from_address = None
+            to_address = None
+            amount = 0
+            
+            # Finde die Adresse mit Balance-Abnahme (Quelle)
+            for i in range(len(account_keys)):
+                if pre_balances[i] > post_balances[i]:
+                    from_address = account_keys[i]
+                    amount = (pre_balances[i] - post_balances[i]) / 1e9  # Lamports zu SOL
+                    break
+            
+            # Finde die Adresse mit Balance-Zunahme (Ziel)
+            for i in range(len(account_keys)):
+                if post_balances[i] > pre_balances[i]:
+                    to_address = account_keys[i]
+                    break
+            
+            logger.info(f"Quelladresse identifiziert: {from_address[:10]}..." if from_address else "Keine Quelladresse gefunden")
+            logger.info(f"Zieladresse identifiziert: {to_address[:10]}..." if to_address else "Keine Zieladresse gefunden")
+            logger.info(f"Übertragener Betrag: {amount} SOL")
+            
+            # 4. Extrahiere Transaktionsstatus
+            logger.debug("Schritt 4: Extrahiere Transaktionsstatus")
+            status = "failed" if raw_data["meta"]["err"] else "success"
+            logger.info(f"Transaktionsstatus: {status}")
+            
+            # 5. Berechne die Transaktionsgebühr
+            logger.debug("Schritt 5: Berechne Transaktionsgebühr")
+            fee = raw_data["meta"]["fee"] / 1e9  # Lamports zu SOL
+            logger.info(f"Gebühr berechnet: {fee} SOL")
+            
+            # 6. Erstelle ein einheitliches Format für die Visualisierung
+            logger.debug("Schritt 6: Erstelle einheitliches Antwortformat")
+            result = {
+                "tx_hash": tx_hash,
+                "chain": "sol",
+                "timestamp": timestamp,
+                "from_address": from_address,
+                "to_address": to_address,
+                "amount": amount,
+                "currency": "SOL",
+                "fee": fee,
+                "status": status,
+                "raw_data": raw_data
+            }
+            logger.info(f"ERFOLG: Solana-Transaktion erfolgreich geparsed")
+            return result
+            
+        except KeyError as e:
+            logger.error(f"Fehler beim Parsen der Solana-Transaktion: Fehlendes Feld {str(e)}", exc_info=True)
+            logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
+            raise
+        except Exception as e:
+            logger.critical(f"UNERWARTETER FEHLER beim Solana-Parsing: {str(e)}", exc_info=True)
+        raise
         
     def _get_next_transactions(self, blockchain, address, current_hash=None, limit=5):
         """
