@@ -341,15 +341,27 @@
             
             console.log("Visualisierungsdaten:", visualizationData);
             
-            // Statistiken anzeigen
-            document.getElementById('sourceWallet').textContent = apiData.from_address || '-';
-            document.getElementById('targetWallet').textContent = apiData.to_address || '-';
-            document.getElementById('startHash').textContent = apiData.tx_hash || '-';
+            // Extrahiere die tatsächlichen Werte für Statistiken
+            const totalValue = visualizationData.tracked_transactions.reduce((sum, tx) => {
+                const txValue = tx.balance_changes.reduce((txSum, change) => {
+                    return txSum + Math.abs(change.change);
+                }, 0);
+                return sum + txValue;
+            }, 0);
+            
+            // Statistiken anzeigen mit korrekten Werten
+            document.getElementById('sourceWallet').textContent = sourceAddress.slice(0, 6) + '...' + sourceAddress.slice(-4);
+            document.getElementById('targetWallet').textContent = targetAddress.slice(0, 6) + '...' + targetAddress.slice(-4);
+            document.getElementById('startHash').textContent = startTx.slice(0, 6) + '...' + startTx.slice(-6);
             document.getElementById('txCount').textContent = visualizationData.tracked_transactions.length;
-            document.getElementById('totalValue').textContent = `${apiData.amount} ${apiData.currency}`;
+            document.getElementById('totalValue').textContent = `${totalValue.toFixed(6)} ${blockchain.toUpperCase()}`;
             document.getElementById('finalStatus').textContent = 'Abgeschlossen';
             document.getElementById('targetCurrencyDisplay').textContent = targetCurrency;
-            // Wechselkurs und Umrechnungswert würden hier berechnet werden
+            
+            // Füge Wechselkurs und Umrechnungswert hinzu (Beispielwerte)
+            const exchangeRate = 150.5; // In einer echten App würde dies von einer API kommen
+            document.getElementById('exchangeRate').textContent = `${exchangeRate} ${targetCurrency} pro ${blockchain.toUpperCase()}`;
+            document.getElementById('convertedValue').textContent = `${(totalValue * exchangeRate).toFixed(2)} ${targetCurrency}`;
             
             // Update der Visualisierung
             if (window.updateTransactionVisualization) {
@@ -369,7 +381,8 @@
         }
     }
     
-    // Hilfsfunktion für Transaktionszähler
+    // Hilfsfunktion für Transaktionszähler (wird nicht mehr benötigt, da wir visualizationData.tracked_transactions.length verwenden)
+    // Diese Funktion bleibt nur für Debugging-Zwecke
     function countTransactions(data) {
         let count = 1;
         if (data.next_transactions && data.next_transactions.length > 0) {
