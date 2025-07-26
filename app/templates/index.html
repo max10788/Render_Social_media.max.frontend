@@ -36,18 +36,7 @@
             </div>
         </div>
         <!-- Transaction Tracker Tab -->
-        <div class="controls">
-            <div class="control-item">
-                <label for="tx_blockchain">Blockchain:</label>
-                <select id="tx_blockchain" style="width: 100%;">
-                    <option value="eth" selected>Ethereum</option>
-                    <option value="btc">Bitcoin</option>
-                    <option value="sol">Solana</option>
-                    <option value="polygon">Polygon</option>
-                    <option value="binance">Binance Smart Chain</option>
-                </select>
-                <small>Wählen Sie die Blockchain für die Transaktionsverfolgung</small>
-            </div>
+        <div class="tab-content active" id="transaction-tracker" role="tabpanel">
             <div class="controls">
                 <div class="control-item">
                     <label for="tx_blockchain">Blockchain:</label>
@@ -83,21 +72,15 @@
                     <label for="amount">Betrag:</label>
                     <input type="number" id="amount" step="any" min="0.000000001" placeholder="Betrag (z.B. 1.5)" style="width: 100%;">
                 </div>
+                <div class="control-item">
+                    <button id="trackButton" type="button" style="width: 100%;">Transaktionen verfolgen</button>
+                </div>
+            </div>
             <div id="transactionTree"></div>
             <div class="zoom-controls">
                 <button id="zoomIn"><i class="fas fa-plus"></i></button>
                 <button id="zoomOut"><i class="fas fa-minus"></i></button>
             </div>
-        </script>
-            .zoom-controls {
-                margin-top: 10px;
-            }
-            .zoom-controls button {
-                padding: 5px 10px;
-                margin-right: 5px;
-                cursor: pointer;
-            }
-        </script>
             <div id="errorContainer" class="error-message" style="display: none;"></div>
             <div class="stats">
                 <div><strong>Quelle:</strong> <div id="sourceWallet"></div></div>
