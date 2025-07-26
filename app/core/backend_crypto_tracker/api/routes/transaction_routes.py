@@ -108,25 +108,33 @@ def track_transaction(
         next_transactions = []
         if request.depth > 1:
             logger.info(f"Rekursion: Verarbeite nächste Transaktionen (Tiefe: {request.depth-1})")
-            try:
-                # Hier müssten Sie die nächsten Transaktionen für die Zieladresse abfragen
-                # Dies ist blockchain-spezifisch und sollte in einem Service-Modul implementiert werden
-                logger.warning("WARNUNG: Rekursive Verarbeitung ist derzeit nicht vollständig implementiert")
+            
+            # WICHTIG: Nutze _get_next_transactions für die korrekte Transaktionskette
+            if parsed_data["to_address"]:
+                logger.debug(f"Suche nach nächsten Transaktionen für Zieladresse: {parsed_data['to_address']}")
+                next_hashes = parser._get_next_transactions(
+                    request.blockchain,
+                    parsed_data["to_address"],
+                    current_hash=parsed_data["tx_hash"],
+                    limit=5
+                )
                 
-                # Beispiel für die Implementierung:
-                # next_hashes = get_next_transactions(request.blockchain, parsed_data["to_address"], request.depth-1)
-                # for next_hash in next_hashes:
-                #     next_request = TrackTransactionRequest(
-                #         blockchain=request.blockchain,
-                #         tx_hash=next_hash,
-                #         depth=request.depth - 1
-                #     )
-                #     next_result = track_transaction(next_request, db)
-                #     next_transactions.append(next_result)
-                
-                logger.info(f"Rekursion: {len(next_transactions)} nächste Transaktionen gefunden")
-            except Exception as e:
-                logger.error(f"Fehler bei rekursiver Verarbeitung: {str(e)}", exc_info=True)
+                logger.info(f"Gefundene nächste Transaktionen: {len(next_hashes)}")
+                for next_hash in next_hashes:
+                    logger.debug(f"Verarbeite nächste Transaktion: {next_hash}")
+                    next_request = TrackTransactionRequest(
+                        blockchain=request.blockchain,
+                        tx_hash=next_hash,
+                        depth=request.depth - 1
+                    )
+                    try:
+                        next_result = track_transaction(next_request, db)
+                        next_transactions.append(next_result)
+                        logger.debug(f"Transaktion erfolgreich verarbeitet: {next_hash}")
+                    except Exception as e:
+                        logger.error(f"Fehler bei Verarbeitung von {next_hash}: {str(e)}", exc_info=True)
+            
+            logger.info(f"Rekursion: {len(next_transactions)} nächste Transaktionen verarbeitet")
         
         # 6. Antwort vorbereiten
         logger.debug("Schritt 6: API-Antwort wird vorbereitet")
