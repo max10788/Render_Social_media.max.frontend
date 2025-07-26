@@ -164,18 +164,21 @@
         tree.classList.add('loading');
         errorContainer.style.display = 'none';
         
-        // Dynamische Validierung basierend auf Blockchain
+        // Dynamische Hash-Längen basierend auf Blockchain
         let minHashLength;
         let blockchainName;
         
         switch(blockchain) {
             case 'eth':
+                minHashLength = 66; // 0x + 64 Hex-Zeichen
+                blockchainName = 'Ethereum';
+                break;
             case 'btc':
-                minHashLength = 64;
-                blockchainName = blockchain === 'eth' ? 'Ethereum' : 'Bitcoin';
+                minHashLength = 64; // 64 Hex-Zeichen
+                blockchainName = 'Bitcoin';
                 break;
             case 'sol':
-                minHashLength = 44;
+                minHashLength = 44; // Solana-Hashes sind typischerweise 44 Zeichen (Base58)
                 blockchainName = 'Solana';
                 break;
             default:
@@ -210,38 +213,108 @@
                     include_metadata: true
                 })
             });
-    
+            
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.detail || 'Fehler bei der Transaktionsverfolgung.');
+                throw new Error(errorData.detail || `API Fehler: ${response.status}`);
             }
-    
-            const data = await response.json();
-            console.log("API Response:", data);  // 🔍 DEBUGGING
             
-            // Visualisierung aktualisieren
-            tree.innerHTML = '';
-            if (window.updateTransactionVisualization) {
-                window.updateTransactionVisualization(data);
-            } else {
-                console.error('Visualisierungsfunktion nicht gefunden');
+            const apiData = await response.json();
+            console.log("Roh-API-Antwort:", apiData);
+            
+            // Transformiere API-Daten in das Format, das die Visualisierung erwartet
+            const visualizationData = {
+                tracked_transactions: [],
+                final_wallet_address: apiData.to_address || 'Unbekannt',
+                target_currency: targetCurrency
+            };
+            
+            // Rekursive Funktion zum Durchlaufen der Transaktionskette
+            function processTransaction(tx, depth = 0) {
+                if (depth >= numTransactions) return;
+                
+                // Erstelle Balance-Änderungen-Struktur für diese Transaktion
+                const balanceChanges = [];
+                
+                // Für Ethereum/Bitcoin
+                if (blockchain === 'eth' || blockchain === 'btc') {
+                    if (tx.from_address) {
+                        balanceChanges.push({
+                            account: tx.from_address,
+                            change: -tx.amount
+                        });
+                    }
+                    if (tx.to_address) {
+                        balanceChanges.push({
+                            account: tx.to_address,
+                            change: tx.amount
+                        });
+                    }
+                } 
+                // Für Solana (spezielle Struktur)
+                else if (blockchain === 'sol') {
+                    // Hier müssten die spezifischen Solana-Balance-Änderungen verarbeitet werden
+                    // Dies ist ein vereinfachtes Beispiel
+                    if (tx.from_address) {
+                        balanceChanges.push({
+                            account: tx.from_address,
+                            change: -tx.amount
+                        });
+                    }
+                    if (tx.to_address) {
+                        balanceChanges.push({
+                            account: tx.to_address,
+                            change: tx.amount
+                        });
+                    }
+                }
+                
+                visualizationData.tracked_transactions.push({
+                    from_wallet: tx.from_address || 'Unbekannt',
+                    signature: tx.tx_hash,
+                    block_time: tx.timestamp ? new Date(tx.timestamp).getTime() / 1000 : null,
+                    balance_changes: balanceChanges,
+                    meta: {
+                        fee: 0 // In einer echten Implementierung müssten Gebühren hier eingefügt werden
+                    }
+                });
+                
+                // Rekursiv die nächsten Transaktionen verarbeiten
+                if (tx.next_transactions && tx.next_transactions.length > 0) {
+                    processTransaction(tx.next_transactions[0], depth + 1);
+                }
             }
+            
+            // Starte die Verarbeitung mit der ersten Transaktion
+            processTransaction(apiData);
+            
+            console.log("Visualisierungsdaten:", visualizationData);
             
             // Statistiken anzeigen
-            document.getElementById('sourceWallet').textContent = data.from_address || '-';
-            document.getElementById('targetWallet').textContent = data.to_address || '-';
-            document.getElementById('startHash').textContent = data.tx_hash || '-';
-            document.getElementById('txCount').textContent = countTransactions(data);
-            document.getElementById('totalValue').textContent = `${data.amount} ${data.currency}`;
-            document.getElementById('finalStatus').textContent = data.status || 'Abgeschlossen';
+            document.getElementById('sourceWallet').textContent = apiData.from_address || '-';
+            document.getElementById('targetWallet').textContent = apiData.to_address || '-';
+            document.getElementById('startHash').textContent = apiData.tx_hash || '-';
+            document.getElementById('txCount').textContent = visualizationData.tracked_transactions.length;
+            document.getElementById('totalValue').textContent = `${apiData.amount} ${apiData.currency}`;
+            document.getElementById('finalStatus').textContent = 'Abgeschlossen';
+            document.getElementById('targetCurrencyDisplay').textContent = targetCurrency;
+            // Wechselkurs und Umrechnungswert würden hier berechnet werden
+            
+            // Update der Visualisierung
+            if (window.updateTransactionVisualization) {
+                window.updateTransactionVisualization(visualizationData);
+            } else {
+                console.error('Visualisierungsfunktion nicht gefunden');
+                errorContainer.textContent = 'Fehler: Visualisierungsmodul nicht geladen.';
+                errorContainer.style.display = 'block';
+            }
             
             tree.classList.remove('loading');
-            
         } catch (err) {
             errorContainer.textContent = err.message;
             errorContainer.style.display = 'block';
             tree.classList.remove('loading');
-            console.error("Fehler bei der Transaktionsverfolgung:", err);  // 🔍 DEBUGGING
+            console.error("Fehler bei der Transaktionsverfolgung:", err);
         }
     }
     
