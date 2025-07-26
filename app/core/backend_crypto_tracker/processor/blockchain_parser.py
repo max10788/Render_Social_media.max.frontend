@@ -253,52 +253,66 @@ class BlockchainParser:
             logger.critical(f"UNERWARTETER FEHLER beim Solana-Parsing: {str(e)}", exc_info=True)
         raise
         
-    def _get_next_transactions(self, blockchain, address, current_hash=None, limit=5):
-        """
-        Find next transactions in the chain for a given address.
-        
-        Args:
-            blockchain: The blockchain type ('eth', 'btc', 'sol')
-            address: The address to query
-            current_hash: Optional current transaction hash to avoid duplicates
-            limit: Maximum number of transactions to return
-        
-        Returns:
-            List of transaction hashes
-        """
-        next_hashes = []
-        
+def _get_next_transactions(self, blockchain, address, current_hash=None, limit=5):
+    """
+    Findet die nächsten Transaktionen in der Kette für eine gegebene Adresse.
+    
+    Args:
+        blockchain: Die Blockchain ('eth', 'btc', 'sol')
+        address: Die Adresse, für die die nächsten Transaktionen gefunden werden sollen
+        current_hash: Optionaler aktueller Transaktions-Hash, um Duplikate zu vermeiden
+        limit: Maximale Anzahl der zurückzugebenden Transaktionen
+    
+    Returns:
+        Liste von Transaktions-Hashes
+    """
+    logger.info(f"START: Suche nach nächsten Transaktionen für {blockchain}-Adresse {address}")
+    next_hashes = []
+    
+    try:
         if blockchain == "eth":
-            # Für Ethereum: Verwende Etherscan API, um Transaktionen für die Adresse abzurufen
-            # und finde Transaktionen, bei denen die Adresse als Absender auftaucht
+            logger.debug("Verwende Etherscan für Ethereum-Transaktionsabfrage")
             client = EtherscanETHClient()
             transactions = client.get_transactions_by_address(address, limit=limit)
             
+            logger.info(f"Gefundene Ethereum-Transaktionen: {len(transactions)}")
             for tx in transactions:
                 if current_hash and tx["hash"] == current_hash:
+                    logger.debug(f"Überspringe aktuelle Transaktion: {current_hash}")
                     continue
                 next_hashes.append(tx["hash"])
+                logger.debug(f"Gefundene nächste Transaktion: {tx['hash']}")
         
         elif blockchain == "btc":
-            # Für Bitcoin: Verwende Blockchair API, um Transaktionen für die Adresse abzurufen
-            # und finde Transaktionen, bei denen die Adresse als Input auftaucht
+            logger.debug("Verwende Blockchair für Bitcoin-Transaktionsabfrage")
             client = BlockchairBTCClient()
             transactions = client.get_transactions_by_address(address, limit=limit)
             
+            logger.info(f"Gefundene Bitcoin-Transaktionen: {len(transactions)}")
             for tx in transactions:
                 if current_hash and tx["hash"] == current_hash:
+                    logger.debug(f"Überspringe aktuelle Transaktion: {current_hash}")
                     continue
                 next_hashes.append(tx["hash"])
+                logger.debug(f"Gefundene nächste Transaktion: {tx['hash']}")
         
         elif blockchain == "sol":
-            # Für Solana: Verwende Solana API, um Transaktionen für die Adresse abzurufen
-            # und finde Transaktionen, bei denen die Adresse beteiligt ist
+            logger.debug("Verwende Solana-API für Transaktionsabfrage")
             client = SolanaAPIClient()
             transactions = client.get_transactions_by_address(address, limit=limit)
             
+            logger.info(f"Gefundene Solana-Transaktionen: {len(transactions)}")
             for tx in transactions:
-                if current_hash and tx["transaction"]["signatures"][0] == current_hash:
+                tx_hash = tx["transaction"]["signatures"][0]
+                if current_hash and tx_hash == current_hash:
+                    logger.debug(f"Überspringe aktuelle Transaktion: {current_hash}")
                     continue
-                next_hashes.append(tx["transaction"]["signatures"][0])
+                next_hashes.append(tx_hash)
+                logger.debug(f"Gefundene nächste Transaktion: {tx_hash}")
         
+        logger.info(f"ERFOLG: Gefundene nächste Transaktionen: {len(next_hashes)}")
         return next_hashes[:limit]
+    
+    except Exception as e:
+        logger.error(f"Fehler bei Suche nach nächsten Transaktionen: {str(e)}", exc_info=True)
+        return []
