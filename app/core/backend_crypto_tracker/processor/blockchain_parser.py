@@ -1,5 +1,9 @@
 from datetime import datetime
 from app.core.backend_crypto_tracker.utils.logger import get_logger
+# Fügen Sie diese Imports am Anfang der Datei hinzu
+from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
+from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
+from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
 logger = get_logger(__name__)
 
 class BlockchainParser:
