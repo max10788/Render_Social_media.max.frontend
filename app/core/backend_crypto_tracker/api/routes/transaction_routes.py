@@ -84,26 +84,6 @@ def track_transaction(
             logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
             raise HTTPException(status_code=400, detail=f"Could not parse transaction: {str(e)}")
         
-        # 4. In DB speichern
-        logger.debug("Schritt 4: Transaktionsdaten werden in die Datenbank gespeichert")
-        try:
-            logger.info(f"DB-Speicherung: Neue Transaktion mit Hash '{parsed_data['tx_hash']}' wird vorbereitet")
-            db_transaction = Transaction(
-                hash=parsed_data["tx_hash"],
-                chain=parsed_data["chain"],
-                timestamp=parsed_data["timestamp"],
-                raw_data=raw_data,
-                parsed_data=parsed_data
-            )
-            logger.debug(f"DB: Transaktionsobjekt erstellt: {db_transaction}")
-            db.add(db_transaction)
-            db.commit()
-            db.refresh(db_transaction)
-            logger.info(f"Erfolg: Transaktion erfolgreich in DB gespeichert (ID: {db_transaction.id})")
-        except Exception as e:
-            logger.error(f"Fehler bei DB-Speicherung: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Database error")
-        
         # 5. Rekursive Verarbeitung
         logger.debug(f"Schritt 5: Rekursive Verarbeitung wird gestartet (Tiefe: {request.depth})")
         next_transactions = []
