@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
 from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
 from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
+from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser
 
 # Database
 from app.core.backend_crypto_tracker.database.models.transaction_model import Transaction
