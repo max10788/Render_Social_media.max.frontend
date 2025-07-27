@@ -84,7 +84,7 @@ def track_transaction(
             logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
             raise HTTPException(status_code=400, detail=f"Could not parse transaction: {str(e)}")
         
-        # 5. Rekursive Verarbeitung
+        # 5. Rekursive Verarbeitung (falls depth > 1)
         logger.debug(f"Schritt 5: Rekursive Verarbeitung wird gestartet (Tiefe: {request.depth})")
         next_transactions = []
         if request.depth > 1:
