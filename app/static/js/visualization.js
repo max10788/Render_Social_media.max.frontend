@@ -103,6 +103,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
+            // ERWEITERUNG: Prüfe, ob mehr als eine Transaktion vorhanden ist
+            if (data.tracked_transactions.length === 1) {
+                console.log('[VISUALIZATION] initTransactionGraph: Nur eine Transaktion gefunden. Suche nach weiteren...');
+                
+                // Füge hier Logik ein, um nach weiteren Transaktionen zu suchen
+                // Dies ist nur ein Beispiel - die eigentliche Logik sollte im Backend erfolgen
+                const tree = document.getElementById('transactionTree');
+                if (tree) {
+                    const warningDiv = document.createElement('div');
+                    warningDiv.className = 'transaction-warning';
+                    warningDiv.style.padding = '10px';
+                    warningDiv.style.backgroundColor = '#fff8e1';
+                    warningDiv.style.borderLeft = '4px solid #ffc107';
+                    warningDiv.style.margin = '10px 0';
+                    warningDiv.innerHTML = `
+                        <p style="margin: 0; font-size: 14px;">
+                            <strong>Hinweis:</strong> Es wurde nur eine Transaktion gefunden. 
+                            Möglicherweise wurden nicht alle Transaktionen in der Kette erfasst.
+                        </p>
+                    `;
+                    tree.appendChild(warningDiv);
+                }
+            }
+            
             // Erstelle eine einfachere Visualisierung für den Fall, dass nur eine Transaktion vorhanden ist
             if (data.tracked_transactions.length <= 2) {
                 console.log('[VISUALIZATION] initTransactionGraph: Erstelle vereinfachte Visualisierung für eine einfache Transaktionskette');
