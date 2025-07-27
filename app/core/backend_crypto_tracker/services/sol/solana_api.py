@@ -8,6 +8,7 @@ logger = get_logger(__name__)
 class SolanaAPIClient:
     def __init__(self):
         self.rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+        self.headers = {"Content-Type": "application/json"}
         logger.info("SolanaAPIClient: Initialisiert mit Mainnet RPC")
 
     def get_transaction(self, tx_hash):
