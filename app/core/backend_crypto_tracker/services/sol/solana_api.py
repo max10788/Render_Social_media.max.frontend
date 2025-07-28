@@ -155,11 +155,25 @@ class SolanaAPIClient:
 
     def get_account_info(self, account_pubkey: str) -> dict:
         """Holt Account-Informationen"""
+        logger.info(f"API: Account-Info abrufen für {account_pubkey}")
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "getAccountInfo",
             "params": [account_pubkey]
         }
-        response = requests.post(self.rpc_url, json=payload)
-        return response.json()["result"]["value"]
+        try:
+            # Verwende _make_request für konsistente Endpoint-Verwaltung
+            result = self._make_request(payload)
+            if "error" in result:
+                logger.error(f"API: Fehler in getAccountInfo Antwort: {result['error']}")
+                raise Exception(f"API error: {result['error']}")
+            
+            logger.info(f"API: Account-Info erfolgreich abgerufen")
+            # Greife sicher auf das Ergebnis zu
+            return result.get("result", {}).get("value", {})
+            
+        except Exception as e:
+            logger.error(f"API: Fehler bei getAccountInfo: {str(e)}", exc_info=True)
+            raise # Re-raise die Exception
+
