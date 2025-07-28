@@ -217,6 +217,20 @@
             
             // API-Anfrage
             console.log(`[FRONTEND] API: Sende POST-Anfrage an /api/track`);
+
+            // Ermittle Token-Identifier basierend auf der Blockchain
+            let tokenIdentifier = null;
+            if (blockchain === 'sol') {
+                // Für Solana: Mint-Adresse (könnte vom Benutzer ausgewählt werden)
+                tokenIdentifier = document.getElementById('tokenMintAddress')?.value || 
+                                 'So11111111111111111111111111111111111111112'; // SOL Standard
+            } else if (blockchain === 'eth') {
+                // Für Ethereum: Token-Contract-Adresse
+                tokenIdentifier = document.getElementById('tokenContractAddress')?.value || 'ETH';
+            }
+            // Für Bitcoin: Kein Token-Identifier nötig
+            
+            console.log(`[FRONTEND] TRACK: Token-Identifier: ${tokenIdentifier}`);
             
             try {
                 const response = await fetch('/api/track', {
