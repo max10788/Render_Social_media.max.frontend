@@ -310,6 +310,16 @@ class BlockchainParser:
                 # "slot": 0
             }
             logger.info(f"Gebe Fallback-Daten nach unerwartetem Fehler zurueck.")
+            parsed_data = {
+                "tx_hash": tx_hash,        # Sollte der finale Hash sein
+                "chain": chain,            # Sollte "sol" sein (final)
+                "timestamp": timestamp,    # Sollte der aus blockTime ermittelte/das Fallback sein (final)
+                "from_address": from_address, # Sollte die ermittelte Sender-Adresse sein (final)
+                "to_address": to_address,  # Sollte die ermittelte Empfänger-Adresse sein (final)
+                "amount": amount,          # <-- SOLLTE der berechnete, finale Betrag sein, NICHT 0.0
+                "currency": currency,      # Sollte "SOL" sein (final)
+                # Fügen Sie ggf. andere benötigte Felder hinzu
+            }
             return fallback_data
             # --- ENDE KORREKTUR ---
 
