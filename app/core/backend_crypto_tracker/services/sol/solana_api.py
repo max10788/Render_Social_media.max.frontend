@@ -153,7 +153,7 @@ class SolanaAPIClient:
             logger.error(f"SOLANA: Fehler bei Transaktionsabfrage: {str(e)}", exc_info=True)
             raise
 
-    def get_account_info(self, account_pubkey: str) -> Dict:
+    def get_account_info(self, account_pubkey: str) -> dict:
         """Holt Account-Informationen"""
         payload = {
             "jsonrpc": "2.0",
