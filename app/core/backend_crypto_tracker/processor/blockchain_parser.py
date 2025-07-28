@@ -256,55 +256,47 @@ class BlockchainParser:
         # In einer echten Implementierung würden wir eine API aufrufen
         return []
 
-    def _get_sol_next_transactions(self, address, current_hash, limit):
+    def _get_sol_next_transactions(self, address, current_hash, limit): # <-- limit als Parameter
         """
         Holt die nächsten Transaktionen für eine Solana-Adresse.
         Verwendet den SolanaAPIClient, um Transaktionen abzurufen.
         """
-        logger.info(f"SOLANA: Suche bis zu {limit} Transaktionen für Adresse {address}")
-        
-        # Hinweis: Diese Methode sollte idealerweise den Client erhalten,
-        # der bereits in transaction_routes.py instanziiert wurde.
-        # Da dies nicht der Fall ist, instanziieren wir ihn hier erneut.
-        # Dies ist nicht ideal, aber notwendig, da der Client nicht übergeben wird.
-        # In einer besseren Architektur sollte der Client an den Parser übergeben werden.
-        
+        # --- KORREKTUR: Verwende den übergebenen limit-Wert ---
+        logger.info(f"SOLANA: Suche bis zu {limit} Transaktionen für Adresse {address}") # <-- Verwende limit
+        # --- ENDE KORREKTUR ---
         try:
-            # Importiere den Client hier, um zirkuläre Importe zu vermeiden
             from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
-            
-            # Erstelle eine neue Instanz des Clients
-            # Hinweis: Dieser Client verwendet seinen eigenen EndpointManager
             client = SolanaAPIClient()
-            
-            # Hole die Transaktionen für die Adresse
-            # Die Methode get_transactions_by_address ist Teil des SolanaAPIClient
-            transactions = client.get_transactions_by_address(address, limit=limit)
-            
+            # --- KORREKTUR: Übergebe limit an die API-Methode ---
+            transactions = client.get_transactions_by_address(address, limit=limit) # <-- Verwende limit
+            # --- ENDE KORREKTUR ---
             next_hashes = []
             if transactions and isinstance(transactions, list):
                 logger.info(f"SOLANA: Erfolgreich {len(transactions)} Transaktionen abgerufen")
                 for tx in transactions:
                     try:
                         tx_hash = tx.get("transaction", {}).get("signatures", [""])[0]
-                        # Überspringe die aktuelle Transaktion selbst
                         if tx_hash and tx_hash != current_hash:
                             next_hashes.append(tx_hash)
                             logger.debug(f"SOLANA: Nächster Transaktions-Hash gefunden: {tx_hash}")
+                            # --- KORREKTUR: Begrenze auf das übergebene Limit ---
+                            if len(next_hashes) >= limit: # <-- Stoppe, wenn Limit erreicht
+                                break
+                            # --- ENDE KORREKTUR ---
                     except (KeyError, IndexError, TypeError) as e:
                         logger.warning(f"SOLANA: Fehler beim Extrahieren des Hash aus einer Transaktion: {e}")
             else:
                 logger.info("SOLANA: Keine Transaktionen gefunden oder ungültiges Format")
-            
             logger.info(f"ERFOLG: Gefundene nächste Transaktionen: {len(next_hashes)}")
-            return next_hashes[:limit] # Sicherstellen, dass das Limit eingehalten wird
-            
+            # --- KORREKTUR: Sicherstellen, dass nicht mehr als limit zurückgegeben wird ---
+            return next_hashes[:limit] # <-- Redundante Sicherheit
+            # --- ENDE KORREKTUR ---
         except ImportError:
             logger.error("FEHLER: SolanaAPIClient konnte nicht importiert werden")
             return []
         except Exception as e:
             logger.error(f"FEHLER: Fehler beim Abrufen der Solana-Transaktionen: {str(e)}", exc_info=True)
-            return [] # Return empty list on error
+            return []
     
     def _get_token_identifier_from_transaction(self, blockchain, tx):
         """Extrahiert den Token-Identifier aus einer Transaktion basierend auf der Blockchain."""
