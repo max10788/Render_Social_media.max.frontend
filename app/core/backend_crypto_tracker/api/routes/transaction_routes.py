@@ -15,6 +15,8 @@ from app.core.backend_crypto_tracker.processor.blockchain_parser import Blockcha
 # Endpoint Manager
 from app.core.backend_crypto_tracker.utils.endpoint_manager import EndpointManager
 
+from app.core.database import get_db
+
 router = APIRouter()
 
 # Initialisiere den Endpoint-Manager (global, um Zustand zwischen Anfragen zu behalten)
