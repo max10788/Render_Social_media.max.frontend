@@ -290,19 +290,6 @@ class BlockchainParser:
             logger.info(f"Waehrung (final): {currency}")
             # --- ENDE KORREKTUR ---
             
-            parsed_data = {
-                "tx_hash": tx_hash,
-                "chain": chain,
-                "timestamp": timestamp,
-                "from_address": from_address,
-                "to_address": to_address,
-                "amount": amount,
-                "currency": currency,
-                # Optional: Fuege andere Felder hinzu, wenn sie vom TransactionResponse-Schema benoetigt werden
-                # "status": status,
-                # "slot": slot
-            }
-            
             logger.info(f"ERFOLG: Solana-Transaktion geparst")
             logger.debug(f"Geparste Daten: {parsed_data}") # Fuer detailliertere Fehlersuche
             return parsed_data
