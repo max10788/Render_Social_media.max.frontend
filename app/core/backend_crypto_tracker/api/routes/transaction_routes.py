@@ -12,13 +12,13 @@ from app.core.backend_crypto_tracker.services.eth.etherscan_api import Etherscan
 from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
 from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser
 
-# Database
-from app.core.backend_crypto_tracker.database.models.transaction_model import Transaction
-from app.core.backend_crypto_tracker.database.base import Base
-
-from app.core.database import get_db
+# Endpoint Manager
+from app.core.backend_crypto_tracker.utils.endpoint_manager import EndpointManager
 
 router = APIRouter()
+
+# Initialisiere den Endpoint-Manager (global, um Zustand zwischen Anfragen zu behalten)
+endpoint_manager = EndpointManager()
 
 class TrackTransactionRequest(BaseModel):
     blockchain: str
@@ -43,22 +43,32 @@ TransactionResponse.update_forward_refs()
 @router.post("/track", response_model=TransactionResponse)
 def track_transaction(
     request: TrackTransactionRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db)  # Wird nur für die Session benötigt, nicht für Speicherung
 ):
     try:
         logger.info(f"START: Transaktionsverfolgung gestartet für Blockchain '{request.blockchain}' mit Hash '{request.tx_hash}'")
         
         # 1. Blockchain-Client auswählen
         logger.debug(f"Schritt 1: Blockchain-Client wird ausgewählt für '{request.blockchain}'")
+        
+        # Hole einen aktiven Endpoint für die Blockchain
+        try:
+            endpoint = endpoint_manager.get_endpoint(request.blockchain)
+            logger.info(f"Endpoint-Manager: Verwende Endpoint '{endpoint}' für {request.blockchain}")
+        except Exception as e:
+            logger.error(f"Endpoint-Manager: Kein verfügbarer Endpoint für {request.blockchain}: {str(e)}")
+            raise HTTPException(status_code=503, detail="Keine verfügbaren API-Endpoints")
+        
+        # Erstelle den Client mit dem ausgewählten Endpoint
         if request.blockchain == "btc":
-            logger.info("Blockchain-Client: BlockchairBTCClient wird verwendet")
-            client = BlockchairBTCClient()
+            logger.info(f"Blockchain-Client: BlockchairBTCClient wird verwendet (Endpoint: {endpoint})")
+            client = BlockchairBTCClient(endpoint=endpoint)
         elif request.blockchain == "eth":
-            logger.info("Blockchain-Client: EtherscanETHClient wird verwendet")
-            client = EtherscanETHClient()
+            logger.info(f"Blockchain-Client: EtherscanETHClient wird verwendet (Endpoint: {endpoint})")
+            client = EtherscanETHClient(endpoint=endpoint)
         elif request.blockchain == "sol":
-            logger.info("Blockchain-Client: SolanaAPIClient wird verwendet")
-            client = SolanaAPIClient()
+            logger.info(f"Blockchain-Client: SolanaAPIClient wird verwendet (Endpoint: {endpoint})")
+            client = SolanaAPIClient(endpoint=endpoint)
         else:
             logger.error(f"Ungültige Blockchain angegeben: '{request.blockchain}'")
             raise HTTPException(status_code=400, detail="Unsupported blockchain")
@@ -71,6 +81,28 @@ def track_transaction(
             logger.info(f"Erfolg: Transaktionsdetails erfolgreich abgerufen (Rohdaten erhalten)")
         except Exception as e:
             logger.error(f"Fehler bei Abruf der Transaktionsdetails: {str(e)}", exc_info=True)
+            
+            # Markiere den aktuellen Endpoint als fehlgeschlagen
+            try:
+                status_code = 500
+                if hasattr(e, 'status_code'):
+                    status_code = e.status_code
+                elif 'status' in str(e).lower():
+                    # Versuche, den Statuscode aus der Fehlermeldung zu extrahieren
+                    import re
+                    match = re.search(r'status\s*(\d+)', str(e))
+                    if match:
+                        status_code = int(match.group(1))
+                
+                endpoint_manager.mark_as_failed(
+                    request.blockchain, 
+                    endpoint, 
+                    status_code=status_code,
+                    error_message=str(e)
+                )
+            except Exception as mark_error:
+                logger.error(f"Fehler beim Markieren des Endpoints als fehlgeschlagen: {str(mark_error)}")
+            
             raise HTTPException(status_code=400, detail=f"Invalid transaction hash: {str(e)}")
         
         # 3. Daten parsen
@@ -85,25 +117,9 @@ def track_transaction(
             logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
             raise HTTPException(status_code=400, detail=f"Could not parse transaction: {str(e)}")
         
-        # 4. In DB speichern
-        logger.debug("Schritt 4: Transaktionsdaten werden in die Datenbank gespeichert")
-        try:
-            logger.info(f"DB-Speicherung: Neue Transaktion mit Hash '{parsed_data['tx_hash']}' wird vorbereitet")
-            db_transaction = Transaction(
-                hash=parsed_data["tx_hash"],
-                chain=parsed_data["chain"],
-                timestamp=parsed_data["timestamp"],
-                raw_data=raw_data,
-                parsed_data=parsed_data
-            )
-            logger.debug(f"DB: Transaktionsobjekt erstellt: {db_transaction}")
-            db.add(db_transaction)
-            db.commit()
-            db.refresh(db_transaction)
-            logger.info(f"Erfolg: Transaktion erfolgreich in DB gespeichert (ID: {db_transaction.id})")
-        except Exception as e:
-            logger.error(f"Fehler bei DB-Speicherung: {str(e)}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Database error")
+        # 4. KEINE DB-SPEICHERUNG - Daten werden nur im Speicher gehalten
+        logger.debug("Schritt 4: KEINE DB-Speicherung - Transaktionsdaten bleiben temporär im Speicher")
+        logger.info("Transaktionsdaten werden nicht in der Datenbank gespeichert (temporäre Verarbeitung)")
         
         # 5. Rekursive Verarbeitung (falls depth > 1)
         logger.debug(f"Schritt 5: Rekursive Verarbeitung wird gestartet (Tiefe: {request.depth})")
@@ -142,6 +158,7 @@ def track_transaction(
                     token_identifier=token_identifier  # WICHTIG: Übergebe das Token-Identifier
                 )
                 try:
+                    # REKURSIVER AUFRUF - ABER OHNE DB-SPEICHERUNG
                     next_result = track_transaction(next_request, db)
                     next_transactions.append(next_result)
                     logger.debug(f"Transaktion erfolgreich verarbeitet: {next_hash}")
