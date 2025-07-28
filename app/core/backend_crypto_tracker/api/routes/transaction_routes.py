@@ -157,7 +157,6 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
         logger.error(f"FEHLER in _track_transaction_recursive für Hash '{request.tx_hash}': {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal error during recursive tracking: {str(e)}")
 
-
 # --- MODIFIED: Main Route Handler ---
 @router.post("/track", response_model=TransactionResponse)
 def track_transaction(
