@@ -64,13 +64,13 @@ def track_transaction(
         # Erstelle den Client mit dem ausgewählten Endpoint
         if request.blockchain == "btc":
             logger.info(f"Blockchain-Client: BlockchairBTCClient wird verwendet (Endpoint: {endpoint})")
-            client = BlockchairBTCClient(endpoint=endpoint)
+            client = BlockchairBTCClient(url=endpoint.strip())
         elif request.blockchain == "eth":
             logger.info(f"Blockchain-Client: EtherscanETHClient wird verwendet (Endpoint: {endpoint})")
-            client = EtherscanETHClient(endpoint=endpoint)
+            client = EtherscanETHClient(url=endpoint.strip())
         elif request.blockchain == "sol":
             logger.info(f"Blockchain-Client: SolanaAPIClient wird verwendet (Endpoint: {endpoint})")
-            client = SolanaAPIClient(endpoint=endpoint)
+            client = SolanaAPIClient(url=endpoint.strip())
         else:
             logger.error(f"Ungültige Blockchain angegeben: '{request.blockchain}'")
             raise HTTPException(status_code=400, detail="Unsupported blockchain")
