@@ -90,36 +90,44 @@ def track_transaction(
         if request.depth > 1:
             logger.info(f"Rekursion: Verarbeite nächste Transaktionen (Tiefe: {request.depth-1})")
             
-            # WICHTIG: Nutze _get_next_transactions für die korrekte Transaktionskette
-            if parsed_data["to_address"]:
-                logger.debug(f"Suche nach nächsten Transaktionen für Zieladresse: {parsed_data['to_address']}")
-                
-                # Verwende das richtige Limit für die Breite des Graphen
-                max_width = 5  # Maximal 5 Transaktionen pro Ebene
-                next_hashes = parser._get_next_transactions(
-                    request.blockchain,
-                    parsed_data["to_address"],
-                    current_hash=parsed_data["tx_hash"],
-                    limit=max_width
+            # WICHTIG: Nutze die Mint-Adresse, um nur Transaktionen für denselben Token-Typ zu finden
+            mint_address = parsed_data.get("mint_address", "So11111111111111111111111111111111111111112")
+            logger.info(f"Verfolge Token mit Mint-Adresse: {mint_address}")
+            
+            # Stelle sicher, dass wir nicht mehr Transaktionen verarbeiten, als das Limit erlaubt
+            max_transactions = request.depth - 1
+            logger.debug(f"Maximale Anzahl von Transaktionen für diese Ebene: {max_transactions}")
+            
+            # Verwende das richtige Limit für die Breite des Graphen
+            max_width = 5  # Maximal 5 Transaktionen pro Ebene
+            next_hashes = parser._get_next_transactions(
+                request.blockchain,
+                parsed_data["to_address"],
+                current_hash=parsed_data["tx_hash"],
+                mint_address=mint_address,  # WICHTIG: Übergebe die Mint-Adresse
+                limit=max_width
+            )
+            
+            # Verarbeite nur so viele Transaktionen, wie noch im Limit erlaubt sind
+            transactions_to_process = next_hashes[:max_transactions]
+            
+            logger.info(f"Verarbeite {len(transactions_to_process)} von {len(next_hashes)} gefundenen Transaktionen")
+            for next_hash in transactions_to_process:
+                logger.debug(f"Verarbeite nächste Transaktion: {next_hash}")
+                next_request = TrackTransactionRequest(
+                    blockchain=request.blockchain,
+                    tx_hash=next_hash,
+                    depth=1  # WICHTIG: Setze Tiefe auf 1, da wir die Rekursion selbst steuern
                 )
-                
-                logger.info(f"Gefundene nächste Transaktionen: {len(next_hashes)}")
-                for next_hash in next_hashes:
-                    logger.debug(f"Verarbeite nächste Transaktion: {next_hash}")
-                    next_request = TrackTransactionRequest(
-                        blockchain=request.blockchain,
-                        tx_hash=next_hash,
-                        depth=request.depth - 1
-                    )
-                    try:
-                        next_result = track_transaction(next_request, db)
-                        next_transactions.append(next_result)
-                        logger.debug(f"Transaktion erfolgreich verarbeitet: {next_hash}")
-                    except Exception as e:
-                        logger.error(f"Fehler bei Verarbeitung von {next_hash}: {str(e)}", exc_info=True)
+                try:
+                    next_result = track_transaction(next_request, db)
+                    next_transactions.append(next_result)
+                    logger.debug(f"Transaktion erfolgreich verarbeitet: {next_hash}")
+                except Exception as e:
+                    logger.error(f"Fehler bei Verarbeitung von {next_hash}: {str(e)}", exc_info=True)
             
             logger.info(f"Rekursion: {len(next_transactions)} nächste Transaktionen verarbeitet")
-        
+            
         # 6. Antwort vorbereiten
         logger.debug("Schritt 6: API-Antwort wird vorbereitet")
         response = {
