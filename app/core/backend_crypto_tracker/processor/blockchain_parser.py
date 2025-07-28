@@ -283,7 +283,39 @@ class BlockchainParser:
         except Exception as e:
             logger.critical(f"UNERWARTETER FEHLER beim Solana-Parsing: {str(e)}", exc_info=True)
             raise
+
+    def _get_mint_address_from_transaction(self, tx):
+        """Extrahiert die Mint-Adresse aus einer Solana-Transaktion."""
+        logger.debug("Extrahiere Mint-Adresse aus Solana-Transaktion")
+        try:
+            if "transaction" in tx and "message" in tx["transaction"] and "instructions" in tx["transaction"]["message"]:
+                for instruction in tx["transaction"]["message"]["instructions"]:
+                    # Überprüfe, ob es sich um eine Token-Übertragung handelt (Token-Programm-ID)
+                    if "programIdIndex" in instruction and instruction["programIdIndex"] == 4:
+                        # Extrahiere die Mint-Adresse aus den Konten
+                        if "accounts" in instruction and len(instruction["accounts"]) >= 3:
+                            account_keys = []
+                            for key in tx["transaction"]["message"]["accountKeys"]:
+                                if isinstance(key, dict):
+                                    account_keys.append(key["pubkey"])
+                                else:
+                                    account_keys.append(key)
+                            
+                            mint_index = instruction["accounts"][1]
+                            if mint_index < len(account_keys):
+                                mint_address = account_keys[mint_index]
+                                logger.debug(f"Mint-Adresse extrahiert: {mint_address}")
+                                return mint_address
+            
+            # Standard: SOL
+            logger.debug("Keine Token-Transaktion gefunden, verwende SOL als Standard")
+            return "So11111111111111111111111111111111111111112"
         
+        except Exception as e:
+            logger.error(f"Fehler bei der Extraktion der Mint-Adresse: {str(e)}", exc_info=True)
+            # Bei Fehlern verwende Standard-SOL Mint-Adresse
+            return "So11111111111111111111111111111111111111112"
+
     def _get_next_transactions(self, blockchain, address, current_hash=None, limit=5):
         """
         Findet die nächsten Transaktionen in der Kette für eine gegebene Adresse.
