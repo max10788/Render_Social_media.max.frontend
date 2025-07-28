@@ -144,194 +144,148 @@ class BlockchainParser:
         """Parsen von Solana-Rohdaten"""
         logger.info("START: Solana-Transaktionsparsing")
         
-        # --- KORREKTUR: Initialisiere Standardwerte fuer alle benoetigten Felder ---
-        # Diese Standardwerte verhindern ValidationError, falls Felder nicht gefunden werden
+        # Initialize default values for all required fields
         tx_hash = "UNKNOWN_HASH"
-        chain = "sol" # Standard fuer Solana
-        # Standard-Zeitstempel, falls keiner aus den Daten extrahiert werden kann
-        timestamp = datetime.utcnow() 
+        chain = "sol"  # Standard for Solana
+        timestamp = datetime.utcnow()  # Default timestamp if none can be extracted
         from_address = "UNKNOWN_SENDER"
         to_address = "UNKNOWN_RECEIVER"
-        amount = 0.0
-        currency = "SOL" # Standardwaehrung fuer Solana
+        amount = 0.0  # Ensure amount is always initialized
+        currency = "SOL"  # Default currency for Solana
         status = "unknown"
         slot = 0
-        # --- ENDE KORREKTUR ---
     
         try:
-            # Sicherstellen, dass raw_data ein dict ist
+            # Validate raw_data is a dictionary
             if not isinstance(raw_data, dict):
                 logger.error("FEHLER: SOL-Rohdaten sind kein Dictionary")
-                # --- KORREKTUR: Gebe Standardwerte zurueck, um ValidationError zu vermeiden ---
-                # Ein leeres raw_data fuehrt nicht mehr zu einem Absturz
-                # --- ENDE KORREKTUR ---
-                # Die Standardwerte von oben werden verwendet
+                raise ValueError("Invalid SOL raw data format")
+    
+            # Extract transaction hash
+            tx_hash_candidate = raw_data.get("transaction", {}).get("signatures", [""])[0]
+            if tx_hash_candidate:
+                tx_hash = tx_hash_candidate
+            logger.info(f"Transaktions-Hash extrahiert: {tx_hash}")
+    
+            # Extract slot (similar to block number)
+            slot_candidate = raw_data.get("slot", 0)
+            if isinstance(slot_candidate, int):
+                slot = slot_candidate
+            logger.info(f"Slot extrahiert: {slot}")
+    
+            # Extract meta-data for status and fees
+            meta = raw_data.get("meta", {})
+            err = meta.get("err")
+            status = "failed" if err else "success"
+            logger.info(f"Transaktionsstatus: {status}")
+    
+            # Extract timestamp from block (if available)
+            block_time = raw_data.get("blockTime")
+            if block_time is not None and isinstance(block_time, (int, float)):
+                try:
+                    timestamp_candidate = datetime.utcfromtimestamp(block_time)
+                    if datetime(2020, 1, 1) <= timestamp_candidate <= datetime(2030, 12, 31):
+                        timestamp = timestamp_candidate
+                        logger.info(f"Zeitstempel extrahiert: {timestamp}")
+                    else:
+                        logger.warning(f"Warnung: Zeitstempel aus Blocktime {block_time} ({timestamp_candidate}) scheint ungültig, verwende aktuelle Zeit.")
+                except (ValueError, OSError) as e:
+                    logger.warning(f"Warnung: Konnte Zeitstempel aus blockTime {block_time} nicht konvertieren: {e}. Verwende aktuelle Zeit.")
             else:
-                # Extrahiere grundlegende Informationen, falls raw_data gueltig ist
-                tx_hash_candidate = raw_data.get("transaction", {}).get("signatures", [""])[0]
-                if tx_hash_candidate: # Nur ueberschreiben, wenn ein gueltiger Hash gefunden wurde
-                    tx_hash = tx_hash_candidate
-                logger.info(f"Transaktions-Hash extrahiert: {tx_hash}")
+                logger.info("Kein gültiger blockTime gefunden, verwende aktuelle Zeit als Fallback.")
     
-                # Extrahiere Slot (aehnlich wie Blocknummer)
-                slot_candidate = raw_data.get("slot", 0)
-                if isinstance(slot_candidate, int):
-                    slot = slot_candidate
-                logger.info(f"Slot extrahiert: {slot}")
+            # Extract transaction information
+            transaction = raw_data.get("transaction", {})
+            message = transaction.get("message", {})
+            instructions = message.get("instructions", [])
     
-                # Extrahiere Meta-Daten fuer Status und Fees
-                meta = raw_data.get("meta", {})
-                err = meta.get("err")
-                status = "failed" if err else "success"
-                logger.info(f"Transaktionsstatus: {status}")
+            # Process balance changes
+            pre_balances = meta.get("preBalances", [])
+            post_balances = meta.get("postBalances", [])
+            account_keys = message.get("accountKeys", [])
+            
+            # Calculate transaction fee
+            fee = meta.get("fee", 0) / (10**9)  # Lamports to SOL
     
-                # Extrahiere Zeitstempel aus Block (wenn verfuegbar)
-                block_time = raw_data.get("blockTime")
-                if block_time is not None and isinstance(block_time, (int, float)):
-                    try:
-                        # Verwende utcfromtimestamp mit Fehlerbehandlung fuer extreme Werte
-                        timestamp_candidate = datetime.utcfromtimestamp(block_time) 
-                        # Grobe Pruefung, ob der Zeitstempel sinnvoll ist (zwischen 2020 und 2030)
-                        if datetime(2020, 1, 1) <= timestamp_candidate <= datetime(2030, 12, 31):
-                            timestamp = timestamp_candidate
-                            logger.info(f"Zeitstempel extrahiert: {timestamp}")
-                        else:
-                            logger.warning(f"Warnung: Zeitstempel aus Blocktime {block_time} ({timestamp_candidate}) scheint ungueltig, verwende aktuelle Zeit.")
-                    except (ValueError, OSError) as e:
-                        logger.warning(f"Warnung: Konnte Zeitstempel aus blockTime {block_time} nicht konvertieren: {e}. Verwende aktuelle Zeit.")
-                else:
-                     logger.info("Kein gueltiger blockTime gefunden, verwende aktuelle Zeit als Fallback.")
-    
-                # Extrahiere Transaktionsinformationen
-                transaction = raw_data.get("transaction", {})
-                message = transaction.get("message", {})
-                instructions = message.get("instructions", [])
+            # Find sender and receiver based on balance changes
+            for i, (pre, post, key) in enumerate(zip(pre_balances, post_balances, account_keys)):
+                pubkey = key.get('pubkey') if isinstance(key, dict) else key
+                if not isinstance(pubkey, str) or not pubkey:
+                    logger.debug(f"Überspringe ungültigen Account-Key an Index {i}: {key}")
+                    continue
                 
-                # --- KORREKTUR: Initialisiere Adressen mit Standardwerten ---
-                # from_address und to_address sind bereits mit Standardwerten initialisiert
-                # amount ist bereits mit 0.0 initialisiert
-                # --- ENDE KORREKTUR ---
-    
-                # Durchsuche die postTokenBalances fuer Token-Transfers
-                # oder verwende die normale Logik fuer SOL-Transfers
-                pre_balances = meta.get("preBalances", [])
-                post_balances = meta.get("postBalances", [])
-                account_keys = message.get("accountKeys", [])
+                diff = (post - pre) / (10**9)  # Lamports to SOL
                 
-                # Einfache Logik: Finde den Account, dessen Balance sich verringert hat (minus Fee)
-                # und den Account, dessen Balance sich erhoeht hat.
-                fee = meta.get("fee", 0) / (10**9) # Lamports zu SOL
-                for i, (pre, post, key) in enumerate(zip(pre_balances, post_balances, account_keys)):
-                    # --- KORREKTUR: Extrahiere den 'pubkey' String aus dem key-Objekt ---
-                    # Stelle sicher, dass key ein dict ist, bevor .get('pubkey') aufgerufen wird
-                    pubkey = key.get('pubkey') if isinstance(key, dict) else key
-                    # Pruefe, ob pubkey ein nicht-leerer String ist
-                    if not isinstance(pubkey, str) or not pubkey:
-                         logger.debug(f"Ueberspringe ungueltigen Account-Key an Index {i}: {key}")
-                         continue
-                    # --- ENDE KORREKTUR ---
-                    
-                    diff = (post - pre) / (10**9) # Lamports zu SOL
-                    
-                    # --- KORREKTUR: Robustere Bedingungen fuer Sender/Empfaenger ---
-                    # Verwende die Standardwerte nur, wenn noch keine gueltige Adresse gefunden wurde
-                    if diff < 0 and abs(diff) > fee * 0.01 and from_address == "UNKNOWN_SENDER": # Sender (Lockerere Bedingung)
-                        from_address = pubkey
-                        logger.debug(f"Sender-Adresse identifiziert: {from_address}")
-                    elif diff > 0 and to_address == "UNKNOWN_RECEIVER": # Empfaenger
-                        to_address = pubkey
-                        amount = diff
-                        logger.debug(f"Empfaenger-Adresse identifiziert: {to_address}, Betrag: {amount}")
-                    # --- ENDE KORREKTUR ---
+                if diff < 0 and abs(diff) > fee * 0.01 and from_address == "UNKNOWN_SENDER":
+                    from_address = pubkey
+                    logger.debug(f"Sender-Adresse identifiziert: {from_address}")
+                elif diff > 0 and to_address == "UNKNOWN_RECEIVER":
+                    to_address = pubkey
+                    amount = diff  # Set amount when receiver is found
+                    logger.debug(f"Empfänger-Adresse identifiziert: {to_address}, Betrag: {amount}")
     
-                # Fallback, falls die obige Logik nicht funktioniert hat
-                # Versuche, Transfer-Instruktionen zu finden, nur wenn Adressen noch Standard sind
-                if from_address == "UNKNOWN_SENDER" or to_address == "UNKNOWN_RECEIVER":
-                    logger.warning("WARNUNG: Konnte Sender/Empfaenger nicht ueber Balances finden oder unvollstaendig, verwende alternative Methode")
-                    for instr in instructions:
-                        if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
-                            info = instr.get("parsed", {}).get("info", {})
-                            # --- KORREKTUR: Extrahiere 'pubkey' Strings falls sie Objekte sind ---
-                            # Stelle sicher, dass source/destination dicts sind, bevor .get('pubkey') aufgerufen wird
-                            source_raw = info.get("source", "")
-                            destination_raw = info.get("destination", "")
-                            source_pubkey = source_raw.get('pubkey') if isinstance(source_raw, dict) else source_raw
-                            dest_pubkey = destination_raw.get('pubkey') if isinstance(destination_raw, dict) else destination_raw
-                            
-                            # Pruefe und setze Sender, falls noch nicht gefunden
-                            if from_address == "UNKNOWN_SENDER" and isinstance(source_pubkey, str) and source_pubkey:
-                                from_address = source_pubkey
-                                logger.info(f"Sender-Adresse aus Transfer-Instruktion: {from_address}")
-                            
-                            # Pruefe und setze Empfaenger und Betrag, falls noch nicht gefunden
-                            if to_address == "UNKNOWN_RECEIVER" and isinstance(dest_pubkey, str) and dest_pubkey:
-                                to_address = dest_pubkey
-                                lamports = info.get("lamports", 0)
-                                amount = lamports / (10**9)
-                                logger.info(f"Empfaenger-Adresse aus Transfer-Instruktion: {to_address}, Betrag: {amount}")
-                            # --- ENDE KORREKTUR ---
-                            
-                            # Beende die Schleife, sobald beide Adressen gefunden wurden (oder zumindest eine)
-                            # Je nach Logik koennte man hier auch nur brechen, wenn beide gefunden wurden.
-                            if from_address != "UNKNOWN_SENDER" and to_address != "UNKNOWN_RECEIVER":
-                                logger.info("Alternative Methode erfolgreich fuer Sender und Empfaenger.")
-                                break
-                            elif from_address != "UNKNOWN_SENDER" or to_address != "UNKNOWN_RECEIVER":
-                                 logger.info("Alternative Methode teilweise erfolgreich.")
+            # Fallback: Try to find transfer instructions if addresses are still unknown
+            if from_address == "UNKNOWN_SENDER" or to_address == "UNKNOWN_RECEIVER":
+                logger.warning("WARNUNG: Konnte Sender/Empfänger nicht über Balances finden oder unvollständig, verwende alternative Methode")
+                for instr in instructions:
+                    if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
+                        info = instr.get("parsed", {}).get("info", {})
+                        source_raw = info.get("source", "")
+                        destination_raw = info.get("destination", "")
+                        source_pubkey = source_raw.get('pubkey') if isinstance(source_raw, dict) else source_raw
+                        dest_pubkey = destination_raw.get('pubkey') if isinstance(destination_raw, dict) else destination_raw
+                        
+                        if from_address == "UNKNOWN_SENDER" and isinstance(source_pubkey, str) and source_pubkey:
+                            from_address = source_pubkey
+                            logger.info(f"Sender-Adresse aus Transfer-Instruktion: {from_address}")
+                        
+                        if to_address == "UNKNOWN_RECEIVER" and isinstance(dest_pubkey, str) and dest_pubkey:
+                            to_address = dest_pubkey
+                            lamports = info.get("lamports", 0)
+                            amount = lamports / (10**9)  # Update amount from transfer instruction
+                            logger.info(f"Empfänger-Adresse aus Transfer-Instruktion: {to_address}, Betrag: {amount}")
     
-            # --- KORREKTUR: Stelle sicher, dass alle Felder gueltige Werte haben ---
-            # Die Standardwerte dienen als Fallback. Logge die endgueltigen Werte.
+                        if from_address != "UNKNOWN_SENDER" and to_address != "UNKNOWN_RECEIVER":
+                            break
+    
+            # Log final values
             logger.info(f"Sender-Adresse (final): {from_address}")
-            logger.info(f"Empfaenger-Adresse (final): {to_address}")
-            logger.info(f"Uebertragener Betrag (final): {amount} {currency}")
+            logger.info(f"Empfänger-Adresse (final): {to_address}")
+            logger.info(f"Übertragener Betrag (final): {amount} {currency}")
             logger.info(f"Transaktions-Hash (final): {tx_hash}")
             logger.info(f"Zeitstempel (final): {timestamp}")
             logger.info(f"Chain (final): {chain}")
-            logger.info(f"Waehrung (final): {currency}")
-            # --- ENDE KORREKTUR ---
-            
-            logger.info(f"ERFOLG: Solana-Transaktion geparst")
-            logger.debug(f"Geparste Daten: {parsed_data}") # Fuer detailliertere Fehlersuche
+            logger.info(f"Währung (final): {currency}")
+    
+            # Create the parsed data structure
             parsed_data = {
-                "tx_hash": tx_hash,        # Sollte der finale Hash sein
-                "chain": chain,            # Sollte "sol" sein (final)
-                "timestamp": timestamp,    # Sollte der aus blockTime ermittelte/das Fallback sein (final)
-                "from_address": from_address, # Sollte die ermittelte Sender-Adresse sein (final)
-                "to_address": to_address,  # Sollte die ermittelte Empfänger-Adresse sein (final)
-                "amount": amount,          # <-- SOLLTE der berechnete, finale Betrag sein, NICHT 0.0
-                "currency": currency,      # Sollte "SOL" sein (final)
-                # Fügen Sie ggf. andere benötigte Felder hinzu
+                "tx_hash": tx_hash,
+                "chain": chain,
+                "timestamp": timestamp,
+                "from_address": from_address,
+                "to_address": to_address,
+                "amount": float(amount),  # Ensure amount is float
+                "currency": currency
             }
+    
+            logger.info("ERFOLG: Solana-Transaktion geparst")
+            logger.debug(f"Geparste Daten: {parsed_data}")
             return parsed_data
-            
+    
         except Exception as e:
             logger.error(f"FEHLER: Unerwarteter Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
-            # --- KORREKTUR: Auch bei einem unerwarteten Fehler, gebe sichere Standardwerte zurueck ---
-            # Dies ist entscheidend, um die gesamte Rekursion nicht durch einen Parser-Fehler zu brechen.
+            # Return fallback data with all required fields
             fallback_data = {
                 "tx_hash": "PARSE_ERROR_HASH",
                 "chain": "sol",
                 "timestamp": datetime.utcnow(),
                 "from_address": "PARSE_ERROR_SENDER",
                 "to_address": "PARSE_ERROR_RECEIVER",
-                "amount": 0.0,
-                "currency": "SOL",
-                # "status": "parse_error",
-                # "slot": 0
+                "amount": 0.0,  # Ensure amount is always set
+                "currency": "SOL"
             }
-            logger.info(f"Gebe Fallback-Daten nach unerwartetem Fehler zurueck.")
-            parsed_data = {
-                "tx_hash": tx_hash,        # Sollte der finale Hash sein
-                "chain": chain,            # Sollte "sol" sein (final)
-                "timestamp": timestamp,    # Sollte der aus blockTime ermittelte/das Fallback sein (final)
-                "from_address": from_address, # Sollte die ermittelte Sender-Adresse sein (final)
-                "to_address": to_address,  # Sollte die ermittelte Empfänger-Adresse sein (final)
-                "amount": amount,          # <-- SOLLTE der berechnete, finale Betrag sein, NICHT 0.0
-                "currency": currency,      # Sollte "SOL" sein (final)
-                # Fügen Sie ggf. andere benötigte Felder hinzu
-            }
+            logger.info("Gebe Fallback-Daten nach unerwartetem Fehler zurück.")
             return fallback_data
-            # --- ENDE KORREKTUR ---
 
 
     def _get_next_transactions(self, blockchain, address, current_hash, token_identifier=None, limit=5):
