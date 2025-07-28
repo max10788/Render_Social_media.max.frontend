@@ -173,21 +173,21 @@ class BlockchainParser:
             # Dies ist eine Vereinfachung und funktioniert nicht immer perfekt für komplexe Transaktionen.
             fee = meta.get("fee", 0) / (10**9) # Lamports zu SOL
             for i, (pre, post, key) in enumerate(zip(pre_balances, post_balances, account_keys)):
-                # --- FIX: Extrahiere den 'pubkey' String aus dem key-Objekt ---
+                # --- KORREKTUR: Extrahiere den 'pubkey' String aus dem key-Objekt ---
                 pubkey = key.get('pubkey') if isinstance(key, dict) else key
                 if not pubkey:
                     continue # Überspringe, wenn kein pubkey gefunden
-                # --- ENDE FIX ---
+                # --- ENDE KORREKTUR ---
                 diff = (post - pre) / (10**9) # Lamports zu SOL
                 if diff < 0 and abs(diff) > fee * 0.1: # Sender (ignoriere kleine Diffs durch Rundung)
-                    # --- FIX: Verwende den extrahierten 'pubkey' String ---
+                    # --- KORREKTUR: Verwende den extrahierten 'pubkey' String ---
                     from_address = pubkey
-                    # --- ENDE FIX ---
+                    # --- ENDE KORREKTUR ---
                     # amount = abs(diff) - fee # Betrag abzüglich Fee ist komplex, wir nehmen einfach den Transfer-Betrag
                 elif diff > 0: # Empfänger
-                    # --- FIX: Verwende den extrahierten 'pubkey' String ---
+                    # --- KORREKTUR: Verwende den extrahierten 'pubkey' String ---
                     to_address = pubkey
-                    # --- ENDE FIX ---
+                    # --- ENDE KORREKTUR ---
                     amount = diff
             # Fallback, falls die obige Logik nicht funktioniert
             if not from_address or not to_address:
@@ -196,12 +196,12 @@ class BlockchainParser:
                 for instr in instructions:
                     if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
                         info = instr.get("parsed", {}).get("info", {})
-                        # --- FIX: Extrahiere 'pubkey' Strings falls sie Objekte sind ---
+                        # --- KORREKTUR: Extrahiere 'pubkey' Strings falls sie Objekte sind ---
                         source_raw = info.get("source", "")
                         destination_raw = info.get("destination", "")
                         from_address = source_raw.get('pubkey') if isinstance(source_raw, dict) else source_raw
                         to_address = destination_raw.get('pubkey') if isinstance(destination_raw, dict) else destination_raw
-                        # --- ENDE FIX ---
+                        # --- ENDE KORREKTUR ---
                         lamports = info.get("lamports", 0)
                         amount = lamports / (10**9)
                         break
@@ -221,7 +221,7 @@ class BlockchainParser:
             return parsed_data
         except Exception as e:
             logger.error(f"FEHLER: Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
-            raise
+            raise # Wichtig: Fehler weiterwerfen, damit die aufrufende Funktion ihn behandeln kann
 
     def _get_next_transactions(self, blockchain, address, current_hash, token_identifier=None, limit=5):
         """
