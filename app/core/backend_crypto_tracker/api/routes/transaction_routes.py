@@ -96,22 +96,28 @@ def _track_transaction_recursive(
         if request.depth > 1:
             logger.info(f"Recursive: Processing next transactions (Depth: {request.depth-1})")
 
-            # --- FIX: Stelle sicher, dass token_identifier immer definiert ist ---
+    # --- FIX: Stelle sicher, dass token_identifier immer definiert ist ---
             token_identifier = request.token_identifier or parsed_data.get("token_identifier") or parsed_data.get("mint_address") or parsed_data.get("currency")
             logger.info(f"Recursive: Tracking token with identifier: {token_identifier}")
             # --- ENDE FIX ---
 
-            max_transactions = request.depth - 1
-            max_width = 5
+            # --- KORREKTUR: Übergebe den ursprünglichen depth als limit für die Breite ---
+            # request.depth repräsentiert die verbleibende Tiefe. Für die Breite (Anzahl Geschwister)
+            # verwenden wir einen festen Maximalwert oder einen aus einer Konfiguration.
+            # Um die Anzahl der API-Aufrufe zu begrenzen, begrenzen wir die Breite.
+            # Beispiel: Maximal 5 Geschwister-Transaktionen unabhängig vom ursprünglichen depth.
+            # Sie können diesen Wert anpassen oder aus einer Einstellung laden.
+            max_width = min(5, request.depth) # Begrenze Breite auf max 5 oder den verbleibenden depth
+
             next_hashes = parser._get_next_transactions(
                 request.blockchain,
                 parsed_data["to_address"],
                 current_hash=parsed_data["tx_hash"],
                 token_identifier=token_identifier,
-                limit=max_width
+                limit=max_width # <-- Verwende den berechneten Breitenlimit
             )
 
-            transactions_to_process = next_hashes[:max_transactions]
+            transactions_to_process = next_hashes[:request.depth - 1] if request.depth > 1 else []
 
             logger.info(f"Recursive: Processing {len(transactions_to_process)} of {len(next_hashes)} found transactions")
             for next_hash in transactions_to_process:
