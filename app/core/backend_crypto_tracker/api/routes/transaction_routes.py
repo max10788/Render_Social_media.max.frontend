@@ -182,7 +182,7 @@ def track_transaction(
             client = EtherscanETHClient(url=endpoint.strip())
         elif request.blockchain == "sol":
             logger.info(f"Blockchain-Client: SolanaAPIClient wird verwendet (Endpoint: {endpoint})")
-            client = SolanaAPIClient(url=endpoint.strip())
+            client = SolanaAPIClient()
         else:
             logger.error(f"Ungültige Blockchain angegeben: '{request.blockchain}'")
             raise HTTPException(status_code=400, detail="Unsupported blockchain")
