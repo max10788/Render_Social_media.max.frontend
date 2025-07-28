@@ -228,16 +228,15 @@ class BlockchainParser:
         Findet die nächsten Transaktionen basierend auf der Zieladresse
         """
         logger.info(f"START: Suche nach nächsten Transaktionen für Blockchain '{blockchain}'")
-        logger.info(f"Adresse: {address}, Aktueller Hash: {current_hash}, Limit: {limit}")
-        
+        logger.info(f"Adresse: {address}, Aktueller Hash: {current_hash}, Limit (Breite): {limit}") # <-- Log aktualisiert
         try:
             if blockchain == "btc":
-                return self._get_btc_next_transactions(address, current_hash, limit)
+                return self._get_btc_next_transactions(address, current_hash, limit) # <-- limit weitergegeben
             elif blockchain == "eth":
-                return self._get_eth_next_transactions(address, current_hash, limit)
+                return self._get_eth_next_transactions(address, current_hash, limit) # <-- limit weitergegeben
             elif blockchain == "sol":
                 # Token-Identifier wird für SOL nicht direkt benötigt, aber für Konsistenz übergeben
-                return self._get_sol_next_transactions(address, current_hash, limit)
+                return self._get_sol_next_transactions(address, current_hash, limit) # <-- limit weitergegeben
             else:
                 logger.error(f"Parser: Blockchain '{blockchain}' nicht unterstützt für next_transactions")
                 return []
