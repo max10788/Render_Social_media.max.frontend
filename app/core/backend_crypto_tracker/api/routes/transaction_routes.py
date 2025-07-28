@@ -100,11 +100,15 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
             "transaction_count": 1, # Initial 1 für die aktuelle Transaktion
             "total_value": parsed_data.get("amount", 0.0),
             "status": "completed",
-            "target_currency": target_currency_from_request, # <-- Korrigiert
-            "exchange_rate": 1.0, # Standard für gleiche Währung
-            "children": [] # Liste für untergeordnete Transaktionen
+            "target_currency": target_currency_from_request,
+            "exchange_rate": 1.0,
+            "children": [],
+            # --- HINZUGEFUEGT: Fehlende Felder fuer TransactionResponse ---
+            "chain": parsed_data.get("chain", "unknown"),       # <-- Hinzugefuegt
+            "timestamp": parsed_data.get("timestamp"),          # <-- Hinzugefuegt (Pydantic erwartet evtl. ein datetime-Objekt)
+            "currency": parsed_data.get("currency", "UNKNOWN"), # <-- Hinzugefuegt
+            # --- ENDE HINZUGEFUEGT ---
         }
-        # --- ENDE KORREKTUR ---
 
         # --- KORREKTUR: Rekursive Verfolgung basierend auf Tiefe ---
         # 4. Prüfe, ob die maximale Tiefe erreicht ist (depth > 1)
