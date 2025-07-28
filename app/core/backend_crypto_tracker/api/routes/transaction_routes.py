@@ -97,16 +97,16 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
             "source": parsed_data.get("from_address", ""),
             "target": parsed_data.get("to_address", ""),
             "tx_hash": parsed_data.get("tx_hash", ""),
-            "transaction_count": 1, # Initial 1 für die aktuelle Transaktion
+            "transaction_count": 1,
             "total_value": parsed_data.get("amount", 0.0),
             "status": "completed",
             "target_currency": target_currency_from_request,
             "exchange_rate": 1.0,
             "children": [],
             # --- HINZUGEFUEGT: Fehlende Felder fuer TransactionResponse ---
-            "chain": parsed_data.get("chain", "unknown"),       # <-- Hinzugefuegt
-            "timestamp": parsed_data.get("timestamp"),          # <-- Hinzugefuegt (Pydantic erwartet evtl. ein datetime-Objekt)
-            "currency": parsed_data.get("currency", "UNKNOWN"), # <-- Hinzugefuegt
+            "chain": parsed_data.get("chain", "unknown"),
+            "timestamp": parsed_data.get("timestamp"),
+            "currency": parsed_data.get("currency", "UNKNOWN"),
             # --- ENDE HINZUGEFUEGT ---
         }
 
