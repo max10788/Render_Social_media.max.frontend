@@ -357,51 +357,88 @@ class BlockchainParser:
         # In einer echten Implementierung würden wir eine API aufrufen
         return []
 
-    def _get_sol_next_transactions(self, address, current_hash, limit): # 'self' hinzugefuegt
+    def _get_sol_next_transactions(self, address, current_hash, limit):
         """
         Holt die naechsten Transaktionen fuer eine Solana-Adresse.
         Verwendet den SolanaAPIClient, um Transaktionen abzurufen.
         """
-        # --- KORREKTUR: Validiere die Eingabeadresse ---
-        if not _is_valid_solana_address(address): # Verwende die Hilfsfunktion
-            logger.error(f"SOLANA: Ungueltige oder leere Adresse fuer next_transactions: '{address}'")
+        # --- KORREKTUR: Validiere die Eingabeadresse grundsaetzlich ---
+        # Pruefe, ob die Adresse ein nicht-leerer String ist.
+        if not isinstance(address, str) or not address.strip():
+            logger.error(f"SOLANA: Ungueltige oder leere Adresse fuer next_transactions: '{address}' (Typ: {type(address)})")
             return [] # Gib eine leere Liste zurueck, um Fehler zu vermeiden
+        # Entferne fuehrende/abschliessende Leerzeichen
+        address = address.strip() 
+        
+        # Grobe Pruefung der Adresslaenge (Solana Adressen sind Base58, typisch 32-44 Zeichen)
+        # Dies verhindert den 'WrongSize'-Fehler bei offensichtlich falschen Adressen.
+        if not (32 <= len(address) <= 50):
+             logger.error(f"SOLANA: Adresse hat ungültige Länge fuer next_transactions: '{address}' (Laenge: {len(address)})")
+             return []
         # --- ENDE KORREKTUR ---
         
         logger.info(f"SOLANA: Suche bis zu {limit} Transaktionen fuer Adresse {address}")
         try:
-            from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
             client = SolanaAPIClient()
             # --- KORREKTUR: Uebergabe des limit-Parameters ---
-            transactions = client.get_transactions_by_address(address, limit=limit)
+            # Stelle sicher, dass limit eine positive Ganzzahl ist
+            safe_limit = max(1, min(int(limit), 10)) # Beispiel: Begrenze limit auf 1-10
+            transactions = client.get_transactions_by_address(address, limit=safe_limit)
             # --- ENDE KORREKTUR ---
+            
             next_hashes = []
             if transactions and isinstance(transactions, list):
                 logger.info(f"SOLANA: Erfolgreich {len(transactions)} Transaktionen abgerufen")
                 for tx in transactions:
                     try:
-                        tx_hash = tx.get("transaction", {}).get("signatures", [""])[0]
-                        if tx_hash and tx_hash != current_hash:
+                        # --- KORREKTUR: Robustere Extraktion des Hash ---
+                        # Gehe sicherer mit der Struktur der Transaktionsdaten um.
+                        tx_signatures = tx.get("transaction", {}).get("signatures", [])
+                        if tx_signatures and isinstance(tx_signatures, list):
+                            tx_hash = tx_signatures[0] # Nimm den ersten Signature
+                        else:
+                             # Fallback, falls 'signatures' nicht da ist oder leer
+                             tx_hash = tx.get("signature") # Manche APIs geben es auch so
+                             
+                        # Pruefe, ob tx_hash ein gueltiger String ist und nicht der aktuelle Hash
+                        if isinstance(tx_hash, str) and tx_hash and tx_hash != current_hash:
                             next_hashes.append(tx_hash)
                             logger.debug(f"SOLANA: Naechster Transaktions-Hash gefunden: {tx_hash}")
                             # --- KORREKTUR: Begrenze auf das uebergebene Limit ---
-                            if len(next_hashes) >= limit:
+                            if len(next_hashes) >= safe_limit:
                                 break
                             # --- ENDE KORREKTUR ---
-                    except (KeyError, IndexError, TypeError) as e:
-                        logger.warning(f"SOLANA: Fehler beim Extrahieren des Hash aus einer Transaktion: {e}")
+                        else:
+                           if tx_hash:
+                               logger.debug(f"SOLANA: Ueberspringe Transaktion mit Hash {tx_hash} (gleich aktueller Hash oder ungueltig)")
+                           else:
+                               logger.debug(f"SOLANA: Ueberspringe Transaktion, da kein gueltiger Hash gefunden wurde.")
+                    except (KeyError, IndexError, TypeError, AttributeError) as e:
+                        # AttributeError hinzugefuegt fuer den Fall, dass tx.get() None zurueckgibt
+                        logger.warning(f"SOLANA: Fehler beim Extrahieren des Hash aus einer Transaktion (Struktur moeglicherweise unerwartet): {e}")
             else:
-                logger.info("SOLANA: Keine Transaktionen gefunden oder ungueltiges Format")
+                # Behandle den Fall, dass transactions None, leer oder kein Liste ist.
+                if transactions is None:
+                    logger.info("SOLANA: Keine Transaktionen gefunden (Ergebnis ist None).")
+                elif not isinstance(transactions, list):
+                     logger.warning(f"SOLANA: Unerwartetes Format fuer Transaktionen: {type(transactions)}")
+                else: # transactions ist eine leere Liste
+                    logger.info("SOLANA: Keine Transaktionen gefunden.")
+                    
             logger.info(f"ERFOLG: Gefundene naechste Transaktionen: {len(next_hashes)}")
             # --- KORREKTUR: Sicherstellen, dass nicht mehr als limit zurueckgegeben wird ---
-            return next_hashes[:limit] # Redundante Sicherheit
+            # Redundante Sicherheit, da die Schleife bereits begrenzt.
+            return next_hashes[:safe_limit] 
             # --- ENDE KORREKTUR ---
-        except ImportError:
-            logger.error("FEHLER: SolanaAPIClient konnte nicht importiert werden")
+            
+        except ImportError as ie:
+            logger.error(f"FEHLER: SolanaAPIClient konnte nicht importiert werden: {ie}")
             return []
         except Exception as e:
-            logger.error(f"FEHLER: Fehler beim Abrufen der Solana-Transaktionen: {str(e)}", exc_info=True)
+            # Fangen Sie allgemeine Fehler ab, die von der API oder anderen Teilen kommen koennten
+            logger.error(f"FEHLER: Fehler beim Abrufen der Solana-Transaktionen fuer Adresse {address}: {str(e)}", exc_info=True)
             return [] # Gib eine leere Liste zurueck bei jedem Fehler
+
     
     def _get_token_identifier_from_transaction(self, blockchain, tx):
         """Extrahiert den Token-Identifier aus einer Transaktion basierend auf der Blockchain."""
