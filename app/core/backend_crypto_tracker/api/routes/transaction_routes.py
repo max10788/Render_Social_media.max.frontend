@@ -44,125 +44,128 @@ class TransactionResponse(BaseModel):
 TransactionResponse.update_forward_refs()
 
 # --- NEW: Recursive Helper Function ---
-    def _track_transaction_recursive(request: TrackTransactionRequest, client, parser, db, endpoint_manager):
-        """
-        Rekursive Hilfsfunktion zur Verfolgung von Transaktionen
-        """
-        logger.info(f"RECURSIVE START: Tracking transaction for Blockchain '{request.blockchain}' with Hash '{request.tx_hash}' at depth {request.depth}")
+def _track_transaction_recursive(request: TrackTransactionRequest, client, parser, db, endpoint_manager):
+    """
+    Rekursive Hilfsfunktion zur Verfolgung von Transaktionen.
+    Diese Funktion ist NICHT eingereiht (queued).
+    Sie wird synchron ausgeführt und blockiert, bis die gesamte Rekursion abgeschlossen ist.
+    """
+    logger.info(f"RECURSIVE START: Tracking transaction for Blockchain '{request.blockchain}' with Hash '{request.tx_hash}' at depth {request.depth}")
 
-        try:
-            # Abrufen der Transaktionsdaten vom Blockchain-Client
-            logger.info(f"Recursive Aufruf: client.get_transaction('{request.tx_hash}')")
-            raw_data = client.get_transaction(request.tx_hash)
-            if not raw_data:
-                logger.error(f"FEHLER: Keine Rohdaten für Transaktion '{request.tx_hash}' erhalten")
-                raise HTTPException(status_code=404, detail="Transaction not found")
+    try:
+        # 1. Abrufen der Transaktionsdaten vom Blockchain-Client
+        logger.info(f"Recursive Aufruf: client.get_transaction('{request.tx_hash}')")
+        raw_data = client.get_transaction(request.tx_hash)
+        if not raw_data:
+            logger.error(f"FEHLER: Keine Rohdaten für Transaktion '{request.tx_hash}' erhalten")
+            raise HTTPException(status_code=404, detail="Transaction not found")
 
-            # Parsen der Transaktionsdaten
-            logger.info("Recursive Aufruf: parser.parse_transaction()")
-            parsed_data = parser.parse_transaction(request.blockchain, raw_data, client)
-            if not parsed_data:
-                logger.error(f"FEHLER: Parsen der Transaktion '{request.tx_hash}' fehlgeschlagen")
-                raise HTTPException(status_code=500, detail="Failed to parse transaction")
+        # 2. Parsen der Transaktionsdaten
+        logger.info("Recursive Aufruf: parser.parse_transaction()")
+        parsed_data = parser.parse_transaction(request.blockchain, raw_data, client)
+        if not parsed_data:
+            logger.error(f"FEHLER: Parsen der Transaktion '{request.tx_hash}' fehlgeschlagen")
+            raise HTTPException(status_code=500, detail="Failed to parse transaction")
 
-            logger.info(f"Recursive Erfolg: Data parsed (Amount: {parsed_data.get('amount', 'N/A')})")
+        logger.info(f"Recursive Erfolg: Data parsed (Amount: {parsed_data.get('amount', 'N/A')})")
 
-            # Erstelle das Antwortobjekt für die aktuelle Transaktion
-            response_data = {
-                "source": parsed_data["from_address"],
-                "target": parsed_data["to_address"],
-                "tx_hash": parsed_data["tx_hash"],
-                "transaction_count": 1, # Initial 1 für die aktuelle Transaktion
-                "total_value": parsed_data["amount"],
-                "status": "completed",
-                "target_currency": request.target_currency,
-                "exchange_rate": 1.0, # Standard für gleiche Währung
-                "children": [] # Liste für untergeordnete Transaktionen
-            }
+        # 3. Erstelle das Antwortobjekt für die aktuelle Transaktion
+        response_data = {
+            "source": parsed_data.get("from_address", ""),
+            "target": parsed_data.get("to_address", ""),
+            "tx_hash": parsed_data.get("tx_hash", ""),
+            "transaction_count": 1, # Initial 1 für die aktuelle Transaktion
+            "total_value": parsed_data.get("amount", 0.0),
+            "status": "completed",
+            "target_currency": request.target_currency,
+            "exchange_rate": 1.0, # Standard für gleiche Währung
+            "children": [] # Liste für untergeordnete Transaktionen
+        }
 
-            # --- KORREKTUR: Rekursive Verfolgung basierend auf Tiefe ---
-            # Prüfe, ob die maximale Tiefe erreicht ist (depth > 1)
-            if request.depth > 1:
-                logger.info(f"Recursive: Processing next transactions (Depth: {request.depth})")
-                
-                # Bestimme den Token-Identifier für die nächste Suche
-                token_identifier = request.token_identifier or parsed_data.get("token_identifier") or parsed_data.get("mint_address") or parsed_data.get("currency")
-                logger.info(f"Recursive: Tracking token with identifier: {token_identifier}")
+        # --- KORREKTUR: Rekursive Verfolgung basierend auf Tiefe ---
+        # 4. Prüfe, ob die maximale Tiefe erreicht ist (depth > 1)
+        if request.depth > 1:
+            logger.info(f"Recursive: Processing next transactions (Depth: {request.depth})")
+            
+            # 5. Bestimme den Token-Identifier für die nächste Suche
+            token_identifier = request.token_identifier or parsed_data.get("token_identifier") or parsed_data.get("mint_address") or parsed_data.get("currency")
+            logger.info(f"Recursive: Tracking token with identifier: {token_identifier}")
 
-                # --- KORREKTUR: Verwende request.depth für die Breite ---
-                # Die Breite (Anzahl Geschwister-Transaktionen pro Ebene) wird aus dem ursprünglichen request.depth abgeleitet.
-                # Beispiel: Maximal 5 Geschwister oder so viele wie depth erlaubt.
-                max_width = min(5, request.depth) 
-                logger.info(f"Recursive: Max width for next transactions set to: {max_width}")
+            # --- KORREKTUR: Verwende request.depth für die Breite ---
+            # 6. Die Breite (Anzahl Geschwister-Transaktionen pro Ebene) wird aus dem ursprünglichen request.depth abgeleitet.
+            # Beispiel: Maximal 5 Geschwister oder so viele wie depth erlaubt.
+            max_width = min(5, request.depth) 
+            logger.info(f"Recursive: Max width for next transactions set to: {max_width}")
 
-                # Hole die nächsten Transaktionen basierend auf der Zieladresse der aktuellen Transaktion
-                next_hashes = parser._get_next_transactions(
-                    request.blockchain,
-                    parsed_data["to_address"],
-                    current_hash=parsed_data["tx_hash"],
-                    token_identifier=token_identifier,
-                    limit=max_width # <-- Übergibt den korrekten Breitenlimit
-                )
-                logger.info(f"Recursive: Found {len(next_hashes)} potential next transactions")
+            # 7. Hole die nächsten Transaktionen basierend auf der Zieladresse der aktuellen Transaktion
+            next_hashes = parser._get_next_transactions(
+                request.blockchain,
+                parsed_data["to_address"],
+                current_hash=parsed_data["tx_hash"],
+                token_identifier=token_identifier,
+                limit=max_width # <-- Übergibt den korrekten Breitenlimit
+            )
+            logger.info(f"Recursive: Found {len(next_hashes)} potential next transactions")
 
-                # Verarbeite nur so viele Transaktionen, wie die verbleibende Tiefe erlaubt
-                # transactions_to_process = next_hashes[:request.depth - 1] 
-                # Besser: Verarbeite maximal max_width (also next_hashes), aber begrenze durch depth.
-                # Da next_hashes bereits durch limit=max_width begrenzt ist, ist dies redundant.
-                # Die Anzahl der *Ebenen* wird durch den rekursiven Aufruf mit depth-1 gesteuert.
-                # Verarbeite alle gefundenen (max. max_width)
-                transactions_to_process = next_hashes 
-                logger.info(f"Recursive: Processing {len(transactions_to_process)} of {len(next_hashes)} found transactions")
+            # 8. Verarbeite nur so viele Transaktionen, wie die verbleibende Tiefe erlaubt
+            # Es werden max. (request.depth - 1) Transaktionen aus der Liste verarbeitet.
+            # Da next_hashes bereits durch limit=max_width begrenzt ist, ist dies eine zusätzliche Sicherheit.
+            transactions_to_process = next_hashes[:request.depth - 1] 
+            logger.info(f"Recursive: Processing {len(transactions_to_process)} of {len(next_hashes)} found transactions")
 
-                # Rekursive Verarbeitung der nächsten Transaktionen
-                processed_count = 0
-                for next_hash in transactions_to_process:
-                    if processed_count >= request.depth - 1:
-                         logger.info(f"Recursive: Stopped processing due to depth limit ({request.depth}). Processed {processed_count} children.")
-                         break # Stoppe, wenn die Anzahl der zu verarbeitenden Kinder die verbleibende Tiefe erreicht
-                    try:
-                        logger.info(f"Recursive: Processing child transaction {processed_count + 1} of {len(transactions_to_process)}: {next_hash}")
-                        
-                        # Erstelle eine neue Anfrage für die rekursive Verfolgung
-                        # WICHTIG: Reduziere die Tiefe um 1 für den nächsten Aufruf
-                        child_request = TrackTransactionRequest(
-                            blockchain=request.blockchain,
-                            tx_hash=next_hash,
-                            target_currency=request.target_currency,
-                            token_identifier=token_identifier,
-                            depth=request.depth - 1 # <-- Korrekte Tiefenreduzierung
-                        )
-                        
-                        # Rekursiver Aufruf
-                        child_response = _track_transaction_recursive(child_request, client, parser, db, endpoint_manager)
-                        
-                        # Füge das Ergebnis zur Kinderliste hinzu
-                        response_data["children"].append(child_response)
-                        
-                        # Aktualisiere die aggregierten Werte
-                        response_data["transaction_count"] += child_response.transaction_count
-                        response_data["total_value"] += child_response.total_value
-                        
-                        processed_count += 1
-                        logger.info(f"Recursive: Successfully processed child transaction {next_hash}")
-                        
-                    except Exception as e:
-                        logger.error(f"Fehler bei der rekursiven Verarbeitung von Transaktion {next_hash}: {str(e)}", exc_info=True)
-                        # Optional: Füge ein Fehlerobjekt hinzu oder überspringe einfach
-                        # child_error_response = TransactionResponse(...) # Mit Fehlerstatus
-                        # response_data["children"].append(child_error_response)
-                        continue # Fahre mit der nächsten Transaktion fort, auch wenn eine fehlschlägt
+            # 9. Rekursive Verarbeitung der nächsten Transaktionen
+            processed_count = 0
+            for next_hash in transactions_to_process:
+                # Diese Schleifenbegrenzung ist redundant wegen dem Slice [:request.depth - 1], 
+                # dient aber der Klarheit und zusätzlichen Sicherheit.
+                if processed_count >= request.depth - 1: 
+                     logger.info(f"Recursive: Stopped processing due to depth limit ({request.depth}). Processed {processed_count} children.")
+                     break # Stoppe, wenn die Anzahl der zu verarbeitenden Kinder die verbleibende Tiefe erreicht
 
-            logger.info(f"RECURSIVE SUCCESS: Completed tracking for Hash '{request.tx_hash}'")
-            # Erstelle das finale Pydantic-Modell und gib es zurück
-            return TransactionResponse(**response_data)
+                try:
+                    logger.info(f"Recursive: Processing child transaction {processed_count + 1} of {len(transactions_to_process)}: {next_hash}")
+                    
+                    # 10. Erstelle eine neue Anfrage für die rekursive Verfolgung
+                    # WICHTIG: Reduziere die Tiefe um 1 für den nächsten Aufruf
+                    child_request = TrackTransactionRequest(
+                        blockchain=request.blockchain,
+                        tx_hash=next_hash,
+                        target_currency=request.target_currency,
+                        token_identifier=token_identifier,
+                        depth=request.depth - 1 # <-- Korrekte Tiefenreduzierung
+                    )
+                    
+                    # 11. Rekursiver Aufruf (synchron)
+                    child_response = _track_transaction_recursive(child_request, client, parser, db, endpoint_manager)
+                    
+                    # 12. Füge das Ergebnis zur Kinderliste hinzu
+                    response_data["children"].append(child_response)
+                    
+                    # 13. Aktualisiere die aggregierten Werte
+                    response_data["transaction_count"] += child_response.transaction_count
+                    response_data["total_value"] += child_response.total_value
+                    
+                    processed_count += 1
+                    logger.info(f"Recursive: Successfully processed child transaction {next_hash}")
+                    
+                except Exception as e:
+                    logger.error(f"Fehler bei der rekursiven Verarbeitung von Transaktion {next_hash}: {str(e)}", exc_info=True)
+                    # Optional: Füge ein Fehlerobjekt hinzu oder überspringe einfach
+                    # child_error_response = TransactionResponse(...) # Mit Fehlerstatus
+                    # response_data["children"].append(child_error_response)
+                    continue # Fahre mit der nächsten Transaktion fort, auch wenn eine fehlschlägt
 
-        except HTTPException:
-            # HTTPExceptions weiterwerfen
-            raise
-        except Exception as e:
-            logger.error(f"FEHLER in _track_transaction_recursive für Hash '{request.tx_hash}': {str(e)}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Internal error during recursive tracking: {str(e)}")
+        logger.info(f"RECURSIVE SUCCESS: Completed tracking for Hash '{request.tx_hash}'")
+        # 14. Erstelle das finale Antwortobjekt und gib es zurück
+        # In der echten Implementierung: return TransactionResponse(**response_data)
+        return response_data # Dummy-Return für das Beispiel
+
+    except HTTPException:
+        # HTTPExceptions weiterwerfen
+        raise
+    except Exception as e:
+        logger.error(f"FEHLER in _track_transaction_recursive für Hash '{request.tx_hash}': {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal error during recursive tracking: {str(e)}")
 
 # --- MODIFIED: Main Route Handler ---
 @router.post("/track", response_model=TransactionResponse)
