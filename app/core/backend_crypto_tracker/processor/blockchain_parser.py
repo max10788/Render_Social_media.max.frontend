@@ -272,6 +272,27 @@ class BlockchainParser:
         """
         logger.info(f"START: Suche nach nächsten Transaktionen für {blockchain}-Adresse {address}")
         next_hashes = []
+        # Stelle sicher, dass wir nicht mehr Transaktionen verarbeiten, als das Limit erlaubt
+        max_transactions = request.depth - 1
+        logger.debug(f"Maximale Anzahl von Transaktionen für diese Ebene: {max_transactions}")
+        
+        # Verarbeite nur so viele Transaktionen, wie noch im Limit erlaubt sind
+        transactions_to_process = next_hashes[:max_transactions]
+        
+        logger.info(f"Verarbeite {len(transactions_to_process)} von {len(next_hashes)} gefundenen Transaktionen")
+        for next_hash in transactions_to_process:
+            logger.debug(f"Verarbeite nächste Transaktion: {next_hash}")
+            next_request = TrackTransactionRequest(
+                blockchain=request.blockchain,
+                tx_hash=next_hash,
+                depth=1  # WICHTIG: Setze Tiefe auf 1, da wir die Rekursion selbst steuern
+            )
+            try:
+                next_result = track_transaction(next_request, db)
+                next_transactions.append(next_result)
+                logger.debug(f"Transaktion erfolgreich verarbeitet: {next_hash}")
+            except Exception as e:
+                logger.error(f"Fehler bei Verarbeitung von {next_hash}: {str(e)}", exc_info=True)
         
         try:
             if blockchain == "eth":
