@@ -50,6 +50,10 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
     Diese Funktion ist NICHT eingereiht (queued).
     Sie wird synchron ausgeführt und blockiert, bis die gesamte Rekursion abgeschlossen ist.
     """
+    # --- HINZUGEFÜGT: Fortschrittsmeldung mit Wallet-Adressen ---
+    logger.info(f"--- REKURSIONSTIEFE: {request.depth} ---")
+    # --- ENDE HINZUGEFÜGT ---
+    
     logger.info(f"RECURSIVE START: Tracking transaction for Blockchain '{request.blockchain}' with Hash '{request.tx_hash}' at depth {request.depth}")
 
     try:
@@ -69,7 +73,26 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
 
         logger.info(f"Recursive Erfolg: Data parsed (Amount: {parsed_data.get('amount', 'N/A')})")
 
+        # --- HINZUGEFÜGT: Detaillierte Fortschrittsmeldung mit Wallets ---
+        current_source = parsed_data.get("from_address", "Unbekannt")
+        current_target = parsed_data.get("to_address", "Unbekannt")
+        short_source = current_source[:8] + "..." + current_source[-4:] if len(current_source) > 12 else current_source
+        short_target = current_target[:8] + "..." + current_target[-4:] if len(current_target) > 12 else current_target
+        progress_msg = f"[Tiefe: {request.depth}] Verarbeite: {request.tx_hash[:10]}... | Von: {short_source} -> Zu: {short_target}"
+        logger.info(progress_msg)
+        # --- ENDE HINZUGEFÜGT ---
+
         # 3. Erstelle das Antwortobjekt für die aktuelle Transaktion
+        # --- KORREKTUR: Sichere Handhabung von target_currency ---
+        # Der Fehler 'AttributeError: 'TrackTransactionRequest' object has no attribute 'target_currency''
+        # deutet darauf hin, dass target_currency nicht direkt im request-Objekt ist.
+        # Wir versuchen, es zu erhalten, und verwenden einen Fallback.
+        target_currency_from_request = getattr(request, 'target_currency', None)
+        if target_currency_from_request is None:
+             # Fallback: Verwende die Währung aus den geparsten Daten oder eine Standardwährung
+             target_currency_from_request = parsed_data.get("currency", "UNKNOWN")
+             logger.warning(f"target_currency nicht im Request gefunden. Verwende Fallback: {target_currency_from_request}")
+        
         response_data = {
             "source": parsed_data.get("from_address", ""),
             "target": parsed_data.get("to_address", ""),
@@ -77,15 +100,16 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
             "transaction_count": 1, # Initial 1 für die aktuelle Transaktion
             "total_value": parsed_data.get("amount", 0.0),
             "status": "completed",
-            "target_currency": request.target_currency,
+            "target_currency": target_currency_from_request, # <-- Korrigiert
             "exchange_rate": 1.0, # Standard für gleiche Währung
             "children": [] # Liste für untergeordnete Transaktionen
         }
+        # --- ENDE KORREKTUR ---
 
         # --- KORREKTUR: Rekursive Verfolgung basierend auf Tiefe ---
         # 4. Prüfe, ob die maximale Tiefe erreicht ist (depth > 1)
         if request.depth > 1:
-            logger.info(f"Recursive: Processing next transactions (Depth: {request.depth})")
+            logger.info(f"Recursive: Processing next transactions (Current Depth Level: {request.depth})")
             
             # 5. Bestimme den Token-Identifier für die nächste Suche
             token_identifier = request.token_identifier or parsed_data.get("token_identifier") or parsed_data.get("mint_address") or parsed_data.get("currency")
@@ -107,15 +131,24 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
             )
             logger.info(f"Recursive: Found {len(next_hashes)} potential next transactions")
 
+            # --- HINZUGEFÜGT: Fortschrittsmeldung für gefundene Transaktionen ---
+            if next_hashes:
+                logger.info(f"[Tiefe: {request.depth}] Starte Verarbeitung von max. {min(len(next_hashes), request.depth - 1)} Kindern für Wallet {short_target}.")
+            # --- ENDE HINZUGEFÜGT ---
+
             # 8. Verarbeite nur so viele Transaktionen, wie die verbleibende Tiefe erlaubt
             # Es werden max. (request.depth - 1) Transaktionen aus der Liste verarbeitet.
-            # Da next_hashes bereits durch limit=max_width begrenzt ist, ist dies eine zusätzliche Sicherheit.
             transactions_to_process = next_hashes[:request.depth - 1] 
             logger.info(f"Recursive: Processing {len(transactions_to_process)} of {len(next_hashes)} found transactions")
 
             # 9. Rekursive Verarbeitung der nächsten Transaktionen
             processed_count = 0
-            for next_hash in transactions_to_process:
+            total_to_process = len(transactions_to_process)
+            for i, next_hash in enumerate(transactions_to_process):
+                # --- HINZUGEFÜGT: Fortschrittsmeldung für jedes Kind ---
+                logger.info(f"[Tiefe: {request.depth}] Verarbeite Kind {i+1}/{total_to_process} (Hash: {next_hash[:10]}...)")
+                # --- ENDE HINZUGEFÜGT ---
+
                 # Diese Schleifenbegrenzung ist redundant wegen dem Slice [:request.depth - 1], 
                 # dient aber der Klarheit und zusätzlichen Sicherheit.
                 if processed_count >= request.depth - 1: 
@@ -123,14 +156,17 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
                      break # Stoppe, wenn die Anzahl der zu verarbeitenden Kinder die verbleibende Tiefe erreicht
 
                 try:
-                    logger.info(f"Recursive: Processing child transaction {processed_count + 1} of {len(transactions_to_process)}: {next_hash}")
+                    # logger.info(f"Recursive: Processing child transaction {processed_count + 1} of {len(transactions_to_process)}: {next_hash}")
                     
                     # 10. Erstelle eine neue Anfrage für die rekursive Verfolgung
                     # WICHTIG: Reduziere die Tiefe um 1 für den nächsten Aufruf
                     child_request = TrackTransactionRequest(
                         blockchain=request.blockchain,
                         tx_hash=next_hash,
-                        target_currency=request.target_currency,
+                        # --- KORREKTUR: target_currency korrekt übergeben ---
+                        # target_currency=request.target_currency, # <-- Ursprünglicher Fehler
+                        target_currency=target_currency_from_request, # <-- Korrigiert
+                        # --- ENDE KORREKTUR ---
                         token_identifier=token_identifier,
                         depth=request.depth - 1 # <-- Korrekte Tiefenreduzierung
                     )
@@ -154,11 +190,19 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
                     # child_error_response = TransactionResponse(...) # Mit Fehlerstatus
                     # response_data["children"].append(child_error_response)
                     continue # Fahre mit der nächsten Transaktion fort, auch wenn eine fehlschlägt
+            
+            # --- HINZUGEFÜGT: Abschlussmeldung für die Kinder dieser Ebene ---
+            logger.info(f"[Tiefe: {request.depth}] Abgeschlossen: {processed_count} Kind-Transaktionen für Wallet {short_target} verarbeitet.")
+            # --- ENDE HINZUGEFÜGT ---
 
         logger.info(f"RECURSIVE SUCCESS: Completed tracking for Hash '{request.tx_hash}'")
+        # --- HINZUGEFÜGT: Abschlussmeldung für diese Transaktionsebene ---
+        logger.info(f"[Tiefe: {request.depth}] <-- Fertig mit Transaktion {request.tx_hash[:10]}... (Kinder: {len(response_data.get('children', []))})")
+        # --- ENDE HINZUGEFÜGT ---
+        
         # 14. Erstelle das finale Antwortobjekt und gib es zurück
-        # In der echten Implementierung: return TransactionResponse(**response_data)
-        return response_data # Dummy-Return für das Beispiel
+        # Stellen Sie sicher, dass TransactionResponse korrekt importiert ist
+        return TransactionResponse(**response_data) 
 
     except HTTPException:
         # HTTPExceptions weiterwerfen
@@ -166,6 +210,7 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
     except Exception as e:
         logger.error(f"FEHLER in _track_transaction_recursive für Hash '{request.tx_hash}': {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal error during recursive tracking: {str(e)}")
+
 
 # --- MODIFIED: Main Route Handler ---
 @router.post("/track", response_model=TransactionResponse)
