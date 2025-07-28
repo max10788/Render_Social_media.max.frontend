@@ -34,8 +34,8 @@ class TransactionResponse(BaseModel):
     tx_hash: str
     chain: str
     timestamp: datetime
-    from_address: Optional[str]
-    to_address: Optional[str]
+    from_address: str
+    to_address: str
     amount: float
     currency: str
     next_transactions: List["TransactionResponse"] = []
