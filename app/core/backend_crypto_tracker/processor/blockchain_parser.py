@@ -136,21 +136,17 @@ class BlockchainParser:
             if not isinstance(raw_data, dict):
                 logger.error("FEHLER: SOL-Rohdaten sind kein Dictionary")
                 raise ValueError("Invalid SOL raw data format")
-            
             # Extrahiere grundlegende Informationen
             tx_hash = raw_data.get("transaction", {}).get("signatures", [""])[0]
             logger.info(f"Transaktions-Hash extrahiert: {tx_hash}")
-            
             # Extrahiere Slot (ähnlich wie Blocknummer)
             slot = raw_data.get("slot", 0)
             logger.info(f"Slot extrahiert: {slot}")
-            
             # Extrahiere Meta-Daten für Status und Fees
             meta = raw_data.get("meta", {})
             err = meta.get("err")
             status = "failed" if err else "success"
             logger.info(f"Transaktionsstatus: {status}")
-            
             # Extrahiere Zeitstempel aus Block (wenn verfügbar)
             block_time = raw_data.get("blockTime")
             if block_time:
@@ -158,38 +154,41 @@ class BlockchainParser:
             else:
                 timestamp = datetime.utcnow()
             logger.info(f"Zeitstempel extrahiert: {timestamp}")
-            
             # Extrahiere Transaktionsinformationen
             transaction = raw_data.get("transaction", {})
             message = transaction.get("message", {})
             instructions = message.get("instructions", [])
-            
             # Finde Transfer-Instruktionen
             from_address = ""
             to_address = ""
             amount = 0.0
             currency = "SOL"
-            
             # Durchsuche die postTokenBalances für Token-Transfers
             # oder verwende die normale Logik für SOL-Transfers
             pre_balances = meta.get("preBalances", [])
             post_balances = meta.get("postBalances", [])
             account_keys = message.get("accountKeys", [])
-            
             # Einfache Logik: Finde den Account, dessen Balance sich verringert hat (minus Fee)
             # und den Account, dessen Balance sich erhöht hat.
             # Dies ist eine Vereinfachung und funktioniert nicht immer perfekt für komplexe Transaktionen.
             fee = meta.get("fee", 0) / (10**9) # Lamports zu SOL
-            
             for i, (pre, post, key) in enumerate(zip(pre_balances, post_balances, account_keys)):
+                # --- FIX: Extrahiere den 'pubkey' String aus dem key-Objekt ---
+                pubkey = key.get('pubkey') if isinstance(key, dict) else key
+                if not pubkey:
+                    continue # Überspringe, wenn kein pubkey gefunden
+                # --- ENDE FIX ---
                 diff = (post - pre) / (10**9) # Lamports zu SOL
                 if diff < 0 and abs(diff) > fee * 0.1: # Sender (ignoriere kleine Diffs durch Rundung)
-                    from_address = key
+                    # --- FIX: Verwende den extrahierten 'pubkey' String ---
+                    from_address = pubkey
+                    # --- ENDE FIX ---
                     # amount = abs(diff) - fee # Betrag abzüglich Fee ist komplex, wir nehmen einfach den Transfer-Betrag
                 elif diff > 0: # Empfänger
-                    to_address = key
+                    # --- FIX: Verwende den extrahierten 'pubkey' String ---
+                    to_address = pubkey
+                    # --- ENDE FIX ---
                     amount = diff
-            
             # Fallback, falls die obige Logik nicht funktioniert
             if not from_address or not to_address:
                 logger.warning("WARNUNG: Konnte Sender/Empfänger nicht über Balances finden, verwende alternative Methode")
@@ -197,33 +196,32 @@ class BlockchainParser:
                 for instr in instructions:
                     if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
                         info = instr.get("parsed", {}).get("info", {})
-                        from_address = info.get("source", "")
-                        to_address = info.get("destination", "")
+                        # --- FIX: Extrahiere 'pubkey' Strings falls sie Objekte sind ---
+                        source_raw = info.get("source", "")
+                        destination_raw = info.get("destination", "")
+                        from_address = source_raw.get('pubkey') if isinstance(source_raw, dict) else source_raw
+                        to_address = destination_raw.get('pubkey') if isinstance(destination_raw, dict) else destination_raw
+                        # --- ENDE FIX ---
                         lamports = info.get("lamports", 0)
                         amount = lamports / (10**9)
                         break
-            
-            logger.info(f"Sender-Adresse: {from_address}")
-            logger.info(f"Empfänger-Adresse: {to_address}")
+            logger.info(f"Sender-Adresse (String): {from_address}") # Logge den String
+            logger.info(f"Empfänger-Adresse (String): {to_address}") # Logge den String
             logger.info(f"Übertragener Betrag: {amount} {currency}")
-            
             parsed_data = {
                 "tx_hash": tx_hash,
                 "chain": "sol",
                 "timestamp": timestamp,
-                "from_address": from_address,
-                "to_address": to_address,
+                "from_address": from_address, # Jetzt ein String
+                "to_address": to_address,     # Jetzt ein String
                 "amount": amount,
                 "currency": currency
             }
-            
             logger.info(f"ERFOLG: Solana-Transaktion geparst")
             return parsed_data
-            
         except Exception as e:
             logger.error(f"FEHLER: Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
             raise
-
 
     def _get_next_transactions(self, blockchain, address, current_hash, token_identifier=None, limit=5):
         """
