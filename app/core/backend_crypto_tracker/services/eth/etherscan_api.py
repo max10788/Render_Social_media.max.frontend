@@ -105,7 +105,7 @@ class EtherscanETHClient:
             logger.error(f"ETHEREUM: Fehler bei Transaktionsabfrage: {str(e)}", exc_info=True)
             raise
 
-    def get_transaction_receipt(self, tx_hash: str) -> Dict:
+    def get_transaction_receipt(self, tx_hash: str) -> dict:
         """Holt den Receipt einer ETH-Transaktion (für Logs)"""
         params = {
             "module": "proxy",
