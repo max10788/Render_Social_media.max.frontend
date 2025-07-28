@@ -140,114 +140,60 @@ class BlockchainParser:
         return 32 <= len(address_str) <= 50 and address_str.isalnum() # Base58 ist alphanumerisch
     # --- ENDE HINZUGEFUEGT ---
     
-    def _parse_sol_transaction(self, raw_data, client=None):
-        """Parsen von Solana-Rohdaten"""
-        logger.info("START: Solana-Transaktionsparsing")
+    def _get_sol_next_transactions(self, address, current_hash, limit):
+        """
+        Holt die nächsten Transaktionen für eine Solana-Adresse.
+        Verwendet nur die Account-Keys für die Suche, behält aber alle Transaktionsdetails.
+        """
+        # Validiere die Eingabeadresse
+        if not isinstance(address, str) or not address.strip():
+            logger.error(f"SOLANA: Ungültige oder leere Adresse für next_transactions: '{address}'")
+            return []
+    
+        address = address.strip()
         
-        # Initialize default values
-        tx_hash = "UNKNOWN_HASH"
-        chain = "sol"
-        timestamp = datetime.utcnow()
-        from_address = "UNKNOWN_SENDER"
-        to_address = "UNKNOWN_RECEIVER"
-        amount = 0.0  # Initialize amount but will be updated
-        currency = "SOL"
+        # Prüfe Adresslänge (Solana Adressen sind Base58, typisch 32-44 Zeichen)
+        if not (32 <= len(address) <= 50):
+            logger.error(f"SOLANA: Adresse hat ungültige Länge für next_transactions: '{address}' (Länge: {len(address)})")
+            return []
+        
+        logger.info(f"SOLANA: Suche bis zu {limit} Transaktionen für Adresse {address}")
         
         try:
-            if not isinstance(raw_data, dict):
-                logger.error("FEHLER: SOL-Rohdaten sind kein Dictionary")
-                raise ValueError("Invalid SOL raw data format")
-    
-            # Extract transaction details
-            tx_hash = raw_data.get("transaction", {}).get("signatures", [""])[0] or tx_hash
+            client = SolanaAPIClient()
+            safe_limit = max(1, min(int(limit), 10))  # Begrenze limit auf 1-10
             
-            # Extract and validate amount from pre/post balances
-            meta = raw_data.get("meta", {})
-            pre_balances = meta.get("preBalances", [])
-            post_balances = meta.get("postBalances", [])
-            fee = meta.get("fee", 0) / (10**9)  # Convert lamports to SOL
+            # Hole nur die Account-Keys und Signaturen für die nächste Suche
+            transactions = client.get_transactions_by_address(address, limit=safe_limit)
             
-            # Get account keys
-            message = raw_data.get("transaction", {}).get("message", {})
-            account_keys = message.get("accountKeys", [])
-            
-            # Calculate actual transfer amount from balance changes
-            max_transfer = 0.0
-            for i, (pre, post, key) in enumerate(zip(pre_balances, post_balances, account_keys)):
-                pubkey = key.get('pubkey') if isinstance(key, dict) else key
-                if not isinstance(pubkey, str) or not pubkey:
-                    continue
-                    
-                diff = (post - pre) / (10**9)  # Convert lamports to SOL
+            next_transactions = []
+            if transactions and isinstance(transactions, list):
+                logger.info(f"SOLANA: Erfolgreich {len(transactions)} Transaktionen abgerufen")
                 
-                # Track the largest balance change (ignoring fees)
-                if abs(diff) > abs(max_transfer) and abs(diff) > fee:
-                    if diff < 0:
-                        from_address = pubkey
-                        max_transfer = abs(diff) - fee  # Subtract fee from outgoing amount
-                    else:
-                        to_address = pubkey
-                        max_transfer = abs(diff)  # Incoming amount doesn't need fee adjustment
-                    
-            # If we found a transfer amount, use it
-            if max_transfer > 0:
-                amount = max_transfer
-            
-            # Fallback to instruction parsing if no amount found
-            if amount == 0.0:
-                instructions = message.get("instructions", [])
-                for instr in instructions:
-                    if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
-                        info = instr.get("parsed", {}).get("info", {})
-                        lamports = info.get("lamports", 0)
-                        if lamports > 0:
-                            amount = lamports / (10**9)  # Convert lamports to SOL
-                            # Update addresses if we found a valid transfer
-                            source = info.get("source", "")
-                            destination = info.get("destination", "")
-                            if source:
-                                from_address = source
-                            if destination:
-                                to_address = destination
-                            break
-    
-            # Get timestamp
-            block_time = raw_data.get("blockTime")
-            if block_time is not None and isinstance(block_time, (int, float)):
-                try:
-                    timestamp = datetime.utcfromtimestamp(block_time)
-                except (ValueError, OSError):
-                    logger.warning("Ungültiger Zeitstempel, verwende aktuelle Zeit")
-    
-            # Ensure amount is always a float and positive
-            amount = abs(float(amount))
-    
-            # Create final response data
-            parsed_data = {
-                "tx_hash": tx_hash,
-                "chain": chain,
-                "timestamp": timestamp,
-                "from_address": from_address,
-                "to_address": to_address,
-                "amount": amount,  # This will now always be a positive float
-                "currency": currency
-            }
-    
-            logger.info(f"ERFOLG: Solana-Transaktion geparst - Amount: {amount} {currency}")
-            return parsed_data
-    
+                for tx in transactions:
+                    try:
+                        # Extrahiere nur die notwendigen Keys für die Suche
+                        signatures = tx.get("transaction", {}).get("signatures", [])
+                        tx_hash = signatures[0] if signatures else None
+                        
+                        if tx_hash and tx_hash != current_hash:
+                            # Füge den Hash zur Liste hinzu
+                            next_transactions.append(tx_hash)
+                            logger.debug(f"SOLANA: Nächster Transaktions-Hash gefunden: {tx_hash}")
+                            
+                            if len(next_transactions) >= safe_limit:
+                                break
+                                
+                    except Exception as e:
+                        logger.warning(f"SOLANA: Fehler beim Verarbeiten einer Transaktion: {e}")
+                        continue
+                
+                logger.info(f"ERFOLG: {len(next_transactions)} nächste Transaktionen gefunden")
+                return next_transactions[:safe_limit]
+                
         except Exception as e:
-            logger.error(f"FEHLER: Unerwarteter Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
-            # Return fallback data with valid amount
-            return {
-                "tx_hash": "PARSE_ERROR_HASH",
-                "chain": "sol",
-                "timestamp": datetime.utcnow(),
-                "from_address": "PARSE_ERROR_SENDER",
-                "to_address": "PARSE_ERROR_RECEIVER",
-                "amount": 0.0,  # Ensure amount is always present
-                "currency": "SOL"
-            }
+            logger.error(f"FEHLER: Fehler beim Abrufen der Solana-Transaktionen für Adresse {address}: {str(e)}", exc_info=True)
+            return []
 
 
     def _get_next_transactions(self, blockchain, address, current_hash, token_identifier=None, limit=5):
