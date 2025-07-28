@@ -78,7 +78,7 @@ def _track_transaction_recursive(
         try:
             logger.info("Recursive Aufruf: parser.parse_transaction()")
             # Pass the client if needed by the parser (e.g., for additional lookups)
-            parsed_data = parser.parse_transaction(request.blockchain, raw_data, client=client)
+            parsed_data = parser.parse_transaction(request.blockchain, raw_data)
             logger.info(f"Recursive Erfolg: Data parsed (Amount: {parsed_data.get('amount')})")
         except Exception as e:
             logger.error(f"Recursive Fehler beim Parsen: {str(e)}", exc_info=True)
