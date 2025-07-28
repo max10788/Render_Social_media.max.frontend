@@ -64,6 +64,18 @@
                         <option value="ETH">ETH</option>
                     </select>
                 </div>
+                <div class="token-selection" style="margin-bottom: 15px;">
+                    <label for="tokenSelection" style="display: block; margin-bottom: 5px; font-weight: bold;">Token auswählen:</label>
+                    <select id="tokenSelection" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="default">Standard-Token der Blockchain</option>
+                        <option value="custom">Benutzerdefinierter Token</option>
+                    </select>
+                    <div id="customTokenContainer" style="display: none; margin-top: 10px;">
+                        <label for="tokenAddress" style="display: block; margin-bottom: 5px;">Token-Adresse:</label>
+                        <input type="text" id="tokenAddress" placeholder="Geben Sie die Token-Adresse ein" 
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
                 <div class="control-item">
                     <label for="numTransactions">Anzahl Transaktionen:</label>
                     <input type="number" id="numTransactions" min="1" max="100" value="10" style="width: 100%;">
@@ -154,6 +166,15 @@
                 const tabId = tab.getAttribute('data-tab');
                 document.getElementById(tabId).classList.add('active');
             });
+        });
+        // Zeige/verstecke das benutzerdefinierte Token-Feld basierend auf der Auswahl
+        document.getElementById('tokenSelection').addEventListener('change', function() {
+            const customTokenContainer = document.getElementById('customTokenContainer');
+            if (this.value === 'custom') {
+                customTokenContainer.style.display = 'block';
+            } else {
+                customTokenContainer.style.display = 'none';
+            }
         });
         
         async function trackTransactions() {
