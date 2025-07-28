@@ -1,3 +1,4 @@
+# app/core/backend_crypto_tracker/api/routes/transaction_routes.py
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
@@ -77,8 +78,10 @@ def _track_transaction_recursive(
         logger.debug("Recursive Schritt 3: Parsing transaction data")
         try:
             logger.info("Recursive Aufruf: parser.parse_transaction()")
-            # Pass the client if needed by the parser (e.g., for additional lookups)
-            parsed_data = parser.parse_transaction(request.blockchain, raw_data)
+            # DO NOT pass 'client' here as BlockchainParser.parse_transaction doesn't expect it
+            # Pass the client if needed by the parser (e.g., for additional lookups) - but parser must be adapted
+            # For now, remove client=client
+            parsed_data = parser.parse_transaction(request.blockchain, raw_data) # Removed client=client
             logger.info(f"Recursive Erfolg: Data parsed (Amount: {parsed_data.get('amount')})")
         except Exception as e:
             logger.error(f"Recursive Fehler beim Parsen: {str(e)}", exc_info=True)
@@ -93,8 +96,10 @@ def _track_transaction_recursive(
         if request.depth > 1:
             logger.info(f"Recursive: Processing next transactions (Depth: {request.depth-1})")
 
-            token_identifier = parsed_data.get("token_identifier") or parsed_data.get("mint_address") or parsed_data.get("currency")
+            # --- FIX: Stelle sicher, dass token_identifier immer definiert ist ---
+            token_identifier = request.token_identifier or parsed_data.get("token_identifier") or parsed_data.get("mint_address") or parsed_data.get("currency")
             logger.info(f"Recursive: Tracking token with identifier: {token_identifier}")
+            # --- ENDE FIX ---
 
             max_transactions = request.depth - 1
             max_width = 5
@@ -114,7 +119,7 @@ def _track_transaction_recursive(
                 next_request = TrackTransactionRequest(
                     blockchain=request.blockchain,
                     tx_hash=next_hash,
-                    depth=request.depth - 1, # Decrement depth
+                    depth=request.depth - 1, # --- FIX: Decrement depth correctly ---
                     token_identifier=token_identifier
                 )
                 try:
@@ -131,6 +136,7 @@ def _track_transaction_recursive(
 
         # 6. Antwort vorbereiten
         logger.debug("Recursive Schritt 6: Preparing response data")
+        # --- FIX: Stelle sicher, dass token_identifier im response_data ist ---
         response_data = {
             "tx_hash": parsed_data["tx_hash"],
             "chain": parsed_data["chain"],
@@ -139,9 +145,12 @@ def _track_transaction_recursive(
             "to_address": parsed_data["to_address"],
             "amount": parsed_data["amount"],
             "currency": parsed_data["currency"],
-            "token_identifier": token_identifier,
             "next_transactions": next_transactions
         }
+        # Füge token_identifier nur hinzu, wenn es definiert ist
+        if 'token_identifier' in parsed_data or request.token_identifier:
+             response_data["token_identifier"] = parsed_data.get("token_identifier", request.token_identifier)
+        # --- ENDE FIX ---
         logger.info(f"RECURSIVE SUCCESS: Completed tracking for Hash '{request.tx_hash}'")
         return TransactionResponse(**response_data) # Return Pydantic model instance
 
@@ -181,8 +190,10 @@ def track_transaction(
             logger.info(f"Blockchain-Client: EtherscanETHClient wird verwendet (Endpoint: {endpoint})")
             client = EtherscanETHClient(url=endpoint.strip())
         elif request.blockchain == "sol":
-            logger.info(f"Blockchain-Client: SolanaAPIClient wird verwendet (Endpoint: {endpoint})")
-            client = SolanaAPIClient()
+            logger.info(f"Blockchain-Client: SolanaAPIClient wird verwendet.")
+            # SolanaAPIClient.__init__ erwartet keine Argumente.
+            # Er verwendet seinen eigenen, globalen EndpointManager.
+            client = SolanaAPIClient() # Keine Argumente!
         else:
             logger.error(f"Ungültige Blockchain angegeben: '{request.blockchain}'")
             raise HTTPException(status_code=400, detail="Unsupported blockchain")
@@ -199,17 +210,7 @@ def track_transaction(
             return result # Return the final Pydantic model from the recursive calls
         except Exception as e:
             # Handle potential errors from the recursive calls
-            # If the error originated from client.get_transaction, we might want to mark the endpoint
-            # This is a simplified check, better error context from recursive calls would be ideal
             logger.error(f"Fehler während der rekursiven Verarbeitung: {str(e)}")
-            # Mark endpoint as failed if it's a known client error type
-            # This part might need refinement based on how errors are raised from the recursive helper
-            # and the client methods.
-            # Example check (needs robustification):
-            # if "Invalid transaction hash" in str(e) or "Could not parse transaction" in str(e):
-            #     # These might indicate endpoint issues, but could also be bad input.
-            #     # More specific error types from client/services would be better.
-            #     # For now, let's rely on the error marking in the main handler's get_transaction try block.
             raise HTTPException(status_code=500, detail=f"Error during tracking: {str(e)}")
 
 
