@@ -21,11 +21,12 @@ from app.core.database import get_db
 router = APIRouter()
 
 class TrackTransactionRequest(BaseModel):
-    blockchain: str  # "btc", "eth", "sol"
+    blockchain: str
     tx_hash: str
-    depth: int = 3  # Maximale Transaktionsketten-Tiefe
-    include_metadata: bool = True
-
+    depth: int = 5
+    include_meta: bool = False
+    token_identifier: str = None  # Neu: Für Token-basierte Verfolgung
+    
 class TransactionResponse(BaseModel):
     tx_hash: str
     chain: str
@@ -84,15 +85,35 @@ def track_transaction(
             logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
             raise HTTPException(status_code=400, detail=f"Could not parse transaction: {str(e)}")
         
+        # 4. In DB speichern
+        logger.debug("Schritt 4: Transaktionsdaten werden in die Datenbank gespeichert")
+        try:
+            logger.info(f"DB-Speicherung: Neue Transaktion mit Hash '{parsed_data['tx_hash']}' wird vorbereitet")
+            db_transaction = Transaction(
+                hash=parsed_data["tx_hash"],
+                chain=parsed_data["chain"],
+                timestamp=parsed_data["timestamp"],
+                raw_data=raw_data,
+                parsed_data=parsed_data
+            )
+            logger.debug(f"DB: Transaktionsobjekt erstellt: {db_transaction}")
+            db.add(db_transaction)
+            db.commit()
+            db.refresh(db_transaction)
+            logger.info(f"Erfolg: Transaktion erfolgreich in DB gespeichert (ID: {db_transaction.id})")
+        except Exception as e:
+            logger.error(f"Fehler bei DB-Speicherung: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Database error")
+        
         # 5. Rekursive Verarbeitung (falls depth > 1)
         logger.debug(f"Schritt 5: Rekursive Verarbeitung wird gestartet (Tiefe: {request.depth})")
         next_transactions = []
         if request.depth > 1:
             logger.info(f"Rekursion: Verarbeite nächste Transaktionen (Tiefe: {request.depth-1})")
             
-            # WICHTIG: Nutze die Mint-Adresse, um nur Transaktionen für denselben Token-Typ zu finden
-            mint_address = parsed_data.get("mint_address", "So11111111111111111111111111111111111111112")
-            logger.info(f"Verfolge Token mit Mint-Adresse: {mint_address}")
+            # WICHTIG: Nutze das Token-Identifier für die korrekte Token-Verfolgung
+            token_identifier = parsed_data.get("token_identifier") or parsed_data.get("mint_address") or parsed_data.get("currency")
+            logger.info(f"Verfolge Token mit Identifier: {token_identifier}")
             
             # Stelle sicher, dass wir nicht mehr Transaktionen verarbeiten, als das Limit erlaubt
             max_transactions = request.depth - 1
@@ -104,7 +125,7 @@ def track_transaction(
                 request.blockchain,
                 parsed_data["to_address"],
                 current_hash=parsed_data["tx_hash"],
-                mint_address=mint_address,  # WICHTIG: Übergebe die Mint-Adresse
+                token_identifier=token_identifier,  # WICHTIG: Übergebe das Token-Identifier
                 limit=max_width
             )
             
@@ -117,7 +138,8 @@ def track_transaction(
                 next_request = TrackTransactionRequest(
                     blockchain=request.blockchain,
                     tx_hash=next_hash,
-                    depth=1  # WICHTIG: Setze Tiefe auf 1, da wir die Rekursion selbst steuern
+                    depth=1,  # WICHTIG: Setze Tiefe auf 1, da wir die Rekursion selbst steuern
+                    token_identifier=token_identifier  # WICHTIG: Übergebe das Token-Identifier
                 )
                 try:
                     next_result = track_transaction(next_request, db)
@@ -127,7 +149,7 @@ def track_transaction(
                     logger.error(f"Fehler bei Verarbeitung von {next_hash}: {str(e)}", exc_info=True)
             
             logger.info(f"Rekursion: {len(next_transactions)} nächste Transaktionen verarbeitet")
-            
+        
         # 6. Antwort vorbereiten
         logger.debug("Schritt 6: API-Antwort wird vorbereitet")
         response = {
@@ -138,6 +160,7 @@ def track_transaction(
             "to_address": parsed_data["to_address"],
             "amount": parsed_data["amount"],
             "currency": parsed_data["currency"],
+            "token_identifier": token_identifier,  # WICHTIG: Füge Token-Identifier zur Antwort hinzu
             "next_transactions": next_transactions
         }
         logger.info(f"ERFOLG: Transaktionsverfolgung abgeschlossen für Hash '{request.tx_hash}'")
