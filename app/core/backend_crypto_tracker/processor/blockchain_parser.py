@@ -1,423 +1,313 @@
+# app/core/backend_crypto_tracker/processor/blockchain_parser.py
+import logging
 from datetime import datetime
 from app.core.backend_crypto_tracker.utils.logger import get_logger
-# Fügen Sie diese Imports am Anfang der Datei hinzu
-from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
-from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
-from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
+
 logger = get_logger(__name__)
 
 class BlockchainParser:
-    def parse_transaction(self, blockchain, raw_data):
-        logger.info(f"START: Parsing von Transaktionsdaten für Blockchain '{blockchain}'")
-        
-        if blockchain == "eth":
-            logger.debug("Wähle Ethereum-Parsing-Logik aus")
-            return self._parse_eth_transaction(raw_data)
-        elif blockchain == "btc":
-            logger.debug("Wähle Bitcoin-Parsing-Logik aus")
-            return self._parse_btc_transaction(raw_data)
-        elif blockchain == "sol":
-            logger.debug("Wähle Solana-Parsing-Logik aus")
-            return self._parse_sol_transaction(raw_data)
-        else:
-            logger.error(f"Ungültige Blockchain für Parsing: '{blockchain}'")
-            raise ValueError(f"Unsupported blockchain: {blockchain}")
+    def __init__(self):
+        logger.info("BlockchainParser: Initialisiert")
 
-    def _parse_eth_transaction(self, raw_data):
-        """Parse Ethereum transaction data from Etherscan API response."""
-        logger.info("START: Ethereum-Transaktionsparsing")
-        logger.debug(f"Eingang: Rohdaten erhalten (Größe: {len(str(raw_data))} Zeichen)")
+    def parse_transaction(self, blockchain, raw_data, client=None):
+        """
+        Zentraler Parser für Transaktionsdaten
+        """
+        logger.info(f"START: Parsing von Transaktionsdaten für Blockchain '{blockchain}'")
+        logger.debug(f"Parser: Empfangene Rohdaten (Typ: {type(raw_data)})")
         
         try:
-            # 1. Extrahiere grundlegende Transaktionsinformationen
-            logger.debug("Schritt 1: Extrahiere grundlegende Transaktionsinformationen")
-            tx_hash = raw_data["hash"]
-            logger.info(f"Transaktions-Hash extrahiert: {tx_hash}")
-            
-            timestamp = datetime.fromtimestamp(int(raw_data["timeStamp"]))
-            logger.debug(f"Zeitstempel extrahiert: {timestamp}")
-            
-            # 2. Bestimme Quell- und Zieladressen
-            logger.debug("Schritt 2: Bestimme Quell- und Zieladressen")
-            from_address = raw_data["from"].lower()
-            logger.info(f"Quelladresse extrahiert: {from_address}")
-            
-            # 3. Bestimme Token-Contract-Adresse
-            logger.debug("Schritt 3: Bestimme Token-Contract-Adresse")
-            contract_address = raw_data["contractAddress"].lower() if raw_data["contractAddress"] else None
-            token_type = "ETH"
-            
-            # Überprüfe, ob es sich um eine ERC-20 Token-Transaktion handelt
-            if contract_address and contract_address != "0x":
-                token_type = contract_address
-                logger.info(f"Token-Transaktion identifiziert: ERC-20 Token mit Contract-Adresse {contract_address[:10]}...")
+            if blockchain == "btc":
+                return self._parse_btc_transaction(raw_data)
+            elif blockchain == "eth":
+                return self._parse_eth_transaction(raw_data)
+            elif blockchain == "sol":
+                # Übergebe den Client für mögliche zusätzliche Abfragen
+                return self._parse_sol_transaction(raw_data, client)
             else:
-                logger.info("Native ETH-Transaktion identifiziert")
+                logger.error(f"Parser: Nicht unterstützte Blockchain '{blockchain}'")
+                raise ValueError(f"Unsupported blockchain: {blockchain}")
+        except Exception as e:
+            logger.error(f"FEHLER: Fehler beim Parsen der Transaktion für {blockchain}: {str(e)}", exc_info=True)
+            raise
+
+    def _parse_btc_transaction(self, raw_data):
+        """Parsen von Bitcoin-Rohdaten"""
+        logger.info("START: Bitcoin-Transaktionsparsing")
+        try:
+            # Sicherstellen, dass raw_data ein dict ist
+            if not isinstance(raw_data, dict):
+                logger.error("FEHLER: BTC-Rohdaten sind kein Dictionary")
+                raise ValueError("Invalid BTC raw data format")
             
-            # 4. Berechne den übertragenen Betrag (in ETH)
-            logger.debug("Schritt 4: Berechne übertragenen Betrag")
-            # Für native ETH-Transaktionen
-            if token_type == "ETH":
-                amount = float(raw_data["value"]) / 10**18
-                logger.info(f"Berechneter ETH-Betrag: {amount} ETH")
-            # Für ERC-20 Token-Transaktionen (wird normalerweise separat abgerufen)
-            else:
-                # In einer echten Implementierung würden wir hier den Token-spezifischen Wert extrahieren
-                amount = 0  # Wird normalerweise aus separaten Token-Transaktionsdaten kommen
-                logger.info(f"Token-Betrag wird aus separaten Token-Transaktionsdaten extrahiert")
+            # Extrahiere grundlegende Informationen
+            tx_hash = raw_data.get("hash", "")
+            time = raw_data.get("time", 0)
+            timestamp = datetime.utcfromtimestamp(time) if time else datetime.utcnow()
             
-            # 5. Extrahiere Transaktionsstatus
-            logger.debug("Schritt 5: Extrahiere Transaktionsstatus")
-            status = "success" if raw_data["isError"] == "0" and raw_data["txreceipt_status"] == "1" else "failed"
-            logger.info(f"Transaktionsstatus: {status}")
+            # Extrahiere Eingänge und Ausgänge
+            inputs = raw_data.get("inputs", [])
+            outputs = raw_data.get("out", [])
             
-            # 6. Berechne die Gebühr
-            logger.debug("Schritt 6: Berechne Transaktionsgebühr")
-            gas = int(raw_data["gas"])
-            gas_price = int(raw_data["gasPrice"])
-            fee = (gas * gas_price) / 10**18  # in ETH
-            logger.info(f"Gebühr berechnet: {fee} ETH (Gas: {gas}, GasPrice: {gas_price})")
+            # Finde die primäre Transaktion (erster Input -> erste Output)
+            from_address = ""
+            to_address = ""
+            amount = 0.0
             
-            # 7. Erstelle ein einheitliches Format für die Visualisierung
-            logger.debug("Schritt 7: Erstelle einheitliches Antwortformat")
-            result = {
+            if inputs and len(inputs) > 0:
+                from_address = inputs[0].get("prev_out", {}).get("addr", "")
+            
+            if outputs and len(outputs) > 0:
+                # Nimm den ersten Output als Ziel
+                first_output = outputs[0]
+                to_address = first_output.get("addr", "")
+                amount = first_output.get("value", 0) / 100000000.0  # Satoshis zu BTC
+            
+            logger.info(f"ERFOLG: BTC-Transaktion geparst (Hash: {tx_hash[:10]}...)")
+            return {
+                "tx_hash": tx_hash,
+                "chain": "btc",
+                "timestamp": timestamp,
+                "from_address": from_address,
+                "to_address": to_address,
+                "amount": amount,
+                "currency": "BTC"
+            }
+        except Exception as e:
+            logger.error(f"FEHLER: Fehler beim Parsen der BTC-Transaktion: {str(e)}", exc_info=True)
+            raise
+
+    def _parse_eth_transaction(self, raw_data):
+        """Parsen von Ethereum-Rohdaten"""
+        logger.info("START: Ethereum-Transaktionsparsing")
+        try:
+            # Sicherstellen, dass raw_data ein dict ist
+            if not isinstance(raw_data, dict):
+                logger.error("FEHLER: ETH-Rohdaten sind kein Dictionary")
+                raise ValueError("Invalid ETH raw data format")
+            
+            # Extrahiere Transaktionsdetails
+            result = raw_data.get("result", {})
+            if not result:
+                logger.error("FEHLER: Keine Transaktionsergebnisse in ETH-Daten")
+                raise ValueError("No transaction result found")
+            
+            tx_hash = result.get("hash", "")
+            from_address = result.get("from", "")
+            to_address = result.get("to", "")
+            timestamp_hex = result.get("timeStamp", "0x0")
+            
+            # Konvertiere Zeitstempel
+            try:
+                timestamp_int = int(timestamp_hex, 16)
+                timestamp = datetime.utcfromtimestamp(timestamp_int)
+            except ValueError:
+                logger.warning("WARNUNG: Ungültiger Zeitstempel, verwende aktuelle Zeit")
+                timestamp = datetime.utcnow()
+            
+            # Konvertiere Wert (Wei zu Ether)
+            value_hex = result.get("value", "0x0")
+            try:
+                value_wei = int(value_hex, 16)
+                amount = value_wei / (10 ** 18)  # Wei zu Ether
+            except ValueError:
+                logger.warning("WARNUNG: Ungültiger Wert, setze auf 0")
+                amount = 0.0
+            
+            logger.info(f"ERFOLG: ETH-Transaktion geparst (Hash: {tx_hash[:10]}...)")
+            return {
                 "tx_hash": tx_hash,
                 "chain": "eth",
                 "timestamp": timestamp,
                 "from_address": from_address,
-                "to_address": raw_data["to"].lower() if raw_data["to"] else None,
-                "amount": amount,
-                "currency": token_type,
-                "token_contract": token_type if token_type != "ETH" else None,
-                "fee": fee,
-                "status": status,
-                "raw_data": raw_data
-            }
-            logger.info(f"ERFOLG: Ethereum-Transaktion erfolgreich geparsed")
-            return result
-            
-        except KeyError as e:
-            logger.error(f"Fehler beim Parsen der Ethereum-Transaktion: Fehlendes Feld {str(e)}", exc_info=True)
-            logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
-            raise
-        except Exception as e:
-            logger.critical(f"UNERWARTETER FEHLER beim Ethereum-Parsing: {str(e)}", exc_info=True)
-            raise
-        
-    def _parse_btc_transaction(self, raw_data):
-        """Parse Bitcoin transaction data from Blockchair API response."""
-        logger.info("START: Bitcoin-Transaktionsparsing")
-        logger.debug(f"Eingang: Rohdaten erhalten (Größe: {len(str(raw_data))} Zeichen)")
-        
-        try:
-            # 1. Extrahiere grundlegende Transaktionsinformationen
-            logger.debug("Schritt 1: Extrahiere grundlegende Transaktionsinformationen")
-            tx_hash = raw_data["data"]["hash"]
-            logger.info(f"Transaktions-Hash extrahiert: {tx_hash}")
-            
-            timestamp = datetime.fromtimestamp(raw_data["data"]["time"])
-            logger.debug(f"Zeitstempel extrahiert: {timestamp}")
-            
-            # 2. Verarbeite alle Inputs (Quelladressen)
-            logger.debug("Schritt 2: Verarbeite alle Inputs (Quelladressen)")
-            inputs = raw_data["data"]["inputs"]
-            from_addresses = []
-            total_input_value = 0
-            
-            for input in inputs:
-                if "recipient" in input:
-                    from_addresses.append(input["recipient"])
-                total_input_value += input["value"]
-            
-            logger.info(f"Anzahl Quelladressen: {len(from_addresses)}")
-            if from_addresses:
-                logger.info(f"Beispielhafte Quelladresse: {from_addresses[0][:10]}...")
-            
-            # 3. Verarbeite alle Outputs (Zieladressen)
-            logger.debug("Schritt 3: Verarbeite alle Outputs (Zieladressen)")
-            outputs = raw_data["data"]["outputs"]
-            to_addresses = []
-            amounts = []
-            total_output_value = 0
-            
-            for output in outputs:
-                if "recipient" in output:
-                    to_addresses.append(output["recipient"])
-                    amounts.append(output["value"])
-                    total_output_value += output["value"]
-            
-            logger.info(f"Anzahl Zieladressen: {len(to_addresses)}")
-            if to_addresses:
-                logger.info(f"Beispielhafte Zieladresse: {to_addresses[0][:10]}...")
-            
-            # 4. Berechne den übertragenen Betrag und die Gebühr
-            logger.debug("Schritt 4: Berechne den übertragenen Betrag und die Gebühr")
-            # Die Gebühr ist die Differenz zwischen Input- und Output-Werten
-            fee = (total_input_value - total_output_value) / 10**8  # in BTC
-            amount = total_output_value / 10**8  # in BTC
-            
-            logger.info(f"Berechneter Betrag: {amount} BTC")
-            logger.info(f"Berechnete Gebühr: {fee} BTC")
-            
-            # 5. Bestimme die primäre Zieladresse (meist die erste mit Wert)
-            logger.debug("Schritt 5: Bestimme die primäre Zieladresse")
-            to_address = None
-            if outputs:
-                for output in outputs:
-                    if "recipient" in output and output["value"] > 0:
-                        to_address = output["recipient"]
-                        break
-            
-            logger.info(f"Primäre Zieladresse: {to_address[:10]}..." if to_address else "Keine primäre Zieladresse gefunden")
-            
-            # 6. Erstelle ein einheitliches Format für die Visualisierung
-            logger.debug("Schritt 6: Erstelle einheitliches Antwortformat")
-            result = {
-                "tx_hash": tx_hash,
-                "chain": "btc",
-                "timestamp": timestamp,
-                "from_address": from_addresses[0] if from_addresses else None,
                 "to_address": to_address,
                 "amount": amount,
-                "currency": "BTC",
-                "fee": fee,
-                "status": "success",  # Bitcoin hat keinen expliziten Status
-                "raw_data": raw_data
+                "currency": "ETH"
             }
-            logger.info(f"ERFOLG: Bitcoin-Transaktion erfolgreich geparsed")
-            return result
-            
-        except KeyError as e:
-            logger.error(f"Fehler beim Parsen der Bitcoin-Transaktion: Fehlendes Feld {str(e)}", exc_info=True)
-            logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
-            raise
         except Exception as e:
-            logger.critical(f"UNERWARTETER FEHLER beim Bitcoin-Parsing: {str(e)}", exc_info=True)
+            logger.error(f"FEHLER: Fehler beim Parsen der ETH-Transaktion: {str(e)}", exc_info=True)
             raise
-    
-    def _parse_sol_transaction(self, raw_data):
-        """Parse Solana transaction data from Solana Web3 API response with detailed logging."""
+
+    def _parse_sol_transaction(self, raw_data, client=None):
+        """Parsen von Solana-Rohdaten"""
         logger.info("START: Solana-Transaktionsparsing")
-        logger.debug(f"Eingang: Rohdaten erhalten (Größe: {len(str(raw_data))} Zeichen)")
-        
         try:
-            # 1. Extrahiere grundlegende Transaktionsinformationen
-            logger.debug("Schritt 1: Extrahiere grundlegende Transaktionsinformationen")
-            tx_hash = raw_data["transaction"]["signatures"][0]
+            # Sicherstellen, dass raw_data ein dict ist
+            if not isinstance(raw_data, dict):
+                logger.error("FEHLER: SOL-Rohdaten sind kein Dictionary")
+                raise ValueError("Invalid SOL raw data format")
+            
+            # Extrahiere grundlegende Informationen
+            tx_hash = raw_data.get("transaction", {}).get("signatures", [""])[0]
             logger.info(f"Transaktions-Hash extrahiert: {tx_hash}")
             
-            block_time = raw_data["blockTime"]
-            timestamp = datetime.fromtimestamp(block_time) if block_time else datetime.now()
-            logger.debug(f"Zeitstempel extrahiert: {timestamp}")
+            # Extrahiere Slot (ähnlich wie Blocknummer)
+            slot = raw_data.get("slot", 0)
+            logger.info(f"Slot extrahiert: {slot}")
             
-            # 2. Extrahiere Account-Keys und Balances
-            logger.debug("Schritt 2: Extrahiere Account-Keys und Balances")
-            
-            # Behandle verschiedene Formate für accountKeys
-            account_keys = []
-            if "accountKeys" in raw_data["transaction"]["message"]:
-                for key in raw_data["transaction"]["message"]["accountKeys"]:
-                    if isinstance(key, dict):
-                        account_keys.append(key["pubkey"])
-                    else:
-                        account_keys.append(key)
-            
-            pre_balances = raw_data["meta"]["preBalances"]
-            post_balances = raw_data["meta"]["postBalances"]
-            
-            logger.info(f"Anzahl Accounts in der Transaktion: {len(account_keys)}")
-            logger.debug(f"Beispielhafte Accounts: {account_keys[:3]}")
-            
-            # 3. Bestimme Quell- und Zieladressen durch Balance-Vergleich
-            logger.debug("Schritt 3: Bestimme Quell- und Zieladressen durch Balance-Vergleich")
-            from_address = None
-            to_address = None
-            amount = 0
-            
-            # Finde die Adresse mit Balance-Abnahme (Quelle)
-            for i in range(len(account_keys)):
-                if pre_balances[i] > post_balances[i]:
-                    from_address = account_keys[i]
-                    amount = (pre_balances[i] - post_balances[i]) / 1e9  # Lamports zu SOL
-                    break
-            
-            # Finde die Adresse mit Balance-Zunahme (Ziel)
-            for i in range(len(account_keys)):
-                if post_balances[i] > pre_balances[i]:
-                    to_address = account_keys[i]
-                    break
-            
-            logger.info(f"Quelladresse identifiziert: {from_address[:10]}..." if from_address else "Keine Quelladresse gefunden")
-            logger.info(f"Zieladresse identifiziert: {to_address[:10]}..." if to_address else "Keine Zieladresse gefunden")
-            logger.info(f"Übertragener Betrag: {amount} SOL")
-            
-            # 4. Extrahiere Token-Mint-Adresse
-            logger.debug("Schritt 4: Extrahiere Token-Mint-Adresse")
-            mint_address = "So11111111111111111111111111111111111111112"  # SOL Standard Mint-Adresse
-            
-            # Prüfe auf Token-Programm-Transaktionen
-            if "instructions" in raw_data["transaction"]["message"]:
-                for instruction in raw_data["transaction"]["message"]["instructions"]:
-                    # Token-Programm-ID Index (normalerweise 4 in Solana)
-                    if "programIdIndex" in instruction and instruction["programIdIndex"] == 4:
-                        # Token-Übertragung
-                        if "accounts" in instruction and len(instruction["accounts"]) >= 3:
-                            mint_index = instruction["accounts"][1]
-                            if mint_index < len(account_keys):
-                                mint_address = account_keys[mint_index]
-                                logger.info(f"Token-Mint-Adresse identifiziert: {mint_address[:10]}...")
-            
-            # 5. Extrahiere Transaktionsstatus
-            logger.debug("Schritt 5: Extrahiere Transaktionsstatus")
-            status = "failed" if raw_data["meta"]["err"] else "success"
+            # Extrahiere Meta-Daten für Status und Fees
+            meta = raw_data.get("meta", {})
+            err = meta.get("err")
+            status = "failed" if err else "success"
             logger.info(f"Transaktionsstatus: {status}")
             
-            # 6. Berechne die Transaktionsgebühr
-            logger.debug("Schritt 6: Berechne Transaktionsgebühr")
-            fee = raw_data["meta"]["fee"] / 1e9  # Lamports zu SOL
-            logger.info(f"Gebühr berechnet: {fee} SOL")
+            # Extrahiere Zeitstempel aus Block (wenn verfügbar)
+            block_time = raw_data.get("blockTime")
+            if block_time:
+                timestamp = datetime.utcfromtimestamp(block_time)
+            else:
+                timestamp = datetime.utcnow()
+            logger.info(f"Zeitstempel extrahiert: {timestamp}")
             
-            # 7. Erstelle ein einheitliches Format für die Visualisierung
-            logger.debug("Schritt 7: Erstelle einheitliches Antwortformat")
-            result = {
+            # Extrahiere Transaktionsinformationen
+            transaction = raw_data.get("transaction", {})
+            message = transaction.get("message", {})
+            instructions = message.get("instructions", [])
+            
+            # Finde Transfer-Instruktionen
+            from_address = ""
+            to_address = ""
+            amount = 0.0
+            currency = "SOL"
+            
+            # Durchsuche die postTokenBalances für Token-Transfers
+            # oder verwende die normale Logik für SOL-Transfers
+            pre_balances = meta.get("preBalances", [])
+            post_balances = meta.get("postBalances", [])
+            account_keys = message.get("accountKeys", [])
+            
+            # Einfache Logik: Finde den Account, dessen Balance sich verringert hat (minus Fee)
+            # und den Account, dessen Balance sich erhöht hat.
+            # Dies ist eine Vereinfachung und funktioniert nicht immer perfekt für komplexe Transaktionen.
+            fee = meta.get("fee", 0) / (10**9) # Lamports zu SOL
+            
+            for i, (pre, post, key) in enumerate(zip(pre_balances, post_balances, account_keys)):
+                diff = (post - pre) / (10**9) # Lamports zu SOL
+                if diff < 0 and abs(diff) > fee * 0.1: # Sender (ignoriere kleine Diffs durch Rundung)
+                    from_address = key
+                    # amount = abs(diff) - fee # Betrag abzüglich Fee ist komplex, wir nehmen einfach den Transfer-Betrag
+                elif diff > 0: # Empfänger
+                    to_address = key
+                    amount = diff
+            
+            # Fallback, falls die obige Logik nicht funktioniert
+            if not from_address or not to_address:
+                logger.warning("WARNUNG: Konnte Sender/Empfänger nicht über Balances finden, verwende alternative Methode")
+                # Versuche, Transfer-Instruktionen zu finden
+                for instr in instructions:
+                    if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
+                        info = instr.get("parsed", {}).get("info", {})
+                        from_address = info.get("source", "")
+                        to_address = info.get("destination", "")
+                        lamports = info.get("lamports", 0)
+                        amount = lamports / (10**9)
+                        break
+            
+            logger.info(f"Sender-Adresse: {from_address}")
+            logger.info(f"Empfänger-Adresse: {to_address}")
+            logger.info(f"Übertragener Betrag: {amount} {currency}")
+            
+            parsed_data = {
                 "tx_hash": tx_hash,
                 "chain": "sol",
                 "timestamp": timestamp,
                 "from_address": from_address,
                 "to_address": to_address,
                 "amount": amount,
-                "currency": "SOL" if mint_address == "So11111111111111111111111111111111111111112" else mint_address,
-                "mint_address": mint_address,
-                "fee": fee,
-                "status": status,
-                "raw_data": raw_data
+                "currency": currency
             }
-            logger.info(f"ERFOLG: Solana-Transaktion erfolgreich geparsed")
-            return result
             
-        except KeyError as e:
-            logger.error(f"Fehler beim Parsen der Solana-Transaktion: Fehlendes Feld {str(e)}", exc_info=True)
-            logger.debug(f"Rohdatenstruktur (erste 500 Zeichen): {str(raw_data)[:500]}")
-            raise
+            logger.info(f"ERFOLG: Solana-Transaktion geparst")
+            return parsed_data
+            
         except Exception as e:
-            logger.critical(f"UNERWARTETER FEHLER beim Solana-Parsing: {str(e)}", exc_info=True)
+            logger.error(f"FEHLER: Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
             raise
 
-    def _get_mint_address_from_transaction(self, tx):
-        """Extrahiert die Mint-Adresse aus einer Solana-Transaktion."""
-        logger.debug("Extrahiere Mint-Adresse aus Solana-Transaktion")
-        try:
-            if "transaction" in tx and "message" in tx["transaction"] and "instructions" in tx["transaction"]["message"]:
-                for instruction in tx["transaction"]["message"]["instructions"]:
-                    # Überprüfe, ob es sich um eine Token-Übertragung handelt (Token-Programm-ID)
-                    if "programIdIndex" in instruction and instruction["programIdIndex"] == 4:
-                        # Extrahiere die Mint-Adresse aus den Konten
-                        if "accounts" in instruction and len(instruction["accounts"]) >= 3:
-                            account_keys = []
-                            for key in tx["transaction"]["message"]["accountKeys"]:
-                                if isinstance(key, dict):
-                                    account_keys.append(key["pubkey"])
-                                else:
-                                    account_keys.append(key)
-                            
-                            mint_index = instruction["accounts"][1]
-                            if mint_index < len(account_keys):
-                                mint_address = account_keys[mint_index]
-                                logger.debug(f"Mint-Adresse extrahiert: {mint_address}")
-                                return mint_address
-            
-            # Standard: SOL
-            logger.debug("Keine Token-Transaktion gefunden, verwende SOL als Standard")
-            return "So11111111111111111111111111111111111111112"
-        
-        except Exception as e:
-            logger.error(f"Fehler bei der Extraktion der Mint-Adresse: {str(e)}", exc_info=True)
-            # Bei Fehlern verwende Standard-SOL Mint-Adresse
-            return "So11111111111111111111111111111111111111112"
-    
-    def _get_next_transactions(self, blockchain, address, current_hash=None, token_identifier=None, limit=5):
+
+    def _get_next_transactions(self, blockchain, address, current_hash, token_identifier=None, limit=5):
         """
-        Findet die nächsten Transaktionen in der Kette für eine gegebene Adresse und Token-Typ.
-        
-        Args:
-            blockchain: Die Blockchain ('eth', 'btc', 'sol')
-            address: Die Adresse, für die die nächsten Transaktionen gefunden werden sollen
-            current_hash: Optionaler aktueller Transaktions-Hash, um Duplikate zu vermeiden
-            token_identifier: Der Token-Identifikator (Mint-Adresse für Solana, Contract-Adresse für Ethereum)
-            limit: Maximale Anzahl der zurückzugebenden Transaktionen
-        
-        Returns:
-            Liste von Transaktions-Hashes
+        Findet die nächsten Transaktionen basierend auf der Zieladresse
         """
-        logger.info(f"START: Suche nach nächsten Transaktionen für {blockchain}-Adresse {address} (Limit: {limit})")
-        logger.debug(f"Parameter: current_hash={current_hash}, token_identifier={token_identifier}")
-        next_hashes = []
+        logger.info(f"START: Suche nach nächsten Transaktionen für Blockchain '{blockchain}'")
+        logger.info(f"Adresse: {address}, Aktueller Hash: {current_hash}, Limit: {limit}")
         
         try:
-            if blockchain == "eth":
-                logger.debug(f"Verwende Etherscan für Ethereum-Transaktionsabfrage (Token-Identifier: {token_identifier})")
-                client = EtherscanETHClient()
-                
-                # Für native ETH-Transaktionen
-                if not token_identifier or token_identifier == "ETH":
-                    transactions = client.get_transactions_by_address(address, limit=limit)
-                # Für ERC-20 Token-Transaktionen
-                else:
-                    transactions = client.get_token_transactions_by_contract(token_identifier, address, limit=limit)
-                
-                logger.info(f"Gefundene Ethereum-Transaktionen: {len(transactions)}")
-                for tx in transactions:
-                    if current_hash and tx["hash"] == current_hash:
-                        logger.debug(f"Überspringe aktuelle Transaktion: {current_hash}")
-                        continue
-                    next_hashes.append(tx["hash"])
-                    logger.debug(f"Gefundene nächste Transaktion: {tx['hash']}")
-            
-            elif blockchain == "btc":
-                logger.debug("Verwende Blockchair für Bitcoin-Transaktionsabfrage")
-                client = BlockchairBTCClient()
-                transactions = client.get_transactions_by_address(address, limit=limit)
-                
-                logger.info(f"Gefundene Bitcoin-Transaktionen: {len(transactions)}")
-                for tx in transactions:
-                    if current_hash and tx["hash"] == current_hash:
-                        logger.debug(f"Überspringe aktuelle Transaktion: {current_hash}")
-                        continue
-                    next_hashes.append(tx["hash"])
-                    logger.debug(f"Gefundene nächste Transaktion: {tx['hash']}")
-            
+            if blockchain == "btc":
+                return self._get_btc_next_transactions(address, current_hash, limit)
+            elif blockchain == "eth":
+                return self._get_eth_next_transactions(address, current_hash, limit)
             elif blockchain == "sol":
-                logger.debug(f"Verwende Solana-API für Transaktionsabfrage (Mint-Adresse: {token_identifier})")
-                client = SolanaAPIClient()
-                transactions = client.get_transactions_by_address(address, limit=limit)
-                
-                logger.info(f"Gefundene Solana-Transaktionen: {len(transactions)}")
-                for tx in transactions:
-                    tx_hash = tx["transaction"]["signatures"][0]
-                    if current_hash and tx_hash == current_hash:
-                        logger.debug(f"Überspringe aktuelle Transaktion: {current_hash}")
-                        continue
-                    
-                    # Filtere nur Transaktionen mit dem gleichen Token-Identifier
-                    if token_identifier:
-                        tx_token_id = self._get_token_identifier_from_transaction(blockchain, tx)
-                        if tx_token_id != token_identifier:
-                            logger.debug(f"Überspringe Transaktion {tx_hash} - Falscher Token-Identifier ({tx_token_id} != {token_identifier})")
-                            continue
-                    
-                    next_hashes.append(tx_hash)
-                    logger.debug(f"Gefundene nächste Transaktion: {tx_hash}")
-            
+                # Token-Identifier wird für SOL nicht direkt benötigt, aber für Konsistenz übergeben
+                return self._get_sol_next_transactions(address, current_hash, limit)
             else:
-                logger.error(f"Ungültige Blockchain für nächste Transaktionen: {blockchain}")
+                logger.error(f"Parser: Blockchain '{blockchain}' nicht unterstützt für next_transactions")
                 return []
+        except Exception as e:
+            logger.error(f"FEHLER: Fehler beim Abrufen der nächsten Transaktionen: {str(e)}", exc_info=True)
+            return [] # Return empty list on error to prevent breaking recursion
+
+    def _get_btc_next_transactions(self, address, current_hash, limit):
+        """Holt nächste BTC-Transaktionen (Dummy-Implementierung)"""
+        logger.info("BTC: Hole nächste Transaktionen (Dummy)")
+        # In einer echten Implementierung würden wir eine API aufrufen
+        return []
+
+    def _get_eth_next_transactions(self, address, current_hash, limit):
+        """Holt nächste ETH-Transaktionen (Dummy-Implementierung)"""
+        logger.info("ETH: Hole nächste Transaktionen (Dummy)")
+        # In einer echten Implementierung würden wir eine API aufrufen
+        return []
+
+    def _get_sol_next_transactions(self, address, current_hash, limit):
+        """
+        Holt die nächsten Transaktionen für eine Solana-Adresse.
+        Verwendet den SolanaAPIClient, um Transaktionen abzurufen.
+        """
+        logger.info(f"SOLANA: Suche bis zu {limit} Transaktionen für Adresse {address}")
+        
+        # Hinweis: Diese Methode sollte idealerweise den Client erhalten,
+        # der bereits in transaction_routes.py instanziiert wurde.
+        # Da dies nicht der Fall ist, instanziieren wir ihn hier erneut.
+        # Dies ist nicht ideal, aber notwendig, da der Client nicht übergeben wird.
+        # In einer besseren Architektur sollte der Client an den Parser übergeben werden.
+        
+        try:
+            # Importiere den Client hier, um zirkuläre Importe zu vermeiden
+            from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
+            
+            # Erstelle eine neue Instanz des Clients
+            # Hinweis: Dieser Client verwendet seinen eigenen EndpointManager
+            client = SolanaAPIClient()
+            
+            # Hole die Transaktionen für die Adresse
+            # Die Methode get_transactions_by_address ist Teil des SolanaAPIClient
+            transactions = client.get_transactions_by_address(address, limit=limit)
+            
+            next_hashes = []
+            if transactions and isinstance(transactions, list):
+                logger.info(f"SOLANA: Erfolgreich {len(transactions)} Transaktionen abgerufen")
+                for tx in transactions:
+                    try:
+                        tx_hash = tx.get("transaction", {}).get("signatures", [""])[0]
+                        # Überspringe die aktuelle Transaktion selbst
+                        if tx_hash and tx_hash != current_hash:
+                            next_hashes.append(tx_hash)
+                            logger.debug(f"SOLANA: Nächster Transaktions-Hash gefunden: {tx_hash}")
+                    except (KeyError, IndexError, TypeError) as e:
+                        logger.warning(f"SOLANA: Fehler beim Extrahieren des Hash aus einer Transaktion: {e}")
+            else:
+                logger.info("SOLANA: Keine Transaktionen gefunden oder ungültiges Format")
             
             logger.info(f"ERFOLG: Gefundene nächste Transaktionen: {len(next_hashes)}")
-            return next_hashes[:limit]
-        
-        except Exception as e:
-            logger.error(f"Fehler bei Suche nach nächsten Transaktionen: {str(e)}", exc_info=True)
+            return next_hashes[:limit] # Sicherstellen, dass das Limit eingehalten wird
+            
+        except ImportError:
+            logger.error("FEHLER: SolanaAPIClient konnte nicht importiert werden")
             return []
+        except Exception as e:
+            logger.error(f"FEHLER: Fehler beim Abrufen der Solana-Transaktionen: {str(e)}", exc_info=True)
+            return [] # Return empty list on error
     
     def _get_token_identifier_from_transaction(self, blockchain, tx):
         """Extrahiert den Token-Identifier aus einer Transaktion basierend auf der Blockchain."""
