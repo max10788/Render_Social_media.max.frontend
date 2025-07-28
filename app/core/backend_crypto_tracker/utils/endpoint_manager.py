@@ -169,5 +169,3 @@ class EndpointManager:
                 for blockchain, endpoints in self.endpoints.items()
             }
         }
-
-# Removed the duplicate method definitions here.
