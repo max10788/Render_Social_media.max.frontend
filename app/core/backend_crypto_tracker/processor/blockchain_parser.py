@@ -177,6 +177,7 @@ class BlockchainParser:
             raise
     
     def _parse_sol_transaction(self, raw_data):
+        """Parse Solana transaction data from Solana Web3 API response with detailed logging."""
         logger.info("START: Solana-Transaktionsparsing")
         logger.debug(f"Eingang: Rohdaten erhalten (Größe: {len(str(raw_data))} Zeichen)")
         
@@ -192,7 +193,16 @@ class BlockchainParser:
             
             # 2. Extrahiere Account-Keys und Balances
             logger.debug("Schritt 2: Extrahiere Account-Keys und Balances")
-            account_keys = [key["pubkey"] if isinstance(key, dict) else key for key in raw_data["transaction"]["message"]["accountKeys"]]
+            
+            # Behandle verschiedene Formate für accountKeys
+            account_keys = []
+            if "accountKeys" in raw_data["transaction"]["message"]:
+                for key in raw_data["transaction"]["message"]["accountKeys"]:
+                    if isinstance(key, dict):
+                        account_keys.append(key["pubkey"])
+                    else:
+                        account_keys.append(key)
+            
             pre_balances = raw_data["meta"]["preBalances"]
             post_balances = raw_data["meta"]["postBalances"]
             
@@ -222,18 +232,34 @@ class BlockchainParser:
             logger.info(f"Zieladresse identifiziert: {to_address[:10]}..." if to_address else "Keine Zieladresse gefunden")
             logger.info(f"Übertragener Betrag: {amount} SOL")
             
-            # 4. Extrahiere Transaktionsstatus
-            logger.debug("Schritt 4: Extrahiere Transaktionsstatus")
+            # 4. Extrahiere Token-Mint-Adresse
+            logger.debug("Schritt 4: Extrahiere Token-Mint-Adresse")
+            mint_address = "So11111111111111111111111111111111111111112"  # SOL Standard Mint-Adresse
+            
+            # Prüfe auf Token-Programm-Transaktionen
+            if "instructions" in raw_data["transaction"]["message"]:
+                for instruction in raw_data["transaction"]["message"]["instructions"]:
+                    # Token-Programm-ID Index (normalerweise 4 in Solana)
+                    if "programIdIndex" in instruction and instruction["programIdIndex"] == 4:
+                        # Token-Übertragung
+                        if "accounts" in instruction and len(instruction["accounts"]) >= 3:
+                            mint_index = instruction["accounts"][1]
+                            if mint_index < len(account_keys):
+                                mint_address = account_keys[mint_index]
+                                logger.info(f"Token-Mint-Adresse identifiziert: {mint_address[:10]}...")
+            
+            # 5. Extrahiere Transaktionsstatus
+            logger.debug("Schritt 5: Extrahiere Transaktionsstatus")
             status = "failed" if raw_data["meta"]["err"] else "success"
             logger.info(f"Transaktionsstatus: {status}")
             
-            # 5. Berechne die Transaktionsgebühr
-            logger.debug("Schritt 5: Berechne Transaktionsgebühr")
+            # 6. Berechne die Transaktionsgebühr
+            logger.debug("Schritt 6: Berechne Transaktionsgebühr")
             fee = raw_data["meta"]["fee"] / 1e9  # Lamports zu SOL
             logger.info(f"Gebühr berechnet: {fee} SOL")
             
-            # 6. Erstelle ein einheitliches Format für die Visualisierung
-            logger.debug("Schritt 6: Erstelle einheitliches Antwortformat")
+            # 7. Erstelle ein einheitliches Format für die Visualisierung
+            logger.debug("Schritt 7: Erstelle einheitliches Antwortformat")
             result = {
                 "tx_hash": tx_hash,
                 "chain": "sol",
@@ -241,7 +267,8 @@ class BlockchainParser:
                 "from_address": from_address,
                 "to_address": to_address,
                 "amount": amount,
-                "currency": "SOL",
+                "currency": "SOL" if mint_address == "So11111111111111111111111111111111111111112" else mint_address,
+                "mint_address": mint_address,
                 "fee": fee,
                 "status": status,
                 "raw_data": raw_data
@@ -255,7 +282,7 @@ class BlockchainParser:
             raise
         except Exception as e:
             logger.critical(f"UNERWARTETER FEHLER beim Solana-Parsing: {str(e)}", exc_info=True)
-        raise
+            raise
         
     def _get_next_transactions(self, blockchain, address, current_hash=None, limit=5):
         """
