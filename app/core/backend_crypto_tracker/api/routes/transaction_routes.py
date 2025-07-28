@@ -93,11 +93,14 @@ def track_transaction(
             # WICHTIG: Nutze _get_next_transactions für die korrekte Transaktionskette
             if parsed_data["to_address"]:
                 logger.debug(f"Suche nach nächsten Transaktionen für Zieladresse: {parsed_data['to_address']}")
+                
+                # Verwende das richtige Limit für die Breite des Graphen
+                max_width = 5  # Maximal 5 Transaktionen pro Ebene
                 next_hashes = parser._get_next_transactions(
                     request.blockchain,
                     parsed_data["to_address"],
                     current_hash=parsed_data["tx_hash"],
-                    limit=5
+                    limit=max_width
                 )
                 
                 logger.info(f"Gefundene nächste Transaktionen: {len(next_hashes)}")
