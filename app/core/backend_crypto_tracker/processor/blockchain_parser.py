@@ -8,31 +8,70 @@ from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPICli
 
 logger = get_logger(__name__)
 
+# Bekannte DEX- und Bridge-Programme auf Solana
+KNOWN_SWAP_PROGRAMS = {
+    "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",  # Raydium
+    "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",  # Orca
+    "JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB",   # Jupiter
+}
+
+KNOWN_BRIDGE_PROGRAMS = {
+    "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",  # Wormhole
+    "3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5", # Allbridge
+}
+
 class BlockchainParser:
     def __init__(self):
         logger.info("BlockchainParser: Initialisiert")
 
-    def parse_transaction(self, blockchain, raw_data, client=None):
+    def _get_next_transactions(self, blockchain: str, address: str, current_hash: str, 
+                             filter_token: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
         """
-        Zentraler Parser für Transaktionsdaten
+        Erweiterte Version von _get_next_transactions mit Token-Filter
         """
-        logger.info(f"START: Parsing von Transaktionsdaten für Blockchain '{blockchain}'")
-        logger.debug(f"Parser: Empfangene Rohdaten (Typ: {type(raw_data)})")
+        logger.info(f"Suche nächste Transaktionen: {blockchain}, {address}, Filter: {filter_token}")
         
         try:
-            if blockchain == "btc":
-                return self._parse_btc_transaction(raw_data)
+            if blockchain == "sol":
+                return self._get_sol_next_transactions(address, current_hash, limit, filter_token)
+            elif blockchain == "btc":
+                return self._get_btc_next_transactions(address, current_hash, limit)
             elif blockchain == "eth":
-                return self._parse_eth_transaction(raw_data)
-            elif blockchain == "sol":
-                # Übergebe den Client für mögliche zusätzliche Abfragen
-                return self._parse_sol_transaction(raw_data, client)
+                return self._get_eth_next_transactions(address, current_hash, limit)
             else:
-                logger.error(f"Parser: Nicht unterstützte Blockchain '{blockchain}'")
-                raise ValueError(f"Unsupported blockchain: {blockchain}")
+                logger.error(f"Nicht unterstützte Blockchain: {blockchain}")
+                return []
         except Exception as e:
-            logger.error(f"FEHLER: Fehler beim Parsen der Transaktion für {blockchain}: {str(e)}", exc_info=True)
-            raise
+            logger.error(f"Fehler in _get_next_transactions: {str(e)}", exc_info=True)
+            return []
+
+    def _is_chain_end_transaction(self, transaction: Dict[str, Any]) -> bool:
+        """
+        Überprüft, ob eine Transaktion das Ende einer Verfolgungskette darstellt.
+        """
+        try:
+            # Extrahiere Programm-IDs aus den Instruktionen
+            instructions = transaction.get("transaction", {}).get("message", {}).get("instructions", [])
+            account_keys = transaction.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            
+            for instruction in instructions:
+                program_idx = instruction.get("programIdIndex")
+                if program_idx is not None and program_idx < len(account_keys):
+                    program_id = account_keys[program_idx]
+                    program_id = program_id.get("pubkey") if isinstance(program_id, dict) else program_id
+                    
+                    # Überprüfe auf bekannte DEX- und Bridge-Programme
+                    if program_id in KNOWN_SWAP_PROGRAMS:
+                        logger.info(f"Chain-End erkannt: DEX-Programm gefunden ({program_id})")
+                        return True
+                    if program_id in KNOWN_BRIDGE_PROGRAMS:
+                        logger.info(f"Chain-End erkannt: Bridge-Programm gefunden ({program_id})")
+                        return True
+            
+            return False
+        except Exception as e:
+            logger.error(f"Fehler bei der Chain-End-Erkennung: {str(e)}", exc_info=True)
+            return False
 
     def _parse_btc_transaction(self, raw_data):
         """Parsen von Bitcoin-Rohdaten"""
