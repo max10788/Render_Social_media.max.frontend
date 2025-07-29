@@ -54,7 +54,7 @@ class SolanaAPIClient:
         logger.error("API: Alle Endpoints für Solana haben versagt")
         raise Exception("Keine verfügbaren Solana-API-Endpoints")
 
-    def get_transaction(self, tx_hash: str) -> Optional[Dict]:
+    def get_transaction(self, tx_hash: str) -> optional[Dict]:
         """
         Holt Transaktionsdaten von der Solana-API mit robuster Validierung.
         
