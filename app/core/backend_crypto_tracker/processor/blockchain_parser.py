@@ -131,15 +131,6 @@ class BlockchainParser:
             logger.error(f"FEHLER: Fehler beim Parsen der ETH-Transaktion: {str(e)}", exc_info=True)
             raise
 
-    def _is_valid_solana_address(address_str):
-        """Prueft grob, ob ein String eine gueltige Solana-Adresse zu sein scheint."""
-        if not isinstance(address_str, str):
-            return False
-        # Solana Adressen sind Base58-codiert und haben typischerweise 32-44 Zeichen
-        # Dies ist eine sehr grobe Pruefung. Eine vollstaendige Validierung waere komplexer.
-        return 32 <= len(address_str) <= 50 and address_str.isalnum() # Base58 ist alphanumerisch
-    # --- ENDE HINZUGEFUEGT ---
-
     def _parse_sol_transaction(self, raw_data, client=None):
         """Parsen von Solana-Rohdaten mit verbesserter Empfänger-Erkennung"""
         logger.info("START: Solana-Transaktionsparsing")
