@@ -6,6 +6,10 @@ from app.core.backend_crypto_tracker.services.btc.transaction_service import Blo
 from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
 from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
 
+from typing import List, Dict, Any, Optional
+from fastapi.responses import JSONResponse  # Oder from starlette.responses import JSONResponse
+
+
 logger = get_logger(__name__)
 
 # Bekannte DEX- und Bridge-Programme auf Solana
