@@ -132,148 +132,157 @@ class BlockchainParser:
             raise
 
     def _parse_sol_transaction(self, raw_data, client=None):
-        """Parsen von Solana-Rohdaten"""
+        """
+        Parst Solana-Transaktionsdaten und extrahiert relevante Informationen.
+        
+        Strategie zur Adresserkennung:
+        1. Primär: Analyse der System-Program Transfer Instruktionen
+        2. Sekundär: Analyse der Token-Program Transfer Instruktionen
+        3. Fallback: Analyse der Saldo-Änderungen
+        
+        Args:
+            raw_data (dict): Rohdaten der Transaktion im jsonParsed Format
+            client (Optional[SolanaAPIClient]): Client für eventuelle zusätzliche Abfragen
+        
+        Returns:
+            dict: Geparste Transaktionsdaten mit allen relevanten Informationen
+        """
         logger.info("START: Solana-Transaktionsparsing")
         
-        # Initialize default values
-        tx_hash = "UNKNOWN_HASH"
-        chain = "sol"
-        timestamp = datetime(2025, 7, 29, 14, 36, 17)
-        from_address = "UNKNOWN_SENDER"
-        to_address = "UNKNOWN_RECEIVER"
-        amount = 0.0
-        currency = "SOL"
+        # Initialisiere Standardwerte
+        parsed_data = {
+            "tx_hash": "UNKNOWN_HASH",
+            "chain": "sol",
+            "timestamp": datetime(2025, 7, 29, 15, 11, 19),
+            "from_address": None,
+            "to_address": None,
+            "amount": 0.0,
+            "currency": "SOL"
+        }
         
         try:
+            # 1. Basis-Validierung
             if not isinstance(raw_data, dict):
-                logger.error("FEHLER: SOL-Rohdaten sind kein Dictionary")
-                raise ValueError("Invalid SOL raw data format")
-    
-            # 1. Extrahiere Basis-Informationen
-            tx_hash = raw_data.get("transaction", {}).get("signatures", [""])[0] or tx_hash
-            logger.info(f"Verarbeite Transaktion: {tx_hash}")
-    
-            # 2. Extrahiere Meta-Daten und Message
+                raise ValueError("raw_data muss ein Dictionary sein")
+                
+            # 2. Extrahiere Basis-Informationen
+            tx = raw_data.get("transaction", {})
             meta = raw_data.get("meta", {})
-            message = raw_data.get("transaction", {}).get("message", {})
+            message = tx.get("message", {})
             
-            # 3. Extrahiere Account Keys
+            # Setze Transaction Hash
+            signatures = tx.get("signatures", [])
+            if signatures:
+                parsed_data["tx_hash"] = signatures[0]
+            
+            # 3. Account Keys Extraktion mit verbesserter Fehlerbehandlung
             account_keys = []
             raw_keys = message.get("accountKeys", [])
+            
             for key in raw_keys:
                 if isinstance(key, dict):
-                    account_keys.append(key.get("pubkey"))
-                else:
+                    pubkey = key.get("pubkey")
+                    if pubkey:
+                        account_keys.append(pubkey)
+                elif isinstance(key, str):
                     account_keys.append(key)
+                    
+            if not account_keys:
+                logger.error("Keine gültigen Account Keys gefunden")
+                return parsed_data
+                
+            logger.debug(f"Extrahierte Account Keys: {len(account_keys)}")
             
-            logger.debug(f"Gefundene Account Keys: {len(account_keys)}")
-    
-            # 4. Analysiere Saldenänderungen
-            pre_balances = meta.get("preBalances", [])
-            post_balances = meta.get("postBalances", [])
-            fee = meta.get("fee", 0) / (10**9)
-    
-            # 5. Erste Methode: Finde größte Saldenänderung
-            max_transfer = 0.0
+            # 4. Instruktionen Analysis (Primäre Methode)
+            instructions = message.get("instructions", [])
             transfer_found = False
             
-            for i, (pre, post, key) in enumerate(zip(pre_balances, post_balances, account_keys)):
-                if not key:
-                    continue
+            for idx, instr in enumerate(instructions):
+                # System Program Transfer
+                if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
+                    transfer_info = instr.get("parsed", {}).get("info", {})
                     
-                diff = (post - pre) / (10**9)
-                
-                # Ignoriere sehr kleine Änderungen (Gebühren etc.)
-                if abs(diff) <= fee:
-                    continue
-    
-                if diff < 0 and abs(diff) > fee:  # Sender (negative Änderung)
-                    from_address = key
-                    amount = abs(diff) - fee
-                    transfer_found = True
-                    logger.debug(f"Sender gefunden via Saldo: {key[:8]}...")
+                    source = transfer_info.get("source")
+                    destination = transfer_info.get("destination")
+                    lamports = transfer_info.get("lamports", 0)
                     
-                elif diff > 0:  # Empfänger (positive Änderung)
-                    if abs(diff) > max_transfer:
-                        to_address = key
-                        max_transfer = abs(diff)
-                        logger.debug(f"Potenzieller Empfänger via Saldo: {key[:8]}...")
-    
-            # 6. Zweite Methode: Analysiere Instructions
-            if not transfer_found or to_address == "UNKNOWN_RECEIVER":
-                logger.debug("Suche in Instructions nach Transfer-Details")
-                instructions = message.get("instructions", [])
-                
-                for instr in instructions:
-                    # Prüfe auf System-Programm Transfer
-                    if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
-                        info = instr.get("parsed", {}).get("info", {})
+                    if source and destination and lamports:
+                        parsed_data["from_address"] = source
+                        parsed_data["to_address"] = destination
+                        parsed_data["amount"] = lamports / 10**9
+                        transfer_found = True
+                        logger.info(f"System Transfer gefunden: {source[:8]}... -> {destination[:8]}...")
+                        break
                         
-                        # Extrahiere Transfer-Details
-                        source = info.get("source")
-                        destination = info.get("destination")
-                        lamports = info.get("lamports", 0)
+                # Token Program Transfer
+                elif instr.get("programId") == "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA":
+                    accounts = instr.get("accounts", [])
+                    if len(accounts) >= 3:  # source, destination, mint
+                        source_idx = accounts[0]
+                        dest_idx = accounts[1]
                         
-                        if source and destination and lamports:
-                            from_address = source
-                            to_address = destination
-                            amount = lamports / (10**9)
+                        if max(source_idx, dest_idx) < len(account_keys):
+                            parsed_data["from_address"] = account_keys[source_idx]
+                            parsed_data["to_address"] = account_keys[dest_idx]
+                            # Betrag muss separat aus Token-Amounts extrahiert werden
                             transfer_found = True
-                            logger.debug(f"Transfer-Details aus Instructions: {source[:8]}... -> {destination[:8]}...")
+                            logger.info(f"Token Transfer gefunden: {parsed_data['from_address'][:8]}... -> {parsed_data['to_address'][:8]}...")
                             break
+            
+            # 5. Saldo-Analyse (Fallback Methode)
+            if not transfer_found:
+                logger.info("Keine Transfer-Instruktion gefunden, analysiere Salden")
+                
+                pre_balances = meta.get("preBalances", [])
+                post_balances = meta.get("postBalances", [])
+                fee = meta.get("fee", 0) / 10**9
+                
+                if len(pre_balances) == len(post_balances) == len(account_keys):
+                    max_outflow = 0.0
+                    max_inflow = 0.0
                     
-                    # Prüfe auf Token-Programm Transfer
-                    elif instr.get("programId") == "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA":
-                        # Extrahiere Token Transfer Details
-                        accounts = instr.get("accounts", [])
-                        if len(accounts) >= 3:  # Minimum: source, destination, token-mint
-                            source_idx = accounts[0]
-                            dest_idx = accounts[1]
+                    for i, (pre, post, key) in enumerate(zip(pre_balances, post_balances, account_keys)):
+                        diff = (post - pre) / 10**9
+                        
+                        # Ignoriere sehr kleine Änderungen (kleiner als Gebühr)
+                        if abs(diff) <= fee:
+                            continue
                             
-                            if source_idx < len(account_keys) and dest_idx < len(account_keys):
-                                from_address = account_keys[source_idx]
-                                to_address = account_keys[dest_idx]
-                                transfer_found = True
-                                logger.debug(f"Token-Transfer gefunden: {from_address[:8]}... -> {to_address[:8]}...")
-    
-            # 7. Setze Zeitstempel
+                        if diff < 0 and abs(diff) > max_outflow:
+                            max_outflow = abs(diff)
+                            parsed_data["from_address"] = key
+                            parsed_data["amount"] = max_outflow - fee
+                            
+                        elif diff > 0 and diff > max_inflow:
+                            max_inflow = diff
+                            parsed_data["to_address"] = key
+                    
+                    if parsed_data["from_address"] and parsed_data["to_address"]:
+                        logger.info(f"Transfer via Saldo-Analyse gefunden: {parsed_data['from_address'][:8]}... -> {parsed_data['to_address'][:8]}...")
+                        transfer_found = True
+            
+            # 6. Setze Zeitstempel
             block_time = raw_data.get("blockTime")
-            if block_time is not None and isinstance(block_time, (int, float)):
+            if isinstance(block_time, (int, float)):
                 try:
-                    timestamp = datetime.utcfromtimestamp(block_time)
+                    parsed_data["timestamp"] = datetime.utcfromtimestamp(block_time)
                 except (ValueError, OSError):
-                    logger.warning("Ungültiger Zeitstempel, verwende aktuelle Zeit")
-                    timestamp = datetime(2025, 7, 29, 14, 36, 17)
-    
-            # 8. Erstelle finale Response
-            parsed_data = {
-                "tx_hash": tx_hash,
-                "chain": chain,
-                "timestamp": timestamp,
-                "from_address": from_address,
-                "to_address": to_address,
-                "amount": abs(float(amount)),
-                "currency": currency
-            }
-    
-            if transfer_found:
-                logger.info(f"ERFOLG: Transfer gefunden - Von: {from_address[:8]}... An: {to_address[:8]}... Betrag: {amount} {currency}")
-            else:
-                logger.warning("WARNUNG: Kein eindeutiger Transfer gefunden")
-    
+                    logger.warning("Ungültiger Zeitstempel")
+            
+            # 7. Finale Validierung
+            if not parsed_data["from_address"] or not parsed_data["to_address"]:
+                logger.warning("Konnte nicht beide Adressen ermitteln")
+                parsed_data["from_address"] = parsed_data["from_address"] or "UNKNOWN_SENDER"
+                parsed_data["to_address"] = parsed_data["to_address"] or "UNKNOWN_RECEIVER"
+            
+            if not transfer_found:
+                logger.warning("Kein Transfer gefunden")
+                
             return parsed_data
-    
+            
         except Exception as e:
-            logger.error(f"FEHLER: Unerwarteter Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
-            return {
-                "tx_hash": "PARSE_ERROR_HASH",
-                "chain": "sol",
-                "timestamp": datetime(2025, 7, 29, 14, 36, 17),
-                "from_address": "PARSE_ERROR_SENDER",
-                "to_address": "PARSE_ERROR_RECEIVER",
-                "amount": 0.0,
-                "currency": "SOL"
-            }
+            logger.error(f"Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
+            return parsed_data
         
     def _get_next_transactions(self, blockchain, address, current_hash, token_identifier=None, limit=5):
         """
