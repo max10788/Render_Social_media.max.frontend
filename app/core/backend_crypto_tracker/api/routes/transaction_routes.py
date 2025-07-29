@@ -6,6 +6,8 @@ from typing import List, Optional, Dict, Any # Alle typing-Module explizit impor
 from dataclasses import dataclass # dataclass von dataclasses importieren
 from datetime import datetime
 from sqlalchemy.orm import Session
+from fastapi.responses import JSONResponse  # Oder from starlette.responses import JSONResponse
+
 
 # Importiere get_logger und EndpointManager
 from app.core.backend_crypto_tracker.utils.logger import get_logger
