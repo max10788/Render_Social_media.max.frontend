@@ -77,20 +77,24 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
     logger.info(f"--- REKURSIONSTIEFE: {request.depth} ---")
     logger.info(f"RECURSIVE START: Tracking transaction for Blockchain '{request.blockchain}' with Hash '{request.tx_hash}' at depth {request.depth}")
 
-    try:
-        # 1. Abrufen der Transaktionsdaten vom Blockchain-Client
-        logger.info(f"Recursive Aufruf: client.get_transaction('{request.tx_hash}')")
+     try:
+        # Hole Transaktionsdaten
         raw_data = client.get_transaction(request.tx_hash)
         if not raw_data:
-            logger.error(f"FEHLER: Keine Rohdaten für Transaktion '{request.tx_hash}' erhalten")
-            raise HTTPException(status_code=404, detail="Transaction not found")
+            logger.error(f"Keine Daten für Transaktion {request.tx_hash}")
+            raise HTTPException(
+                status_code=404,
+                detail="Transaktion nicht gefunden"
+            )
 
-        # 2. Parsen der Transaktionsdaten
-        logger.info("Recursive Aufruf: parser.parse_transaction()")
+        # Parse die Transaktionsdaten
         parsed_data = parser.parse_transaction(request.blockchain, raw_data, client)
         if not parsed_data:
-            logger.error(f"FEHLER: Parsen der Transaktion '{request.tx_hash}' fehlgeschlagen")
-            raise HTTPException(status_code=500, detail="Failed to parse transaction")
+            logger.error(f"Parsing fehlgeschlagen für {request.tx_hash}")
+            raise HTTPException(
+                status_code=500,
+                detail="Parsing der Transaktion fehlgeschlagen"
+            )
 
         logger.info(f"Recursive Erfolg: Data parsed (Amount: {parsed_data.get('amount', 'N/A')})")
 
@@ -182,6 +186,21 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
     except Exception as e:
         logger.error(f"FEHLER in _track_transaction_recursive für Hash '{request.tx_hash}': {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal error during recursive tracking: {str(e)}")
+
+    except Exception as e:
+        error_msg = str(e)
+        if "nicht gefunden" in error_msg.lower():
+            raise HTTPException(status_code=404, detail=error_msg)
+        elif "ungültig" in error_msg.lower():
+            raise HTTPException(status_code=400, detail=error_msg)
+        elif "api" in error_msg.lower():
+            raise HTTPException(status_code=502, detail=error_msg)
+        else:
+            logger.error(f"Unerwarteter Fehler: {error_msg}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Interner Fehler: {error_msg}"
+            )
 
 # --- MODIFIED: Main Route Handler ---
 @router.post("/track", response_model=TransactionResponse)
