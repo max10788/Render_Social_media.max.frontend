@@ -26,10 +26,36 @@ endpoint_manager = EndpointManager()
 class TrackTransactionRequest(BaseModel):
     blockchain: str
     tx_hash: str
-    depth: int = 5
+    depth: int = 5  # Default Rekursionstiefe
+    width: int = 3  # Default Breite (Anzahl Geschwister-Transaktionen)
     include_meta: bool = False
-    token_identifier: str = None  # Neu: Für Token-basierte Verfolgung
+    token_identifier: Optional[str] = None  # Optional für Token-basierte Verfolgung
+    max_total_transactions: int = 50  # Sicherheitslimit für Gesamtanzahl
 
+    # Validierung der Eingaben
+    @validator('depth')
+    def validate_depth(cls, v):
+        if v < 1:
+            raise ValueError("Tiefe muss mindestens 1 sein")
+        if v > 10:  # Maximum Tiefe begrenzen
+            raise ValueError("Maximale Tiefe ist 10")
+        return v
+
+    @validator('width')
+    def validate_width(cls, v):
+        if v < 1:
+            raise ValueError("Breite muss mindestens 1 sein")
+        if v > 10:  # Maximum Breite begrenzen
+            raise ValueError("Maximale Breite ist 10")
+        return v
+
+    @validator('max_total_transactions')
+    def validate_max_total(cls, v):
+        if v < 1:
+            raise ValueError("Maximale Gesamtanzahl muss positiv sein")
+        if v > 50:  # Absolutes Maximum
+            raise ValueError("Maximale Gesamtanzahl ist 1000")
+        return v
 class TransactionResponse(BaseModel):
     tx_hash: str
     chain: str
