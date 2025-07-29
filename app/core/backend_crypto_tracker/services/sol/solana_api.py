@@ -69,7 +69,7 @@ class SolanaAPIClient:
             Exception: Bei API-Fehlern oder ungültigen Daten
         """
 
-        self.logger.info(f"START: Solana-Transaktion abrufen für Hash '{tx_hash}'")
+        logger.info(f"START: Solana-Transaktion abrufen für Hash '{tx_hash}'")
         
         try:
             # 1. Endpoint aus Manager holen
