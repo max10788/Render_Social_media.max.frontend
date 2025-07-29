@@ -145,19 +145,19 @@ class SolanaAPIClient:
             return tx_data
             
         except requests.exceptions.Timeout:
-            self.logger.error(f"Timeout beim Abrufen der Transaktion {tx_hash}")
+            logger.error(f"Timeout beim Abrufen der Transaktion {tx_hash}")
             raise Exception("API-Timeout")
             
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Netzwerkfehler: {str(e)}")
+            logger.error(f"Netzwerkfehler: {str(e)}")
             raise Exception(f"Netzwerkfehler: {str(e)}")
             
         except ValueError as e:
-            self.logger.error(f"JSON Parsing Fehler: {str(e)}")
+            logger.error(f"JSON Parsing Fehler: {str(e)}")
             raise Exception(f"Ungültige API-Antwort: {str(e)}")
             
         except Exception as e:
-            self.logger.error(f"Unerwarteter Fehler: {str(e)}")
+            logger.error(f"Unerwarteter Fehler: {str(e)}")
             raise
             
     def get_transactions_by_address(self, address: str, limit: int = 10) -> list[dict]:
