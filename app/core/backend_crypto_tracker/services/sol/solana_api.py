@@ -102,7 +102,7 @@ class SolanaAPIClient:
             logger.error(f"Fehler bei Solana-Transaktionsabruf: {str(e)}")
             raise
     
-    def get_transactions_by_address(self, address: str, limit: int = 10) -> List[dict]:
+    def get_transactions_by_address(self, address: str, limit: int = 10) -> list[dict]:
         """
         Holt mehrere Transaktionen für eine Adresse.
         """
