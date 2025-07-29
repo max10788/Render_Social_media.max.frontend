@@ -132,13 +132,13 @@ class BlockchainParser:
             raise
 
     def _parse_sol_transaction(self, raw_data, client=None):
-        """Parsen von Solana-Rohdaten mit verbesserter Empfänger-Erkennung"""
+        """Parsen von Solana-Rohdaten"""
         logger.info("START: Solana-Transaktionsparsing")
         
         # Initialize default values
         tx_hash = "UNKNOWN_HASH"
         chain = "sol"
-        timestamp = datetime(2025, 7, 29, 14, 20, 13)  # Aktueller UTC Zeitstempel
+        timestamp = datetime(2025, 7, 29, 14, 36, 17)
         from_address = "UNKNOWN_SENDER"
         to_address = "UNKNOWN_RECEIVER"
         amount = 0.0
@@ -157,7 +157,7 @@ class BlockchainParser:
             meta = raw_data.get("meta", {})
             message = raw_data.get("transaction", {}).get("message", {})
             
-            # 3. Extrahiere Account Keys mit verbesserter Logik
+            # 3. Extrahiere Account Keys
             account_keys = []
             raw_keys = message.get("accountKeys", [])
             for key in raw_keys:
@@ -236,25 +236,16 @@ class BlockchainParser:
                                 transfer_found = True
                                 logger.debug(f"Token-Transfer gefunden: {from_address[:8]}... -> {to_address[:8]}...")
     
-            # 7. Validiere gefundene Adressen
-            if not self._is_valid_solana_address(from_address):
-                logger.warning(f"Ungültige Sender-Adresse gefunden: {from_address}")
-                from_address = "UNKNOWN_SENDER"
-                
-            if not self._is_valid_solana_address(to_address):
-                logger.warning(f"Ungültige Empfänger-Adresse gefunden: {to_address}")
-                to_address = "UNKNOWN_RECEIVER"
-    
-            # 8. Setze Zeitstempel
+            # 7. Setze Zeitstempel
             block_time = raw_data.get("blockTime")
             if block_time is not None and isinstance(block_time, (int, float)):
                 try:
                     timestamp = datetime.utcfromtimestamp(block_time)
                 except (ValueError, OSError):
                     logger.warning("Ungültiger Zeitstempel, verwende aktuelle Zeit")
-                    timestamp = datetime(2025, 7, 29, 14, 20, 13)
+                    timestamp = datetime(2025, 7, 29, 14, 36, 17)
     
-            # 9. Erstelle finale Response
+            # 8. Erstelle finale Response
             parsed_data = {
                 "tx_hash": tx_hash,
                 "chain": chain,
@@ -277,7 +268,7 @@ class BlockchainParser:
             return {
                 "tx_hash": "PARSE_ERROR_HASH",
                 "chain": "sol",
-                "timestamp": datetime(2025, 7, 29, 14, 20, 13),
+                "timestamp": datetime(2025, 7, 29, 14, 36, 17),
                 "from_address": "PARSE_ERROR_SENDER",
                 "to_address": "PARSE_ERROR_RECEIVER",
                 "amount": 0.0,
