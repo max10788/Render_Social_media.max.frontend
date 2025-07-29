@@ -2,6 +2,7 @@ import requests
 import json
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 from app.core.backend_crypto_tracker.utils.endpoint_manager import EndpointManager
+from typing import List, Optional
 
 logger = get_logger(__name__)
 endpoint_manager = EndpointManager()
