@@ -75,7 +75,7 @@ class SolanaAPIClient:
             # 1. Endpoint aus Manager holen
             endpoint = endpoint_manager.get_endpoint("sol")
             if not endpoint:
-                self.logger.error("Kein verfügbarer Endpoint")
+                logger.error("Kein verfügbarer Endpoint")
                 raise Exception("Kein API-Endpoint verfügbar")
             
             # 2. Request vorbereiten
@@ -101,7 +101,7 @@ class SolanaAPIClient:
             
             # 4. HTTP Status prüfen
             if response.status_code != 200:
-                self.logger.error(f"HTTP {response.status_code}: {response.text}")
+                logger.error(f"HTTP {response.status_code}: {response.text}")
                 raise Exception(f"HTTP Fehler {response.status_code}")
             
             # 5. Response validieren
@@ -111,7 +111,7 @@ class SolanaAPIClient:
             if "error" in result:
                 error = result["error"]
                 error_message = error.get("message", "Unbekannter API-Fehler")
-                self.logger.error(f"API-Fehler: {error_message}")
+                logger.error(f"API-Fehler: {error_message}")
                 
                 if "not found" in error_message.lower():
                     raise Exception(f"Transaktion nicht gefunden: {tx_hash}")
@@ -119,29 +119,29 @@ class SolanaAPIClient:
             
             # 6. Erfolgsfall validieren
             if "result" not in result:
-                self.logger.error("Keine 'result' in Antwort")
+                logger.error("Keine 'result' in Antwort")
                 raise Exception("Ungültige API-Antwort: Keine 'result' in Antwort")
             
             tx_data = result["result"]
             if tx_data is None:
-                self.logger.error(f"Transaktion {tx_hash} nicht gefunden")
+                logger.error(f"Transaktion {tx_hash} nicht gefunden")
                 raise Exception(f"Transaktion nicht gefunden: {tx_hash}")
             
             # 7. Minimale Datenvalidierung
             if not isinstance(tx_data, dict):
-                self.logger.error("Transaktionsdaten sind kein Dictionary")
+                logger.error("Transaktionsdaten sind kein Dictionary")
                 raise Exception("Ungültiges Datenformat")
                 
             if "transaction" not in tx_data or not isinstance(tx_data["transaction"], dict):
-                self.logger.error("Feld 'transaction' fehlt oder ist ungültig")
+                logger.error("Feld 'transaction' fehlt oder ist ungültig")
                 raise Exception("Ungültige Transaktionsdaten: 'transaction' fehlt")
                 
             if "meta" not in tx_data or not isinstance(tx_data["meta"], dict):
-                self.logger.error("Feld 'meta' fehlt oder ist ungültig")
+                logger.error("Feld 'meta' fehlt oder ist ungültig")
                 raise Exception("Ungültige Transaktionsdaten: 'meta' fehlt")
             
             # 8. Erfolg nur loggen wenn alle Validierungen bestanden
-            self.logger.info(f"ERFOLG: Transaktion {tx_hash[:8]}... erfolgreich abgerufen und validiert")
+            logger.info(f"ERFOLG: Transaktion {tx_hash[:8]}... erfolgreich abgerufen und validiert")
             return tx_data
             
         except requests.exceptions.Timeout:
