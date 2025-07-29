@@ -363,89 +363,121 @@ class BlockchainParser:
         # In einer echten Implementierung würden wir eine API aufrufen
         return []
 
-    def _get_sol_next_transactions(self, address, current_hash, limit, token_identifier=None):
+    def _get_sol_next_transactions(self, address, current_hash, limit, filter_token: Optional[str] = None):
         """
-        Holt die nächsten Transaktionen für eine Solana-Adresse.
-        Berücksichtigt auch den Token-Identifier (Mint-Adresse) für SPL-Token Transfers.
+        Erweiterte Version der Solana-Transaktionsverfolgung mit Token-Filter und Chain-End-Erkennung.
         """
-        # Validiere die Eingabeadresse
+        # Validierung der Eingabeadresse
         if not isinstance(address, str) or not address.strip():
-            logger.error(f"SOLANA: Ungültige oder leere Adresse für next_transactions: '{address}' (Typ: {type(address)})")
+            logger.error(f"SOLANA: Ungültige oder leere Adresse: '{address}'")
             return []
     
         address = address.strip()
-        
-        # Prüfe Adresslänge (Solana Adressen sind Base58, typisch 32-44 Zeichen)
         if not (32 <= len(address) <= 50):
-            logger.error(f"SOLANA: Adresse hat ungültige Länge: '{address}' (Länge: {len(address)})")
+            logger.error(f"SOLANA: Adresse hat ungültige Länge: {len(address)}")
             return []
-        
-        logger.info(f"SOLANA: Suche bis zu {limit} Transaktionen für Adresse {address}")
-        if token_identifier:
-            logger.info(f"SOLANA: Filtere nach Token-Identifier (Mint): {token_identifier}")
+    
+        logger.info(f"SOLANA: Suche Transaktionen für {address} (Filter: {filter_token or 'None'})")
         
         try:
             client = SolanaAPIClient()
             safe_limit = max(1, min(int(limit), 10))
+            transactions = client.get_transactions_by_address(address, limit=safe_limit)
             
-            # Hole mehr Transaktionen wenn wir nach Token filtern
-            search_limit = safe_limit * 3 if token_identifier else safe_limit
-            transactions = client.get_transactions_by_address(address, limit=search_limit)
-            
-            next_hashes = []
+            next_transactions = []
             if transactions and isinstance(transactions, list):
-                logger.info(f"SOLANA: {len(transactions)} Transaktionen gefunden")
+                logger.info(f"SOLANA: Erfolgreich {len(transactions)} Transaktionen abgerufen")
                 
                 for tx in transactions:
                     try:
-                        # Extrahiere Transaktion-Hash
-                        tx_signatures = tx.get("transaction", {}).get("signatures", [])
-                        tx_hash = tx_signatures[0] if tx_signatures else tx.get("signature")
+                        # Extrahiere Transaktions-Hash
+                        signatures = tx.get("transaction", {}).get("signatures", [])
+                        tx_hash = signatures[0] if signatures else None
                         
-                        if not isinstance(tx_hash, str) or tx_hash == current_hash:
+                        if not tx_hash or tx_hash == current_hash:
                             continue
-                        
-                        # Token-Filter: Prüfe ob die Transaktion den gewünschten Token verwendet
-                        if token_identifier:
+    
+                        # Token-Filter-Logik
+                        if filter_token:
                             tx_token = self._get_token_identifier_from_transaction("sol", tx)
-                            if tx_token != token_identifier:
-                                logger.debug(f"SOLANA: Überspringe Transaktion {tx_hash[:10]}... (Token nicht passend)")
+                            if tx_token != filter_token:
+                                logger.debug(f"Überspringe Transaktion {tx_hash}: Token-Mismatch")
                                 continue
-                            logger.debug(f"SOLANA: Token-Match gefunden für {tx_hash[:10]}...")
+    
+                        # Chain-End-Erkennung
+                        is_chain_end = self._is_chain_end_transaction(tx)
                         
-                        next_hashes.append(tx_hash)
-                        logger.debug(f"SOLANA: Nächster Transaktions-Hash gefunden: {tx_hash}")
+                        # Füge Transaktion mit Metadaten hinzu
+                        next_tx = {
+                            "hash": tx_hash,
+                            "is_chain_end": is_chain_end,
+                            "raw_data": tx if is_chain_end else None  # Speichere Rohdaten nur für Chain-Ends
+                        }
+                        next_transactions.append(next_tx)
                         
-                        if len(next_hashes) >= safe_limit:
+                        if len(next_transactions) >= safe_limit:
                             break
                             
                     except Exception as e:
-                        logger.warning(f"SOLANA: Fehler beim Verarbeiten einer Transaktion: {e}")
+                        logger.warning(f"SOLANA: Fehler bei Transaktion: {e}")
                         continue
-                        
-                if token_identifier:
-                    logger.info(f"SOLANA: {len(next_hashes)} von {len(transactions)} Transaktionen verwenden Token {token_identifier}")
-                else:
-                    logger.info(f"SOLANA: {len(next_hashes)} Transaktionen gefunden (ohne Token-Filter)")
-                    
-                return next_hashes[:safe_limit]
+    
+                logger.info(f"ERFOLG: {len(next_transactions)} nächste Transaktionen gefunden")
+                return next_transactions[:safe_limit]
                 
-            else:
-                if transactions is None:
-                    logger.info("SOLANA: Keine Transaktionen gefunden (Ergebnis ist None)")
-                elif not isinstance(transactions, list):
-                    logger.warning(f"SOLANA: Unerwartetes Format für Transaktionen: {type(transactions)}")
-                else:
-                    logger.info("SOLANA: Keine Transaktionen gefunden")
-                return []
-                
-        except ImportError as ie:
-            logger.error(f"FEHLER: SolanaAPIClient konnte nicht importiert werden: {ie}")
-            return []
         except Exception as e:
             logger.error(f"FEHLER: Fehler beim Abrufen der Solana-Transaktionen: {str(e)}", exc_info=True)
             return []
-
+    
+    def _is_chain_end_transaction(self, transaction: dict) -> bool:
+        """
+        Erweiterte Erkennung von Chain-End-Transaktionen für Solana.
+        """
+        try:
+            # Bekannte DEX- und Bridge-Programme
+            KNOWN_SWAP_PROGRAMS = {
+                "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",  # Raydium
+                "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",  # Orca
+                "JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB",   # Jupiter
+                "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",   # Orca Whirlpools
+                "DjVE6JNiYqPL2QXyCUUh8rNjHrbz9hXHNYt99MQ59qw1",  # Raydium CLMM
+            }
+    
+            KNOWN_BRIDGE_PROGRAMS = {
+                "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb",  # Wormhole
+                "3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5", # Allbridge
+                "Brdguy7BmNB4qwEbcqqMbyV5CyJd2sxQNUn6NEpMSsUb", # Portal Bridge
+                "ABR78XwLW5Bj4hctE9wFf2yCpcF5tqUtV5A7SSh3mdy7", # Allbridge V2
+            }
+    
+            # Extrahiere alle beteiligten Programme
+            instructions = transaction.get("transaction", {}).get("message", {}).get("instructions", [])
+            account_keys = transaction.get("transaction", {}).get("message", {}).get("accountKeys", [])
+            
+            for instruction in instructions:
+                program_idx = instruction.get("programIdIndex")
+                if program_idx is not None and program_idx < len(account_keys):
+                    program_id = account_keys[program_idx]
+                    program_id = program_id.get("pubkey") if isinstance(program_id, dict) else program_id
+    
+                    # Überprüfe auf bekannte DEX- und Bridge-Programme
+                    if program_id in KNOWN_SWAP_PROGRAMS:
+                        logger.info(f"Chain-End erkannt: DEX-Programm gefunden ({program_id})")
+                        return True
+                    if program_id in KNOWN_BRIDGE_PROGRAMS:
+                        logger.info(f"Chain-End erkannt: Bridge-Programm gefunden ({program_id})")
+                        return True
+    
+                # Überprüfe auf Token-Swap Instruktionen
+                if instruction.get("parsed", {}).get("type") in ["swap", "exchange", "bridge"]:
+                    logger.info("Chain-End erkannt: Swap/Exchange/Bridge Instruktion gefunden")
+                    return True
+    
+            return False
+            
+        except Exception as e:
+            logger.error(f"Fehler bei der Chain-End-Erkennung: {str(e)}", exc_info=True)
+            return False
     
     def _get_token_identifier_from_transaction(self, blockchain, tx):
         """Extrahiert den Token-Identifier aus einer Transaktion basierend auf der Blockchain."""
