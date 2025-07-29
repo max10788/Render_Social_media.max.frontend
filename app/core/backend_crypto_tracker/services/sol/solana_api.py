@@ -68,7 +68,7 @@ class SolanaAPIClient:
         Raises:
             Exception: Bei API-Fehlern oder ungültigen Daten
         """
-        timestamp = datetime(2025, 7, 29, 16, 12, 5)
+
         self.logger.info(f"START: Solana-Transaktion abrufen für Hash '{tx_hash}'")
         
         try:
