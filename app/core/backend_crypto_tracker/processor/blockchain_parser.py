@@ -144,22 +144,30 @@ class BlockchainParser:
         """Parsen von Solana-Rohdaten"""
         logger.info("START: Solana-Transaktionsparsing")
         
-        # Initialize default values
-        tx_hash = "UNKNOWN_HASH"
-        chain = "sol"
-        timestamp = datetime(2025, 7, 28, 23, 57, 28)  # Current UTC time
-        from_address = "UNKNOWN_SENDER"
-        to_address = "UNKNOWN_RECEIVER"
-        amount = 0.0
-        currency = "SOL"
+        # Initialize with more descriptive unknown values
+        DEFAULT_UNKNOWN = "UNKNOWN_ADDRESS"  # More generic unknown indicator
+        parsed_data = {
+            "tx_hash": "UNKNOWN_HASH",
+            "chain": "sol",
+            "timestamp": datetime(2025, 7, 28, 23, 57, 28),  # Current UTC time
+            "from_address": DEFAULT_UNKNOWN,
+            "to_address": DEFAULT_UNKNOWN,
+            "amount": 0.0,
+            "currency": "SOL"
+        }
         
         try:
             if not isinstance(raw_data, dict):
                 logger.error("FEHLER: SOL-Rohdaten sind kein Dictionary")
                 raise ValueError("Invalid SOL raw data format")
     
-            # Extract transaction details
-            tx_hash = raw_data.get("transaction", {}).get("signatures", [""])[0] or tx_hash
+            # Extract transaction hash first
+            if tx_signatures := raw_data.get("transaction", {}).get("signatures"):
+                parsed_data["tx_hash"] = tx_signatures[0]
+                
+            # Extract and process addresses from message
+            message = raw_data.get("transaction", {}).get("message", {})
+            account_keys = message.get("accountKeys", [])
             
             # Extract and validate amount from pre/post balances
             meta = raw_data.get("meta", {})
@@ -167,12 +175,11 @@ class BlockchainParser:
             post_balances = meta.get("postBalances", [])
             fee = meta.get("fee", 0) / (10**9)  # Convert lamports to SOL
             
-            # Get account keys
-            message = raw_data.get("transaction", {}).get("message", {})
-            account_keys = message.get("accountKeys", [])
-            
             # Calculate actual transfer amount from balance changes
             max_transfer = 0.0
+            found_sender = False
+            found_receiver = False
+            
             for i, (pre, post, key) in enumerate(zip(pre_balances, post_balances, account_keys)):
                 pubkey = key.get('pubkey') if isinstance(key, dict) else key
                 if not isinstance(pubkey, str) or not pubkey:
@@ -180,77 +187,57 @@ class BlockchainParser:
                     
                 diff = (post - pre) / (10**9)  # Convert lamports to SOL
                 
-                # Track the largest balance change (ignoring fees)
                 if abs(diff) > abs(max_transfer) and abs(diff) > fee:
                     if diff < 0:
-                        from_address = pubkey
-                        max_transfer = abs(diff) - fee  # Subtract fee from outgoing amount
+                        parsed_data["from_address"] = pubkey
+                        found_sender = True
+                        max_transfer = abs(diff) - fee
                     else:
-                        to_address = pubkey
-                        max_transfer = abs(diff)  # Incoming amount doesn't need fee adjustment
-                    
-            # If we found a transfer amount, use it
+                        parsed_data["to_address"] = pubkey
+                        found_receiver = True
+                        max_transfer = abs(diff)
+    
+            # Update amount if we found a transfer
             if max_transfer > 0:
-                amount = max_transfer
-            
-            # Fallback to instruction parsing if no amount found
-            if amount == 0.0:
-                instructions = message.get("instructions", [])
-                for instr in instructions:
-                    if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
-                        info = instr.get("parsed", {}).get("info", {})
-                        lamports = info.get("lamports", 0)
-                        if lamports > 0:
-                            amount = lamports / (10**9)  # Convert lamports to SOL
-                            # Update addresses if we found a valid transfer
-                            source = info.get("source", "")
-                            destination = info.get("destination", "")
-                            if source:
-                                from_address = source
-                            if destination:
-                                to_address = destination
-                            break
+                parsed_data["amount"] = max_transfer
+    
+            # If no amount found, try parsing from instructions
+            if parsed_data["amount"] == 0.0:
+                if instructions := message.get("instructions", []):
+                    for instr in instructions:
+                        if instr.get("program") == "system" and instr.get("parsed", {}).get("type") == "transfer":
+                            info = instr.get("parsed", {}).get("info", {})
+                            if lamports := info.get("lamports", 0):
+                                parsed_data["amount"] = lamports / (10**9)
+                                if source := info.get("source"):
+                                    parsed_data["from_address"] = source
+                                    found_sender = True
+                                if destination := info.get("destination"):
+                                    parsed_data["to_address"] = destination
+                                    found_receiver = True
+                                break
     
             # Get timestamp from blockTime
-            block_time = raw_data.get("blockTime")
-            if block_time is not None and isinstance(block_time, (int, float)):
-                try:
-                    timestamp = datetime.utcfromtimestamp(block_time)
-                except (ValueError, OSError):
-                    logger.warning("Ungültiger Zeitstempel, verwende aktuelle Zeit")
-                    # Use current time as specified
-                    timestamp = datetime(2025, 7, 28, 23, 57, 28)
+            if block_time := raw_data.get("blockTime"):
+                if isinstance(block_time, (int, float)):
+                    try:
+                        parsed_data["timestamp"] = datetime.utcfromtimestamp(block_time)
+                    except (ValueError, OSError):
+                        logger.warning("Ungültiger Zeitstempel, verwende Standard-Zeit")
     
-            # Ensure amount is always a float and positive
-            amount = abs(float(amount))
+            # Log address findings
+            if not found_sender:
+                logger.warning("Keine Sender-Adresse gefunden")
+            if not found_receiver:
+                logger.warning("Keine Empfänger-Adresse gefunden")
     
-            # Create final response data
-            parsed_data = {
-                "tx_hash": tx_hash,
-                "chain": chain,
-                "timestamp": timestamp,
-                "from_address": from_address,
-                "to_address": to_address,
-                "amount": amount,  # This will now always be a positive float
-                "currency": currency
-            }
-    
-            logger.info(f"ERFOLG: Solana-Transaktion geparst - Amount: {amount} {currency}")
+            logger.info(f"ERFOLG: Solana-Transaktion geparst - Amount: {parsed_data['amount']} SOL")
             return parsed_data
     
         except Exception as e:
             logger.error(f"FEHLER: Unerwarteter Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
-            # Return fallback data with valid amount
-            return {
-                "tx_hash": "PARSE_ERROR_HASH",
-                "chain": "sol",
-                "timestamp": datetime(2025, 7, 28, 23, 57, 28),  # Current UTC time
-                "from_address": "PARSE_ERROR_SENDER",
-                "to_address": "PARSE_ERROR_RECEIVER",
-                "amount": 0.0,  # Ensure amount is always present
-                "currency": "SOL"
-            }
-
+            return parsed_data  # Return the default data with UNKNOWN values
+        
     def _get_next_transactions(self, blockchain, address, current_hash, token_identifier=None, limit=5):
         """
         Findet die nächsten Transaktionen basierend auf der Zieladresse und Token
