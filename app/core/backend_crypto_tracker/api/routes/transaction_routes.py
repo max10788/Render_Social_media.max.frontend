@@ -77,7 +77,7 @@ def _track_transaction_recursive(request: TrackTransactionRequest, client, parse
     logger.info(f"--- REKURSIONSTIEFE: {request.depth} ---")
     logger.info(f"RECURSIVE START: Tracking transaction for Blockchain '{request.blockchain}' with Hash '{request.tx_hash}' at depth {request.depth}")
 
-     try:
+    try:
         # Hole Transaktionsdaten
         raw_data = client.get_transaction(request.tx_hash)
         if not raw_data:
