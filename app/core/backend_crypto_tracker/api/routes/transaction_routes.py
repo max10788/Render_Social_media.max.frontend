@@ -23,40 +23,28 @@ router = APIRouter()
 # Initialisiere den Endpoint-Manager (global, um Zustand zwischen Anfragen zu behalten)
 endpoint_manager = EndpointManager()
 
+@dataclass
+class TransactionContext:
+    """Context object to track transaction processing state across recursive calls."""
+    processed_count: int = 0
+    max_transactions: int = 50
+    width: int = 3
+    include_meta: bool = False
+
+    def increment(self) -> bool:
+        """Increment counter and return True if limit not reached."""
+        self.processed_count += 1
+        return self.processed_count <= self.max_transactions
+
 class TrackTransactionRequest(BaseModel):
     blockchain: str
     tx_hash: str
-    depth: int = 5  # Default Rekursionstiefe
-    width: int = 3  # Default Breite (Anzahl Geschwister-Transaktionen)
+    depth: int = 5
     include_meta: bool = False
-    token_identifier: Optional[str] = None  # Optional für Token-basierte Verfolgung
-    filter_token: Optional[str] = None  # Neuer Parameter für Token-Filter
-    max_total_transactions: int = 50  # Sicherheitslimit für Gesamtanzahl
+    token_identifier: Optional[str] = None
+    max_total_transactions: int = Field(default=50, ge=1, le=100)
+    width: int = Field(default=3, ge=1, le=10)
 
-    # Validierung der Eingaben
-    @validator('depth')
-    def validate_depth(cls, v):
-        if v < 1:
-            raise ValueError("Tiefe muss mindestens 1 sein")
-        if v > 10:  # Maximum Tiefe begrenzen
-            raise ValueError("Maximale Tiefe ist 10")
-        return v
-
-    @validator('width')
-    def validate_width(cls, v):
-        if v < 1:
-            raise ValueError("Breite muss mindestens 1 sein")
-        if v > 10:  # Maximum Breite begrenzen
-            raise ValueError("Maximale Breite ist 10")
-        return v
-
-    @validator('max_total_transactions')
-    def validate_max_total(cls, v):
-        if v < 1:
-            raise ValueError("Maximale Gesamtanzahl muss positiv sein")
-        if v > 50:  # Absolutes Maximum
-            raise ValueError("Maximale Gesamtanzahl ist 1000")
-        return v
 class TransactionResponse(BaseModel):
     tx_hash: str
     chain: str
@@ -65,40 +53,48 @@ class TransactionResponse(BaseModel):
     to_address: str
     amount: float
     currency: str
-    is_chain_end: bool = False  # Neues Feld für Chain-End-Flag
+    meta: Optional[Dict[str, Any]] = None
+    is_chain_end: bool = False
     next_transactions: List["TransactionResponse"] = []
+    limit_reached: bool = False
 
-# Rekursive Modellreferenz
 TransactionResponse.update_forward_refs()
 
-# --- NEW: Recursive Helper Function ---
-# In transaction_routes.py:
+def _track_transaction_recursive(
+    request: TrackTransactionRequest,
+    client,
+    parser,
+    db,
+    endpoint_manager,
+    context: TransactionContext
+) -> Optional[TransactionResponse]:
+    """
+    Enhanced recursive helper function with transaction limiting and metadata support.
+    """
+    logger.info(f"--- REKURSIONSTIEFE: {request.depth} | Verarbeitet: {context.processed_count}/{context.max_transactions} ---")
 
-async def _track_transaction_recursive(request: TrackTransactionRequest, client, parser, db, endpoint_manager):
-    """
-    Erweiterte rekursive Hilfsfunktion mit Token-Filter und Chain-End-Behandlung.
-    """
-    logger.info(f"--- REKURSIONSTIEFE: {request.depth} ---")
-    logger.info(f"RECURSIVE START: Tracking transaction for Blockchain '{request.blockchain}' with Hash '{request.tx_hash}'")
+    # Check if we've reached the transaction limit
+    if not context.increment():
+        logger.warning("Transaktionslimit erreicht - Beende Rekursion frühzeitig")
+        return None
 
     try:
-        # 1. Abrufen der Transaktionsdaten
+        # 1. Fetch transaction data
         raw_data = client.get_transaction(request.tx_hash)
         if not raw_data:
             raise HTTPException(status_code=404, detail="Transaction not found")
 
-        # 2. Parsen der Transaktionsdaten
-        parsed_data = parser.parse_transaction(request.blockchain, raw_data, client)
+        # 2. Parse transaction data with metadata support
+        parsed_data = parser.parse_transaction(
+            request.blockchain,
+            raw_data,
+            client,
+            include_meta=context.include_meta
+        )
         if not parsed_data:
             raise HTTPException(status_code=500, detail="Failed to parse transaction")
 
-        # Log-Informationen
-        current_source = parsed_data.get("from_address", "Unbekannt")
-        current_target = parsed_data.get("to_address", "Unbekannt")
-        short_source = current_source[:8] + "..." + current_source[-4:] if len(current_source) > 12 else current_source
-        short_target = current_target[:8] + "..." + current_target[-4:] if len(current_target) > 12 else current_target
-        
-        # 3. Basis-Response erstellen
+        # 3. Create base response
         current_transaction = TransactionResponse(
             tx_hash=parsed_data["tx_hash"],
             chain=parsed_data["chain"],
@@ -107,72 +103,94 @@ async def _track_transaction_recursive(request: TrackTransactionRequest, client,
             to_address=parsed_data["to_address"],
             amount=float(parsed_data["amount"]),
             currency=parsed_data["currency"],
-            is_chain_end=False,  # Wird später ggf. aktualisiert
-            next_transactions=[]
+            meta=parsed_data.get("meta") if context.include_meta else None,
+            next_transactions=[],
+            limit_reached=False
         )
 
-        # 4. Rekursive Verarbeitung
+        # 4. Process next level if depth allows and limit not reached
         if request.depth > 1:
-            # Token-Identifier bestimmen
-            token_identifier = request.token_identifier or parsed_data.get("currency", "SOL")
-            
-            # Nächste Transaktionen abrufen
+            # Get token identifier
+            token_identifier = (
+                request.token_identifier or
+                parsed_data.get("token_identifier") or
+                parsed_data.get("currency", "SOL")
+            )
+
+            # Get next transactions with width parameter
             next_transactions = parser._get_next_transactions(
                 request.blockchain,
                 parsed_data["to_address"],
                 current_hash=parsed_data["tx_hash"],
-                filter_token=token_identifier,
-                limit=min(5, request.depth)
+                token_identifier=token_identifier,
+                limit=context.width,
+                include_meta=context.include_meta
             )
 
             if next_transactions:
-                logger.info(f"[Tiefe: {request.depth}] Verarbeite {len(next_transactions)} Kinder für {short_target}")
-                
                 for next_tx in next_transactions:
-                    try:
-                        # Prüfe auf Chain-End
-                        if next_tx.get("is_chain_end", False):
-                            current_transaction.is_chain_end = True
-                            continue
-
-                        # Neue Anfrage mit reduzierter Tiefe
-                        child_request = TrackTransactionRequest(
-                            blockchain=request.blockchain,
-                            tx_hash=next_tx["hash"],
-                            depth=request.depth - 1,
-                            include_meta=request.include_meta,
-                            token_identifier=token_identifier
-                        )
-                        
-                        # Rekursiver Aufruf
-                        child_transaction = await _track_transaction_recursive(
-                            child_request, client, parser, db, endpoint_manager
-                        )
-                        
-                        if child_transaction:
-                            current_transaction.next_transactions.append(child_transaction)
-                            
-                    except Exception as e:
-                        logger.error(f"Fehler bei Kind-Transaktion {next_tx.get('hash', 'unknown')}: {str(e)}")
+                    # Check if it's a chain-end transaction
+                    if isinstance(next_tx, dict) and next_tx.get("is_chain_end", False):
+                        current_transaction.is_chain_end = True
                         continue
+
+                    # Create child request
+                    child_request = TrackTransactionRequest(
+                        blockchain=request.blockchain,
+                        tx_hash=next_tx["hash"] if isinstance(next_tx, dict) else next_tx,
+                        depth=request.depth - 1,
+                        include_meta=context.include_meta,
+                        token_identifier=token_identifier,
+                        max_total_transactions=context.max_transactions,
+                        width=context.width
+                    )
+
+                    # Recursive call
+                    child_transaction = _track_transaction_recursive(
+                        child_request,
+                        client,
+                        parser,
+                        db,
+                        endpoint_manager,
+                        context
+                    )
+
+                    if child_transaction:
+                        current_transaction.next_transactions.append(child_transaction)
+                    elif context.processed_count >= context.max_transactions:
+                        current_transaction.limit_reached = True
+                        break
 
         return current_transaction
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Fehler in _track_transaction_recursive: {str(e)}", exc_info=True)
+        logger.error(f"Error in recursive tracking: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/track", response_model=TransactionResponse)
-async def track_transaction(request: TrackTransactionRequest, db: Session = Depends(get_db)):
+def track_transaction(
+    request: TrackTransactionRequest,
+    db: Session = Depends(get_db)
+):
     """
-    Hauptendpoint für Transaktionsverfolgung mit erweiterter Funktionalität.
+    Enhanced main endpoint with support for transaction limits and metadata.
     """
     try:
-        logger.info(f"START: Verfolgung für {request.blockchain} / {request.tx_hash}")
+        logger.info(f"START: Track transaction for {request.blockchain} / {request.tx_hash}")
+        logger.info(f"Parameters: max_transactions={request.max_total_transactions}, "
+                   f"width={request.width}, include_meta={request.include_meta}")
 
-        # 1. Client-Initialisierung
+        # Create context object
+        context = TransactionContext(
+            processed_count=0,
+            max_transactions=request.max_total_transactions,
+            width=request.width,
+            include_meta=request.include_meta
+        )
+
+        # Initialize client
         try:
             endpoint = endpoint_manager.get_endpoint(request.blockchain)
             client = None
@@ -187,20 +205,30 @@ async def track_transaction(request: TrackTransactionRequest, db: Session = Depe
                 raise HTTPException(status_code=400, detail="Unsupported blockchain")
                 
         except Exception as e:
-            logger.error(f"Client-Initialisierung fehlgeschlagen: {str(e)}")
+            logger.error(f"Client initialization failed: {str(e)}")
             raise HTTPException(status_code=503, detail="API endpoint unavailable")
 
-        # 2. Parser-Initialisierung
+        # Initialize parser
         parser = BlockchainParser()
 
-        # 3. Rekursive Verfolgung starten
-        result = await _track_transaction_recursive(request, client, parser, db, endpoint_manager)
-        
-        logger.info(f"ERFOLG: Verfolgung abgeschlossen für {request.tx_hash}")
-        return result
+        # Start recursive tracking
+        result = _track_transaction_recursive(
+            request,
+            client,
+            parser,
+            db,
+            endpoint_manager,
+            context
+        )
+
+        if result:
+            logger.info(f"SUCCESS: Processed {context.processed_count} transactions")
+            return result
+        else:
+            raise HTTPException(status_code=500, detail="No result from transaction tracking")
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.critical(f"Unerwarteter Fehler: {str(e)}", exc_info=True)
+        logger.critical(f"Unexpected error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
