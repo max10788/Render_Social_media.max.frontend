@@ -15,7 +15,7 @@ from app.core.backend_crypto_tracker.processor.blockchain_parser import Blockcha
 
 # Endpoint Manager
 from app.core.backend_crypto_tracker.utils.endpoint_manager import EndpointManager
-
+from pydantic import validator
 from app.core.database import get_db
 
 router = APIRouter()
