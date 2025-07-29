@@ -256,7 +256,9 @@ class BlockchainParser:
         Findet die nächsten Transaktionen basierend auf der Zieladresse und Token
         """
         logger.info(f"START: Suche nach nächsten Transaktionen für Blockchain '{blockchain}'")
-        logger.info(f"Adresse: {address}, Aktueller Hash: {current_hash}, Token: {token_identifier}, Limit: {limit}")
+        logger.info(f"Adresse: {address}, Hash: {current_hash}, Token: {token_identifier}, Limit: {limit}")
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"Zeitstempel: {timestamp}")
         
         try:
             if blockchain == "btc":
@@ -265,9 +267,9 @@ class BlockchainParser:
                 return self._get_eth_next_transactions(address, current_hash, limit)
             elif blockchain == "sol":
                 return self._get_sol_next_transactions(
-                    address, 
-                    current_hash, 
-                    limit=limit,
+                    address=address,
+                    current_hash=current_hash,
+                    limit=limit,  # Limit kommt jetzt von der Website
                     token_identifier=token_identifier
                 )
             else:
@@ -275,8 +277,8 @@ class BlockchainParser:
                 return []
         except Exception as e:
             logger.error(f"FEHLER: Fehler beim Abrufen der nächsten Transaktionen: {str(e)}", exc_info=True)
-            return []  # Return empty list on error to prevent breaking recursion
-
+            return []
+            
     def _get_btc_next_transactions(self, address, current_hash, limit):
         """Holt nächste BTC-Transaktionen (Dummy-Implementierung)"""
         logger.info("BTC: Hole nächste Transaktionen (Dummy)")
