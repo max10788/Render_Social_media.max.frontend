@@ -54,104 +54,106 @@ class SolanaAPIClient:
         logger.error("API: Alle Endpoints für Solana haben versagt")
         raise Exception("Keine verfügbaren Solana-API-Endpoints")
 
-    def get_transaction(self, tx_hash):
+    def get_transaction(self, tx_hash: str) -> dict:
+        """
+        Holt eine einzelne Transaktion von der Solana-Blockchain.
+        """
         logger.info(f"START: Solana-Transaktion abrufen für Hash '{tx_hash}'")
-        logger.debug(f"Aufruf: get_transaction('{tx_hash}') wird ausgeführt")
-        
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getTransaction",
-            "params": [
-                tx_hash,
-                "jsonParsed"
-            ]
-        }
         
         try:
-            result = self._make_request(payload)
+            endpoint = endpoint_manager.get_endpoint("sol")
+            
+            # Füge maxSupportedTransactionVersion zum Konfigurations-Dictionary hinzu
+            config = {
+                "encoding": "jsonParsed",
+                "maxSupportedTransactionVersion": 0  # Neuer Parameter
+            }
+            
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getTransaction",
+                "params": [
+                    tx_hash,
+                    config  # Übergebe die Konfiguration
+                ]
+            }
+    
+            response = requests.post(endpoint, json=payload)
+            
+            if response.status_code != 200:
+                logger.error(f"HTTP Error: {response.status_code}")
+                raise Exception(f"HTTP Error: {response.status_code}")
+    
+            result = response.json()
             
             if "error" in result:
                 logger.error(f"API: Fehler in Antwort: {result['error']}")
                 raise Exception(f"API error: {result['error']}")
-            
-            if "result" not in result or result["result"] is None:
-                logger.error(f"API: Keine Transaktionsdaten in der Antwort")
-                raise Exception("Transaction not found")
-            
-            logger.info(f"ERFOLG: Solana-Transaktion erfolgreich abgerufen")
-            logger.debug(f"API: Transaktionsdaten erhalten (Block: {result['result'].get('slot', 'N/A')})")
-            return result["result"]
-            
+    
+            if "result" in result:
+                logger.info("ERFOLG: Solana-Transaktion erfolgreich abgerufen")
+                return result["result"]
+    
+            logger.error("Unerwartetes Antwortformat")
+            raise Exception("Invalid response format")
+    
         except Exception as e:
-            logger.error(f"Fehler bei Solana-Transaktionsabruf: {str(e)}", exc_info=True)
+            logger.error(f"Fehler bei Solana-Transaktionsabruf: {str(e)}")
             raise
     
-    def get_transactions_by_address(self, address, limit=5):
+    def get_transactions_by_address(self, address: str, limit: int = 10) -> List[dict]:
         """
-        Holt alle Transaktionen, an denen eine Adresse beteiligt ist.
-        
-        Args:
-            address: Die Solana-Adresse
-            limit: Maximale Anzahl der zurückzugebenden Transaktionen (max. 5)
-        
-        Returns:
-            Liste von Transaktions-Objekten
+        Holt mehrere Transaktionen für eine Adresse.
         """
-        # Stelle sicher, dass das Limit nicht höher als 5 ist
-        safe_limit = min(limit, 5)
-        logger.info(f"SOLANA: Suche bis zu {safe_limit} Transaktionen für Adresse {address}")
-        
         try:
-            # Solana-spezifische API-Anfrage
+            endpoint = endpoint_manager.get_endpoint("sol")
+            
+            # Füge auch hier maxSupportedTransactionVersion hinzu
+            config = {
+                "limit": limit,
+                "encoding": "jsonParsed",
+                "maxSupportedTransactionVersion": 0  # Neuer Parameter
+            }
+            
             payload = {
                 "jsonrpc": "2.0",
                 "id": 1,
                 "method": "getSignaturesForAddress",
                 "params": [
                     address,
-                    {
-                        "limit": safe_limit
-                    }
+                    config  # Übergebe die Konfiguration
                 ]
             }
+    
+            response = requests.post(endpoint, json=payload)
             
-            result = self._make_request(payload)
+            if response.status_code != 200:
+                raise Exception(f"HTTP Error: {response.status_code}")
+    
+            result = response.json()
             
             if "error" in result:
-                logger.error(f"SOLANA: API error: {result['error']}")
                 raise Exception(f"API error: {result['error']}")
-            
-            if "result" not in result or not result["result"]:
-                logger.warning(f"SOLANA: Keine Transaktionen gefunden für Adresse {address}")
-                return []
-            
-            # Hole die vollständigen Transaktionsdetails für jede Signatur
-            transactions = []
-            for sig in result["result"]:
-                tx_payload = {
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "getTransaction",
-                    "params": [
-                        sig["signature"],
-                        "jsonParsed"
-                    ]
-                }
-                
-                try:
-                    tx_result = self._make_request(tx_payload)
-                    if "result" in tx_result and tx_result["result"]:
-                        transactions.append(tx_result["result"])
-                except Exception as e:
-                    logger.error(f"Fehler beim Abrufen der Transaktionsdetails für {sig['signature']}: {str(e)}")
-            
-            logger.info(f"SOLANA: Erfolgreich {len(transactions)} Transaktionen abgerufen")
-            return transactions[:safe_limit]
-            
+    
+            if "result" in result:
+                # Hole die Details für jede Transaktion
+                transactions = []
+                for sig in result["result"]:
+                    try:
+                        tx_details = self.get_transaction(sig["signature"])
+                        if tx_details:
+                            transactions.append(tx_details)
+                    except Exception as e:
+                        logger.warning(f"Fehler beim Abrufen der Transaktion {sig['signature']}: {str(e)}")
+                        continue
+                return transactions
+    
+            return []
+    
         except Exception as e:
-            logger.error(f"SOLANA: Fehler bei Transaktionsabfrage: {str(e)}", exc_info=True)
-            raise
+            logger.error(f"Fehler beim Abrufen der Transaktionen: {str(e)}")
+            return []
 
     def get_account_info(self, account_pubkey: str) -> dict:
         """Holt Account-Informationen"""
