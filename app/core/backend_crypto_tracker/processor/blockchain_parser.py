@@ -33,9 +33,9 @@ class BlockchainParser:
         blockchain: str,
         address: str,
         current_hash: str,
-        token_identifier: str, # Achtung: Der Name könnte auch filter_token sein, je nach alter Logik
+        token_identifier: Optional[str] = None,
         limit: int = 5,
-        include_meta: bool = False  # <-- DIESER PARAMETER MUSS EXISTIEREN
+        include_meta: bool = False
     ) -> List[Dict[str, Any]]:
         """
         Findet die nächsten Transaktionen basierend auf der Zieladresse und Token
@@ -47,9 +47,6 @@ class BlockchainParser:
             token_identifier (Optional[str]): Filter für spezifische Token-Transaktionen
             limit (int): Maximale Anzahl der zurückzugebenden Transaktionen
             include_meta (bool): Ob Metadaten in den Ergebnissen enthalten sein sollen
-            
-        Returns:
-            List[Dict[str, Any]]: Liste der gefundenen Transaktionen
         """
         logger.info(f"START: Suche nach nächsten Transaktionen für Blockchain '{blockchain}'")
         logger.info(f"Adresse: {address}, Hash: {current_hash}, Token: {token_identifier}, "
@@ -66,7 +63,7 @@ class BlockchainParser:
                     current_hash=current_hash,
                     limit=limit,
                     token_identifier=token_identifier,
-                    include_meta=include_meta  # Pass through include_meta parameter
+                    include_meta=include_meta  # Pass through the include_meta parameter
                 )
             else:
                 logger.error(f"Parser: Blockchain '{blockchain}' nicht unterstützt für next_transactions")
@@ -74,7 +71,7 @@ class BlockchainParser:
         except Exception as e:
             logger.error(f"FEHLER: Fehler beim Abrufen der nächsten Transaktionen: {str(e)}", exc_info=True)
             return []
-
+        
     def _is_chain_end_transaction(self, transaction: Dict[str, Any]) -> bool:
         """
         Überprüft, ob eine Transaktion das Ende einer Verfolgungskette darstellt.
