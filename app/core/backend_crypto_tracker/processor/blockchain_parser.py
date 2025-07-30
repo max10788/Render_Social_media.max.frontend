@@ -196,7 +196,7 @@ class BlockchainParser:
             logger.error(f"FEHLER: Fehler beim Parsen der ETH-Transaktion: {str(e)}", exc_info=True)
             raise
 
-    def _parse_sol_transaction(self, raw_data, client=None):
+    def parse_transaction(self, blockchain: str, raw_data: dict, client=None, include_meta: bool = False):
         """
         Parst Solana-Transaktionsdaten und extrahiert relevante Informationen.
         
