@@ -5,6 +5,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+from fastapi.responses import JSONResponse
 
 # ✅ Importiere den transaction_router
 from app.api.endpoints import router as api_router
