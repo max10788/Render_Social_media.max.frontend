@@ -77,7 +77,7 @@ class BlockchainParser:
             logger.error(f"Fehler bei der Chain-End-Erkennung: {str(e)}", exc_info=True)
             return False
 
-    def _parse_sol_transaction(self, raw_data: dict, client=None, include_meta: bool = False):
+    def parse_transaction(self, blockchain: str, raw_ dict, client=None, include_meta: bool = False):
         """
         Hauptmethode zum Parsen von Transaktionsdaten fuer eine bestimmte Blockchain.
         """
