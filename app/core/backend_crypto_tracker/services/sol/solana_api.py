@@ -290,3 +290,128 @@ class SolanaAPIClient:
         except Exception as e:
             logger.error(f"API: Fehler bei getAccountInfo für {account_pubkey[:10]}...: {str(e)}", exc_info=True)
             raise # Re-raise die Exception
+
+    def get_token_accounts_by_owner(self, owner_address: str, mint_address: str) -> List[Dict[str, Any]]:
+        """
+        Ruft die Token-Accounts einer Adresse ab, die zu einem bestimmten Mint gehören.
+        Verwendet die 'jsonParsed' Encoding-Methode für einfachere Verarbeitung.
+
+        Args:
+            owner_address (str): Die Wallet-Adresse des Besitzers.
+            mint_address (str): Die Mint-Adresse des Tokens.
+
+        Returns:
+            List[Dict[str, Any]]: Eine Liste von Token-Account-Objekten oder eine leere Liste bei Fehler.
+                                  Jedes Objekt enthält 'pubkey' und 'account' mit 'data.parsed.info'.
+        """
+        logger.info(f"API: Hole Token-Accounts für Owner {owner_address[:10]}... und Mint {mint_address[:10]}...")
+        try:
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getTokenAccountsByOwner",
+                "params": [
+                    owner_address,
+                    { "mint": mint_address }, # Filtert nach Mint
+                    {
+                        "encoding": "jsonParsed" # Wichtig für das Parsen der Token-Daten
+                        # "commitment": "confirmed" # Optional, falls benötigt
+                    }
+                ]
+            }
+            result = self._make_request(payload)
+
+            if "error" in result:
+                error_message = result["error"].get("message", "Unbekannter API-Fehler")
+                logger.error(f"API-Fehler in getTokenAccountsByOwner: {error_message}")
+                # Je nach Fehlerart könnte man unterschiedlich reagieren
+                # Für z.B. "Invalid param: could not find account" könnte man [] zurückgeben
+                if "could not find account" in error_message:
+                     logger.info("Keine Token-Accounts für diese Mint/Owner-Kombination gefunden.")
+                     return []
+                raise Exception(f"API-Fehler bei getTokenAccountsByOwner: {error_message}")
+
+            if "result" not in result or not isinstance(result["result"], dict):
+                logger.error("Ungültige Antwortstruktur für getTokenAccountsByOwner")
+                return []
+
+            value = result["result"].get("value", [])
+            if not isinstance(value, list):
+                 logger.warning("Erwartete 'value' als Liste, aber erhalten: {type(value)}")
+                 return []
+
+            logger.info(f"API: {len(value)} Token-Account(s) gefunden für Owner {owner_address[:10]}... und Mint {mint_address[:10]}...")
+            return value # Liste der Token-Accounts [{ "pubkey": "...", "account": { ... } }, ...]
+
+        except Exception as e:
+            logger.error(f"API: Fehler bei get_token_accounts_by_owner für Owner {owner_address[:10]}... Mint {mint_address[:10]}...: {str(e)}", exc_info=True)
+            # Je nach Anwendungsfall: Leere Liste oder Exception weiterwerfen?
+            # Da dies eine API-Abfrage ist, werfen wir die Exception weiter, damit der Aufrufer entscheiden kann.
+            raise
+
+
+    def get_token_mint_info(self, mint_address: str) -> Dict[str, Any]:
+        """
+        Ruft grundlegende Informationen über einen Token-Mint ab, wie Dezimalstellen und Symbol.
+        Verwendet getAccountInfo mit jsonParsed Encoding.
+
+        Args:
+            mint_address (str): Die Mint-Adresse des Tokens.
+
+        Returns:
+            Dict[str, Any]: Ein Dictionary mit Mint-Informationen wie 'decimals' und 'symbol'.
+                            Gibt ein leeres Dict zurück, wenn die Daten nicht geparsed werden konnten.
+        """
+        logger.info(f"API: Hole Mint-Info für {mint_address[:10]}...")
+        try:
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getAccountInfo",
+                "params": [
+                    mint_address,
+                    {
+                        "encoding": "jsonParsed"
+                        # "commitment": "confirmed" # Optional
+                    }
+                ]
+            }
+            result = self._make_request(payload)
+
+            if "error" in result:
+                error_message = result["error"].get("message", "Unbekannter API-Fehler")
+                logger.error(f"API-Fehler in getAccountInfo (für Mint): {error_message}")
+                raise Exception(f"API-Fehler bei get_token_mint_info: {error_message}")
+
+            account_info = result.get("result", {}).get("value")
+            if not account_info:
+                logger.warning(f"Keine Account-Info für Mint {mint_address[:10]}... gefunden.")
+                return {}
+
+            # Extrahiere die geparsen Daten
+            parsed_data = account_info.get("data", {}).get("parsed", {}).get("info", {})
+            if not parsed_data:
+                logger.warning(f"Konnte Mint-Daten für {mint_address[:10]}... nicht parsen. Rohdatenstruktur unerwartet.")
+                # Optional: Rohdaten parsen, falls jsonParsed nicht funktioniert hat
+                # Dies ist komplexer und erfordert Kenntnis des Mint-Account-Layouts.
+                # Für die meisten SPL Tokens sollte jsonParsed funktionieren.
+                return {}
+
+            # Extrahiere relevante Felder
+            decimals = parsed_data.get("decimals")
+            symbol = parsed_data.get("symbol") # Ist nicht immer vorhanden im Mint-Account
+            mint_authority = parsed_data.get("mintAuthority")
+            supply = parsed_data.get("supply")
+
+            mint_info = {
+                "decimals": decimals,
+                "symbol": symbol,
+                "mintAuthority": mint_authority,
+                "supply": supply
+            }
+            logger.info(f"API: Mint-Info erfolgreich abgerufen für {mint_address[:10]}... (Decimals: {decimals})")
+            return mint_info
+
+        except Exception as e:
+            logger.error(f"API: Fehler bei get_token_mint_info für Mint {mint_address[:10]}...: {str(e)}", exc_info=True)
+            raise # Exception weiterwerfen
