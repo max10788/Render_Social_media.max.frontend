@@ -77,6 +77,28 @@ class BlockchainParser:
             logger.error(f"Fehler bei der Chain-End-Erkennung: {str(e)}", exc_info=True)
             return False
 
+    def parse_transaction(self, blockchain: str, raw_ dict, client=None, include_meta: bool = False) -> Optional[Dict[str, Any]]:
+        """
+        Hauptmethode zum Parsen von Transaktionsdaten fuer eine bestimmte Blockchain.
+        """
+        logger.debug(f"BlockchainParser: parse_transaction aufgerufen fuer Blockchain '{blockchain}'")
+        try:
+            if blockchain == "sol":
+                # Stellen Sie sicher, dass _parse_sol_transaction die richtige Signatur hat
+                return self._parse_sol_transaction(raw_data, client, include_meta)
+            elif blockchain == "btc":
+                # Passen Sie Parameter ggf. an
+                return self._parse_btc_transaction(raw_data) 
+            elif blockchain == "eth":
+                # Passen Sie Parameter ggf. an
+                return self._parse_eth_transaction(raw_data)
+            else:
+                logger.error(f"BlockchainParser: Nicht unterstuetzte Blockchain '{blockchain}'")
+                return None
+        except Exception as e:
+            logger.error(f"BlockchainParser: Fehler in parse_transaction fuer Blockchain '{blockchain}': {e}", exc_info=True)
+            return None
+    
     def _parse_btc_transaction(self, raw_data):
         """Parsen von Bitcoin-Rohdaten"""
         logger.info("START: Bitcoin-Transaktionsparsing")
