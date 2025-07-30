@@ -33,9 +33,9 @@ class BlockchainParser:
         blockchain: str,
         address: str,
         current_hash: str,
-        token_identifier: Optional[str] = None,
+        token_identifier: str, # Achtung: Der Name könnte auch filter_token sein, je nach alter Logik
         limit: int = 5,
-        include_meta: bool = False
+        include_meta: bool = False  # <-- DIESER PARAMETER MUSS EXISTIEREN
     ) -> List[Dict[str, Any]]:
         """
         Findet die nächsten Transaktionen basierend auf der Zieladresse und Token
