@@ -371,34 +371,6 @@ class BlockchainParser:
         except Exception as e:
             logger.error(f"Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
             return parsed_data
-        
-    def _get_next_transactions(self, blockchain, address, current_hash, token_identifier=None, limit=5):
-        """
-        Findet die nächsten Transaktionen basierend auf der Zieladresse und Token
-        """
-        logger.info(f"START: Suche nach nächsten Transaktionen für Blockchain '{blockchain}'")
-        logger.info(f"Adresse: {address}, Hash: {current_hash}, Token: {token_identifier}, Limit: {limit}")
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        logger.info(f"Zeitstempel: {timestamp}")
-        
-        try:
-            if blockchain == "btc":
-                return self._get_btc_next_transactions(address, current_hash, limit)
-            elif blockchain == "eth":
-                return self._get_eth_next_transactions(address, current_hash, limit)
-            elif blockchain == "sol":
-                return self._get_sol_next_transactions(
-                    address=address,
-                    current_hash=current_hash,
-                    limit=limit,  # Limit kommt jetzt von der Website
-                    token_identifier=token_identifier
-                )
-            else:
-                logger.error(f"Parser: Blockchain '{blockchain}' nicht unterstützt für next_transactions")
-                return []
-        except Exception as e:
-            logger.error(f"FEHLER: Fehler beim Abrufen der nächsten Transaktionen: {str(e)}", exc_info=True)
-            return []
             
     def _get_btc_next_transactions(self, address, current_hash, limit):
         """Holt nächste BTC-Transaktionen (Dummy-Implementierung)"""
