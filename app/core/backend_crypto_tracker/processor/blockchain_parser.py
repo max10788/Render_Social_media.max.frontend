@@ -405,7 +405,7 @@ class BlockchainParser:
             logger.error(f"SOLANA: Adresse hat ungültige Länge: {len(address)}")
             return []
     
-        logger.info(f"SOLANA: Suche Transaktionen für {address} (Filter: {filter_token or 'None'})")
+        logger.info(f"SOLANA: Suche Transaktionen für {address} (Filter: {token_identifier or 'None'})")
         
         try:
             client = SolanaAPIClient()
