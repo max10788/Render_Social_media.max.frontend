@@ -1,4 +1,5 @@
 # app/core/backend_crypto_tracker/api/routes/transaction_routes.py
+# (Inhalt bleibt größtenteils gleich, nur die serverseitige Limit-Validierung wird hinzugefügt)
 from fastapi import APIRouter, HTTPException, Depends
 # Wichtige Imports zuerst
 from pydantic import BaseModel, Field, validator # Field von pydantic importieren
@@ -21,11 +22,16 @@ from app.core.database import get_db
 # from app.core.backend_crypto_tracker.processor.btc_parser import BTCParser # <-- Neu
 # from app.core.backend_crypto_tracker.processor.eth_parser import ETHParser # <-- Neu
 # from app.core.backend_crypto_tracker.processor.solana_parser import SolanaParser # <-- Neu
-
 logger = get_logger(__name__)
 router = APIRouter()
 # Initialisiere den Endpoint-Manager (global, um Zustand zwischen Anfragen zu behalten)
 endpoint_manager = EndpointManager()
+
+# *** NEU: Definiere das maximale Limit, das von der Website/Anwendung erlaubt ist ***
+# Dies sollte dem maximalen Wert entsprechen, den ein Benutzer auswählen kann.
+# Passen Sie diesen Wert an Ihre Anforderungen an (z.B. 100, 500).
+MAX_TOTAL_TRANSACTIONS_WEBSITE = 100 # Beispielwert - ANPASSEN!
+# *** ENDE NEU ***
 
 @dataclass
 class TransactionContext:
@@ -38,7 +44,6 @@ class TransactionContext:
         """Increment counter and return True if limit not reached."""
         self.processed_count += 1
         return self.processed_count <= self.max_transactions
-
 class TrackTransactionRequest(BaseModel):
     blockchain: str
     tx_hash: str
@@ -56,7 +61,6 @@ class TrackTransactionRequest(BaseModel):
     #         raise ValueError("Maximale Tiefe ist 10")
     #     return v
     # ... (andere Validatoren analog)
-
 class TransactionResponse(BaseModel):
     tx_hash: str
     chain: str
@@ -69,10 +73,8 @@ class TransactionResponse(BaseModel):
     is_chain_end: bool = False
     next_transactions: List["TransactionResponse"] = [] # Typing.List verwenden
     limit_reached: bool = False
-
 # Rekursive Modellreferenz aktualisieren
 TransactionResponse.update_forward_refs()
-
 # --- Rekursive Hilfsfunktion ---
 # WICHTIG: Diese Funktion sollte *nach* der Definition der Modelle stehen,
 # oder die Abhaengigkeiten muessen innerhalb der Funktion aufgeloest werden.
@@ -95,21 +97,17 @@ async def _track_transaction_recursive(
     from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
     # Die Hauptparser-Klasse importieren
     from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser # <-- Hauptparser
-
     logger.info(f"--- REKURSIONSTIEFE: {request.depth} | Verarbeitet: {context.processed_count}/{context.max_transactions} ---")
-
     # Check if we've reached the transaction limit
     if not context.increment():
         logger.warning("Transaktionslimit erreicht - Beende Rekursion frühzeitig")
         return None
-
     try:
         # 1. Fetch transaction data
         raw_data = client.get_transaction(request.tx_hash)
         if not raw_data:
             logger.error(f"Keine Rohdaten für Transaktion '{request.tx_hash}' erhalten")
             raise HTTPException(status_code=404, detail="Transaction not found")
-
         # 2. Parse transaction data with metadata support
         # Verwende die Methode des Hauptparsers, der delegiert
         parsed_data = parser.parse_transaction(
@@ -121,7 +119,6 @@ async def _track_transaction_recursive(
         if not parsed_data:
              logger.error(f"Parsing fehlgeschlagen für Transaktion '{request.tx_hash}'")
              raise HTTPException(status_code=500, detail="Failed to parse transaction")
-
         # 3. Create base response
         current_transaction = TransactionResponse(
             tx_hash=parsed_data["tx_hash"],
@@ -135,7 +132,6 @@ async def _track_transaction_recursive(
             next_transactions=[],
             limit_reached=False
         )
-
         # 4. Process next level if depth allows and limit not reached
         if request.depth > 1:
             # Get token identifier
@@ -144,7 +140,6 @@ async def _track_transaction_recursive(
                 # parsed_data.get("token_identifier") or # token_identifier wird nicht mehr direkt vom alten Parser gesetzt
                 parsed_data.get("currency", "SOL") # Verwende die Währung als Fallback für den Token-Identifier
             )
-
             # --- ANPASSUNG: Verwende die Methode des Hauptparsers ---
             # Die alte Methode `_get_next_transactions` ist jetzt `get_next_transactions` im Hauptparser
             # Und der Parameter heißt `token_identifier`, nicht `filter_token`
@@ -157,7 +152,6 @@ async def _track_transaction_recursive(
                 include_meta=context.include_meta # include_meta übergeben
             )
             # --- ENDE ANPASSUNG ---
-
             if next_transactions:
                  logger.info(f"[Tiefe: {request.depth}] Verarbeite {len(next_transactions)} potenzielle Folgetransaktionen")
                  processed_count_in_this_level = 0
@@ -167,7 +161,6 @@ async def _track_transaction_recursive(
                          logger.info("Transaktionslimit innerhalb der Schleife erreicht")
                          current_transaction.limit_reached = True
                          break
-
                     # Check if it's a chain-end transaction
                     # Das Flag `is_chain_end` kommt jetzt direkt aus dem Ergebnis von `get_next_transactions`
                     is_chain_end_for_next = next_tx.get("is_chain_end", False)
@@ -176,7 +169,6 @@ async def _track_transaction_recursive(
                         # Optional: Füge die Chain-End-Transaktion mit einem Flag hinzu oder überspringe sie
                         # Hier überspringen wir sie, um die Kette nicht weiter zu verfolgen.
                         continue
-
                     # Create child request
                     child_request = TrackTransactionRequest(
                         blockchain=request.blockchain,
@@ -184,10 +176,9 @@ async def _track_transaction_recursive(
                         depth=request.depth - 1,
                         include_meta=context.include_meta,
                         token_identifier=token_identifier, # Weitergabe des aktuellen Token-Identifiers
-                        max_total_transactions=context.max_transactions,
+                        max_total_transactions=context.max_transactions, # <-- Wichtig: Weitergabe des Limits
                         width=context.width
                     )
-
                     # Recursive call
                     child_transaction = await _track_transaction_recursive( # async hinzugefuegt
                         child_request,
@@ -201,12 +192,9 @@ async def _track_transaction_recursive(
                         current_transaction.next_transactions.append(child_transaction)
                         processed_count_in_this_level += 1
                     # else: Limit wurde erreicht oder Fehler, Kind wurde nicht hinzugefuegt
-
                  logger.info(f"[Tiefe: {request.depth}] {processed_count_in_this_level} Folgetransaktionen erfolgreich hinzugefuegt")
-
         logger.info(f"[Tiefe: {request.depth}] <-- Fertig mit Transaktion {request.tx_hash[:10]}... (Kinder: {len(current_transaction.next_transactions)})")
         return current_transaction
-
     except HTTPException:
         # Re-raise HTTPExceptions to be handled by FastAPI
         raise
@@ -214,7 +202,6 @@ async def _track_transaction_recursive(
         logger.error(f"Fehler in _track_transaction_recursive für Hash '{request.tx_hash}': {str(e)}", exc_info=True)
         # Bei einem internen Fehler in der Rekursion werfen wir einen HTTP 500
         raise HTTPException(status_code=500, detail=f"Internal error during recursive tracking: {str(e)}")
-
 # --- Haupt-Endpunkt ---
 @router.post("/track", response_model=TransactionResponse)
 async def track_transaction( # async hinzugefuegt
@@ -230,11 +217,23 @@ async def track_transaction( # async hinzugefuegt
     from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
     # Importiere den Haupt-BlockchainParser
     from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser # <-- Hauptparser
-
     try:
         logger.info(f"START: Track transaction for {request.blockchain} / {request.tx_hash}")
         logger.info(f"Parameters: max_transactions={request.max_total_transactions}, "
                    f"width={request.width}, include_meta={request.include_meta}, depth={request.depth}")
+        # *** NEU: Validierung des Limits basierend auf der Website-Eingabe ***
+        # Stellt sicher, dass das angeforderte Limit das serverseitige Maximum nicht überschreitet.
+        if request.max_total_transactions is None or request.max_total_transactions <= 0:
+            raise HTTPException(status_code=400, detail="max_total_transactions muss eine positive Ganzzahl sein.")
+
+        # *** Kritisch: Begrenze das Limit auf das maximal erlaubte von der Website ***
+        # Dies verhindert, dass Benutzer oder Clients versuchen, extrem hohe Werte zu senden.
+        effective_max_transactions = min(request.max_total_transactions, MAX_TOTAL_TRANSACTIONS_WEBSITE)
+
+        # Optional: Logging, wenn das angeforderte Limit reduziert wurde
+        if effective_max_transactions != request.max_total_transactions:
+             logger.warning(f"Angefordertes max_total_transactions {request.max_total_transactions} wurde auf erlaubtes Website-Maximum {effective_max_transactions} reduziert.")
+        # *** ENDE NEU ***
 
         # 1. Client-Initialisierung
         try:
@@ -252,7 +251,6 @@ async def track_transaction( # async hinzugefuegt
         except Exception as e:
             logger.error(f"Client-Initialisierung fehlgeschlagen fuer Blockchain {request.blockchain}: {str(e)}")
             raise HTTPException(status_code=503, detail="API endpoint unavailable")
-
         # 2. Parser-Initialisierung
         # Verwende den neuen Haupt-BlockchainParser
         try:
@@ -260,15 +258,14 @@ async def track_transaction( # async hinzugefuegt
         except Exception as e:
              logger.error(f"Parser-Initialisierung fehlgeschlagen: {str(e)}")
              raise HTTPException(status_code=500, detail="Internal server error - Parser initialization failed")
-
         # 3. Context erstellen
+        # *** ÄNDERUNG: Verwende das validierte effektive Limit ***
         context = TransactionContext(
             processed_count=0,
-            max_transactions=request.max_total_transactions,
+            max_transactions=effective_max_transactions, # <-- Geändert
             width=request.width,
             include_meta=request.include_meta
         )
-
         # 4. Rekursive Verfolgung starten
         logger.info("Starte rekursive Transaktionsverfolgung...")
         result = await _track_transaction_recursive( # await hinzugefuegt
@@ -279,7 +276,6 @@ async def track_transaction( # async hinzugefuegt
             endpoint_manager,
             context
         )
-
         if result:
             logger.info(f"ERFOLG: Verfolgung abgeschlossen. Insgesamt {context.processed_count} Transaktionen verarbeitet.")
             return result
@@ -288,7 +284,6 @@ async def track_transaction( # async hinzugefuegt
             # und die Rekursion beendet. Aber zur Sicherheit:
             logger.warning("Rekursive Verfolgung lieferte kein Ergebnis.")
             raise HTTPException(status_code=500, detail="No result from transaction tracking (limit reached or error)")
-
     except HTTPException:
         # Diese werden direkt von FastAPI behandelt
         raise
