@@ -7,26 +7,23 @@ from dataclasses import dataclass # dataclass von dataclasses importieren
 from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse  # Oder from starlette.responses import JSONResponse
-
-
 # Importiere get_logger und EndpointManager
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 from app.core.backend_crypto_tracker.utils.endpoint_manager import EndpointManager
-
 # Importiere Datenbank-Dependency
 from app.core.database import get_db
-
 # Importiere Services und Parser *nach* den Standardimports, um zirkuläre Importe zu vermeiden
 # Verschiebe diese Imports hierher, falls Probleme mit zirkulären Imports auftreten:
 # from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
 # from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
 # from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
-# from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser
+# from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser # <-- Geändert
+# from app.core.backend_crypto_tracker.processor.btc_parser import BTCParser # <-- Neu
+# from app.core.backend_crypto_tracker.processor.eth_parser import ETHParser # <-- Neu
+# from app.core.backend_crypto_tracker.processor.solana_parser import SolanaParser # <-- Neu
 
 logger = get_logger(__name__)
-
 router = APIRouter()
-
 # Initialisiere den Endpoint-Manager (global, um Zustand zwischen Anfragen zu behalten)
 endpoint_manager = EndpointManager()
 
@@ -37,7 +34,6 @@ class TransactionContext:
     max_transactions: int = 50
     width: int = 3
     include_meta: bool = False
-
     def increment(self) -> bool:
         """Increment counter and return True if limit not reached."""
         self.processed_count += 1
@@ -51,7 +47,6 @@ class TrackTransactionRequest(BaseModel):
     token_identifier: Optional[str] = None
     max_total_transactions: int = Field(default=50, ge=1, le=100) # Field verwenden
     width: int = Field(default=3, ge=1, le=10) # Field verwenden
-
     # Validatoren koennen auch so bleiben, sind aber durch Field abgedeckt
     # @validator('depth')
     # def validate_depth(cls, v):
@@ -85,7 +80,7 @@ TransactionResponse.update_forward_refs()
 async def _track_transaction_recursive(
     request: TrackTransactionRequest,
     client,
-    parser,
+    parser, # <-- Erwartet jetzt den Haupt-BlockchainParser
     db,
     endpoint_manager,
     context: TransactionContext
@@ -94,10 +89,12 @@ async def _track_transaction_recursive(
     Enhanced recursive helper function with transaction limiting and metadata support.
     """
     # Lokale Imports zur Vermeidung von Zirkelbezügen
+    # ACHTUNG: Die Parser-Imports wurden aktualisiert
     from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
     from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
     from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
-    from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser
+    # Die Hauptparser-Klasse importieren
+    from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser # <-- Hauptparser
 
     logger.info(f"--- REKURSIONSTIEFE: {request.depth} | Verarbeitet: {context.processed_count}/{context.max_transactions} ---")
 
@@ -114,11 +111,12 @@ async def _track_transaction_recursive(
             raise HTTPException(status_code=404, detail="Transaction not found")
 
         # 2. Parse transaction data with metadata support
+        # Verwende die Methode des Hauptparsers, der delegiert
         parsed_data = parser.parse_transaction(
             request.blockchain,
-            raw_data,
-            client,
-            include_meta=context.include_meta
+            raw_data
+            # client, # Client wird im neuen Parser nicht mehr benötigt
+            # include_meta=context.include_meta # include_meta wird im neuen Parser nicht mehr benötigt
         )
         if not parsed_data:
              logger.error(f"Parsing fehlgeschlagen für Transaktion '{request.tx_hash}'")
@@ -143,18 +141,22 @@ async def _track_transaction_recursive(
             # Get token identifier
             token_identifier = (
                 request.token_identifier or
-                parsed_data.get("token_identifier") or
-                parsed_data.get("currency", "SOL")
+                # parsed_data.get("token_identifier") or # token_identifier wird nicht mehr direkt vom alten Parser gesetzt
+                parsed_data.get("currency", "SOL") # Verwende die Währung als Fallback für den Token-Identifier
             )
 
-            next_transactions = parser._get_next_transactions(
-                "sol",  # blockchain
-                parsed_data["to_address"],
+            # --- ANPASSUNG: Verwende die Methode des Hauptparsers ---
+            # Die alte Methode `_get_next_transactions` ist jetzt `get_next_transactions` im Hauptparser
+            # Und der Parameter heißt `token_identifier`, nicht `filter_token`
+            next_transactions = parser.get_next_transactions( # <-- Methode des Hauptparsers
+                blockchain=request.blockchain, # <-- Blockchain als Parameter
+                address=parsed_data["to_address"],
                 current_hash=parsed_data["tx_hash"],
-                token_identifier=token_identifier, # Oder filter_token, je nachdem wie die Methode heisst
+                token_identifier=token_identifier, # <-- Korrekter Parametername
                 limit=context.width,
                 include_meta=context.include_meta # include_meta übergeben
             )
+            # --- ENDE ANPASSUNG ---
 
             if next_transactions:
                  logger.info(f"[Tiefe: {request.depth}] Verarbeite {len(next_transactions)} potenzielle Folgetransaktionen")
@@ -166,11 +168,14 @@ async def _track_transaction_recursive(
                          current_transaction.limit_reached = True
                          break
 
-                    # Check if it's a chain-end transaction (Annahme: Flag kommt aus dem Parser)
-                    # Oder prüfe, ob die aktuelle Transaktion das Ende darstellt?
-                    # if parsed_data.get("is_chain_end", False): # Beispiel fuer aktuelle Transaktion
-                    #     current_transaction.is_chain_end = True
-                    #     continue # Oder break, je nach Logik?
+                    # Check if it's a chain-end transaction
+                    # Das Flag `is_chain_end` kommt jetzt direkt aus dem Ergebnis von `get_next_transactions`
+                    is_chain_end_for_next = next_tx.get("is_chain_end", False)
+                    if is_chain_end_for_next:
+                        logger.info(f"Chain-End für nächste Transaktion {next_tx.get('hash', 'UNKNOWN')} erkannt. Stoppe Verfolgung.")
+                        # Optional: Füge die Chain-End-Transaktion mit einem Flag hinzu oder überspringe sie
+                        # Hier überspringen wir sie, um die Kette nicht weiter zu verfolgen.
+                        continue
 
                     # Create child request
                     child_request = TrackTransactionRequest(
@@ -178,7 +183,7 @@ async def _track_transaction_recursive(
                         tx_hash=next_tx["hash"] if isinstance(next_tx, dict) else next_tx,
                         depth=request.depth - 1,
                         include_meta=context.include_meta,
-                        token_identifier=token_identifier,
+                        token_identifier=token_identifier, # Weitergabe des aktuellen Token-Identifiers
                         max_total_transactions=context.max_transactions,
                         width=context.width
                     )
@@ -187,12 +192,11 @@ async def _track_transaction_recursive(
                     child_transaction = await _track_transaction_recursive( # async hinzugefuegt
                         child_request,
                         client,
-                        parser,
+                        parser, # Parser wird weitergereicht
                         db,
                         endpoint_manager,
                         context
                     )
-
                     if child_transaction:
                         current_transaction.next_transactions.append(child_transaction)
                         processed_count_in_this_level += 1
@@ -224,7 +228,8 @@ async def track_transaction( # async hinzugefuegt
     from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
     from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
     from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
-    from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser
+    # Importiere den Haupt-BlockchainParser
+    from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser # <-- Hauptparser
 
     try:
         logger.info(f"START: Track transaction for {request.blockchain} / {request.tx_hash}")
@@ -235,7 +240,6 @@ async def track_transaction( # async hinzugefuegt
         try:
             endpoint = endpoint_manager.get_endpoint(request.blockchain)
             client = None
-
             if request.blockchain == "btc":
                 client = BlockchairBTCClient(url=endpoint.strip())
             elif request.blockchain == "eth":
@@ -245,14 +249,14 @@ async def track_transaction( # async hinzugefuegt
             else:
                 logger.warning(f"Unsupported blockchain requested: {request.blockchain}")
                 raise HTTPException(status_code=400, detail="Unsupported blockchain")
-
         except Exception as e:
             logger.error(f"Client-Initialisierung fehlgeschlagen fuer Blockchain {request.blockchain}: {str(e)}")
             raise HTTPException(status_code=503, detail="API endpoint unavailable")
 
         # 2. Parser-Initialisierung
+        # Verwende den neuen Haupt-BlockchainParser
         try:
-             parser = BlockchainParser()
+             parser = BlockchainParser() # <-- Initialisiere den Hauptparser
         except Exception as e:
              logger.error(f"Parser-Initialisierung fehlgeschlagen: {str(e)}")
              raise HTTPException(status_code=500, detail="Internal server error - Parser initialization failed")
@@ -270,7 +274,7 @@ async def track_transaction( # async hinzugefuegt
         result = await _track_transaction_recursive( # await hinzugefuegt
             request,
             client,
-            parser,
+            parser, # Parser wird weitergereicht
             db,
             endpoint_manager,
             context
@@ -291,4 +295,3 @@ async def track_transaction( # async hinzugefuegt
     except Exception as e:
         logger.critical(f"Unerwarteter kritischer Fehler im Endpunkt /track: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
-
