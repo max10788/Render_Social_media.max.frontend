@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -507,7 +506,6 @@
                 document.getElementById(tabId).classList.add('active');
             });
         });
-
         // Zeige/verstecke das benutzerdefinierte Token-Feld basierend auf der Auswahl
         document.getElementById('tokenSelection').addEventListener('change', function() {
             const customTokenContainer = document.getElementById('customTokenContainer');
@@ -517,26 +515,20 @@
                 customTokenContainer.style.display = 'none';
             }
         });
-
         // Initialize visualization
         let svg, width, height, simulation;
         let tooltip;
-
         function initVisualization() {
             const container = document.getElementById('transactionTree');
             if (!container) return;
-            
             width = container.clientWidth;
             height = container.clientHeight;
-            
             // Clear previous SVG if exists
             d3.select("#transactionTree").select("svg").remove();
-            
             svg = d3.select("#transactionTree")
                 .append("svg")
                 .attr("width", width)
                 .attr("height", height);
-                
             // Create tooltip
             tooltip = d3.select("body")
                 .select(".tooltip")
@@ -546,19 +538,15 @@
                     .attr("class", "tooltip")
                     .style("opacity", 0) :
                 d3.select(".tooltip");
-
             // Create zoom behavior
             const zoom = d3.zoom()
                 .scaleExtent([0.1, 8])
                 .on("zoom", (event) => {
                     svg.select("g").attr("transform", event.transform);
                 });
-                
             svg.call(zoom);
-            
             // Create container group
             svg.append("g");
-            
             // Add zoom controls
             document.getElementById('zoomIn')?.addEventListener('click', () => {
                 svg.transition().call(zoom.scaleBy, 1.2);
@@ -567,7 +555,6 @@
                 svg.transition().call(zoom.scaleBy, 0.8);
             });
         }
-
         // Update visualization
         function updateTransactionVisualization(data) {
             if (!svg) {
@@ -579,12 +566,64 @@
                 }
                 return;
             }
-
             // Clear previous visualization
             svg.select("g").selectAll("*").remove();
             
-            // Generate mock data for visualization
-            const graph = generateMockData();
+            // Transformiere API-Daten in das Format, das die Visualisierung erwartet
+            const graph = {
+                nodes: [],
+                links: []
+            };
+            
+            // Node-Map für schnelles Auffinden
+            const nodeMap = new Map();
+            let nodeIdCounter = 0;
+            
+            // Funktion zum Hinzufügen eines Knotens
+            function addNode(id, type, label, value) {
+                if (!nodeMap.has(id)) {
+                    const newNode = {
+                        id: id,
+                        type: type,
+                        label: label,
+                        value: value
+                    };
+                    nodeMap.set(id, newNode);
+                    graph.nodes.push(newNode);
+                }
+                return nodeMap.get(id);
+            }
+            
+            // Verarbeite Transaktionen aus der API-Antwort
+            if (data.tracked_transactions && Array.isArray(data.tracked_transactions)) {
+                data.tracked_transactions.forEach((tx, index) => {
+                    // Füge Transaktionsknoten hinzu
+                    const txId = `tx_${tx.signature}`;
+                    addNode(txId, 'transaction', `Tx: ${tx.signature.substring(0, 10)}...`, 
+                            tx.balance_changes.reduce((sum, change) => sum + Math.abs(change.change), 0));
+                    
+                    // Füge Wallet-Knoten und Links hinzu
+                    tx.balance_changes.forEach(change => {
+                        const walletId = `wallet_${change.account}`;
+                        addNode(walletId, 'wallet', `Wallet: ${change.account.substring(0, 10)}...`, Math.abs(change.change));
+                        
+                        // Erstelle Link basierend auf Vorzeichen der Änderung
+                        if (change.change < 0) {
+                            graph.links.push({
+                                source: walletId,
+                                target: txId,
+                                value: Math.abs(change.change)
+                            });
+                        } else {
+                            graph.links.push({
+                                source: txId,
+                                target: walletId,
+                                value: Math.abs(change.change)
+                            });
+                        }
+                    });
+                });
+            }
             
             // Create links
             const link = svg.select("g")
@@ -612,11 +651,7 @@
                         .duration(200)
                         .style("opacity", .9);
                     let content = `<h3>${d.type === "transaction" ? "Transaction" : "Wallet"}</h3>`;
-                    if (d.type === "transaction") {
-                        content += `<p>Hash: ${d.hash.substring(0, 10)}...</p>`;
-                    } else {
-                        content += `<p>Address: ${d.address.substring(0, 10)}...</p>`;
-                    }
+                    content += `<p>${d.label}</p>`;
                     content += `<p>Value: ${d.value.toFixed(2)}</p>`;
                     tooltip.html(content)
                         .style("left", (event.pageX + 10) + "px")
@@ -644,58 +679,20 @@
                         .attr("cy", d => d.y);
                 });
         }
-
-        // Mock data for visualization
-        function generateMockData() {
-            const nodes = [];
-            const links = [];
-            
-            // Create source node
-            nodes.push({ id: "source", type: "wallet", address: "0x1234...5678", value: 10 });
-            
-            // Create transaction nodes
-            for (let i = 0; i < 8; i++) {
-                nodes.push({ 
-                    id: `tx${i}`, 
-                    type: "transaction", 
-                    hash: `0x${Math.random().toString(16).substr(2, 64)}`,
-                    value: Math.random() * 10
-                });
-                // Create wallet nodes
-                nodes.push({ 
-                    id: `wallet${i}`, 
-                    type: "wallet", 
-                    address: `0x${Math.random().toString(16).substr(2, 40)}`,
-                    value: Math.random() * 10
-                });
-                // Create links
-                if (i === 0) {
-                    links.push({ source: "source", target: "tx0", value: 10 });
-                } else {
-                    links.push({ source: `wallet${i-1}`, target: `tx${i}`, value: nodes[nodes.length-2].value });
-                }
-                links.push({ source: `tx${i}`, target: `wallet${i}`, value: nodes[nodes.length-1].value });
-            }
-            return { nodes, links };
-        }
-
         function dragstarted(event, d) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
         }
-
         function dragged(event, d) {
             d.fx = event.x;
             d.fy = event.y;
         }
-
         function dragended(event, d) {
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
         }
-
         async function trackTransactions() {
             console.log("[FRONTEND] START: Transaktionsverfolgung gestartet");
             const startTx = document.getElementById('startTx').value.trim();
@@ -760,23 +757,25 @@
             // Für Bitcoin: Kein Token-Identifier nötig
             console.log(`[FRONTEND] TRACK: Token-Identifier: ${tokenIdentifier}`);
             try {
-                // Simulate API call with timeout
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                // Mock data for visualization
-                const mockData = {
-                    tracked_transactions: Array.from({length: numTransactions}, (_, i) => ({
-                        from_wallet: `0x${Math.random().toString(16).substr(2, 40)}`,
-                        signature: `0x${Math.random().toString(16).substr(2, 64)}`,
-                        block_time: Date.now() - (i * 100000),
-                        balance_changes: [
-                            { account: `0x${Math.random().toString(16).substr(2, 40)}`, change: -(Math.random() * 10) },
-                            { account: `0x${Math.random().toString(16).substr(2, 40)}`, change: Math.random() * 10 }
-                        ],
-                        meta: { fee: Math.random() * 0.01, slot: Math.floor(Math.random() * 1000000) }
-                    })),
-                    final_wallet_address: `0x${Math.random().toString(16).substr(2, 40)}`,
-                    target_currency: targetCurrency
-                };
+                const response = await fetch('/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        blockchain: blockchain,
+                        tx_hash: startTx,
+                        depth: numTransactions,
+                        include_metadata: true
+                    })
+                });
+                console.log(`[FRONTEND] API: Antwort erhalten (Status: ${response.status})`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error(`[FRONTEND] API: Fehler bei Anfrage - ${JSON.stringify(errorData)}`);
+                    throw new Error(errorData.detail || `API Fehler: ${response.status}`);
+                }
+                const apiData = await response.json();
+                console.log("[FRONTEND] API: Roh-API-Antwort erhalten", apiData);
+                
                 // Hilfsfunktionen für Adressenextraktion
                 const getSourceAddress = (tx) => {
                     if (tx.from_address) return tx.from_address;
@@ -791,22 +790,27 @@
                     }
                     return tx.to_address || 'Unbekannt';
                 };
+                
                 // Extrahiere Quell- und Zieladresse für Statistiken
-                const sourceAddress = getSourceAddress(mockData);
-                const targetAddress = getTargetAddress(mockData);
+                const sourceAddress = getSourceAddress(apiData);
+                const targetAddress = getTargetAddress(apiData);
                 console.log(`[FRONTEND] EXTRAKTION: Quelladresse = ${sourceAddress.substring(0, 10)}..., Zieladresse = ${targetAddress.substring(0, 10)}...`);
+                
                 // Transformiere API-Daten in das Format, das die Visualisierung erwartet
                 const visualizationData = {
                     tracked_transactions: [],
                     final_wallet_address: targetAddress,
                     target_currency: targetCurrency
                 };
+                
                 // Rekursive Funktion zum Durchlaufen der gesamten Transaktionskette
                 function processTransaction(tx, depth = 0) {
                     if (depth >= numTransactions) return;
                     console.log(`[FRONTEND] VERARBEITUNG: Verarbeite Transaktion auf Tiefe ${depth}`);
+                    
                     // Erstelle Balance-Änderungen-Struktur für diese Transaktion
                     const balanceChanges = [];
+                    
                     // Für Ethereum/Bitcoin
                     if (blockchain === 'eth' || blockchain === 'btc') {
                         if (tx.from_address) {
@@ -854,6 +858,7 @@
                             console.log(`[FRONTEND] SOLANA: Verwende Fallback-Balance-Änderungen`);
                         }
                     }
+                    
                     // Meta-Daten sammeln
                     const meta = {
                         fee: 0,
@@ -867,6 +872,7 @@
                             meta.slot = tx.raw_data.slot;
                         }
                     }
+                    
                     visualizationData.tracked_transactions.push({
                         from_wallet: tx.from_address || 'Unbekannt',
                         signature: tx.tx_hash,
@@ -874,6 +880,7 @@
                         balance_changes: balanceChanges,
                         meta: meta
                     });
+                    
                     // WICHTIG: Verarbeite ALLE nachfolgenden Transaktionen, nicht nur eine
                     if (tx.next_transactions && tx.next_transactions.length > 0) {
                         console.log(`[FRONTEND] REKURSION: Verarbeite ${tx.next_transactions.length} nachfolgende Transaktionen`);
@@ -882,9 +889,11 @@
                         });
                     }
                 }
+                
                 // Starte die Verarbeitung mit der ersten Transaktion
-                processTransaction(mockData);
+                processTransaction(apiData);
                 console.log("[FRONTEND] VISUALISIERUNG: Visualisierungsdaten erstellt", visualizationData);
+                
                 // Extrahiere die tatsächlichen Werte für Statistiken
                 const totalValue = visualizationData.tracked_transactions.reduce((sum, tx) => {
                     const txValue = tx.balance_changes.reduce((txSum, change) => {
@@ -892,6 +901,7 @@
                     }, 0);
                     return sum + txValue;
                 }, 0);
+                
                 // Statistiken anzeigen mit korrekten Werten
                 document.getElementById('sourceWallet').textContent = sourceAddress.slice(0, 6) + '...' + sourceAddress.slice(-4);
                 document.getElementById('targetWallet').textContent = targetAddress.slice(0, 6) + '...' + targetAddress.slice(-4);
@@ -900,11 +910,13 @@
                 document.getElementById('totalValue').textContent = `${totalValue.toFixed(6)} ${blockchain.toUpperCase()}`;
                 document.getElementById('finalStatus').textContent = 'Abgeschlossen';
                 document.getElementById('targetCurrencyDisplay').textContent = targetCurrency;
+                
                 // Füge Wechselkurs und Umrechnungswert hinzu
                 const exchangeRate = 150.5; // In einer echten App würde dies von einer API kommen
                 document.getElementById('exchangeRate').textContent = `${exchangeRate} ${targetCurrency} pro ${blockchain.toUpperCase()}`;
                 document.getElementById('convertedValue').textContent = `${(totalValue * exchangeRate).toFixed(2)} ${targetCurrency}`;
                 console.log(`[FRONTEND] STATISTIKEN: ${visualizationData.tracked_transactions.length} Transaktionen, Gesamtwert: ${totalValue.toFixed(6)} ${blockchain.toUpperCase()}`);
+                
                 // Update der Visualisierung
                 updateTransactionVisualization(visualizationData);
                 tree.classList.remove('loading');
@@ -916,38 +928,32 @@
                 tree.classList.remove('loading');
             }
         }
-
         // Social analysis function
         function analyzeSocial() {
             const resultDiv = document.getElementById('result');
             if (resultDiv) {
                 resultDiv.style.display = 'block';
             }
-            
             // Check if Chart.js is loaded
             if (typeof Chart === 'undefined') {
                 console.error('[FRONTEND] SOCIAL: Chart.js nicht geladen');
                 return;
             }
-            
             // Get canvas context
             const canvas = document.getElementById('sentimentChart');
             if (!canvas) {
                 console.error('[FRONTEND] SOCIAL: Canvas-Element nicht gefunden');
                 return;
             }
-            
             const ctx = canvas.getContext('2d');
             if (!ctx) {
                 console.error('[FRONTEND] SOCIAL: Canvas-Kontext nicht verfügbar');
                 return;
             }
-            
             // Destroy existing chart if it exists
             if (window.sentimentChart) {
                 window.sentimentChart.destroy();
             }
-            
             // Create new chart
             window.sentimentChart = new Chart(ctx, {
                 type: 'bar',
@@ -1001,7 +1007,6 @@
                 }
             });
         }
-
         // Hilfsfunktion für Transaktionszähler
         function countTransactions(data) {
             let count = 1;
@@ -1012,12 +1017,10 @@
             }
             return count;
         }
-
         // Event listeners
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('trackButton')?.addEventListener('click', trackTransactions);
             document.getElementById('analyzeButton')?.addEventListener('click', analyzeSocial);
-            
             const refreshBtn = document.getElementById('refreshBtn');
             if (refreshBtn) {
                 refreshBtn.addEventListener('click', () => {
@@ -1030,22 +1033,17 @@
                     }
                 });
             }
-            
             // Initialize visualization
             initVisualization();
-            
             // Set default dates for social analysis
             const today = new Date();
             const weekAgo = new Date(today);
             weekAgo.setDate(weekAgo.getDate() - 7);
-            
             const startDateInput = document.getElementById('start_date');
             const endDateInput = document.getElementById('end_date');
-            
             if (startDateInput) startDateInput.valueAsDate = weekAgo;
             if (endDateInput) endDateInput.valueAsDate = today;
         });
-
         // Handle window resize
         window.addEventListener('resize', () => {
             if (svg) {
@@ -1059,4 +1057,3 @@
     </script>
 </body>
 </html>
-```
