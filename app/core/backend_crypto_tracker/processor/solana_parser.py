@@ -181,11 +181,12 @@ class SolanaParser:
         except Exception as e:
             logger.error(f"Fehler bei der Chain-End-Erkennung: {str(e)}", exc_info=True)
             return False
+
     def _get_next_transactions(
         self,
         address: str,
         current_hash: str,
-        limit: int,
+        limit: int, # <-- Dieses Limit kommt vom Aufrufer (z.B. der Route)
         token_identifier: Optional[str] = None,
         include_meta: bool = False
     ) -> List[Dict[str, Any]]:
@@ -203,11 +204,15 @@ class SolanaParser:
         logger.info(f"SOLANA: Suche Transaktionen für {address} (Filter: {token_identifier or 'None'})")
         try:
             client = SolanaAPIClient()
-            # *** ÄNDERUNG: Entferne die harte Begrenzung auf 10 ***
-            # Verwende das übergebene Limit, aber setze es auf mindestens 1
-            # Die endgültige Obergrenze sollte in der API-Route validiert werden.
-            safe_limit = max(1, int(limit)) # <-- Geändert
+            
+            # *** ÄNDERUNG 1: Verwende das übergebene Limit direkt ***
+            # Setze es auf mindestens 1, aber entferne die harte Obergrenze von 10
+            # Die Validierung des Maximalwerts sollte in der aufrufenden Route erfolgen.
+            safe_limit = max(1, int(limit)) # <-- Geändert: Keine Obergrenze mehr
+            
+            # *** ÄNDERUNG 2: Übergebe das sichere Limit an die API ***
             transactions = client.get_transactions_by_address(address, limit=safe_limit)
+            
             next_transactions = []
             if transactions and isinstance(transactions, list):
                 logger.info(f"SOLANA: Erfolgreich {len(transactions)} Transaktionen abgerufen")
@@ -218,6 +223,7 @@ class SolanaParser:
                         tx_hash = signatures[0] if signatures else None
                         if not tx_hash or tx_hash == current_hash:
                             continue
+                        
                         # --- Korrektur: Verwende token_identifier anstelle von filter_token ---
                         # Token-Filter-Logik
                         if token_identifier: # <-- Korrektur: Verwende den korrekten Parameter
@@ -226,8 +232,10 @@ class SolanaParser:
                                 logger.debug(f"Überspringe Transaktion {tx_hash}: Token-Mismatch ({tx_token} != {token_identifier})")
                                 continue
                         # --- Ende Korrektur ---
+                        
                         # Chain-End-Erkennung
                         is_chain_end = self._is_chain_end_transaction(tx)
+                        
                         # Füge Transaktion mit Metadaten hinzu
                         next_tx = {
                             "hash": tx_hash,
@@ -235,18 +243,21 @@ class SolanaParser:
                             "raw_data": tx if (is_chain_end or include_meta) else None
                         }
                         next_transactions.append(next_tx)
-                        # *** Kritisch: Prüfung gegen das sichere Limit ***
+                        
+                        # *** ÄNDERUNG 3: Prüfe gegen das sichere Limit ***
                         if len(next_transactions) >= safe_limit: # <-- Geändert
                             break
                     except Exception as e:
                         logger.warning(f"SOLANA: Fehler bei Transaktion: {e}")
                         continue
                 logger.info(f"ERFOLG: {len(next_transactions)} nächste Transaktionen gefunden")
-                # *** Kritisch: Abschließende Begrenzung ***
+                
+                # *** ÄNDERUNG 4: Abschließende Begrenzung ***
                 return next_transactions[:safe_limit] # <-- Geändert
         except Exception as e:
             logger.error(f"FEHLER: Fehler beim Abrufen der Solana-Transaktionen: {str(e)}", exc_info=True)
             return []
+            
     # --- Neue Methode zur Saldoabfrage (ausschließlich für die Verarbeitung) ---
     def get_token_balance(self, address: str, mint_address: str):
         """
