@@ -147,14 +147,13 @@ async def _track_transaction_recursive(
                 parsed_data.get("currency", "SOL")
             )
 
-            # Get next transactions with width parameter
             next_transactions = parser._get_next_transactions(
-                request.blockchain,
+                "sol",  # blockchain
                 parsed_data["to_address"],
                 current_hash=parsed_data["tx_hash"],
-                token_identifier=token_identifier, # Achte auf korrekten Parameternamen fuer Parser
+                token_identifier=token_identifier, # Oder filter_token, je nachdem wie die Methode heisst
                 limit=context.width,
-                include_meta=context.include_meta
+                include_meta=context.include_meta # include_meta übergeben
             )
 
             if next_transactions:
