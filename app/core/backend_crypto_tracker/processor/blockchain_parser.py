@@ -415,7 +415,14 @@ class BlockchainParser:
         # In einer echten Implementierung würden wir eine API aufrufen
         return []
 
-    def _get_sol_next_transactions(self, address, current_hash, limit, filter_token: Optional[str] = None):
+    def _get_sol_next_transactions(
+        self,
+        address: str,
+        current_hash: str,
+        limit: int,
+        token_identifier: Optional[str] = None,
+        include_meta: bool = False
+    ) -> List[Dict[str, Any]]:
         """
         Erweiterte Version der Solana-Transaktionsverfolgung mit Token-Filter und Chain-End-Erkennung.
         """
@@ -463,7 +470,7 @@ class BlockchainParser:
                         next_tx = {
                             "hash": tx_hash,
                             "is_chain_end": is_chain_end,
-                            "raw_data": tx if is_chain_end else None  # Speichere Rohdaten nur für Chain-Ends
+                            "raw_data": tx if (is_chain_end or include_meta) else None
                         }
                         next_transactions.append(next_tx)
                         
