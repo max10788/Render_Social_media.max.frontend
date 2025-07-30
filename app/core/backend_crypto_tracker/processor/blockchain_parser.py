@@ -28,25 +28,51 @@ class BlockchainParser:
     def __init__(self):
         logger.info("BlockchainParser: Initialisiert")
 
-    def _get_next_transactions(self, blockchain: str, address: str, current_hash: str, 
-                             filter_token: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
+    def _get_next_transactions(
+        self,
+        blockchain: str,
+        address: str,
+        current_hash: str,
+        token_identifier: Optional[str] = None,
+        limit: int = 5,
+        include_meta: bool = False
+    ) -> List[Dict[str, Any]]:
         """
-        Erweiterte Version von _get_next_transactions mit Token-Filter
+        Findet die nächsten Transaktionen basierend auf der Zieladresse und Token
+        
+        Args:
+            blockchain (str): Die zu verwendende Blockchain ("btc", "eth" oder "sol")
+            address (str): Die Zieladresse für die Suche
+            current_hash (str): Der Hash der aktuellen Transaktion
+            token_identifier (Optional[str]): Filter für spezifische Token-Transaktionen
+            limit (int): Maximale Anzahl der zurückzugebenden Transaktionen
+            include_meta (bool): Ob Metadaten in den Ergebnissen enthalten sein sollen
+            
+        Returns:
+            List[Dict[str, Any]]: Liste der gefundenen Transaktionen
         """
-        logger.info(f"Suche nächste Transaktionen: {blockchain}, {address}, Filter: {filter_token}")
+        logger.info(f"START: Suche nach nächsten Transaktionen für Blockchain '{blockchain}'")
+        logger.info(f"Adresse: {address}, Hash: {current_hash}, Token: {token_identifier}, "
+                   f"Limit: {limit}, Include Meta: {include_meta}")
         
         try:
-            if blockchain == "sol":
-                return self._get_sol_next_transactions(address, current_hash, limit, filter_token)
-            elif blockchain == "btc":
+            if blockchain == "btc":
                 return self._get_btc_next_transactions(address, current_hash, limit)
             elif blockchain == "eth":
                 return self._get_eth_next_transactions(address, current_hash, limit)
+            elif blockchain == "sol":
+                return self._get_sol_next_transactions(
+                    address=address,
+                    current_hash=current_hash,
+                    limit=limit,
+                    token_identifier=token_identifier,
+                    include_meta=include_meta  # Pass through include_meta parameter
+                )
             else:
-                logger.error(f"Nicht unterstützte Blockchain: {blockchain}")
+                logger.error(f"Parser: Blockchain '{blockchain}' nicht unterstützt für next_transactions")
                 return []
         except Exception as e:
-            logger.error(f"Fehler in _get_next_transactions: {str(e)}", exc_info=True)
+            logger.error(f"FEHLER: Fehler beim Abrufen der nächsten Transaktionen: {str(e)}", exc_info=True)
             return []
 
     def _is_chain_end_transaction(self, transaction: Dict[str, Any]) -> bool:
