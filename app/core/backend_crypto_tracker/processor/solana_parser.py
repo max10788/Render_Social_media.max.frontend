@@ -1,12 +1,11 @@
 # app/core/backend_crypto_tracker/processor/solana_parser.py
+# (Inhalt bleibt größtenteils gleich, nur die Limit-Berechnung in _get_next_transactions ändert sich)
 import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient # Stellt sicher, dass der Client importiert ist
-
 logger = get_logger(__name__)
-
 # Bekannte DEX- und Bridge-Programme auf Solana
 # Diese könnten auch in eine separate Konfigurationsdatei ausgelagert werden
 KNOWN_SWAP_PROGRAMS = {
@@ -22,11 +21,9 @@ KNOWN_BRIDGE_PROGRAMS = {
     "Brdguy7BmNB4qwEbcqqMbyV5CyJd2sxQNUn6NEpMSsUb", # Portal Bridge
     "ABR78XwLW5Bj4hctE9wFf2yCpcF5tqUtV5A7SSh3mdy7", # Allbridge V2
 }
-
 class SolanaParser:
     def __init__(self):
         logger.debug("SolanaParser: Initialisiert")
-
     def _parse_transaction(self, raw_data: dict):
         """
         Parst Solana-Transaktionsdaten und extrahiert relevante Informationen.
@@ -156,7 +153,6 @@ class SolanaParser:
         except Exception as e:
             logger.error(f"Fehler beim Parsen der Solana-Transaktion: {str(e)}", exc_info=True)
             return parsed_data
-
     def _is_chain_end_transaction(self, transaction: Dict[str, Any]) -> bool:
         """
         Überprüft, ob eine Transaktion das Ende einer Verfolgungskette darstellt.
@@ -185,7 +181,6 @@ class SolanaParser:
         except Exception as e:
             logger.error(f"Fehler bei der Chain-End-Erkennung: {str(e)}", exc_info=True)
             return False
-
     def _get_next_transactions(
         self,
         address: str,
@@ -208,7 +203,10 @@ class SolanaParser:
         logger.info(f"SOLANA: Suche Transaktionen für {address} (Filter: {token_identifier or 'None'})")
         try:
             client = SolanaAPIClient()
-            safe_limit = max(1, min(int(limit), 10))
+            # *** ÄNDERUNG: Entferne die harte Begrenzung auf 10 ***
+            # Verwende das übergebene Limit, aber setze es auf mindestens 1
+            # Die endgültige Obergrenze sollte in der API-Route validiert werden.
+            safe_limit = max(1, int(limit)) # <-- Geändert
             transactions = client.get_transactions_by_address(address, limit=safe_limit)
             next_transactions = []
             if transactions and isinstance(transactions, list):
@@ -228,10 +226,8 @@ class SolanaParser:
                                 logger.debug(f"Überspringe Transaktion {tx_hash}: Token-Mismatch ({tx_token} != {token_identifier})")
                                 continue
                         # --- Ende Korrektur ---
-
                         # Chain-End-Erkennung
                         is_chain_end = self._is_chain_end_transaction(tx)
-
                         # Füge Transaktion mit Metadaten hinzu
                         next_tx = {
                             "hash": tx_hash,
@@ -239,17 +235,18 @@ class SolanaParser:
                             "raw_data": tx if (is_chain_end or include_meta) else None
                         }
                         next_transactions.append(next_tx)
-                        if len(next_transactions) >= safe_limit:
+                        # *** Kritisch: Prüfung gegen das sichere Limit ***
+                        if len(next_transactions) >= safe_limit: # <-- Geändert
                             break
                     except Exception as e:
                         logger.warning(f"SOLANA: Fehler bei Transaktion: {e}")
                         continue
                 logger.info(f"ERFOLG: {len(next_transactions)} nächste Transaktionen gefunden")
-                return next_transactions[:safe_limit]
+                # *** Kritisch: Abschließende Begrenzung ***
+                return next_transactions[:safe_limit] # <-- Geändert
         except Exception as e:
             logger.error(f"FEHLER: Fehler beim Abrufen der Solana-Transaktionen: {str(e)}", exc_info=True)
             return []
-
     # --- Neue Methode zur Saldoabfrage (ausschließlich für die Verarbeitung) ---
     def get_token_balance(self, address: str, mint_address: str):
         """
@@ -262,14 +259,11 @@ class SolanaParser:
              # Angenommen, der Client hat eine Methode get_token_accounts_by_owner
              client = SolanaAPIClient()
              token_accounts_data = client.get_token_accounts_by_owner(address, mint_address)
-
              if not token_accounts_data or not isinstance(token_accounts_data, list):
                   logger.info(f"Keine Token-Accounts für Mint {mint_address} bei Adresse {address[:10]}... gefunden.")
                   return (0.0, "UNKNOWN") # Oder None, je nach Vorliebe
-
              total_balance = 0.0
              decimals = 9 # Standard für viele Tokens, aber wir sollten es dynamisch abrufen
-
              # 2. Hole die Token-Decimals (könnte auch im Client gemacht werden)
              # Angenommen, der Client hat eine Methode get_token_mint_info
              try:
@@ -279,7 +273,6 @@ class SolanaParser:
              except Exception as mint_info_error:
                   logger.warning(f"Fehler beim Abrufen der Mint-Info für {mint_address}: {mint_info_error}. Verwende Standard-Decimals (9).")
                   symbol = "TOKEN"
-
              # 3. Summiere die Salden aller zugehörigen Token-Accounts
              for account_info in token_accounts_data:
                  # Die Struktur von account_info hängt von der API ab.
@@ -300,15 +293,12 @@ class SolanaParser:
                  except (ValueError, TypeError, KeyError) as parse_error:
                       logger.warning(f"Fehler beim Parsen des Token-Accounts {account_info.get('pubkey', 'UNKNOWN')}: {parse_error}")
                       continue # Überspringe fehlerhafte Accounts
-
              logger.info(f"ERFOLG: Token-Saldo für {address[:10]}... und {mint_address} ist {total_balance} {symbol}")
              return (total_balance, symbol)
-
         except Exception as e:
              logger.error(f"FEHLER: Fehler bei der Verarbeitung des Token-Saldos für {address} und Mint {mint_address}: {str(e)}", exc_info=True)
              return None # Oder (0.0, "ERROR") je nach Vorliebe
     # --- Ende neue Methode ---
-
     # --- Methode zur Token-Identifier-Extraktion (ausschließlich für die Verarbeitung) ---
     def _get_token_identifier_from_transaction(self, tx: dict):
         """
@@ -324,7 +314,6 @@ class SolanaParser:
                         account_keys.append(key.get("pubkey", ""))
                     else:
                         account_keys.append(key)
-
                 for instruction in tx["transaction"]["message"]["instructions"]:
                     # Suchen Sie nach der tatsächlichen Programm-ID des Token-Programms
                     program_id_index = instruction.get("programIdIndex")
