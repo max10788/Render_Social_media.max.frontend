@@ -411,22 +411,18 @@ class BlockchainParser:
             client = SolanaAPIClient()
             safe_limit = max(1, min(int(limit), 10))
             transactions = client.get_transactions_by_address(address, limit=safe_limit)
-            
             next_transactions = []
             if transactions and isinstance(transactions, list):
                 logger.info(f"SOLANA: Erfolgreich {len(transactions)} Transaktionen abgerufen")
-                
                 for tx in transactions:
                     try:
                         # Extrahiere Transaktions-Hash
                         signatures = tx.get("transaction", {}).get("signatures", [])
                         tx_hash = signatures[0] if signatures else None
-                        
                         if not tx_hash or tx_hash == current_hash:
                             continue
-    
                         # Token-Filter-Logik
-                        if filter_token:
+                        if filter_token: # <--- Hier wird filter_token erneut verwendet
                             tx_token = self._get_token_identifier_from_transaction("sol", tx)
                             if tx_token != filter_token:
                                 logger.debug(f"Überspringe Transaktion {tx_hash}: Token-Mismatch")
