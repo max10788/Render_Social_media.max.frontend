@@ -73,12 +73,9 @@ class TransactionResponse(BaseModel):
     is_chain_end: bool = False
     next_transactions: List["TransactionResponse"] = [] # Typing.List verwenden
     limit_reached: bool = False
-# Rekursive Modellreferenz aktualisieren
+
 TransactionResponse.update_forward_refs()
-# --- Rekursive Hilfsfunktion ---
-# WICHTIG: Diese Funktion sollte *nach* der Definition der Modelle stehen,
-# oder die Abhaengigkeiten muessen innerhalb der Funktion aufgeloest werden.
-# Um zirkulaere Importe zu vermeiden, importiere die Klassen hier lokal.
+
 async def _track_transaction_recursive(
     request: TrackTransactionRequest,
     client,
@@ -107,7 +104,7 @@ async def _track_transaction_recursive(
         # 2. Transaktion abrufen
         logger.info(f"[Tiefe: {request.depth}] --> Verarbeite Transaktion {request.tx_hash}")
         tx_data = await client.get_transaction(request.tx_hash, include_meta=context.include_meta)
-        if not tx_
+        if not tx_data:
             logger.warning(f"Transaktion {request.tx_hash} nicht gefunden.")
             return None
 
@@ -118,7 +115,7 @@ async def _track_transaction_recursive(
             blockchain=request.blockchain,
             include_meta=context.include_meta
         )
-        if not parsed_
+        if not parsed_data:
             logger.error(f"Fehler beim Parsen der Transaktion {request.tx_hash}")
             return None
 
@@ -248,6 +245,7 @@ async def _track_transaction_recursive(
         # oder den Fehler an den Aufrufer weitergeben, der ihn behandelt.
         # Hier werfen wir ihn weiter, damit der Haupt-Endpunkt ihn faengt.
         raise e # Oder: return None
+
 # --- Haupt-Endpunkt ---
 @router.post("/track", response_model=TransactionResponse)
 async def track_transaction( # async hinzugefuegt
