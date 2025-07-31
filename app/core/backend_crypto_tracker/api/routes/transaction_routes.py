@@ -85,41 +85,71 @@ async def _track_transaction_recursive(
     parser, # <-- Erwartet jetzt den Haupt-BlockchainParser
     db,
     endpoint_manager,
-    context: TransactionContext
+    context: TransactionContext,
+    # *** NEU: Parameter fuer den urspruenglichen Token-Identifier ***
+    original_token_identifier: Optional[str] = None
 ) -> Optional[TransactionResponse]: # typing.Optional verwenden
-    """
-    Enhanced recursive helper function with transaction limiting and metadata support.
-    """
-    # Lokale Imports zur Vermeidung von Zirkelbezügen
-    # ACHTUNG: Die Parser-Imports wurden aktualisiert
-    from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
-    from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
-    from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
-    # Die Hauptparser-Klasse importieren
-    from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser # <-- Hauptparser
-    logger.info(f"--- REKURSIONSTIEFE: {request.depth} | Verarbeitet: {context.processed_count}/{context.max_transactions} ---")
-    # Check if we've reached the transaction limit
-    if not context.increment():
-        logger.warning("Transaktionslimit erreicht - Beende Rekursion frühzeitig")
-        return None
+    """Enhanced recursive helper function with transaction limiting, metadata support, and consistent token tracking."""
     try:
-        # 1. Fetch transaction data
-        raw_data = client.get_transaction(request.tx_hash)
-        if not raw_data:
-            logger.error(f"Keine Rohdaten für Transaktion '{request.tx_hash}' erhalten")
-            raise HTTPException(status_code=404, detail="Transaction not found")
-        # 2. Parse transaction data with metadata support
-        # Verwende die Methode des Hauptparsers, der delegiert
+        # Lokale Imports zur Vermeidung von Zirkelbezügen
+        # ACHTUNG: Die Parser-Imports wurden aktualisiert
+        from app.core.backend_crypto_tracker.services.btc.transaction_service import BlockchairBTCClient
+        from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanETHClient
+        from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIClient
+        # Die Hauptparser-Klasse importieren
+        # from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser # Beispiel
+
+        # 1. Limit-Prüfung
+        if context.processed_count >= context.max_transactions:
+            logger.info("Globales Transaktionslimit erreicht, stoppe Rekursion.")
+            return None
+
+        # 2. Transaktion abrufen
+        logger.info(f"[Tiefe: {request.depth}] --> Verarbeite Transaktion {request.tx_hash}")
+        tx_data = await client.get_transaction(request.tx_hash, include_meta=context.include_meta)
+        if not tx_
+            logger.warning(f"Transaktion {request.tx_hash} nicht gefunden.")
+            return None
+
+        # 3. Transaktion parsen
         parsed_data = parser.parse_transaction(
-            request.blockchain,
-            raw_data
-            # client, # Client wird im neuen Parser nicht mehr benötigt
-            # include_meta=context.include_meta # include_meta wird im neuen Parser nicht mehr benötigt
+            tx_hash=request.tx_hash,
+            tx_data=tx_data,
+            blockchain=request.blockchain,
+            include_meta=context.include_meta
         )
-        if not parsed_data:
-             logger.error(f"Parsing fehlgeschlagen für Transaktion '{request.tx_hash}'")
-             raise HTTPException(status_code=500, detail="Failed to parse transaction")
-        # 3. Create base response
+        if not parsed_
+            logger.error(f"Fehler beim Parsen der Transaktion {request.tx_hash}")
+            return None
+
+        # *** KORREKTUR 1: original_token_identifier beim ersten Aufruf setzen ***
+        # Bestimme den original_token_identifier, wenn er noch nicht gesetzt ist (erster Aufruf)
+        # Verwende eine lokale Variable, um ihn nicht fuer spaetere Aufrufe zu ueberschreiben
+        final_original_token_identifier = original_token_identifier
+        if final_original_token_identifier is None:
+            # 1. Versuche ihn aus dem Request zu nehmen
+            if request.token_identifier:
+                final_original_token_identifier = request.token_identifier
+                logger.info(f"[Tiefe: {request.depth}] Original-Token-Identifier aus Request uebernommen: {final_original_token_identifier}")
+            else:
+                # 2. Fallback: Extrahiere ihn aus der aktuellen (ersten) geparsten Transaktion
+                # Verwende eine Methode des Parsers, um die Mint-Adresse zu erhalten.
+                # Diese Methode muss im Parser existieren (z.B. _get_token_identifier_from_transaction).
+                try:
+                    # *** ANPASSUNG: Extrahiere aus den Rohdaten (tx_data), nicht aus parsed_data ***
+                    # Die Extraktionsmethode braucht die Rohdaten der Transaktion.
+                    final_original_token_identifier = parser._get_token_identifier_from_transaction(tx_data)
+                    logger.info(f"[Tiefe: {request.depth}] Original-Token-Identifier aus erster Transaktion ({request.tx_hash}) extrahiert: {final_original_token_identifier}")
+                except Exception as e:
+                    logger.warning(f"[Tiefe: {request.depth}] Fehler beim Extrahieren des Token-Identifier aus erster Transaktion ({request.tx_hash}): {e}. Verwende Standard-SOL.")
+                    # Standard Solana Mint Adresse fuer SOL
+                    final_original_token_identifier = "So11111111111111111111111111111111111111112"
+
+        # Logge den verwendeten original_token_identifier fuer Debugging
+        logger.debug(f"[Tiefe: {request.depth}] Verwendeter final_original_token_identifier fuer Suche: {final_original_token_identifier}")
+
+
+        # 4. TransactionResponse erstellen
         current_transaction = TransactionResponse(
             tx_hash=parsed_data["tx_hash"],
             chain=parsed_data["chain"],
@@ -127,41 +157,43 @@ async def _track_transaction_recursive(
             from_address=parsed_data["from_address"],
             to_address=parsed_data["to_address"],
             amount=float(parsed_data["amount"]),
-            currency=parsed_data["currency"],
+            currency=parsed_data["currency"], # Währung der aktuellen Transaktion
             meta=parsed_data.get("meta") if context.include_meta else None,
             next_transactions=[],
             limit_reached=False
         )
-        # 4. Process next level if depth allows and limit not reached
+
+        # 5. Nächste Ebene verarbeiten, wenn Tiefe erlaubt und Limit nicht erreicht
         if request.depth > 1:
-            # Get token identifier
-            token_identifier = (
-                request.token_identifier or
-                # parsed_data.get("token_identifier") or # token_identifier wird nicht mehr direkt vom alten Parser gesetzt
-                parsed_data.get("currency", "SOL") # Verwende die Währung als Fallback für den Token-Identifier
-            )
-            # --- ANPASSUNG: Verwende die Methode des Hauptparsers ---
+            # *** KORREKTUR 2: Verwende IMMER den final_original_token_identifier ***
+            # Hole den Token-Identifier für die Suche nach Folgetransaktionen
+            token_identifier_to_use = final_original_token_identifier
+
+            # - ANPASSUNG: Verwende die Methode des Hauptparsers -
             # Die alte Methode `_get_next_transactions` ist jetzt `get_next_transactions` im Hauptparser
             # Und der Parameter heißt `token_identifier`, nicht `filter_token`
             next_transactions = parser.get_next_transactions( # <-- Methode des Hauptparsers
                 blockchain=request.blockchain, # <-- Blockchain als Parameter
                 address=parsed_data["to_address"],
                 current_hash=parsed_data["tx_hash"],
-                token_identifier=token_identifier, # <-- Korrekter Parametername
+                # *** WICHTIG: Verwende den originalen Token-Identifier ***
+                token_identifier=token_identifier_to_use, # <-- Korrekter Parameter
                 limit=context.width,
                 include_meta=context.include_meta # include_meta übergeben
             )
-            # --- ENDE ANPASSUNG ---
+            # - ENDE ANPASSUNG -
+            
             if next_transactions:
-                 logger.info(f"[Tiefe: {request.depth}] Verarbeite {len(next_transactions)} potenzielle Folgetransaktionen")
-                 processed_count_in_this_level = 0
-                 for next_tx in next_transactions:
+                logger.info(f"[Tiefe: {request.depth}] Verarbeite {len(next_transactions)} potenzielle Folgetransaktionen")
+                processed_count_in_this_level = 0
+                for next_tx in next_transactions:
                     # Limit-Prüfung innerhalb der Schleife
                     if context.processed_count >= context.max_transactions:
-                         logger.info("Transaktionslimit innerhalb der Schleife erreicht")
-                         current_transaction.limit_reached = True
-                         break
-                    # Check if it's a chain-end transaction
+                        logger.info("Transaktionslimit innerhalb der Schleife erreicht")
+                        current_transaction.limit_reached = True
+                        break
+
+                    # Chain-End-Erkennung
                     # Das Flag `is_chain_end` kommt jetzt direkt aus dem Ergebnis von `get_next_transactions`
                     is_chain_end_for_next = next_tx.get("is_chain_end", False)
                     if is_chain_end_for_next:
@@ -169,39 +201,53 @@ async def _track_transaction_recursive(
                         # Optional: Füge die Chain-End-Transaktion mit einem Flag hinzu oder überspringe sie
                         # Hier überspringen wir sie, um die Kette nicht weiter zu verfolgen.
                         continue
+
                     # Create child request
                     child_request = TrackTransactionRequest(
                         blockchain=request.blockchain,
-                        tx_hash=next_tx["hash"] if isinstance(next_tx, dict) else next_tx,
+                        tx_hash=next_tx["hash"],
                         depth=request.depth - 1,
-                        include_meta=context.include_meta,
-                        token_identifier=token_identifier, # Weitergabe des aktuellen Token-Identifiers
-                        max_total_transactions=context.max_transactions, # <-- Wichtig: Weitergabe des Limits
-                        width=context.width
+                        include_meta=request.include_meta,
+                        width=request.width,
+                        # *** KORREKTUR 3: Weitergabe des final_original_token_identifier ***
+                        # *** WICHTIG: Verwende den urspruenglichen, nicht den der aktuellen TX ***
+                        token_identifier=final_original_token_identifier # <-- Weitergabe des Originals
                     )
-                    # Recursive call
-                    child_transaction = await _track_transaction_recursive( # async hinzugefuegt
-                        child_request,
-                        client,
-                        parser, # Parser wird weitergereicht
-                        db,
-                        endpoint_manager,
-                        context
+
+                    # Rekursiver Aufruf mit Weitergabe des final_original_token_identifier
+                    child_transaction = await _track_transaction_recursive(
+                        request=child_request,
+                        client=client,
+                        parser=parser,
+                        db=db,
+                        endpoint_manager=endpoint_manager,
+                        context=context,
+                        # *** WICHTIG: Weitergabe des final_original_token_identifier ***
+                        original_token_identifier=final_original_token_identifier # <-- Weitergabe des Originals
                     )
+
                     if child_transaction:
                         current_transaction.next_transactions.append(child_transaction)
                         processed_count_in_this_level += 1
-                    # else: Limit wurde erreicht oder Fehler, Kind wurde nicht hinzugefuegt
-                 logger.info(f"[Tiefe: {request.depth}] {processed_count_in_this_level} Folgetransaktionen erfolgreich hinzugefuegt")
-        logger.info(f"[Tiefe: {request.depth}] <-- Fertig mit Transaktion {request.tx_hash[:10]}... (Kinder: {len(current_transaction.next_transactions)})")
+                        # context.increment() wird bereits in _track_transaction_recursive aufgerufen
+                        # oder implizit durch context.processed_count += 1
+
+                logger.info(f"[Tiefe: {request.depth}] {processed_count_in_this_level} Folgetransaktionen erfolgreich hinzugefuegt")
+            else:
+                logger.info(f"[Tiefe: {request.depth}] Keine Folgetransaktionen (mit Token {token_identifier_to_use}) fuer Adresse {parsed_data['to_address']} gefunden.")
+
+        logger.info(f"[Tiefe: {request.depth}] <-- Fertig mit Transaktion {request.tx_hash} (Kinder: {len(current_transaction.next_transactions)})")
+        context.increment() # Zähler für die aktuelle Transaktion erhöhen
         return current_transaction
-    except HTTPException:
-        # Re-raise HTTPExceptions to be handled by FastAPI
-        raise
+
     except Exception as e:
-        logger.error(f"Fehler in _track_transaction_recursive für Hash '{request.tx_hash}': {str(e)}", exc_info=True)
+        logger.error(f"Fehler in _track_transaction_recursive fuer Hash '{request.tx_hash}': {str(e)}", exc_info=True)
         # Bei einem internen Fehler in der Rekursion werfen wir einen HTTP 500
-        raise HTTPException(status_code=500, detail=f"Internal error during recursive tracking: {str(e)}")
+        # raise HTTPException(status_code=500, detail=f"Internal error during recursive tracking: {str(e)}")
+        # Besser: Fehler loggen und ggf. None zurueckgeben, um die Kette nicht komplett abzubrechen
+        # oder den Fehler an den Aufrufer weitergeben, der ihn behandelt.
+        # Hier werfen wir ihn weiter, damit der Haupt-Endpunkt ihn faengt.
+        raise e # Oder: return None
 # --- Haupt-Endpunkt ---
 @router.post("/track", response_model=TransactionResponse)
 async def track_transaction( # async hinzugefuegt
