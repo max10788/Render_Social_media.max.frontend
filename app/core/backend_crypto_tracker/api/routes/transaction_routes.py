@@ -103,7 +103,8 @@ async def _track_transaction_recursive(
 
         # 2. Transaktion abrufen
         logger.info(f"[Tiefe: {request.depth}] --> Verarbeite Transaktion {request.tx_hash}")
-        tx_data = await client.get_transaction(request.tx_hash, include_meta=context.include_meta)
+        # *** KORREKTUR: include_meta Argument entfernt ***
+        tx_data = await client.get_transaction(request.tx_hash) # <-- Korrigiert
         if not tx_data:
             logger.warning(f"Transaktion {request.tx_hash} nicht gefunden.")
             return None
