@@ -69,6 +69,101 @@ class LowCapAnalyzer:
     # async def get_token_holders(self, token_address: str, chain: str = 'ethereum', limit: int = 100) -> List[Dict]:
     #     ...
 
+    async def analyze_custom_token(self, token_address: str, chain: str) -> dict:
+        """
+        Analysiert einen einzelnen, benutzerdefinierten Token
+        """
+        try:
+            # 1. Token-Metadaten abrufen
+            token_data = await self._fetch_custom_token_data(token_address, chain)
+            
+            if not token_data:
+                raise ValueError(f"Token data could not be retrieved for {token_address} on {chain}")
+            
+            # 2. Holder-Analyse durchführen
+            holders = await self._fetch_token_holders(token_address, chain)
+            
+            # 3. Wallet-Klassifizierung
+            wallet_analyses = []
+            for holder in holders:
+                wallet_analysis = await self.wallet_classifier.classify_wallet(
+                    holder['address'], chain, holder['balance']
+                )
+                wallet_analyses.append(wallet_analysis)
+            
+            # 4. Score-Berechnung
+            score_data = self._calculate_token_score_custom(token_data, wallet_analyses)
+            
+            # 5. Ergebnis zusammenstellen
+            analysis_result = {
+                'token_info': {
+                    'address': token_data.address,
+                    'name': token_data.name,
+                    'symbol': token_data.symbol,
+                    'chain': chain,
+                    'market_cap': token_data.market_cap,
+                    'volume_24h': token_data.volume_24h,
+                    'holders_count': len(holders),
+                    'liquidity': token_data.liquidity
+                },
+                'score': score_data['total_score'],
+                'metrics': score_data['metrics'],
+                'risk_flags': score_data['risk_flags'],
+                'wallet_analysis': {
+                    'total_wallets': len(wallet_analyses),
+                    'dev_wallets': len([w for w in wallet_analyses if w.wallet_type == 'dev_wallet']),
+                    'whale_wallets': len([w for w in wallet_analyses if w.wallet_type == 'whale_wallet']),
+                    'rugpull_suspects': len([w for w in wallet_analyses if w.wallet_type == 'rugpull_suspect']),
+                    'top_holders': [
+                        {
+                            'address': w.wallet_address,
+                            'balance': w.balance,
+                            'percentage': w.percentage_of_supply,
+                            'type': w.wallet_type.value
+                        }
+                        for w in sorted(wallet_analyses, key=lambda x: x.balance, reverse=True)[:10]
+                    ]
+                }
+            }
+            
+            # 6. Optional: Ergebnisse in Datenbank speichern
+            if self.save_custom_analysis:
+                await self._save_custom_analysis(token_address, chain, analysis_result)
+            
+            return analysis_result
+            
+        except Exception as e:
+            logger.error(f"Error analyzing custom token {token_address} on {chain}: {e}")
+            raise
+    
+    async def _fetch_custom_token_data(self, token_address: str, chain: str):
+        """Holt Token-Daten für verschiedene Chains"""
+        if chain in ['ethereum', 'bsc']:
+            return await self._fetch_evm_token_data(token_address, chain)
+        elif chain == 'solana':
+            return await self._fetch_solana_token_data(token_address)
+        elif chain == 'sui':
+            return await self._fetch_sui_token_data(token_address)
+        else:
+            raise ValueError(f"Unsupported chain: {chain}")
+    
+    async def _fetch_token_holders(self, token_address: str, chain: str) -> List[dict]:
+        """Holt Token-Holder für verschiedene Chains"""
+        if chain in ['ethereum', 'bsc']:
+            from ..services.eth.etherscan_api import get_token_holders
+            async with aiohttp.ClientSession() as session:
+                return await get_token_holders(session, token_address, chain)
+        elif chain == 'solana':
+            from ..services.solana.solana_api import get_token_holders as get_solana_holders
+            async with aiohttp.ClientSession() as session:
+                return await get_solana_holders(session, token_address)
+        elif chain == 'sui':
+            from ..services.sui.sui_api import get_token_holders as get_sui_holders
+            async with aiohttp.ClientSession() as session:
+                return await get_sui_holders(session, token_address)
+        else:
+            return []
+    
     def classify_wallet(self, wallet_address: str, balance: float, percentage: float,
                        transaction_data: Dict, token_data: token.TokenData) -> wallet.WalletType:
         """Klassifiziert Wallets basierend auf verschiedenen Kriterien"""
