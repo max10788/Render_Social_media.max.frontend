@@ -40,3 +40,21 @@ class WalletAnalysis(Base):
 
     def __repr__(self):
         return f"<WalletAnalysis(id={self.id}, address='{self.wallet_address}', type='{self.wallet_type.value}')>"
+
+from scanner.wallet_classifier import WalletTypeEnum # Importiere die Enum aus dem Scanner
+
+class WalletClassification(Base):
+    __tablename__ = 'wallet_classifications'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    wallet_address = Column(String, index=True, nullable=False)
+    chain = Column(String, index=True, nullable=False)
+    wallet_type = Column(SQLEnum(WalletTypeEnum), nullable=False)
+    balance = Column(Float, nullable=False)
+    percentage_of_supply = Column(Float)
+    risk_score = Column(Float, nullable=False)
+    confidence_score = Column(Float, nullable=False)
+    analysis_date = Column(DateTime, nullable=False)
+    sources_used = Column(JSON) # Liste der verwendeten Quellen
+    additional_info = Column(JSON) # Zusätzliche Daten aus der Analyse
+    created_at = Column(DateTime, default=datetime.utcnow)
