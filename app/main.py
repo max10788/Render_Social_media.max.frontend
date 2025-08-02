@@ -12,6 +12,9 @@ from app.api.endpoints import router as api_router
 from app.core.backend_crypto_tracker.api.routes import transaction_routes
 from app.core.config import Settings, get_settings
 from app.core.database import init_db
+from .routes.custom_analysis_routes import router as custom_analysis_router
+
+app.include_router(custom_analysis_router)
 
 logger = logging.getLogger(__name__)
 
