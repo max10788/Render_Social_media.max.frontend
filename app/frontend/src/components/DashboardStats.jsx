@@ -4,6 +4,8 @@ import {
     TrendingUp, TrendingDown, AlertTriangle, CheckCircle, 
     ExternalLink, Copy, Users, DollarSign, Activity 
 } from 'lucide-react';
+import CustomAnalysisForm from '../components/CustomAnalysisForm';
+import CustomAnalysisResults from '../components/CustomAnalysisResults';
 
 const CustomAnalysisResults = ({ analysisResult, onClose }) => {
     if (!analysisResult || !analysisResult.success) {
