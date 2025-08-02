@@ -107,6 +107,108 @@ class DatabaseManager:
         finally:
             session.close()
 
-    # TODO: Implementiere weitere Methoden wie save_token_analysis, get_token_analysis,
-    # get_wallet_analyses, get_analytics_summary, get_score_distribution, export_to_csv, export_to_json
-    # basierend auf den Anforderungen aus api/main.py und dem Setup-Skript.
+async def save_custom_analysis(self, analysis_data: Dict) -> int:
+    """Speichert eine benutzerdefinierte Token-Analyse"""
+    from .models.custom_analysis import CustomAnalysis
+    
+    session = self.get_session()
+    try:
+        custom_analysis = CustomAnalysis(
+            token_address=analysis_data['token_address'],
+            chain=analysis_data['chain'],
+            token_name=analysis_data.get('token_name'),
+            token_symbol=analysis_data.get('token_symbol'),
+            market_cap=analysis_data.get('market_cap', 0),
+            volume_24h=analysis_data.get('volume_24h', 0),
+            liquidity=analysis_data.get('liquidity', 0),
+            holders_count=analysis_data.get('holders_count', 0),
+            total_score=analysis_data['total_score'],
+            metrics=analysis_data.get('metrics', {}),
+            risk_flags=analysis_data.get('risk_flags', []),
+            user_id=analysis_data.get('user_id'),
+            session_id=analysis_data.get('session_id')
+        )
+        
+        session.add(custom_analysis)
+        session.commit()
+        session.refresh(custom_analysis)
+        
+        logger.info(f"Custom analysis saved with ID: {custom_analysis.id}")
+        return custom_analysis.id
+        
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Error saving custom analysis: {e}")
+        raise
+    finally:
+        session.close()
+
+async def get_custom_analysis_history(self, user_id: str = None, 
+                                    session_id: str = None, 
+                                    limit: int = 50) -> List[Dict]:
+    """Holt Historie der benutzerdefinierten Analysen"""
+    from .models.custom_analysis import CustomAnalysis
+    
+    session = self.get_session()
+    try:
+        query = session.query(CustomAnalysis)
+        
+        if user_id:
+            query = query.filter(CustomAnalysis.user_id == user_id)
+        elif session_id:
+            query = query.filter(CustomAnalysis.session_id == session_id)
+        
+        analyses = query.order_by(CustomAnalysis.analysis_date.desc()).limit(limit).all()
+        
+        return [
+            {
+                'id': analysis.id,
+                'token_address': analysis.token_address,
+                'chain': analysis.chain,
+                'token_name': analysis.token_name,
+                'token_symbol': analysis.token_symbol,
+                'total_score': analysis.total_score,
+                'analysis_date': analysis.analysis_date,
+                'risk_flags': analysis.risk_flags
+            }
+            for analysis in analyses
+        ]
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching custom analysis history: {e}")
+        return []
+    finally:
+        session.close()
+
+async def get_chain_statistics(self) -> Dict[str, Dict]:
+    """Holt Statistiken für verschiedene Chains"""
+    from .models.custom_analysis import CustomAnalysis
+    from sqlalchemy import func
+    
+    session = self.get_session()
+    try:
+        # Statistiken pro Chain
+        stats = session.query(
+            CustomAnalysis.chain,
+            func.count(CustomAnalysis.id).label('total_analyses'),
+            func.avg(CustomAnalysis.total_score).label('avg_score'),
+            func.max(CustomAnalysis.total_score).label('max_score'),
+            func.min(CustomAnalysis.total_score).label('min_score')
+        ).group_by(CustomAnalysis.chain).all()
+        
+        result = {}
+        for stat in stats:
+            result[stat.chain] = {
+                'total_analyses': stat.total_analyses,
+                'average_score': round(stat.avg_score, 2) if stat.avg_score else 0,
+                'max_score': stat.max_score,
+                'min_score': stat.min_score
+            }
+        
+        return result
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Error fetching chain statistics: {e}")
+        return {}
+    finally:
+        session.close().
