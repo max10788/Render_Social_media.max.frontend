@@ -1,14 +1,24 @@
 # app/core/backend_crypto_tracker/database/models/__init__.py
-# Import all models here to ensure they are registered with the SQLAlchemy metadata
-# This file is crucial for Alembic migrations and ensuring all models are known to the Base.
 
-# Import Base from the parent package if it's defined there
-# from .. import Base
-
-# Import models
 from .token import Token
 from .wallet import WalletAnalysis, WalletTypeEnum
 from .scan_result import ScanResult, ScanJob
 
-# Re-export for convenience if needed
-# __all__ = ['Token', 'WalletAnalysis', 'WalletTypeEnum', 'ScanResult', 'ScanJob', 'Base']
+# app/core/backend_crypto_tracker/database/models/__init__.py
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.engine import Engine
+from sqlalchemy import event
+import sqlite3
+
+Base = declarative_base()
+
+# Import all models to ensure they're registered
+from .token import Token
+from .wallet import WalletAnalysis, WalletTypeEnum
+from .scan_result import ScanResult, ScanJob
+
+# Chain validation function
+SUPPORTED_CHAINS = ['ethereum', 'bsc', 'solana', 'sui']
+
+def validate_chain(chain: str) -> bool:
+    return chain.lower() in SUPPORTED_CHAINS
