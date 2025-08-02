@@ -4,6 +4,8 @@ import { Search, Refresh, Download, Settings, Filter } from 'lucide-react';
 import TokenCard from '../components/TokenCard';
 import TokenDetailModal from '../components/TokenDetailModal';
 import DashboardStats from '../components/DashboardStats';
+import CustomAnalysisForm from '../components/CustomAnalysisForm';
+import CustomAnalysisResults from '../components/CustomAnalysisResults';
 // Assume useApi hook is created
 // import useApi from '../hooks/useApi';
 
@@ -19,6 +21,8 @@ const LowCapAnalyzerDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [scanStatus, setScanStatus] = useState(null);
     const [analytics, setAnalytics] = useState({});
+    const [customAnalysisResult, setCustomAnalysisResult] = useState(null);
+    const [showCustomAnalysis, setShowCustomAnalysis] = useState(false);
 
     // Simulate API call with mock data
     useEffect(() => {
@@ -113,6 +117,16 @@ const LowCapAnalyzerDashboard = () => {
 
         fetchDashboardData();
     }, []);
+
+    const handleCustomAnalysisComplete = (result) => {
+        setCustomAnalysisResult(result);
+        setShowCustomAnalysis(true);
+    };
+
+    const handleCloseCustomAnalysis = () => {
+        setShowCustomAnalysis(false);
+        setCustomAnalysisResult(null);
+    };
 
     // Filter und Such-Funktionen
     useEffect(() => {
