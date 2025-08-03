@@ -1,8 +1,7 @@
 // src/pages/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 // --- Bestehende Imports ---
-import { Search, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, ExternalLink, Refresh, Download, Settings, Filter } from 'lucide-react';
-// import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts'; // Falls Charts verwendet werden
+import { Search, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, ExternalLink, RefreshCw, Download, Settings, Filter, Calendar, Users, Clock, DollarSign, Activity, BarChart3, PieChartIcon, LineChartIcon, MoreVertical } from 'lucide-react';// import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts'; // Falls Charts verwendet werden
 // --- NEU: Importiere die neuen Komponenten ---
 import CustomAnalysisForm from '../components/CustomAnalysisForm';
 import CustomAnalysisResults from '../components/CustomAnalysisResults';
