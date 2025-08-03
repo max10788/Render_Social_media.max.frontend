@@ -11,9 +11,9 @@ import hashlib
 from collections import defaultdict
 
 # Importiere die externen Dienste
-from services.multichain.chainalysis_service import ChainalysisIntegration
-from services.multichain.elliptic_service import EllipticIntegration
-from services.multichain.community_labels_service import CommunityLabelsAPI
+from app.core.backend_crypto_tracker.services.multichain.chainalysis_service import ChainalysisIntegration
+from app.core.backend_crypto_tracker.services.multichain.elliptic_service import EllipticIntegration
+from app.core.backend_crypto_tracker.services.multichain.community_labels_service import CommunityLabelsAPI
 
 # Importiere Konfigurationen
 from config.scanner_config import (
