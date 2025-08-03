@@ -5,7 +5,8 @@ import {
     ExternalLink, Copy, Users, DollarSign, Activity 
 } from 'lucide-react';
 
-export default function DashboardStats() {
+// Export DashboardStats component
+export function DashboardStats() {
   return (
     <div className="p-4 bg-white rounded shadow">
       <h2 className="text-xl font-bold mb-2">Dashboard-Statistiken</h2>
@@ -304,4 +305,6 @@ const CustomAnalysisResults = ({ analysisResult, onClose }) => {
     );
 };
 
+// Export both components
 export default CustomAnalysisResults;
+export { CustomAnalysisResults };
