@@ -4,7 +4,7 @@ import httpx
 import asyncio
 import logging
 from typing import Optional, Dict, Any
-from config.blockchain_api_keys import get_api_keys
+from app.core.backend_crypto_tracker.config.blockchain_api_keys import get_api_keys
 
 logger = logging.getLogger(__name__)
 
