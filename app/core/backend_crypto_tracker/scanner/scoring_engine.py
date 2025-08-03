@@ -286,3 +286,38 @@ class MultiChainScoringEngine:
         
         return score
 
+    def score_token(
+        self,
+        market_cap: float,
+        liquidity: float,
+        holders: int,
+        contract_verified: bool,
+        risk_flags: List[str],
+    ) -> Dict[str, float]:
+        score = 50.0
+
+        # Marktkapitalisierung
+        if market_cap < 100_000:
+            score -= 20
+        elif market_cap > 10_000_000:
+            score += 10
+
+        # Liquidität
+        if liquidity < 50_000:
+            score -= 15
+        elif liquidity > 1_000_000:
+            score += 10
+
+        # Holder-Anzahl
+        if holders < 50:
+            score -= 15
+        elif holders > 5_000:
+            score += 5
+
+        # Contract geprüft
+        score += 10 if contract_verified else 0
+
+        # Risiko-Flags
+        score -= len(risk_flags) * 5
+
+        return {"total_score": max(0, min(100, score))}
