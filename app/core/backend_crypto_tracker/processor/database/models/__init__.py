@@ -1,7 +1,7 @@
 # app/core/backend_crypto_tracker/database/models/__init__.py
 
-from .token import Token
-from .wallet import WalletAnalysis, WalletTypeEnum
+from app.core.backend_crypto_tracker.processor.database.models.token import Token
+from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
 from .scan_result import ScanResult, ScanJob
 
 # app/core/backend_crypto_tracker/database/models/__init__.py
