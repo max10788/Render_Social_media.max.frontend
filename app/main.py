@@ -20,6 +20,10 @@ from app.core.database import init_db
 
 logger = logging.getLogger(__name__)
 
+BUILD_DIR = "app/frontend/dist"
+ASSETS_DIR = f"{BUILD_DIR}/assets"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for FastAPI application."""
@@ -53,13 +57,11 @@ app.add_middleware(
 # ------------------------------------------------------------------
 # Statische Dateien aus dem gebauten Frontend
 # ------------------------------------------------------------------
-# Wichtig: "frontend/dist" muss Teil des Docker-Images / Render-Builds sein!
-BUILD_DIR = "frontend/dist"
-if not os.path.isdir(BUILD_DIR):
-    logger.warning(f"Frontend build directory '{BUILD_DIR}' not found!")
-
-# Assets (JS, CSS, Bilder)
-app.mount("/assets", StaticFiles(directory=f"{BUILD_DIR}/assets"), name="assets")
+# Nur mounten, wenn das Verzeichnis existiert
+if os.path.isdir(ASSETS_DIR):
+    app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+else:
+    logger.warning(f"Frontend build directory '{ASSETS_DIR}' not found – assets will not be served")
 
 # ------------------------------------------------------------------
 # Router
