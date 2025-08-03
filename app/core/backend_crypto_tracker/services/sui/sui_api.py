@@ -6,6 +6,46 @@ import json
 
 logger = logging.getLogger(__name__)
 
+class SuiParser:
+    """Minimaler Sui-Parser – erweiterbar."""
+    def __init__(self):
+        self.rpc = "https://fullnode.mainnet.sui.io:443"
+
+    async def parse_token(self, address: str) -> Dict[str, Any]:
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "sui_getObject",
+            "params": [address, {"showContent": True}]
+        }
+        async with httpx.AsyncClient() as client:
+            r = await client.post(self.rpc, json=payload)
+            r.raise_for_status()
+            data = r.json()
+            content = data.get("result", {}).get("data", {})
+            return {
+                "address": address,
+                "name": content.get("content", {}).get("fields", {}).get("name", ""),
+                "symbol": content.get("content", {}).get("fields", {}).get("symbol", ""),
+                "decimals": int(content.get("content", {}).get("fields", {}).get("decimals", 9)),
+            }
+
+    async def parse_wallet(self, address: str) -> Dict[str, Any]:
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "sui_getBalance",
+            "params": [address]
+        }
+        async with httpx.AsyncClient() as client:
+            r = await client.post(self.rpc, json=payload)
+            r.raise_for_status()
+            data = r.json()
+            return {
+                "address": address,
+                "balance": int(data.get("result", {}).get("totalBalance", 0))
+            }
+
 class SuiAPIService:
     def __init__(self, rpc_url: str = "https://fullnode.mainnet.sui.io:443"):
         self.rpc_url = rpc_url
