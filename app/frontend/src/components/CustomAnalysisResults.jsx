@@ -4,7 +4,7 @@ import {
     TrendingUp, TrendingDown, AlertTriangle, CheckCircle, 
     ExternalLink, Copy, Users, DollarSign, Activity 
 } from 'lucide-react';
-
+import DashboardStats from './components/DashboardStats';
 
 const CustomAnalysisResults = ({ analysisResult, onClose }) => {
     if (!analysisResult || !analysisResult.success) {
@@ -296,7 +296,4 @@ const CustomAnalysisResults = ({ analysisResult, onClose }) => {
     );
 };
 
-// Export DashboardStats as default (if that's what's being imported)
-// and CustomAnalysisResults as named export
-export default DashboardStats;
-export { CustomAnalysisResults, DashboardStats };
+export default CustomAnalysisResults;
