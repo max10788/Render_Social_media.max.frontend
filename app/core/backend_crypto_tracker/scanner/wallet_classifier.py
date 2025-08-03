@@ -29,26 +29,33 @@ logger = logging.getLogger(__name__)
 
 class WalletTypeEnum(Enum):
     DEV_WALLET = "dev_wallet"
-    RUGPULL_SUSPECT = "rugpull_suspect"
+    LIQUIDITY_WALLET = "liquidity_wallet"
     WHALE_WALLET = "whale_wallet"
     DEX_CONTRACT = "dex_contract"
-    CEX_WALLET = "cex_wallet"
     BURN_WALLET = "burn_wallet"
-    TEAM_WALLET = "team_wallet"
-    LIQUIDITY_PROVIDER = "liquidity_provider"
+    CEX_WALLET = "cex_wallet"
+    SNIPER_WALLET = "sniper_wallet"
+    RUGPULL_SUSPECT = "rugpull_suspect"
     UNKNOWN = "unknown"
 
-@dataclass
-class WalletAnalysis:
-    wallet_address: str
-    wallet_type: WalletTypeEnum
-    balance: float
-    percentage_of_supply: float
-    risk_score: float
-    confidence_score: float
-    analysis_date: datetime
-    sources_used: List[str]
-    additional_info: Dict[str, Any] = None
+class WalletAnalysis(Base):
+    __tablename__ = "wallet_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token_id = Column(Integer, ForeignKey("tokens.id"), nullable=False) # Assumes tokens table exists
+    wallet_address = Column(String, nullable=False, index=True)
+    wallet_type = Column(SQLEnum(WalletTypeEnum), nullable=False)
+    balance = Column(Float, nullable=False)
+    percentage_of_supply = Column(Float, nullable=False)
+    transaction_count = Column(Integer)
+    first_transaction = Column(DateTime)
+    last_transaction = Column(DateTime)
+    risk_score = Column(Float)
+    analysis_date = Column(DateTime) # Default handled in code or DB
+
+    # Relationship - String reference avoids circular import if Token is defined later/elsewhere
+    # Ensure Token model is loaded before querying relationships
+    token = relationship("Token", back_populates="wallet_analyses") # back_populates target must exist in Token
 
 # --- Klassen aus dem Originalcode ---
 
