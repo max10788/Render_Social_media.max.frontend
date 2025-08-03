@@ -4,7 +4,9 @@ import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 # Import Models
-from .models import Token, WalletAnalysis, ScanResult, ScanJob, WalletTypeEnum
+from app.core.backend_crypto_tracker.processor.database.models.token import Token
+from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
+from app.core.backend_crypto_tracker.processor.database.models.scan_result import ScanResult, ScanJob
 # Import SQLAlchemy
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
