@@ -2,7 +2,7 @@
 import aiohttp
 import logging
 from typing import List, Optional
-from ...database.models import token # For TokenData
+from from app.core.backend_crypto_tracker.processor.database.models import token # For TokenData
 
 logger = logging.getLogger(__name__)
 
