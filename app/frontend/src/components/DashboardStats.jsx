@@ -4,8 +4,15 @@ import {
     TrendingUp, TrendingDown, AlertTriangle, CheckCircle, 
     ExternalLink, Copy, Users, DollarSign, Activity 
 } from 'lucide-react';
-import DashboardStats from '../components/DashboardStats';
 
+export default function DashboardStats() {
+  return (
+    <div className="p-4 bg-white rounded shadow">
+      <h2 className="text-xl font-bold mb-2">Dashboard-Statistiken</h2>
+      <p>Statistiken werden hier angezeigt …</p>
+    </div>
+  );
+}
 
 const CustomAnalysisResults = ({ analysisResult, onClose }) => {
     if (!analysisResult || !analysisResult.success) {
