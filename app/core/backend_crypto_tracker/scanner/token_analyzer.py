@@ -14,10 +14,10 @@ import time
 import statistics
 
 # Import from other modules
-from ..services.eth import etherscan_api # For get_token_holders
-from ..services.multichain import price_service # For get_low_cap_tokens
-from ..database.models import token, wallet # For TokenData, WalletType, WalletAnalysis
-from ..utils import logger # Use project logger if configured
+from app.core.backend_crypto_tracker.services.eth.etherscan_api import get_token_holders # For get_token_holders
+from app.core.backend_crypto_tracker.services.multichain.price_service import get_low_cap_tokens, _get_solana_price_jupiter, _get_solana_token_price, _get_evm_token_price, get_custom_token_price # For get_low_cap_tokens
+from app.core.backend_crypto_tracker.processor.database.models import token, wallet # For TokenData, WalletType, WalletAnalysis
+from app.core.backend_crypto_tracker.utils import logger # Use project logger if configured
 
 # Konfiguration und Logging (Consider moving to utils/logger.py setup)
 # logging.basicConfig(level=logging.INFO) # Usually done at app startup
