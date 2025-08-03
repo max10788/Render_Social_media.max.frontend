@@ -5,8 +5,8 @@ import {
     ExternalLink, Copy, Users, DollarSign, Activity 
 } from 'lucide-react';
 
-// Export DashboardStats component
-export function DashboardStats() {
+// DashboardStats component - make it the default export if this is what's being imported elsewhere
+function DashboardStats() {
   return (
     <div className="p-4 bg-white rounded shadow">
       <h2 className="text-xl font-bold mb-2">Dashboard-Statistiken</h2>
@@ -305,6 +305,7 @@ const CustomAnalysisResults = ({ analysisResult, onClose }) => {
     );
 };
 
-// Export both components
-export default CustomAnalysisResults;
-export { CustomAnalysisResults };
+// Export DashboardStats as default (if that's what's being imported)
+// and CustomAnalysisResults as named export
+export default DashboardStats;
+export { CustomAnalysisResults, DashboardStats };
