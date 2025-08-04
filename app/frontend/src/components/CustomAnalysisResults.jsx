@@ -4,7 +4,6 @@ import {
     TrendingUp, TrendingDown, AlertTriangle, CheckCircle, 
     ExternalLink, Copy, Users, DollarSign, Activity 
 } from 'lucide-react';
-import DashboardStats from './DashboardStats';
 
 const CustomAnalysisResults = ({ analysisResult, onClose }) => {
     if (!analysisResult || !analysisResult.success) {
