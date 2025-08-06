@@ -110,3 +110,5 @@ def load_config():
             'sui': int(os.getenv('SUI_MIN_SCORE', 45))
         }
     }
+
+
