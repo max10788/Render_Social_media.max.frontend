@@ -1,9 +1,28 @@
+# services/multichain/community_labels_service.py
 import httpx
 import asyncio
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
+from enum import Enum
+from utils.logger import get_logger
+from utils.exceptions import APIException
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+class WalletTypeEnum(Enum):
+    UNKNOWN = "unknown"
+    EOA = "eoa"
+    CONTRACT = "contract"
+    CEX_WALLET = "cex_wallet"
+    DEFI_WALLET = "defi_wallet"
+    DEV_WALLET = "dev_wallet"
+    WHALE_WALLET = "whale_wallet"
+    SNIPER_WALLET = "sniper_wallet"
+    RUGPULL_SUSPECT = "rugpull_suspect"
+    BURN_WALLET = "burn_wallet"
+    DEX_CONTRACT = "dex_contract"
+    LIQUIDITY_PROVIDER = "liquidity_provider"
+    TEAM_WALLET = "team_wallet"
 
 class CommunityLabelsAPI:
     """Integration with community-based labeling sources"""
@@ -15,8 +34,7 @@ class CommunityLabelsAPI:
             'oklink': 'https://www.oklink.com/api',
             'flipside': 'https://api.flipsidecrypto.com/api/v1'
         }
-
-    def __init__(self):
+        
         # DEX signature patterns for identifying DEX contracts
         self.dex_signatures = {
             'swap': '0x128acb08',           # swapExactTokensForTokens
