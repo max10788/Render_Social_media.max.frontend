@@ -1,4 +1,4 @@
-# app/core/backend_crypto_tracker/services/sol/solana_api.py
+# services/sol/solana_api.py
 import aiohttp
 import logging
 import os
@@ -230,33 +230,22 @@ class SolanaAPIService:
             logger.error(f"Error fetching latest Solana slot: {e}")
             raise APIException(f"Error fetching latest slot: {str(e)}")
     
-    async def get_block_time(self, slot: int) -> Optional[int]:
-        """Holt die Zeit eines Blocks in Unix-Timestamp"""
+    async def get_transactions_in_slot_range(self, start: int, end: int) -> List[Dict[str, Any]]:
+        """Holt Transaktionen in einem Slot-Bereich"""
+        transactions = []
+        
         try:
-            data = await self._make_rpc_request("getBlockTime", [slot])
+            for slot in range(start, end + 1):
+                # Hole Block für den Slot
+                block_data = await self._make_rpc_request("getBlock", [slot, {"encoding": "jsonParsed"}])
+                
+                if 'result' in block_data and 'transactions' in block_data['result']:
+                    for tx in block_data['result']['transactions']:
+                        transactions.append(tx)
             
-            if 'result' in data:
-                return data['result']
-            return None
+            return transactions
         except APIException:
             raise
         except Exception as e:
-            logger.error(f"Error fetching Solana block time: {e}")
-            raise APIException(f"Error fetching block time: {str(e)}")
-    
-    async def get_signatures_for_address(self, address: str, limit: int = 100) -> List[Dict[str, Any]]:
-        """Holt Transaktionssignaturen für eine Adresse"""
-        try:
-            data = await self._make_rpc_request("getSignaturesForAddress", [
-                address,
-                {"limit": limit}
-            ])
-            
-            if 'result' in data:
-                return data['result']
-            return []
-        except APIException:
-            raise
-        except Exception as e:
-            logger.error(f"Error fetching Solana signatures for address: {e}")
-            raise APIException(f"Error fetching signatures for address: {str(e)}")
+            logger.error(f"Error fetching Solana transactions in slot range: {e}")
+            raise APIException(f"Error fetching transactions in slot range: {str(e)}")
