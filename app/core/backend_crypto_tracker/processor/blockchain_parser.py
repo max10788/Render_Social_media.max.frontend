@@ -1,4 +1,4 @@
-# app/core/backend_crypto_tracker/processor/blockchain_parser.py
+# processor/blockchain_parser.py
 import logging
 from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
@@ -360,9 +360,8 @@ class BlockchainParser:
                 # Hier vereinfacht
                 return []  # Placeholder
             elif chain.lower() == 'solana':
-                # Für Solana müssten wir die Slots durchgehen und Transaktionen abrufen
-                # Dies ist komplexer und würde zusätzliche Methoden erfordern
-                return []  # Placeholder
+                async with self.solana_api:
+                    return await self.solana_api.get_transactions_in_slot_range(start, end)
             elif chain.lower() == 'sui':
                 async with self.sui_api:
                     return await self.sui_api.get_transactions_in_checkpoint_range(start, end)
