@@ -1,60 +1,86 @@
-# app/core/backend_crypto_tracker/database/models/wallet.py
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+# processor/database/models/wallet.py
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Index, Text, JSON, Float, Enum
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Enum as SQLEnum
-from enum import Enum
-# from .. import Base # If Base is defined in database/__init__.py
-Base = declarative_base() # Or import from a central place
+from sqlalchemy.sql import func
+from processor.database.models import Base
+import enum
 
-# Define Enum here or import if shared
-class WalletTypeEnum(Enum):
-    DEV_WALLET = "dev_wallet"
-    LIQUIDITY_WALLET = "liquidity_wallet"
-    WHALE_WALLET = "whale_wallet"
-    DEX_CONTRACT = "dex_contract"
-    BURN_WALLET = "burn_wallet"
+class WalletTypeEnum(enum.Enum):
+    UNKNOWN = "unknown"
+    EOA = "eoa"
+    CONTRACT = "contract"
     CEX_WALLET = "cex_wallet"
+    DEFI_WALLET = "defi_wallet"
+    DEV_WALLET = "dev_wallet"
+    WHALE_WALLET = "whale_wallet"
     SNIPER_WALLET = "sniper_wallet"
     RUGPULL_SUSPECT = "rugpull_suspect"
-    UNKNOWN = "unknown"
+    BURN_WALLET = "burn_wallet"
+    DEX_CONTRACT = "dex_contract"
 
 class WalletAnalysis(Base):
     __tablename__ = "wallet_analyses"
-
+    
+    # Primärschlüssel und Identifikation
     id = Column(Integer, primary_key=True, index=True)
-    token_id = Column(Integer, ForeignKey("tokens.id"), nullable=False) # Assumes tokens table exists
-    wallet_address = Column(String, nullable=False, index=True)
-    wallet_type = Column(SQLEnum(WalletTypeEnum), nullable=False)
-    balance = Column(Float, nullable=False)
-    percentage_of_supply = Column(Float, nullable=False)
-    transaction_count = Column(Integer)
+    wallet_address = Column(String(255), nullable=False, index=True)
+    chain = Column(String(20), nullable=False, index=True)
+    
+    # Wallet-Klassifizierung
+    wallet_type = Column(Enum(WalletTypeEnum), nullable=False, index=True)
+    confidence_score = Column(Float)  # 0-1, wie sicher die Klassifizierung ist
+    
+    # Token-bezogene Daten
+    token_id = Column(Integer, ForeignKey("tokens.id"), nullable=True)
+    token_address = Column(String(255))
+    balance = Column(Float)
+    percentage_of_supply = Column(Float)
+    
+    # Transaktionsdaten
+    transaction_count = Column(Integer, default=0)
     first_transaction = Column(DateTime)
     last_transaction = Column(DateTime)
-    risk_score = Column(Float)
-    analysis_date = Column(DateTime) # Default handled in code or DB
-
-    # Relationship - String reference avoids circular import if Token is defined later/elsewhere
-    # Ensure Token model is loaded before querying relationships
-    token = relationship("Token", back_populates="wallet_analyses") # back_populates target must exist in Token
-
+    
+    # Risikoanalyse
+    risk_score = Column(Float)  # 0-100
+    risk_flags = Column(JSON)  # Liste der Risiko-Flags
+    
+    # Metadaten
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Beziehungen
+    # token = relationship("Token", back_populates="wallet_analyses")
+    # address = relationship("Address", back_populates="wallet_analysis")
+    
+    # Indexe für Performance-Optimierung
+    __table_args__ = (
+        Index('idx_wallet_analysis_token', 'token_address', 'chain'),
+        Index('idx_wallet_analysis_type', 'wallet_type'),
+        Index('idx_wallet_analysis_risk', 'risk_score'),
+        Index('idx_wallet_analysis_created', 'created_at'),
+    )
+    
     def __repr__(self):
-        return f"<WalletAnalysis(id={self.id}, address='{self.wallet_address}', type='{self.wallet_type.value}')>"
-
-from scanner.wallet_classifier import WalletTypeEnum # Importiere die Enum aus dem Scanner
-
-class WalletClassification(Base):
-    __tablename__ = 'wallet_classifications'
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    wallet_address = Column(String, index=True, nullable=False)
-    chain = Column(String, index=True, nullable=False)
-    wallet_type = Column(SQLEnum(WalletTypeEnum), nullable=False)
-    balance = Column(Float, nullable=False)
-    percentage_of_supply = Column(Float)
-    risk_score = Column(Float, nullable=False)
-    confidence_score = Column(Float, nullable=False)
-    analysis_date = Column(DateTime, nullable=False)
-    sources_used = Column(JSON) # Liste der verwendeten Quellen
-    additional_info = Column(JSON) # Zusätzliche Daten aus der Analyse
-    created_at = Column(DateTime, default=datetime.utcnow)
+        return f"<WalletAnalysis(address='{self.wallet_address[:8]}...', type='{self.wallet_type.value}', risk={self.risk_score})>"
+    
+    def to_dict(self):
+        """Konvertiert das WalletAnalysis-Objekt in ein Dictionary"""
+        return {
+            'id': self.id,
+            'wallet_address': self.wallet_address,
+            'chain': self.chain,
+            'wallet_type': self.wallet_type.value if self.wallet_type else None,
+            'confidence_score': self.confidence_score,
+            'token_id': self.token_id,
+            'token_address': self.token_address,
+            'balance': self.balance,
+            'percentage_of_supply': self.percentage_of_supply,
+            'transaction_count': self.transaction_count,
+            'first_transaction': self.first_transaction.isoformat() if self.first_transaction else None,
+            'last_transaction': self.last_transaction.isoformat() if self.last_transaction else None,
+            'risk_score': self.risk_score,
+            'risk_flags': self.risk_flags,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
