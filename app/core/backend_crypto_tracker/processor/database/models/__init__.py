@@ -1,19 +1,33 @@
-# app/core/backend_crypto_tracker/database/models/__init__.py
-
-from app.core.backend_crypto_tracker.processor.database.models.token import Token
-from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
-from app.core.backend_crypto_tracker.processor.database.models.scan_result import ScanResult, ScanJob
-
-# app/core/backend_crypto_tracker/database/models/__init__.py
+# processor/database/models/__init__.py
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.engine import Engine
-from sqlalchemy import event
-import sqlite3
+from sqlalchemy import Column, Integer, DateTime, func
 
+# Zentrale Base-Klasse für alle Modelle
 Base = declarative_base()
 
-# Chain validation function
-SUPPORTED_CHAINS = ['ethereum', 'bsc', 'solana', 'sui']
+class TimestampMixin:
+    """Mixin für Zeitstempel-Felder"""
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-def validate_chain(chain: str) -> bool:
-    return chain.lower() in SUPPORTED_CHAINS
+# Importiere alle Modelle
+from .address import Address
+from .cluster import Cluster
+from .custom_analysis import CustomAnalysis
+from .scan_result import ScanResult
+from .token import Token
+from .transaction import Transaction
+from .wallet import WalletAnalysis
+
+# Liste aller Modelle für einfache Referenz
+__all__ = [
+    'Base',
+    'TimestampMixin',
+    'Address',
+    'Cluster',
+    'CustomAnalysis',
+    'ScanResult',
+    'Token',
+    'Transaction',
+    'WalletAnalysis'
+]
