@@ -1,4 +1,4 @@
-# app/core/backend_crypto_tracker/workers/enrichment_worker.py
+# workers/enrichment_worker.py
 import asyncio
 import logging
 from typing import Dict, List, Optional, Any
@@ -314,4 +314,52 @@ class EnrichmentWorker:
             # Elliptic Analyse (wenn verfügbar)
             if self.config.get('elliptic_api_key'):
                 try:
-                    elliptic_analysis
+                    elliptic_analysis = await self.elliptic.analyze_transaction(tx_hash, chain)
+                    analysis['elliptic'] = elliptic_analysis
+                except Exception as e:
+                    logger.error(f"Error getting Elliptic analysis for {tx_hash}: {e}")
+            
+            # Speichere die Analyse in der Datenbank
+            await self.db_manager.save_transaction_analysis(chain, tx_hash, analysis)
+            
+            # Speichere die Analyse im Cache
+            await self.cache.set(analysis, ttl=3600, cache_key)  # 1 Stunde Cache
+            
+            logger.info(f"Enriched transaction analysis for {tx_hash} on {chain}")
+        except Exception as e:
+            logger.error(f"Error enriching transaction analysis for {tx_hash}: {e}")
+            raise
+    
+    def _calculate_aggregated_risk_score(self, risk_scores: Dict[str, Any]) -> float:
+        """Berechnet einen aggregierten Risiko-Score aus verschiedenen Quellen"""
+        if not risk_scores:
+            return 0.0
+        
+        # Gewichte für die verschiedenen Quellen
+        weights = {
+            'chainalysis': 0.4,
+            'elliptic': 0.4,
+            'community': 0.2
+        }
+        
+        total_score = 0.0
+        total_weight = 0.0
+        
+        for source, score in risk_scores.items():
+            if source in weights and isinstance(score, (int, float)):
+                total_score += score * weights[source]
+                total_weight += weights[source]
+        
+        if total_weight == 0:
+            return 0.0
+        
+        return total_score / total_weight
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Gibt Statistiken des Enrichment Workers zurück"""
+        return {
+            'is_running': self.is_running,
+            'pending_tasks': len(self.tasks),
+            'stats': self.stats.copy(),
+            'last_run_time': self.stats['last_run_time'].isoformat() if self.stats['last_run_time'] else None
+        }
