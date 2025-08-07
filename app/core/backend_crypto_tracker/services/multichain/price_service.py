@@ -1,163 +1,230 @@
-# app/core/backend_crypto_tracker/services/multichain/price_service.py
+# services/multichain/price_service.py
 import aiohttp
 import logging
-from typing import List, Optional
-from from app.core.backend_crypto_tracker.processor.database.models import token # For TokenData
+from typing import List, Optional, Dict, Any
+from dataclasses import dataclass
+from utils.logger import get_logger
+from utils.exceptions import APIException, RateLimitExceededException
+from config.blockchain_api_keys import chain_config
+from processor.database.models.token import Token
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
-async def get_custom_token_price(session: aiohttp.ClientSession, 
-                                token_address: str, chain: str,
-                                coingecko_key: Optional[str] = None) -> Dict:
-    """Holt Preisinformationen für benutzerdefinierte Token"""
-    
-    if chain in ['ethereum', 'bsc']:
-        return await _get_evm_token_price(session, token_address, chain, coingecko_key)
-    elif chain == 'solana':
-        return await _get_solana_token_price(session, token_address, coingecko_key)
-    elif chain == 'sui':
-        return await _get_sui_token_price(session, token_address, coingecko_key)
-    else:
-        return {'price': 0, 'market_cap': 0, 'volume_24h': 0}
+@dataclass
+class TokenPriceData:
+    price: float
+    market_cap: float
+    volume_24h: float
+    price_change_percentage_24h: Optional[float] = None
 
-async def _get_evm_token_price(session: aiohttp.ClientSession, 
-                              token_address: str, chain: str,
-                              coingecko_key: Optional[str] = None) -> Dict:
-    """Preis für EVM-basierte Token (Ethereum, BSC)"""
-    platform_id = 'ethereum' if chain == 'ethereum' else 'binance-smart-chain'
+class PriceService:
+    def __init__(self, coingecko_api_key: Optional[str] = None):
+        self.coingecko_api_key = coingecko_api_key
+        self.session = None
+        
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession()
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
     
-    url = f"https://api.coingecko.com/api/v3/simple/token_price/{platform_id}"
-    params = {
-        'contract_addresses': token_address,
-        'vs_currencies': 'usd',
-        'include_market_cap': 'true',
-        'include_24hr_vol': 'true'
-    }
+    async def get_token_price(self, token_address: str, chain: str) -> TokenPriceData:
+        """Holt Preisinformationen für ein Token basierend auf der Blockchain"""
+        if not chain_config.is_supported(chain):
+            raise ValueError(f"Unsupported chain: {chain}")
+        
+        if chain in ['ethereum', 'bsc']:
+            return await self._get_evm_token_price(token_address, chain)
+        elif chain == 'solana':
+            return await self._get_solana_token_price(token_address)
+        elif chain == 'sui':
+            return await self._get_sui_token_price(token_address)
+        else:
+            return TokenPriceData(price=0, market_cap=0, volume_24h=0)
     
-    if coingecko_key:
-        params['x-cg-pro-api-key'] = coingecko_key
-    
-    try:
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
+    async def _get_evm_token_price(self, token_address: str, chain: str) -> TokenPriceData:
+        """Preis für EVM-basierte Token (Ethereum, BSC)"""
+        platform_id = 'ethereum' if chain == 'ethereum' else 'binance-smart-chain'
+        
+        url = f"https://api.coingecko.com/api/v3/simple/token_price/{platform_id}"
+        params = {
+            'contract_addresses': token_address,
+            'vs_currencies': 'usd',
+            'include_market_cap': 'true',
+            'include_24hr_vol': 'true',
+            'include_24hr_change': 'true'
+        }
+        
+        if self.coingecko_api_key:
+            params['x-cg-pro-api-key'] = self.coingecko_api_key
+        
+        try:
+            async with self.session.get(url, params=params) as response:
+                if response.status == 429:
+                    raise RateLimitExceededException(
+                        "CoinGecko", 
+                        50,  # Annahme: 50 Anfragen pro Minute
+                        "minute"
+                    )
+                
+                response.raise_for_status()
                 data = await response.json()
+                
                 token_data = data.get(token_address.lower(), {})
-                return {
-                    'price': token_data.get('usd', 0),
-                    'market_cap': token_data.get('usd_market_cap', 0),
-                    'volume_24h': token_data.get('usd_24h_vol', 0)
-                }
-    except Exception as e:
-        logger.error(f"Error fetching EVM token price: {e}")
+                return TokenPriceData(
+                    price=token_data.get('usd', 0),
+                    market_cap=token_data.get('usd_market_cap', 0),
+                    volume_24h=token_data.get('usd_24h_vol', 0),
+                    price_change_percentage_24h=token_data.get('usd_24h_change')
+                )
+        except aiohttp.ClientError as e:
+            logger.error(f"Error fetching EVM token price: {e}")
+            raise APIException(f"Failed to fetch token price: {str(e)}")
+        
+        return TokenPriceData(price=0, market_cap=0, volume_24h=0)
     
-    return {'price': 0, 'market_cap': 0, 'volume_24h': 0}
-
-async def _get_solana_token_price(session: aiohttp.ClientSession,
-                                 token_address: str,
-                                 coingecko_key: Optional[str] = None) -> Dict:
-    """Preis für Solana Token"""
-    # CoinGecko unterstützt auch Solana Token
-    url = f"https://api.coingecko.com/api/v3/simple/token_price/solana"
-    params = {
-        'contract_addresses': token_address,
-        'vs_currencies': 'usd',
-        'include_market_cap': 'true',
-        'include_24hr_vol': 'true'
-    }
-    
-    if coingecko_key:
-        params['x-cg-pro-api-key'] = coingecko_key
-    
-    try:
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
+    async def _get_solana_token_price(self, token_address: str) -> TokenPriceData:
+        """Preis für Solana Token"""
+        # CoinGecko unterstützt auch Solana Token
+        url = f"https://api.coingecko.com/api/v3/simple/token_price/solana"
+        params = {
+            'contract_addresses': token_address,
+            'vs_currencies': 'usd',
+            'include_market_cap': 'true',
+            'include_24hr_vol': 'true',
+            'include_24hr_change': 'true'
+        }
+        
+        if self.coingecko_api_key:
+            params['x-cg-pro-api-key'] = self.coingecko_api_key
+        
+        try:
+            async with self.session.get(url, params=params) as response:
+                if response.status == 429:
+                    raise RateLimitExceededException(
+                        "CoinGecko", 
+                        50,  # Annahme: 50 Anfragen pro Minute
+                        "minute"
+                    )
+                
+                response.raise_for_status()
                 data = await response.json()
+                
                 token_data = data.get(token_address, {})
-                return {
-                    'price': token_data.get('usd', 0),
-                    'market_cap': token_data.get('usd_market_cap', 0),
-                    'volume_24h': token_data.get('usd_24h_vol', 0)
-                }
-    except Exception as e:
-        logger.error(f"Error fetching Solana token price: {e}")
+                return TokenPriceData(
+                    price=token_data.get('usd', 0),
+                    market_cap=token_data.get('usd_market_cap', 0),
+                    volume_24h=token_data.get('usd_24h_vol', 0),
+                    price_change_percentage_24h=token_data.get('usd_24h_change')
+                )
+        except aiohttp.ClientError as e:
+            logger.error(f"Error fetching Solana token price: {e}")
+            # Fallback: Jupiter API für Solana Preise
+            return await self._get_solana_price_jupiter(token_address)
+        
+        return TokenPriceData(price=0, market_cap=0, volume_24h=0)
     
-    # Fallback: Jupiter API für Solana Preise
-    return await _get_solana_price_jupiter(session, token_address)
-
-async def _get_solana_price_jupiter(session: aiohttp.ClientSession,
-                                   token_address: str) -> Dict:
-    """Fallback: Jupiter API für Solana Token Preise"""
-    url = f"https://price.jup.ag/v4/price"
-    params = {'ids': token_address}
-    
-    try:
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
+    async def _get_solana_price_jupiter(self, token_address: str) -> TokenPriceData:
+        """Fallback: Jupiter API für Solana Token Preise"""
+        url = f"https://price.jup.ag/v4/price"
+        params = {'ids': token_address}
+        
+        try:
+            async with self.session.get(url, params=params) as response:
+                response.raise_for_status()
                 data = await response.json()
                 token_data = data.get('data', {}).get(token_address, {})
-                return {
-                    'price': token_data.get('price', 0),
-                    'market_cap': 0,  # Jupiter API bietet keine Market Cap
-                    'volume_24h': 0
-                }
-    except Exception as e:
-        logger.error(f"Error fetching Solana price from Jupiter: {e}")
+                return TokenPriceData(
+                    price=token_data.get('price', 0),
+                    market_cap=0,  # Jupiter API bietet keine Market Cap
+                    volume_24h=0
+                )
+        except aiohttp.ClientError as e:
+            logger.error(f"Error fetching Solana price from Jupiter: {e}")
+            raise APIException(f"Failed to fetch token price from Jupiter: {str(e)}")
     
-    return {'price': 0, 'market_cap': 0, 'volume_24h': 0}
-
-async def get_low_cap_tokens(session: aiohttp.ClientSession, coingecko_key: Optional[str] = None,
-                             max_market_cap: float = 5000000) -> List[token.TokenData]:
-    """Holt Low-Cap Tokens von CoinGecko"""
-    url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {
-        'vs_currency': 'usd',
-        'order': 'market_cap_desc',
-        'per_page': 250,
-        'page': 1,
-        'sparkline': False,
-        'price_change_percentage': '24h'
-    }
-    if coingecko_key:
-        params['x-cg-pro-api-key'] = coingecko_key
-
-    try:
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
+    async def _get_sui_token_price(self, token_address: str) -> TokenPriceData:
+        """Preis für Sui Token"""
+        # Implementierung für Sui-Preisabfrage
+        # Da Sui relativ neu ist, könnte hier eine spezielle API nötig sein
+        # Placeholder-Implementierung
+        logger.warning(f"Sui token price fetching not fully implemented for {token_address}")
+        return TokenPriceData(price=0, market_cap=0, volume_24h=0)
+    
+    async def get_low_cap_tokens(self, max_market_cap: float = 5_000_000, limit: int = 250) -> List[Token]:
+        """Holt Low-Cap Tokens von CoinGecko"""
+        url = "https://api.coingecko.com/api/v3/coins/markets"
+        params = {
+            'vs_currency': 'usd',
+            'order': 'market_cap_desc',
+            'per_page': limit,
+            'page': 1,
+            'sparkline': False,
+            'price_change_percentage': '24h'
+        }
+        
+        if self.coingecko_api_key:
+            params['x-cg-pro-api-key'] = self.coingecko_api_key
+        
+        try:
+            async with self.session.get(url, params=params) as response:
+                if response.status == 429:
+                    raise RateLimitExceededException(
+                        "CoinGecko", 
+                        50,  # Annahme: 50 Anfragen pro Minute
+                        "minute"
+                    )
+                
+                response.raise_for_status()
                 data = await response.json()
+                
                 tokens = []
                 for coin in data:
-                    if coin['market_cap'] and coin['market_cap'] < max_market_cap:
-                        # Check for Ethereum or BSC platform
-                        eth_address = coin.get('platforms', {}).get('ethereum')
-                        bsc_address = coin.get('platforms', {}).get('binance-smart-chain')
-
-                        if eth_address:
-                            chain = 'ethereum'
-                            address = eth_address
-                        elif bsc_address:
-                            chain = 'bsc'
-                            address = bsc_address
-                        else:
-                            continue # Skip if not on supported chains
-
-                        tokens.append(token.TokenData(
-                            address=address,
-                            name=coin['name'],
-                            symbol=coin['symbol'].upper(), # Consistent symbol casing
-                            market_cap=coin['market_cap'] or 0,
-                            volume_24h=coin['total_volume'] or 0,
-                            liquidity=0,  # Wird später berechnet
-                            holders_count=0,  # Wird später geholt
-                            contract_verified=False,  # Wird später geprüft
-                            creation_date=None,  # Placeholder, needs fetching
-                            chain=chain
-                        ))
-                logger.info(f"Gefunden: {len(tokens)} Low-Cap Tokens")
+                    if coin.get('market_cap') and coin['market_cap'] < max_market_cap:
+                        # Prüfen, ob der Token auf einer unterstützten Blockchain läuft
+                        chain, address = self._extract_chain_and_address(coin)
+                        if chain and address:
+                            token = Token(
+                                address=address,
+                                name=coin['name'],
+                                symbol=coin['symbol'].upper(),
+                                market_cap=coin.get('market_cap', 0),
+                                volume_24h=coin.get('total_volume', 0),
+                                liquidity=0,  # Wird später berechnet
+                                holders_count=0,  # Wird später geholt
+                                contract_verified=False,  # Wird später geprüft
+                                creation_date=None,  # Placeholder, needs fetching
+                                chain=chain
+                            )
+                            tokens.append(token)
+                
+                logger.info(f"Found {len(tokens)} low-cap tokens")
                 return tokens
-            else:
-                logger.error(f"CoinGecko API Fehler: {response.status}")
-                return []
-    except Exception as e:
-        logger.error(f"Fehler beim Abrufen der Tokens: {e}")
-        return []
-
+                
+        except aiohttp.ClientError as e:
+            logger.error(f"Error fetching low-cap tokens: {e}")
+            raise APIException(f"Failed to fetch low-cap tokens: {str(e)}")
+    
+    def _extract_chain_and_address(self, coin_data: Dict[str, Any]) -> tuple:
+        """Extrahiert Blockchain und Adresse aus CoinGecko-Daten"""
+        platforms = coin_data.get('platforms', {})
+        
+        # Ethereum hat Priorität
+        if 'ethereum' in platforms and platforms['ethereum']:
+            return 'ethereum', platforms['ethereum']
+        
+        # Dann BSC
+        if 'binance-smart-chain' in platforms and platforms['binance-smart-chain']:
+            return 'bsc', platforms['binance-smart-chain']
+        
+        # Dann Solana
+        if 'solana' in platforms and platforms['solana']:
+            return 'solana', platforms['solana']
+        
+        # Dann Sui
+        if 'sui' in platforms and platforms['sui']:
+            return 'sui', platforms['sui']
+        
+        return None, None
