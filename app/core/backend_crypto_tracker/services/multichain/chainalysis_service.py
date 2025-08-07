@@ -1,26 +1,29 @@
 # services/multichain/chainalysis_service.py
-
 import httpx
 import asyncio
 import logging
-from typing import Optional, Dict, Any
-from app.core.backend_crypto_tracker.config.blockchain_api_keys import get_api_keys
+from typing import Optional, Dict, Any, List
+from utils.logger import get_logger
+from utils.exceptions import APIException, RateLimitExceededException
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class ChainalysisIntegration:
     """Enhanced integration with Chainalysis API for professional blockchain analysis"""
-    def __init__(self):
-        api_keys = get_api_keys()
-        self.api_key = api_keys.get('chainalysis')
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key
         if not self.api_key:
-            logger.warning("Chainalysis API key not found in config.")
+            logger.warning("Chainalysis API key not provided.")
         self.base_url = "https://api.chainalysis.com/api/kyt/v1"
         self.rate_limit_delay = 1.0  # 1 second between requests
         self.session_timeout = 30.0
-
+        
     async def get_address_risk(self, address: str, asset: str) -> Optional[Dict]:
         """Get comprehensive risk score and entity information from Chainalysis"""
+        if not self.api_key:
+            logger.warning("Chainalysis API key not provided.")
+            return None
+            
         try:
             headers = {
                 "X-API-Key": self.api_key,
@@ -74,6 +77,10 @@ class ChainalysisIntegration:
     
     async def screen_address(self, address: str) -> Optional[Dict]:
         """Enhanced sanctions screening with detailed violation information"""
+        if not self.api_key:
+            logger.warning("Chainalysis API key not provided.")
+            return None
+            
         try:
             headers = {
                 "X-API-Key": self.api_key,
@@ -109,6 +116,10 @@ class ChainalysisIntegration:
     
     async def get_cluster_analysis(self, address: str, asset: str) -> Optional[Dict]:
         """Get cluster analysis for address relationships"""
+        if not self.api_key:
+            logger.warning("Chainalysis API key not provided.")
+            return None
+            
         try:
             headers = {"X-API-Key": self.api_key}
             
@@ -120,6 +131,7 @@ class ChainalysisIntegration:
                 )
                 
                 if response.status_code == 200:
+                    await asyncio.sleep(self.rate_limit_delay)
                     return response.json()
                 return None
                 
