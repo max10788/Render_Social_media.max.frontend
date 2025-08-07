@@ -1,130 +1,262 @@
-# app/core/backend_crypto_tracker/services/solana/solana_api.py
+# app/core/backend_crypto_tracker/services/sol/solana_api.py
 import aiohttp
 import logging
-from typing import List, Dict, Optional
-import json
+import os
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass
+from utils.logger import get_logger
+from utils.exceptions import APIException, RateLimitExceededException
+from utils.rate_limiter import RateLimiter
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+@dataclass
+class SolanaTokenHolder:
+    address: str
+    balance: float
+    percentage: float
+    rank: int = 0
 
 class SolanaAPIService:
-    def __init__(self, rpc_url: str = "https://api.mainnet-beta.solana.com"):
+    def __init__(self, rpc_url: str = "https://api.mainnet-beta.solana.com", 
+                 helius_api_key: Optional[str] = None):
         self.rpc_url = rpc_url
+        self.helius_api_key = helius_api_key or os.getenv('HELIUS_API_KEY')
+        self.rate_limiter = RateLimiter()
+        self.session = None
+        
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession()
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
     
-    async def get_token_metadata(self, session: aiohttp.ClientSession, 
-                                token_address: str) -> Optional[Dict]:
-        """Holt Token-Metadaten von Solana"""
+    async def _make_rpc_request(self, method: str, params: List[Any]) -> Dict[str, Any]:
+        """Interne Methode für RPC-Anfragen mit Rate-Limiting"""
+        if not await self.rate_limiter.acquire("solana_rpc", 10, 1):  # 10 Anfragen pro Sekunde
+            raise RateLimitExceededException("Solana RPC", 10, "second")
+        
         payload = {
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "getAccountInfo",
-            "params": [
+            "method": method,
+            "params": params
+        }
+        
+        try:
+            async with self.session.post(self.rpc_url, json=payload) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if 'error' in data:
+                        error_msg = data['error'].get('message', 'Unknown RPC error')
+                        raise APIException(f"Solana RPC error: {error_msg}")
+                    return data
+                else:
+                    raise APIException(f"HTTP error: {response.status}")
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error: {e}")
+            raise APIException(f"Network error: {str(e)}")
+    
+    async def get_token_metadata(self, token_address: str) -> Optional[Dict[str, Any]]:
+        """Holt Token-Metadaten von Solana"""
+        try:
+            data = await self._make_rpc_request("getAccountInfo", [
                 token_address,
                 {"encoding": "jsonParsed"}
-            ]
-        }
-        
-        try:
-            async with session.post(self.rpc_url, json=payload) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if 'result' in data and data['result']['value']:
-                        return data['result']['value']
-                return None
+            ])
+            
+            if 'result' in data and data['result']['value']:
+                return data['result']['value']
+            return None
+        except APIException:
+            raise
         except Exception as e:
             logger.error(f"Error fetching Solana token metadata: {e}")
-            return None
+            raise APIException(f"Error fetching token metadata: {str(e)}")
     
-    async def get_token_supply(self, session: aiohttp.ClientSession, 
-                              token_address: str) -> Optional[Dict]:
+    async def get_token_supply(self, token_address: str) -> Optional[Dict[str, Any]]:
         """Holt Token-Supply Informationen"""
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getTokenSupply",
-            "params": [token_address]
+        try:
+            data = await self._make_rpc_request("getTokenSupply", [token_address])
+            
+            if 'result' in data:
+                return data['result']['value']
+            return None
+        except APIException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching Solana token supply: {e}")
+            raise APIException(f"Error fetching token supply: {str(e)}")
+    
+    async def get_token_largest_accounts(self, token_address: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Holt die größten Token-Accounts"""
+        try:
+            data = await self._make_rpc_request("getTokenLargestAccounts", [token_address])
+            
+            if 'result' in data:
+                accounts = data['result']['value'][:limit]
+                return accounts
+            return []
+        except APIException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching Solana token largest accounts: {e}")
+            raise APIException(f"Error fetching token largest accounts: {str(e)}")
+    
+    async def get_token_holders(self, token_address: str, limit: int = 100) -> List[SolanaTokenHolder]:
+        """Holt Token-Holder für Solana Token"""
+        try:
+            # Versuche zuerst, Helius API zu verwenden, wenn ein API-Key verfügbar ist
+            if self.helius_api_key:
+                return await self._get_holders_helius(token_address, limit)
+            
+            # Fallback: Eigene Implementierung über RPC
+            return await self._get_holders_rpc(token_address, limit)
+        except APIException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching Solana token holders: {e}")
+            raise APIException(f"Error fetching token holders: {str(e)}")
+    
+    async def _get_holders_helius(self, token_address: str, limit: int) -> List[SolanaTokenHolder]:
+        """Holt Holder über Helius API"""
+        if not self.helius_api_key:
+            raise APIException("Helius API key is required")
+        
+        if not await self.rate_limiter.acquire("helius_api", 100, 60):  # 100 Anfragen pro Minute
+            raise RateLimitExceededException("Helius", 100, "minute")
+        
+        url = f"https://api.helius.xyz/v0/tokens/{token_address}/holders"
+        params = {
+            'api-key': self.helius_api_key,
+            'limit': limit
         }
         
         try:
-            async with session.post(self.rpc_url, json=payload) as response:
+            async with self.session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
-                    if 'result' in data:
-                        return data['result']['value']
-                return None
-        except Exception as e:
-            logger.error(f"Error fetching Solana token supply: {e}")
-            return None
-
-async def get_token_holders(session: aiohttp.ClientSession, token_address: str,
-                           limit: int = 100) -> List[Dict]:
-    """
-    Holt Token-Holder für Solana Token
-    Nutzt externe APIs wie Helius oder SolanaFM für Holder-Daten
-    """
-    # Helius API Beispiel (benötigt API Key)
-    helius_api_key = os.getenv('HELIUS_API_KEY')
-    if helius_api_key:
-        return await _get_holders_helius(session, token_address, helius_api_key, limit)
-    
-    # Fallback: Eigene Implementierung über RPC (aufwendiger)
-    return await _get_holders_rpc(session, token_address, limit)
-
-async def _get_holders_helius(session: aiohttp.ClientSession, token_address: str,
-                             api_key: str, limit: int) -> List[Dict]:
-    """Holt Holder über Helius API"""
-    url = f"https://api.helius.xyz/v0/tokens/{token_address}/holders"
-    params = {
-        'api-key': api_key,
-        'limit': limit
-    }
-    
-    try:
-        async with session.get(url, params=params) as response:
-            if response.status == 200:
-                data = await response.json()
-                return [
-                    {
-                        'address': holder['owner'],
-                        'balance': float(holder['amount']),
-                        'rank': holder.get('rank', 0)
-                    }
-                    for holder in data.get('holders', [])
-                ]
-    except Exception as e:
-        logger.error(f"Error fetching Solana holders via Helius: {e}")
-    
-    return []
-
-async def _get_holders_rpc(session: aiohttp.ClientSession, token_address: str,
-                          limit: int) -> List[Dict]:
-    """Fallback: Holder über RPC ermitteln (vereinfacht)"""
-    # Implementierung über getTokenLargestAccounts und weitere RPC Calls
-    # Dies ist komplexer und weniger effizient als spezialisierte APIs
-    solana_service = SolanaAPIService()
-    
-    rpc_url = "https://api.mainnet-beta.solana.com"
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "getTokenLargestAccounts",
-        "params": [token_address]
-    }
-    
-    try:
-        async with session.post(rpc_url, json=payload) as response:
-            if response.status == 200:
-                data = await response.json()
-                if 'result' in data:
-                    accounts = data['result']['value']
+                    holders_data = data.get('holders', [])
+                    
+                    # Berechne Gesamtmenge für Prozentsätze
+                    total_supply = sum(float(holder['amount']) for holder in holders_data)
+                    
                     return [
-                        {
-                            'address': acc['address'],
-                            'balance': float(acc['uiAmount']) if acc['uiAmount'] else 0,
-                            'rank': idx + 1
-                        }
-                        for idx, acc in enumerate(accounts[:limit])
+                        SolanaTokenHolder(
+                            address=holder['owner'],
+                            balance=float(holder['amount']),
+                            percentage=(float(holder['amount']) / total_supply * 100) if total_supply > 0 else 0,
+                            rank=holder.get('rank', 0)
+                        )
+                        for holder in holders_data
                     ]
-    except Exception as e:
-        logger.error(f"Error fetching Solana holders via RPC: {e}")
+                else:
+                    raise APIException(f"Helius API error: {response.status}")
+        except aiohttp.ClientError as e:
+            logger.error(f"Error fetching Solana holders via Helius: {e}")
+            raise APIException(f"Error fetching holders via Helius: {str(e)}")
     
-    return []
+    async def _get_holders_rpc(self, token_address: str, limit: int) -> List[SolanaTokenHolder]:
+        """Fallback: Holder über RPC ermitteln"""
+        try:
+            # Hole die größten Konten
+            accounts = await self.get_token_largest_accounts(token_address, limit)
+            
+            # Berechne Gesamtmenge für Prozentsätze
+            total_supply = sum(float(acc['uiAmount']) if acc['uiAmount'] else 0 for acc in accounts)
+            
+            return [
+                SolanaTokenHolder(
+                    address=acc['address'],
+                    balance=float(acc['uiAmount']) if acc['uiAmount'] else 0,
+                    percentage=(float(acc['uiAmount']) / total_supply * 100) if total_supply > 0 else 0,
+                    rank=idx + 1
+                )
+                for idx, acc in enumerate(accounts)
+            ]
+        except APIException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching Solana holders via RPC: {e}")
+            raise APIException(f"Error fetching holders via RPC: {str(e)}")
+    
+    async def get_account_info(self, account_address: str) -> Optional[Dict[str, Any]]:
+        """Holt Account-Informationen"""
+        try:
+            data = await self._make_rpc_request("getAccountInfo", [
+                account_address,
+                {"encoding": "jsonParsed"}
+            ])
+            
+            if 'result' in data and data['result']['value']:
+                return data['result']['value']
+            return None
+        except APIException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching Solana account info: {e}")
+            raise APIException(f"Error fetching account info: {str(e)}")
+    
+    async def get_transaction(self, transaction_signature: str) -> Optional[Dict[str, Any]]:
+        """Holt Transaktionsinformationen"""
+        try:
+            data = await self._make_rpc_request("getTransaction", [
+                transaction_signature,
+                {"encoding": "jsonParsed"}
+            ])
+            
+            if 'result' in data:
+                return data['result']
+            return None
+        except APIException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching Solana transaction: {e}")
+            raise APIException(f"Error fetching transaction: {str(e)}")
+    
+    async def get_latest_slot(self) -> int:
+        """Holt den neuesten Slot"""
+        try:
+            data = await self._make_rpc_request("getSlot", [])
+            
+            if 'result' in data:
+                return data['result']
+            return 0
+        except APIException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching latest Solana slot: {e}")
+            raise APIException(f"Error fetching latest slot: {str(e)}")
+    
+    async def get_block_time(self, slot: int) -> Optional[int]:
+        """Holt die Zeit eines Blocks in Unix-Timestamp"""
+        try:
+            data = await self._make_rpc_request("getBlockTime", [slot])
+            
+            if 'result' in data:
+                return data['result']
+            return None
+        except APIException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching Solana block time: {e}")
+            raise APIException(f"Error fetching block time: {str(e)}")
+    
+    async def get_signatures_for_address(self, address: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """Holt Transaktionssignaturen für eine Adresse"""
+        try:
+            data = await self._make_rpc_request("getSignaturesForAddress", [
+                address,
+                {"limit": limit}
+            ])
+            
+            if 'result' in data:
+                return data['result']
+            return []
+        except APIException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching Solana signatures for address: {e}")
+            raise APIException(f"Error fetching signatures for address: {str(e)}")
