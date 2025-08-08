@@ -1,23 +1,74 @@
 # app/core/backend_crypto_tracker/api/routes/scanner_routes.py
-# Example using a generic web framework structure (e.g., FastAPI, Flask)
-# from fastapi import APIRouter, Depends # Example for FastAPI
-# from ..controllers import scanner_controller
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, BackgroundTasks
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
+from pydantic import BaseModel, Field
 
-# router = APIRouter(prefix="/scanner", tags=["scanner"])
+from api.controllers.scanner_controller import ScannerController
+from workers.scheduler import SchedulerManager
+from utils.logger import get_logger
+from utils.exceptions import APIException, ScannerException
 
-# def get_scheduler_manager(): # Dependency Injection placeholder
-#     # This should return the actual instance of SchedulerManager
-#     # from your application context
-#     return None # Replace with actual instance getter
+logger = get_logger(__name__)
 
-# @router.get("/status")
-# async def get_scanner_status(scheduler_manager = Depends(get_scheduler_manager)):
-#     controller = scanner_controller.ScannerController(scheduler_manager)
-#     return controller.get_status()
+router = APIRouter(prefix="/api/v1/scanner", tags=["scanner"])
 
-# Placeholder if not using a specific framework yet
-SCANNER_ROUTES = [
-    # Define route structure if needed for later integration
-    # ('GET', '/scanner/status', 'get_scanner_status_handler')
-]
+# Pydantic-Modelle für API-Antworten
+class ScanStatusResponse(BaseModel):
+    scan_id: str
+    status: str
+    progress: float
+    start_time: str
+    end_time: Optional[str] = None
+    chain: Optional[str] = None
+    scan_type: str
+    tokens_found: int
+    tokens_analyzed: int
+    high_risk_tokens: int
+    duration_seconds: Optional[int] = None
 
+class ScannerStatusResponse(BaseModel):
+    scheduler: Dict[str, Any]
+    active_scans: Dict[str, ScanStatusResponse]
+    recent_history: List[ScanStatusResponse]
+    total_active_scans: int
+    last_updated: str
+
+class ScanStartRequest(BaseModel):
+    chains: Optional[List[str]] = Field(None, description="Blockchains für den Scan")
+    max_market_cap: float = Field(5_000_000, description="Maximale Marktkapitalisierung")
+    max_tokens: int = Field(100, ge=1, le=1000, description="Maximale Anzahl Tokens")
+    priority: str = Field("normal", description="Priorität des Scans")
+
+class AnalysisStartRequest(BaseModel):
+    token_addresses: List[str] = Field(..., description="Token-Adressen für die Analyse")
+    chain: str = Field(..., description="Blockchain")
+    include_advanced_metrics: bool = Field(True, description="Erweiterte Metriken einschließen")
+
+class ScanStatisticsResponse(BaseModel):
+    period_days: int
+    total_scans: int
+    completed_scans: int
+    failed_scans: int
+    success_rate: float
+    average_duration_seconds: float
+    total_tokens_found: int
+    total_tokens_analyzed: int
+    total_high_risk_tokens: int
+    scan_types: Dict[str, Dict[str, Any]]
+    last_updated: str
+
+# Dependency Injection
+def get_scanner_controller() -> ScannerController:
+    """Gibt eine ScannerController-Instanz zurück"""
+    scheduler_manager = SchedulerManager()
+    return ScannerController(scheduler_manager)
+
+@router.get("/status", response_model=ScannerStatusResponse)
+async def get_scanner_status(controller: ScannerController = Depends(get_scanner_controller)):
+    """Gibt den aktuellen Status des Scanners zurück"""
+    try:
+        return await controller.get_status()
+    except ScannerException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
