@@ -1,7 +1,7 @@
 # scanner/wallet_classifier.py
-
 import asyncio
 import logging
+import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -9,12 +9,10 @@ from enum import Enum
 import json
 import hashlib
 from collections import defaultdict
-
 # Importiere die externen Dienste
 from app.core.backend_crypto_tracker.services.multichain.chainalysis_service import ChainalysisIntegration
 from app.core.backend_crypto_tracker.services.multichain.elliptic_service import EllipticIntegration
 from app.core.backend_crypto_tracker.services.multichain.community_labels_service import CommunityLabelsAPI
-
 # Importiere Konfigurationen
 from config.scanner_config import (
     WALLET_CLASSIFIER_CONFIG,
@@ -22,11 +20,10 @@ from config.scanner_config import (
     SOURCE_WEIGHTS,
     load_config # Für chain-spezifische Konfigurationen
 )
-
+from scanner.risk_assessor import AdvancedRiskAssessor, RiskAssessment, RiskLevel
 logger = logging.getLogger(__name__)
 
 # --- Enums und Dataclasses ---
-
 class WalletTypeEnum(Enum):
     DEV_WALLET = "dev_wallet"
     LIQUIDITY_WALLET = "liquidity_wallet"
@@ -40,7 +37,6 @@ class WalletTypeEnum(Enum):
 
 class WalletAnalysis(Base):
     __tablename__ = "wallet_analyses"
-
     id = Column(Integer, primary_key=True, index=True)
     token_id = Column(Integer, ForeignKey("tokens.id"), nullable=False) # Assumes tokens table exists
     wallet_address = Column(String, nullable=False, index=True)
@@ -52,13 +48,19 @@ class WalletAnalysis(Base):
     last_transaction = Column(DateTime)
     risk_score = Column(Float)
     analysis_date = Column(DateTime) # Default handled in code or DB
-
     # Relationship - String reference avoids circular import if Token is defined later/elsewhere
     # Ensure Token model is loaded before querying relationships
     token = relationship("Token", back_populates="wallet_analyses") # back_populates target must exist in Token
+    
+    # Neue Felder für erweiterte Metriken
+    advanced_metrics = Column(JSON, nullable=True)  # Für institutionelle Risikometriken
+    concentration_score = Column(Float, default=0.0)  # HHI + Gini
+    liquidity_score = Column(Float, default=0.0)    # Amihud Ratio
+    volatility_score = Column(Float, default=0.0)   # GARCH + Bollinger
+    contract_entropy = Column(Float, default=0.0)    # Shannon Entropie
+    whale_activity_score = Column(Float, default=0.0) # EWMA + Z-Score
 
 # --- Klassen aus dem Originalcode ---
-
 class OnChainAnalyzer:
     """Enhanced on-chain pattern analysis for wallet classification"""
     def __init__(self):
@@ -67,7 +69,7 @@ class OnChainAnalyzer:
         self.dev_patterns = ONCHAIN_ANALYSIS_CONFIG['dev_patterns']
         self.lp_patterns = ONCHAIN_ANALYSIS_CONFIG['lp_patterns']
         self.rugpull_patterns = ONCHAIN_ANALYSIS_CONFIG['rugpull_patterns']
-
+    
     async def analyze_transaction_patterns(self, address: str, chain: str) -> Dict[str, Any]:
         """Comprehensive on-chain transaction pattern analysis"""
         patterns = {
@@ -107,7 +109,7 @@ class OnChainAnalyzer:
         # For demonstration, we'll simulate some patterns
         patterns.update(await self._simulate_pattern_analysis(address, chain))
         return patterns
-
+    
     async def _simulate_pattern_analysis(self, address: str, chain: str) -> Dict[str, Any]:
         """Simulate pattern analysis (replace with real blockchain queries)"""
         import random
@@ -123,13 +125,13 @@ class OnChainAnalyzer:
             'dex_signature_matches': ['swap', 'addLiquidity'] if address_hash % 3 == 0 else [],
             'admin_function_calls': random.randint(0, 50) if address_hash % 10 == 0 else 0
         }
-
+    
     async def _is_contract_address(self, address: str, chain: str) -> bool:
         """Check if address is a smart contract"""
         # In real implementation, would check if address has bytecode
         # For now, simulate based on address pattern
         return len(address) == 42 and address.startswith('0x') and hash(address) % 4 == 0
-
+    
     def classify_by_patterns(self, patterns: Dict[str, Any], balance: float, total_supply: float) -> Tuple[WalletTypeEnum, float]:
         """Enhanced classification based on comprehensive pattern analysis"""
         confidence_scores = []
@@ -175,7 +177,7 @@ class OnChainAnalyzer:
             return classification_votes[best_idx], confidence_scores[best_idx]
         # Default classification
         return WalletTypeEnum.UNKNOWN, 0.3
-
+    
     def _analyze_dex_patterns(self, patterns: Dict[str, Any]) -> float:
         """Analyze DEX-specific patterns"""
         score = 0.0
@@ -193,7 +195,7 @@ class OnChainAnalyzer:
         if patterns.get('swap_operations', 0) > 100:
             score += 0.1
         return min(1.0, score)
-
+    
     def _analyze_cex_patterns(self, patterns: Dict[str, Any]) -> float:
         """Analyze CEX-specific patterns"""
         score = 0.0
@@ -212,7 +214,7 @@ class OnChainAnalyzer:
         if patterns.get('unique_counterparties', 0) > 500:
             score += 0.3
         return min(1.0, score)
-
+    
     def _analyze_dev_patterns(self, patterns: Dict[str, Any], balance: float, total_supply: float) -> float:
         """Analyze developer wallet patterns"""
         score = 0.0
@@ -233,7 +235,7 @@ class OnChainAnalyzer:
         if patterns.get('early_activity_score', 0) > 0.7:
             score += 0.2
         return min(1.0, score)
-
+    
     def _analyze_lp_patterns(self, patterns: Dict[str, Any]) -> float:
         """Analyze liquidity provider patterns"""
         score = 0.0
@@ -248,7 +250,7 @@ class OnChainAnalyzer:
         if patterns.get('token_interaction_count', 0) > 10:
             score += 0.3
         return min(1.0, score)
-
+    
     def _analyze_whale_patterns(self, patterns: Dict[str, Any], balance: float, total_supply: float) -> float:
         """Analyze whale wallet patterns"""
         score = 0.0
@@ -270,7 +272,7 @@ class OnChainAnalyzer:
         if patterns.get('transaction_count', 0) < 1000:  # Whales typically have fewer, larger transactions
             score += 0.2
         return min(1.0, score)
-
+    
     def _analyze_rugpull_patterns(self, patterns: Dict[str, Any], balance: float, total_supply: float) -> float:
         """Analyze rugpull suspect patterns"""
         score = 0.0
@@ -287,7 +289,7 @@ class OnChainAnalyzer:
         if patterns.get('liquidity_removal_events', 0) > 3:
             score += 0.4
         return min(1.0, score)
-
+    
     def _analyze_team_patterns(self, patterns: Dict[str, Any], balance: float, total_supply: float) -> float:
         """Analyze team wallet patterns"""
         score = 0.0
@@ -305,7 +307,6 @@ class OnChainAnalyzer:
             score += 0.3
         return min(1.0, score)
 
-
 class MultiSourceClassifier:
     """Multi-source voting system for wallet classification"""
     def __init__(self):
@@ -318,7 +319,7 @@ class MultiSourceClassifier:
         ]
         self.source_weights = SOURCE_WEIGHTS
         self.confidence_thresholds = WALLET_CLASSIFIER_CONFIG['confidence_thresholds']
-
+    
     async def classify_with_confidence(self, address: str, chain: str, balance: float, total_supply: float) -> Tuple[WalletTypeEnum, float, List[str]]:
         """Classify wallet with confidence score using multiple sources"""
         results = []
@@ -362,7 +363,7 @@ class MultiSourceClassifier:
         final_classification = self.vote_on_results(results)
         confidence = self._calculate_confidence(results)
         return final_classification, confidence, sources_used
-
+    
     def vote_on_results(self, results: List[Dict]) -> WalletTypeEnum:
         """Enhanced weighted voting logic between different sources"""
         vote_scores = defaultdict(float)
@@ -393,7 +394,7 @@ class MultiSourceClassifier:
         if best_score < 0.3:
             return WalletTypeEnum.UNKNOWN
         return best_type
-
+    
     def _calculate_confidence(self, results: List[Dict]) -> float:
         """Enhanced confidence calculation based on multiple factors"""
         if len(results) <= 1:
@@ -442,7 +443,7 @@ class MultiSourceClassifier:
         reliability_bonus = (avg_reliability - 0.7) * 0.2 if avg_reliability > 0.7 else 0
         final_confidence = base_confidence + agreement_bonus + diversity_bonus + reliability_bonus
         return min(1.0, max(0.1, final_confidence))
-
+    
     async def _classify_with_internal_logic(self, address: str, chain: str, balance: float, total_supply: float) -> Optional[Dict]:
         """Internal classification logic based on basic patterns"""
         try:
@@ -455,7 +456,7 @@ class MultiSourceClassifier:
         except Exception as e:
             logger.error(f"Internal logic classification failed: {e}")
             return None
-
+    
     async def _determine_wallet_type_detailed(self, address: str, chain: str, balance: float, total_supply: float) -> Tuple[WalletTypeEnum, float]:
         """Detailed wallet type determination with confidence scoring"""
         # Burn address patterns
@@ -488,7 +489,7 @@ class MultiSourceClassifier:
             return WalletTypeEnum.WHALE_WALLET, 0.60
         # Default classification
         return WalletTypeEnum.UNKNOWN, 0.4
-
+    
     # Passe die `_get_*_classification` Methoden an, sodass sie die instanziierten Dienste verwenden:
     async def _get_chainalysis_classification(self, source: ChainalysisIntegration, address: str, chain: str) -> Optional[Dict]:
         """Get classification from Chainalysis"""
@@ -525,7 +526,7 @@ class MultiSourceClassifier:
         except Exception as e:
             logger.error(f"Chainalysis classification failed: {e}")
             return None
-
+    
     async def _get_elliptic_classification(self, source: EllipticIntegration, address: str, chain: str) -> Optional[Dict]:
         """Get classification from Elliptic"""
         try:
@@ -556,7 +557,7 @@ class MultiSourceClassifier:
         except Exception as e:
             logger.error(f"Elliptic classification failed: {e}")
             return None
-
+    
     async def _get_community_classification(self, source: CommunityLabelsAPI, address: str, chain: str) -> Optional[Dict]:
         """Get classification from community sources"""
         try:
@@ -584,7 +585,7 @@ class MultiSourceClassifier:
         except Exception as e:
             logger.error(f"Community classification failed: {e}")
             return None
-
+    
     async def _get_onchain_classification(self, source: OnChainAnalyzer, address: str, chain: str, balance: float, total_supply: float) -> Optional[Dict]:
         """Get classification from on-chain analysis"""
         try:
@@ -600,7 +601,6 @@ class MultiSourceClassifier:
             logger.error(f"On-chain classification failed: {e}")
             return None
 
-
 class DynamicDataCollector:
     """Automated data collection for keeping classification data current"""
     def __init__(self):
@@ -612,7 +612,7 @@ class DynamicDataCollector:
         }
         self.last_updates = {}
         self.known_addresses = defaultdict(dict)
-
+    
     async def update_known_addresses(self):
         """Update known addresses from various sources"""
         current_time = datetime.utcnow()
@@ -632,7 +632,7 @@ class DynamicDataCollector:
                 self.last_updates[data_type] = current_time
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
-
+    
     async def _update_cex_addresses(self):
         """Update CEX addresses from various sources"""
         try:
@@ -645,7 +645,7 @@ class DynamicDataCollector:
             logger.info("Updating CEX addresses...")
         except Exception as e:
             logger.error(f"Failed to update CEX addresses: {e}")
-
+    
     async def _update_dex_contracts(self):
         """Update DEX contract addresses"""
         try:
@@ -661,7 +661,7 @@ class DynamicDataCollector:
                     logger.info(f"Updated {len(dex_data)} DEX contracts")
         except Exception as e:
             logger.error(f"Failed to update DEX contracts: {e}")
-
+    
     async def _update_rugpull_database(self):
         """Update rugpull database"""
         try:
@@ -669,7 +669,7 @@ class DynamicDataCollector:
             logger.info("Updating rugpull database...")
         except Exception as e:
             logger.error(f"Failed to update rugpull database: {e}")
-
+    
     async def _update_community_labels(self):
         """Update community labels"""
         try:
@@ -678,20 +678,20 @@ class DynamicDataCollector:
         except Exception as e:
             logger.error(f"Failed to update community labels: {e}")
 
-
 class EnhancedWalletClassifier:
     """Enhanced wallet classifier with multi-source analysis and dynamic updates"""
     def __init__(self):
         # api_keys werden nicht mehr benötigt, da sie in den Diensten geladen werden
         self.multi_source_classifier = MultiSourceClassifier()
         self.data_collector = DynamicDataCollector()
+        self.advanced_risk_assessor = AdvancedRiskAssessor()
         self.cache = {}
         self.cache_ttl = WALLET_CLASSIFIER_CONFIG['cache_ttl']
         # Lade bekannte Adressen (könnte in eine eigene Datei oder DB ausgelagert werden)
         self.known_addresses = self._load_known_addresses()
         # Lade chain-spezifische Konfigurationen
         self.chain_config = load_config()
-
+    
     async def classify_wallet(self, wallet_address: str, chain: str,
                             balance: float, total_supply: float = None) -> WalletAnalysis:
         """Enhanced wallet classification with multiple sources and caching"""
@@ -700,10 +700,10 @@ class EnhancedWalletClassifier:
         cached_result = self._get_cached_result(cache_key)
         if cached_result:
             return cached_result
-
+        
         # Update dynamic data if needed
         await self.data_collector.update_known_addresses()
-
+        
         # Check known addresses first
         known_type = self._check_known_addresses(wallet_address, chain)
         if known_type:
@@ -732,21 +732,86 @@ class EnhancedWalletClassifier:
                 analysis_date=datetime.utcnow(),
                 sources_used=sources_used
             )
-
+        
         # Cache the result
         self._cache_result(cache_key, result)
         return result
-
+    
+    async def classify_wallet_advanced(self, wallet_address: str, chain: str,
+                                    balance: float, total_supply: float = None,
+                                    transaction_history: List[Dict] = None,
+                                    token_data: Dict[str, Any] = None) -> WalletAnalysis:
+        """
+        Erweiterte Wallet-Klassifizierung mit institutionellen Risikofunktionen
+        
+        Args:
+            wallet_address: Die Wallet-Adresse
+            chain: Die Blockchain
+            balance: Wallet-Balance
+            total_supply: Gesamtangebot des Tokens
+            transaction_history: Historische Transaktionen (optional)
+            token_data: Token-Daten für Risikobewertung (optional)
+            
+        Returns:
+            Erweiterte WalletAnalysis mit Risikometriken
+        """
+        # Standard-Klassifizierung durchführen
+        wallet_analysis = await self.classify_wallet(
+            wallet_address, chain, balance, total_supply
+        )
+        
+        # Erweiterte Risikometriken berechnen
+        try:
+            # Token-Daten für Risikobewertung vorbereiten
+            if not token_data:
+                token_data = {
+                    'address': wallet_address,  # Vereinfacht für Demo
+                    'chain': chain,
+                    'market_cap': total_supply * 0.001 if total_supply else 0,  # Geschätzt
+                    'liquidity': total_supply * 0.0005 if total_supply else 0,  # Geschätzt
+                    'volume_24h': total_supply * 0.0002 if total_supply else 0,  # Geschätzt
+                    'contract_verified': False  # Standardwert
+                }
+            
+            # Wallet-Analysen für Risikobewertung vorbereiten
+            wallet_analyses = [wallet_analysis]
+            
+            # Erweiterte Risikobewertung durchführen
+            risk_assessment = await self.advanced_risk_assessor.assess_token_risk_advanced(
+                token_data=token_data,
+                wallet_analyses=wallet_analyses,
+                transaction_history=transaction_history
+            )
+            
+            # Erweiterte Metriken zur Wallet-Analyse hinzufügen
+            institutional_metrics = risk_assessment.details.get('institutional_metrics', {})
+            
+            # Aktualisiere die Wallet-Analyse mit erweiterten Metriken
+            wallet_analysis.concentration_score = institutional_metrics.get('concentration', {}).get('score', 0)
+            wallet_analysis.liquidity_score = institutional_metrics.get('liquidity', {}).get('score', 0)
+            wallet_analysis.volatility_score = institutional_metrics.get('volatility', {}).get('score', 0)
+            wallet_analysis.contract_entropy = institutional_metrics.get('contract', {}).get('entropy', 0)
+            wallet_analysis.whale_activity_score = institutional_metrics.get('whale_activity', {}).get('score', 0)
+            wallet_analysis.advanced_metrics = institutional_metrics
+            
+            # Risikoscore aktualisieren
+            wallet_analysis.risk_score = risk_assessment.overall_score
+            
+        except Exception as e:
+            logger.error(f"Fehler bei erweiterter Wallet-Klassifizierung: {e}")
+        
+        return wallet_analysis
+    
     def _check_known_addresses(self, address: str, chain: str) -> Optional[WalletTypeEnum]:
         """Check if address is in known addresses database"""
         chain_addresses = self.known_addresses.get(chain, {})
         return chain_addresses.get(address)
-
+    
     def _generate_cache_key(self, address: str, chain: str, balance: float, total_supply: float) -> str:
         """Generate cache key for result caching"""
         key_data = f"{address}:{chain}:{balance}:{total_supply}"
         return hashlib.md5(key_data.encode()).hexdigest()
-
+    
     def _get_cached_result(self, cache_key: str) -> Optional[WalletAnalysis]:
         """Get cached result if still valid"""
         if cache_key in self.cache:
@@ -756,14 +821,14 @@ class EnhancedWalletClassifier:
             else:
                 del self.cache[cache_key]
         return None
-
+    
     def _cache_result(self, cache_key: str, result: WalletAnalysis):
         """Cache analysis result"""
         self.cache[cache_key] = {
             'result': result,
             'timestamp': datetime.utcnow()
         }
-
+    
     def _calculate_risk_score(self, wallet_type: WalletTypeEnum, balance: float, total_supply: float, chain: str) -> float:
         """Enhanced risk score calculation with support for all wallet types and chain-specific adjustments"""
         base_scores = {
@@ -778,7 +843,7 @@ class EnhancedWalletClassifier:
             WalletTypeEnum.UNKNOWN: 30.0
         }
         base_score = base_scores.get(wallet_type, 30.0)
-
+        
         # Enhanced percentage-based adjustments
         if total_supply and balance > 0:
             percentage = (balance / total_supply) * 100
@@ -820,7 +885,7 @@ class EnhancedWalletClassifier:
                     base_score += 10
                 elif percentage > 5:
                     base_score += 5
-
+        
         # Absolute balance risk adjustments
         if balance > 0:
             if balance > 100000000:  # 100M+ tokens
@@ -829,7 +894,7 @@ class EnhancedWalletClassifier:
                 base_score += 10
             elif balance > 10000000:  # 10M+ tokens
                 base_score += 5
-
+        
         # Special risk adjustments for certain wallet types
         if wallet_type == WalletTypeEnum.RUGPULL_SUSPECT:
             # Rugpull suspects maintain high risk regardless of balance
@@ -840,20 +905,19 @@ class EnhancedWalletClassifier:
         elif wallet_type == WalletTypeEnum.BURN_WALLET:
             # Burn wallets always have zero risk
             base_score = 0.0
-
+        
         # Chain-spezifische Anpassungen
         # Verwende die Mindestscores aus der Konfiguration
         min_scores = self.chain_config.get('min_scores', {})
         chain_min_score = min_scores.get(chain, 30) # Default Mindestscore
-
         # Stelle sicher, dass der Score nicht unter den chain-spezifischen Mindestscore fällt,
         # es sei denn, es ist ein Burn-Wallet (0) oder ein explizit sehr niedriger Score gerechtfertigt ist.
         # Oder passe den Score *an* den Mindestscore an, falls er darunter liegt und nicht 0 ist.
         if wallet_type != WalletTypeEnum.BURN_WALLET and base_score > 0:
              base_score = max(base_score, chain_min_score)
-
+        
         return min(100.0, max(0.0, base_score))
-
+    
     def _load_known_addresses(self) -> Dict[str, Dict[str, WalletTypeEnum]]:
         """Lädt bekannte Adressen für alle unterstützten Chains."""
         return {
@@ -862,7 +926,7 @@ class EnhancedWalletClassifier:
             'solana': self._load_known_solana_addresses(),
             'sui': self._load_known_sui_addresses()
         }
-
+    
     def _load_known_ethereum_addresses(self) -> Dict[str, WalletTypeEnum]:
         """Load known Ethereum addresses"""
         return {
@@ -879,7 +943,7 @@ class EnhancedWalletClassifier:
             '0x0000000000000000000000000000000000000000': WalletTypeEnum.BURN_WALLET,
             '0x000000000000000000000000000000000000dEaD': WalletTypeEnum.BURN_WALLET,
         }
-
+    
     def _load_known_bsc_addresses(self) -> Dict[str, WalletTypeEnum]:
         """Load known BSC addresses"""
         return {
@@ -892,7 +956,7 @@ class EnhancedWalletClassifier:
             '0x0000000000000000000000000000000000000000': WalletTypeEnum.BURN_WALLET,
             '0x000000000000000000000000000000000000dEaD': WalletTypeEnum.BURN_WALLET,
         }
-
+    
     def _load_known_solana_addresses(self) -> Dict[str, WalletTypeEnum]:
         """Lädt bekannte Solana Adressen"""
         return {
@@ -904,7 +968,7 @@ class EnhancedWalletClassifier:
             # Burn Addresses
             '11111111111111111111111111111111': WalletTypeEnum.BURN_WALLET,
         }
-
+    
     def _load_known_sui_addresses(self) -> Dict[str, WalletTypeEnum]:
         """Lädt bekannte Sui Adressen"""
         return {
