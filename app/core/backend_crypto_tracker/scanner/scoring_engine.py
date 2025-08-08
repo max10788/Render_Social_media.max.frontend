@@ -1,7 +1,13 @@
 # app/core/backend_crypto_tracker/scanner/scoring_engine.py
 # Move ScanConfig and AlertConfig here or to utils if they are more general
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict, Any, Optional
+import numpy as np
+from scanner.risk_assessor import AdvancedRiskAssessor, RiskAssessment
+from scanner.wallet_classifier import WalletTypeEnum
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 @dataclass
 class ScanConfig:
@@ -32,6 +38,26 @@ class MultiChainScoringEngine:
             'solana': 0.85,   # Solana ist neuer, weniger etabliert
             'sui': 0.8        # Sui ist sehr neu
         }
+        
+        # Institutionelle Gewichte für Risikomaße
+        self.institutional_weights = {
+            'concentration_risk': 0.25,    # HHI + Gini
+            'liquidity_risk': 0.30,        # Amihud + Spread
+            'volatility_risk': 0.20,       # GARCH + Bollinger
+            'contract_risk': 0.15,         # Entropie + Code-Analyse
+            'whale_activity': 0.10        # EWMA + Z-Score
+        }
+        
+        # Institutionelle Schwellenwerte
+        self.institutional_thresholds = {
+            'hhi_high': 0.25,             # Hohe Konzentration
+            'gini_extreme': 0.8,          # Extreme Ungleichverteilung
+            'z_critical': 2.5,            # Kritische Wallet-Bewegung
+            'illiquid_percentile': 95     # Liquiditätsproblem
+        }
+        
+        # Advanced Risk Assessor für institutionelle Risikofunktionen
+        self.advanced_risk_assessor = AdvancedRiskAssessor()
     
     def calculate_token_score_custom(self, token_data, wallet_analyses: List, chain: str) -> Dict:
         """Berechnet Token Score für benutzerdefinierte Token"""
@@ -80,8 +106,61 @@ class MultiChainScoringEngine:
             'chain_weight_applied': chain_weight
         }
     
+    async def calculate_token_score_advanced(self, token_data: Dict[str, Any], 
+                                         wallet_analyses: List,
+                                         chain: str,
+                                         transaction_history: List[Dict] = None) -> Dict[str, Any]:
+        """
+        Berechnet erweiterten Token-Score mit institutionellen Risikofunktionen
+        
+        Args:
+            token_data: Token-Daten
+            wallet_analyses: Wallet-Analysen
+            chain: Blockchain
+            transaction_history: Historische Transaktionen (optional)
+            
+        Returns:
+            Erweiterte Scoring-Ergebnisse mit institutionellen Metriken
+        """
+        # Standard-Score berechnen
+        standard_score = self.calculate_token_score_custom(token_data, wallet_analyses, chain)
+        
+        try:
+            # Erweiterte Risikobewertung durchführen
+            risk_assessment = await self.advanced_risk_assessor.assess_token_risk_advanced(
+                token_data=token_data,
+                wallet_analyses=wallet_analyses,
+                transaction_history=transaction_history
+            )
+            
+            # Institutionellen Score extrahieren
+            institutional_score = risk_assessment.details.get('institutional_score', risk_assessment.overall_score)
+            institutional_metrics = risk_assessment.details.get('institutional_metrics', {})
+            
+            # Kombinierter Score (60% Standard, 40% Institutionell)
+            combined_score = (
+                standard_score['total_score'] * 0.6 +
+                (100 - institutional_score) * 0.4  # Invertiert, da niedrigeres Risiko besser ist
+            )
+            
+            # Erweiterte Metriken hinzufügen
+            result = standard_score.copy()
+            result.update({
+                'total_score': combined_score,
+                'institutional_score': institutional_score,
+                'institutional_metrics': institutional_metrics,
+                'risk_level': risk_assessment.risk_level.value,
+                'advanced_factors': risk_assessment.risk_factors
+            })
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Fehler bei erweiterter Scoring-Berechnung: {e}")
+            return standard_score
+    
     def _calculate_holder_distribution_score(self, wallet_analyses: List, chain: str) -> float:
-        """Bewertet die Holder-Verteilung"""
+        """Bewertet die Holder-Verteilung mit institutionellen Metriken"""
         if not wallet_analyses:
             return 0.0
         
@@ -106,6 +185,21 @@ class MultiChainScoringEngine:
         elif top_10_percentage > 40:
             score -= 10
         
+        # Institutionelle Metriken: HHI und Gini
+        balances = [w.balance for w in wallet_analyses if w.balance > 0]
+        if balances:
+            total_supply = sum(balances)
+            
+            # Herfindahl-Hirschman-Index (HHI)
+            hhi = sum((balance / total_supply) ** 2 for balance in balances)
+            if hhi > self.institutional_thresholds['hhi_high']:
+                score -= 25  # Hohe Konzentration
+            
+            # Gini-Koeffizient
+            gini = self._calculate_gini_coefficient(balances)
+            if gini > self.institutional_thresholds['gini_extreme']:
+                score -= 20  # Extreme Ungleichverteilung
+        
         # Chain-spezifische Anpassungen
         if chain == 'solana':
             # Solana hat oft mehr fragmentierte Ownership
@@ -117,39 +211,46 @@ class MultiChainScoringEngine:
         return max(0.0, min(100.0, score))
     
     def _calculate_liquidity_score(self, token_data, chain: str) -> float:
-        """Bewertet die Liquidität"""
+        """Bewertet die Liquidität mit Amihud Illiquidity Ratio"""
         liquidity = getattr(token_data, 'liquidity', 0)
         market_cap = getattr(token_data, 'market_cap', 0)
         
         if market_cap == 0:
             return 0.0
         
-        liquidity_ratio = liquidity / market_cap if market_cap > 0 else 0
-        
-        # Basis Score basierend auf Liquiditäts-Ratio
-        if liquidity_ratio > 0.3:
-            score = 100.0
-        elif liquidity_ratio > 0.2:
-            score = 85.0
-        elif liquidity_ratio > 0.1:
-            score = 70.0
-        elif liquidity_ratio > 0.05:
-            score = 50.0
+        # Amihud Illiquidity Ratio (vereinfacht)
+        volume_24h = getattr(token_data, 'volume_24h', 0)
+        if market_cap > 0 and volume_24h > 0:
+            # In der Praxis: |Rt|/VOLt für jeden Tag, dann Durchschnitt
+            # Hier vereinfachte Version
+            amihud_ratio = (1 / market_cap) / volume_24h
         else:
-            score = 20.0
+            amihud_ratio = float('inf')
+        
+        # Liquiditäts-Score (0-100, höhere Werte = höheres Risiko)
+        if amihud_ratio == float('inf'):
+            liquidity_score = 100  # Keine Liquiditätsdaten
+        elif amihud_ratio > 0.001:  # Sehr illiquide
+            liquidity_score = 90
+        elif amihud_ratio > 0.0001:  # Illiquide
+            liquidity_score = 70
+        elif amihud_ratio > 0.00001:  # Moderat liquide
+            liquidity_score = 40
+        else:  # Liquide
+            liquidity_score = 20
         
         # Chain-spezifische Anpassungen
         if chain == 'solana':
             # Solana hat oft niedrigere Liquiditäts-Ratios
-            score *= 1.1
+            liquidity_score *= 0.9
         elif chain == 'sui':
             # Sui ist neu, Liquidität kann volatiler sein
-            score *= 0.9
+            liquidity_score *= 1.1
         
-        return min(100.0, score)
+        return min(100.0, max(0.0, liquidity_score))
     
     def _calculate_market_metrics_score(self, token_data, chain: str) -> float:
-        """Bewertet Market Metrics"""
+        """Bewertet Market Metrics mit Volatilitätsindikatoren"""
         market_cap = getattr(token_data, 'market_cap', 0)
         volume_24h = getattr(token_data, 'volume_24h', 0)
         holders_count = getattr(token_data, 'holders_count', 0)
@@ -206,7 +307,7 @@ class MultiChainScoringEngine:
         return min(100.0, score)
     
     def _calculate_risk_assessment_score(self, wallet_analyses: List, chain: str) -> Tuple[float, List[str]]:
-        """Bewertet Risikofaktoren"""
+        """Bewertet Risikofaktoren mit institutionellen Metriken"""
         score = 100.0
         risk_flags = []
         
@@ -244,6 +345,13 @@ class MultiChainScoringEngine:
         elif max_holder_percentage > 25:
             score -= 20
             risk_flags.append('high_single_holder_percentage')
+        
+        # Institutionelle Metriken: Z-Score für Whale-Aktivität
+        if hasattr(wallet_analyses[0], 'whale_activity_score'):
+            whale_activity = wallet_analyses[0].whale_activity_score
+            if whale_activity > 80:  # Hohe Whale-Aktivität
+                score -= 15
+                risk_flags.append('high_whale_activity')
         
         # Chain-spezifische Risikobewertung
         if chain == 'sui':
@@ -285,7 +393,34 @@ class MultiChainScoringEngine:
             # z.B. Move Contract Quality, Object Structure, etc.
         
         return score
-
+    
+    def _calculate_gini_coefficient(self, values: List[float]) -> float:
+        """Calculate Gini coefficient for inequality measurement"""
+        if not values or len(values) < 2:
+            return 0.0
+        
+        # Sort values
+        sorted_values = sorted(values)
+        n = len(sorted_values)
+        
+        # Calculate cumulative sum
+        cumulative_sum = [0.0]
+        for i, value in enumerate(sorted_values):
+            cumulative_sum.append(cumulative_sum[i] + value)
+        
+        total = cumulative_sum[-1]
+        if total == 0:
+            return 0.0
+        
+        # Calculate Gini coefficient
+        gini = 0.0
+        for i in range(1, n + 1):
+            gini += (2 * i - n - 1) * sorted_values[i-1]
+        
+        gini = gini / (n * total)
+        
+        return max(0.0, min(1.0, gini))
+    
     def score_token(
         self,
         market_cap: float,
@@ -295,29 +430,23 @@ class MultiChainScoringEngine:
         risk_flags: List[str],
     ) -> Dict[str, float]:
         score = 50.0
-
         # Marktkapitalisierung
         if market_cap < 100_000:
             score -= 20
         elif market_cap > 10_000_000:
             score += 10
-
         # Liquidität
         if liquidity < 50_000:
             score -= 15
         elif liquidity > 1_000_000:
             score += 10
-
         # Holder-Anzahl
         if holders < 50:
             score -= 15
         elif holders > 5_000:
             score += 5
-
         # Contract geprüft
         score += 10 if contract_verified else 0
-
         # Risiko-Flags
         score -= len(risk_flags) * 5
-
         return {"total_score": max(0, min(100, score))}
