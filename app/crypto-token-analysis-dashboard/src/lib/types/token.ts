@@ -1,53 +1,96 @@
-export interface Holder {
+// lib/types/token.ts
+export interface Token {
+  id: number;
   address: string;
-  amount: number;
-  percentage: number;
-  is_whale: boolean;
-  is_dev: boolean;
-  is_suspicious: boolean;
+  name: string;
+  symbol: string;
+  chain: string;
+  market_cap?: number;
+  volume_24h?: number;
+  liquidity?: number;
+  holders_count?: number;
+  contract_verified: boolean;
+  creation_date?: string;
+  last_analyzed?: string;
+  token_score?: number;
+}
+
+export interface TokenDetail extends Token {
+  wallet_analyses: WalletAnalysis[];
+  advanced_metrics: Record<string, any>;
+}
+
+export interface WalletAnalysis {
+  wallet_address: string;
+  wallet_type: string;
+  balance: number;
+  percentage_of_supply: number;
+  transaction_count: number;
+  risk_score: number;
 }
 
 export interface TokenAnalysis {
-  token_info: {
-    name: string;
-    symbol: string;
-    market_cap: number;
-    volume_24h: number;
-    holders_count: number;
-    price: number;
-    price_change_24h: number;
-    decimals: number;
-    total_supply: number;
-  };
+  token_info: TokenInfo;
   score: number;
+  institutional_score?: number;
+  metrics: Record<string, any>;
   risk_flags: string[];
-  wallet_analysis: {
-    total_wallets: number;
-    dev_wallets: number;
-    whale_wallets: number;
-    rugpull_suspects: number;
-    top_holders: Holder[];
-  };
-  transactions: {
-    volume_24h: number;
-    count_24h: number;
-    unique_senders: number;
-    unique_receivers: number;
-  };
-  price_history: {
-    timestamp: number;
-    price: number;
-    volume: number;
-  }[];
+  wallet_analysis: WalletAnalysisData;
+  institutional_metrics?: Record<string, any>;
+  risk_level?: string;
 }
 
-export interface TokenPriceHistory {
-  timestamp: number;
-  price: number;
-  volume: number;
+export interface TokenInfo {
+  name: string;
+  symbol: string;
+  market_cap?: number;
+  volume_24h?: number;
+  liquidity?: number;
+  holders_count?: number;
+  price?: number;
+  price_change_24h?: number;
+  decimals?: number;
+  total_supply?: number;
 }
 
-export interface TokenQueryParams {
+export interface WalletAnalysisData {
+  total_wallets: number;
+  dev_wallets: number;
+  whale_wallets: number;
+  rugpull_suspects: number;
+  top_holders: WalletAnalysis[];
+}
+
+export interface TokenPrice {
   address: string;
-  timeRange?: '24h' | '7d' | '30d' | '90d' | '1y';
+  chain: string;
+  symbol: string;
+  name: string;
+  price: number;
+  market_cap?: number;
+  volume_24h?: number;
+  price_change_percentage_24h?: number;
+  last_updated: string;
+}
+
+export interface TokenStats {
+  total_tokens: number;
+  average_market_cap: number;
+  tokens_by_chain: Record<string, number>;
+  score_distribution: {
+    high_risk: number;
+    medium_risk: number;
+    low_risk: number;
+    safe: number;
+  };
+  low_cap_tokens: number;
+  verified_contracts: number;
+  unverified_contracts: number;
+  last_updated: string;
+}
+
+export interface TrendingToken {
+  token: Token;
+  trending_score: number;
+  volume_to_market_cap_ratio: number;
 }
