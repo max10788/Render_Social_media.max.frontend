@@ -94,3 +94,65 @@ export interface TrendingToken {
   trending_score: number;
   volume_to_market_cap_ratio: number;
 }
+
+// lib/types/token.ts
+export interface TokenResponse {
+  id: number;
+  address: string;
+  name: string;
+  symbol: string;
+  chain: string;
+  market_cap?: number;
+  volume_24h?: number;
+  liquidity?: number;
+  holders_count?: number;
+  contract_verified: boolean;
+  creation_date?: string;
+  last_analyzed?: string;
+  token_score?: number;
+}
+
+export interface WalletAnalysisResponse {
+  wallet_address: string;
+  wallet_type: string;
+  balance: number;
+  percentage_of_supply: number;
+  transaction_count: number;
+  risk_score: number;
+}
+
+export interface TokenDetailResponse extends TokenResponse {
+  wallet_analyses: WalletAnalysisResponse[];
+}
+
+export interface TokenAnalysisRequest {
+  token_address: string;
+  chain: string;
+}
+
+export interface TokenAnalysisResponse {
+  token_info: Record<string, any>;
+  score: number;
+  metrics: Record<string, any>;
+  risk_flags: string[];
+  wallet_analysis: Record<string, any>;
+}
+
+export interface TokenStatsResponse {
+  [chain: string]: {
+    total_tokens: number;
+    average_market_cap: number;
+    average_volume: number;
+    average_score: number;
+  };
+}
+
+export interface AnalysisHistoryResponse {
+  id: number;
+  token_address: string;
+  chain: string;
+  token_name: string;
+  token_symbol: string;
+  analysis_date: string;
+  total_score: number;
+}
