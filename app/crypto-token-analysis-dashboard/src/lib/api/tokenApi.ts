@@ -1,22 +1,57 @@
+// lib/api/tokenApi.ts
 import apiClient from './clients';
-import { TokenAnalysis, TokenPriceHistory, TokenQueryParams } from '@/lib/types/token';
+import { 
+  TokenResponse, 
+  TokenDetailResponse, 
+  TokenAnalysisRequest,
+  TokenAnalysisResponse,
+  TokenStatsResponse,
+  AnalysisHistoryResponse
+} from '@/lib/types/token';
 
-export const fetchTokenAnalysis = async (address: string): Promise<TokenAnalysis> => {
-  const response = await apiClient.get<TokenAnalysis>(`/tokens/${address}`);
+// Token-Liste abrufen
+export const fetchTokens = async (params?: {
+  limit?: number;
+  min_score?: number;
+  chain?: string;
+  search?: string;
+  max_market_cap?: number;
+}): Promise<TokenResponse[]> => {
+  const response = await apiClient.get<TokenResponse[]>('/tokens', { params });
   return response.data;
 };
 
-export const fetchTokenPriceHistory = async (
-  address: string,
-  timeRange: string = '24h'
-): Promise<TokenPriceHistory[]> => {
-  const response = await apiClient.get<TokenPriceHistory[]>(
-    `/tokens/${address}/price-history?timeRange=${timeRange}`
-  );
+// Token anhand der Adresse abrufen
+export const fetchTokenByAddress = async (
+  address: string, 
+  chain: string
+): Promise<TokenResponse> => {
+  const response = await apiClient.get<TokenResponse>(`/tokens/address/${address}`, {
+    params: { chain }
+  });
   return response.data;
 };
 
-export const fetchTopTokens = async (): Promise<TokenAnalysis[]> => {
-  const response = await apiClient.get<TokenAnalysis[]>('/tokens/top');
+// Token-Analyse durchführen
+export const analyzeToken = async (
+  request: TokenAnalysisRequest
+): Promise<TokenAnalysisResponse> => {
+  const response = await apiClient.post<TokenAnalysisResponse>('/tokens/analyze', request);
+  return response.data;
+};
+
+// Analyse-Verlauf abrufen
+export const fetchAnalysisHistory = async (params?: {
+  user_id?: string;
+  session_id?: string;
+  limit?: number;
+}): Promise<AnalysisHistoryResponse[]> => {
+  const response = await apiClient.get<AnalysisHistoryResponse[]>('/tokens/analysis/history', { params });
+  return response.data;
+};
+
+// Blockchain-Statistiken abrufen
+export const fetchChainStatistics = async (): Promise<TokenStatsResponse> => {
+  const response = await apiClient.get<TokenStatsResponse>('/tokens/statistics/chains');
   return response.data;
 };
