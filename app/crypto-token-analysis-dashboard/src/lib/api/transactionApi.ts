@@ -1,58 +1,36 @@
 // lib/api/transactionApi.ts
 import apiClient from './clients';
-import { TransactionGraphData } from '@/lib/types/transaction';
+import { 
+  TransactionResponse,
+  TransactionDetailResponse,
+  TransactionAnalysisResponse,
+  TransactionGraphResponse,
+  TransactionStatsResponse
+} from '@/lib/types/transaction';
 
-export interface TransactionGraphData {
-  nodes: TransactionNode[];
-  edges: TransactionEdge[];
-  token_flows: TokenFlow[];
-  stats: {
-    total_nodes: number;
-    total_edges: number;
-    depth: number;
-    token_flows_count: number;
-  };
-}
+// Transaktion anhand des Hash abrufen
+export const fetchTransaction = async (
+  txHash: string, 
+  chain: string
+): Promise<TransactionResponse> => {
+  const response = await apiClient.get<TransactionResponse>(`/api/v1/transactions/${txHash}`, {
+    params: { chain }
+  });
+  return response.data;
+};
 
-export interface TransactionNode {
-  id: string;
-  label: string;
-  type?: string;
-  balance?: number;
-  percentage?: number;
-  riskScore?: number;
-  timestamp?: string;
-}
-
-export interface TransactionEdge {
-  from: string;
-  to: string;
-  tx_hash: string;
-  value: number;
-  timestamp: string;
-}
-
-export interface TokenFlow {
-  tx_hash: string;
-  token_address: string;
-  from_address: string;
-  to_address: string;
-  amount: number;
-}
-
-// Transaktionsgraph abrufen
-export const fetchTransactionGraph = async (
-  address: string,
+// Transaktionsdetails abrufen
+export const fetchTransactionDetail = async (
+  txHash: string, 
   chain: string,
-  timeRange: number = 30
-): Promise<TransactionGraphData> => {
-  const response = await apiClient.get<TransactionGraphData>(`/api/v1/transactions/graph/${address}`, {
+  includeInternal: boolean = true,
+  includeLogs: boolean = true
+): Promise<TransactionAnalysisResponse> => {
+  const response = await apiClient.get<TransactionAnalysisResponse>(`/api/v1/transactions/${txHash}/detail`, {
     params: { 
       chain,
-      depth: 2,
-      limit: 100,
-      include_token_flows: true,
-      time_range: timeRange
+      include_internal: includeInternal,
+      include_logs: includeLogs
     }
   });
   return response.data;
@@ -60,19 +38,20 @@ export const fetchTransactionGraph = async (
 
 // Wallet-Transaktionen abrufen
 export const fetchWalletTransactions = async (
-  address: string,
+  address: string, 
   chain: string,
   limit: number = 100,
   startBlock?: number,
-  endBlock?: number
-): Promise<any[]> => {
-  const response = await apiClient.get<any[]>(`/api/v1/transactions/address/${address}`, {
+  endBlock?: number,
+  includeTokenTransfers: boolean = true
+): Promise<TransactionResponse[]> => {
+  const response = await apiClient.get<TransactionResponse[]>(`/api/v1/transactions/address/${address}`, {
     params: { 
       chain,
       limit,
       start_block: startBlock,
       end_block: endBlock,
-      include_token_transfers: true
+      include_token_transfers: includeTokenTransfers
     }
   });
   return response.data;
@@ -80,18 +59,67 @@ export const fetchWalletTransactions = async (
 
 // Token-Transaktionen abrufen
 export const fetchTokenTransactions = async (
-  tokenAddress: string,
+  tokenAddress: string, 
   chain: string,
   limit: number = 100,
   startTime?: string,
   endTime?: string
-): Promise<any[]> => {
-  const response = await apiClient.get<any[]>(`/api/v1/transactions/token/${tokenAddress}`, {
+): Promise<TransactionResponse[]> => {
+  const response = await apiClient.get<TransactionResponse[]>(`/api/v1/transactions/token/${tokenAddress}`, {
     params: { 
       chain,
       limit,
       start_time: startTime,
       end_time: endTime
+    }
+  });
+  return response.data;
+};
+
+// Transaktion analysieren
+export const analyzeTransaction = async (
+  txHash: string,
+  chain: string,
+  includeInternal: boolean = true,
+  includeLogs: boolean = true
+): Promise<TransactionAnalysisResponse> => {
+  const response = await apiClient.post<TransactionAnalysisResponse>('/api/v1/transactions/analyze', {
+    tx_hash: txHash,
+    chain,
+    include_internal: includeInternal,
+    include_logs: includeLogs
+  });
+  return response.data;
+};
+
+// Transaktionsgraph abrufen
+export const fetchTransactionGraph = async (
+  address: string,
+  chain: string,
+  depth: number = 2,
+  limit: number = 50,
+  includeTokenFlows: boolean = true
+): Promise<TransactionGraphResponse> => {
+  const response = await apiClient.get<TransactionGraphResponse>(`/api/v1/transactions/graph/${address}`, {
+    params: {
+      chain,
+      depth,
+      limit,
+      include_token_flows: includeTokenFlows
+    }
+  });
+  return response.data;
+};
+
+// Transaktionsstatistiken abrufen
+export const fetchTransactionStatistics = async (
+  chain?: string,
+  timeRange: number = 24
+): Promise<TransactionStatsResponse> => {
+  const response = await apiClient.get<TransactionStatsResponse>('/api/v1/transactions/statistics', {
+    params: {
+      chain,
+      time_range: timeRange
     }
   });
   return response.data;
