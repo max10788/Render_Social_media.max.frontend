@@ -5,7 +5,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTransactionGraph } from '@/lib/api/transactionApi';
-import { TransactionGraphData } from '@/lib/types/transaction';
+import { TransactionGraphResponse } from '@/lib/types/transaction';
+import { WalletTypeEnum } from '@/lib/types/wallet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,57 +19,45 @@ interface TransactionRadarChartProps {
   chain: string;
 }
 
-interface WalletNode {
-  id: string;
-  address: string;
-  type: string;
-  balance: number;
-  percentage: number;
-  riskScore: number;
-  timestamp: number;
-  transactionType: 'buy' | 'sell';
-  distance: number; // Entfernung vom Zentrum (basierend auf Zeit)
-  angle: number;   // Position im Kreis
-}
-
 const WALLET_TYPE_COLORS: Record<string, string> = {
-  'dev_wallet': '#FF6B6B',     // Rot
-  'liquidity_wallet': '#4ECDC4', // Türkis
-  'whale_wallet': '#45B7D1',   // Blau
-  'dex_contract': '#FFD166',   // Gelb
-  'burn_wallet': '#9B5DE5',    // Lila
-  'cex_wallet': '#00BBF9',     // Hellblau
-  'sniper_wallet': '#F15BB5',  // Pink
-  'rugpull_suspect': '#EF476F', // Hellrot
-  'unknown': '#ADB5BD'        // Grau
+  [WalletTypeEnum.DEV_WALLET]: '#FF6B6B',     // Rot
+  [WalletTypeEnum.LIQUIDITY_WALLET]: '#4ECDC4', // Türkis
+  [WalletTypeEnum.WHALE_WALLET]: '#45B7D1',   // Blau
+  [WalletTypeEnum.DEX_CONTRACT]: '#FFD166',   // Gelb
+  [WalletTypeEnum.BURN_WALLET]: '#9B5DE5',    // Lila
+  [WalletTypeEnum.CEX_WALLET]: '#00BBF9',     // Hellblau
+  [WalletTypeEnum.SNIPER_WALLET]: '#F15BB5',  // Pink
+  [WalletTypeEnum.RUGPULL_SUSPECT]: '#EF476F', // Hellrot
+  [WalletTypeEnum.UNKNOWN]: '#ADB5BD'        // Grau
 };
 
 const WALLET_TYPE_LABELS: Record<string, string> = {
-  'dev_wallet': 'Dev Wallet',
-  'liquidity_wallet': 'Liquidity',
-  'whale_wallet': 'Whale',
-  'dex_contract': 'DEX',
-  'burn_wallet': 'Burn',
-  'cex_wallet': 'CEX',
-  'sniper_wallet': 'Sniper',
-  'rugpull_suspect': 'Suspect',
-  'unknown': 'Unknown'
+  [WalletTypeEnum.DEV_WALLET]: 'Dev Wallet',
+  [WalletTypeEnum.LIQUIDITY_WALLET]: 'Liquidity',
+  [WalletTypeEnum.WHALE_WALLET]: 'Whale',
+  [WalletTypeEnum.DEX_CONTRACT]: 'DEX',
+  [WalletTypeEnum.BURN_WALLET]: 'Burn',
+  [WalletTypeEnum.CEX_WALLET]: 'CEX',
+  [WalletTypeEnum.SNIPER_WALLET]: 'Sniper',
+  [WalletTypeEnum.RUGPULL_SUSPECT]: 'Suspect',
+  [WalletTypeEnum.UNKNOWN]: 'Unknown'
 };
 
 export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [selectedNode, setSelectedNode] = useState<WalletNode | null>(null);
+  const [selectedNode, setSelectedNode] = useState<any>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [timeRange, setTimeRange] = useState(30); // Tage
+  const [depth, setDepth] = useState(2);
+  const [limit, setLimit] = useState(50);
   
-  const { data: graphData, isLoading, error, refetch } = useQuery<TransactionGraphData>({
-    queryKey: ['transactionGraph', tokenAddress, chain, timeRange],
-    queryFn: () => fetchTransactionGraph(tokenAddress, chain, timeRange),
+  const { data: graphData, isLoading, error, refetch } = useQuery<TransactionGraphResponse>({
+    queryKey: ['transactionGraph', tokenAddress, chain, depth, limit],
+    queryFn: () => fetchTransactionGraph(tokenAddress, chain, depth, limit),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Transformiere die Graph-Daten in das für die Radar-Visualisierung benötigte Format
-  const transformData = (data: TransactionGraphData): WalletNode[] => {
+  const transformData = (data: TransactionGraphResponse) => {
     if (!data.nodes || !data.edges) return [];
     
     // Berechne das maximale Datum für die Normalisierung
@@ -77,15 +66,14 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
     ));
     
     const minTimestamp = Math.min(...data.nodes.map(node => 
-      node.timestamp ? new Date(node.timestamp).getTime() : Date.now() - (timeRange * 24 * 60 * 60 * 1000)
+      node.timestamp ? new Date(node.timestamp).getTime() : Date.now() - (30 * 24 * 60 * 60 * 1000)
     ));
     
     return data.nodes.map((node, index) => {
-      // Bestimme den Wallet-Typ (vereinfacht)
-      const walletType = node.type || 'unknown';
+      // Bestimme den Wallet-Typ
+      const walletType = node.type || WalletTypeEnum.UNKNOWN;
       
       // Berechne die Entfernung vom Zentrum basierend auf dem Zeitstempel
-      // Je früher die Transaktion, desto näher am Zentrum
       const nodeTimestamp = node.timestamp ? new Date(node.timestamp).getTime() : Date.now();
       const timeRangeMs = maxTimestamp - minTimestamp;
       const timePosition = timeRangeMs > 0 ? (maxTimestamp - nodeTimestamp) / timeRangeMs : 0.5;
@@ -94,8 +82,10 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       // Berechne den Winkel für die Position im Kreis
       const angle = (index / data.nodes.length) * 2 * Math.PI;
       
-      // Bestimme die Transaktionsrichtung (vereinfacht)
-      const transactionType: 'buy' | 'sell' = Math.random() > 0.5 ? 'buy' : 'sell';
+      // Bestimme die Transaktionsrichtung basierend auf den Kanten
+      const transactionType = data.edges.find(edge => 
+        edge.from === node.id || edge.to === node.id
+      )?.value > 0 ? 'buy' : 'sell';
       
       return {
         id: node.id,
@@ -103,7 +93,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
         type: walletType,
         balance: node.balance || 0,
         percentage: node.percentage || 0,
-        riskScore: node.riskScore || 0,
+        riskScore: node.risk_score || 0,
         timestamp: nodeTimestamp,
         transactionType,
         distance,
@@ -322,27 +312,33 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
         <div className="flex justify-between items-center">
           <CardTitle>Transaktions-Radar</CardTitle>
           <div className="flex space-x-2">
-            <Button
-              variant={timeRange === 7 ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTimeRange(7)}
-            >
-              7 Tage
-            </Button>
-            <Button
-              variant={timeRange === 30 ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTimeRange(30)}
-            >
-              30 Tage
-            </Button>
-            <Button
-              variant={timeRange === 90 ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTimeRange(90)}
-            >
-              90 Tage
-            </Button>
+            <div className="flex items-center space-x-1">
+              <span className="text-sm">Tiefe:</span>
+              <select 
+                value={depth} 
+                onChange={(e) => setDepth(Number(e.target.value))}
+                className="border rounded px-2 py-1 text-sm"
+              >
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+                <option value={4}>4</option>
+                <option value={5}>5</option>
+              </select>
+            </div>
+            <div className="flex items-center space-x-1">
+              <span className="text-sm">Limit:</span>
+              <select 
+                value={limit} 
+                onChange={(e) => setLimit(Number(e.target.value))}
+                className="border rounded px-2 py-1 text-sm"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
             <Button variant="outline" size="icon" onClick={handleZoomIn}>
               <ZoomIn className="h-4 w-4" />
             </Button>
