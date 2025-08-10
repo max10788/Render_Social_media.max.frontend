@@ -4,8 +4,8 @@ from .base import ExchangeClient
 from ..utils.exceptions import ExchangeError
 
 class KrakenClient(ExchangeClient):
-    def __init__(self):
-        self.api_url = "https://api.kraken.com/0/public"
+    def __init__(self, api_url: str = None):
+        self.api_url = api_url or "https://api.kraken.com/0/public"
     
     def get_current_price(self, symbol: str) -> float:
         """Holt den aktuellen Preis von Kraken"""
