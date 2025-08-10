@@ -18,6 +18,28 @@ async def calculate_basket_option(request: BasketOptionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@router.get("/exchanges")
+async def get_supported_exchanges():
+    """Gibt eine Liste der unterstützten Börsen zurück"""
+    return {
+        "exchanges": [
+            {"name": "binance", "url": "https://www.binance.com"},
+            {"name": "coinbase", "url": "https://www.coinbase.com"},
+            {"name": "kraken", "url": "https://www.kraken.com"},
+            {"name": "bitget", "url": "https://www.bitget.com"}
+        ]
+    }
+
+@router.get("/blockchains")
+async def get_supported_blockchains():
+    """Gibt eine Liste der unterstützten Blockchains zurück"""
+    return {
+        "blockchains": [
+            {"name": "ethereum", "url": "https://ethereum.org"},
+            {"name": "solana", "url": "https://solana.com"}
+        ]
+    }
+
 @router.get("/health")
 async def health_check():
     return {"status": "healthy"}
