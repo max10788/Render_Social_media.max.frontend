@@ -1,17 +1,34 @@
 from typing import Dict, List, Optional
 from ..blockchain.base import BlockchainClient
 from ..exchanges.base import ExchangeClient
+from ..exchanges.binance import BinanceClient
+from ..exchanges.coinbase import CoinbaseClient
+from ..exchanges.kraken import KrakenClient
 from ..utils.exceptions import DataUnavailableError
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class DataSourceManager:
     def __init__(self):
         self.blockchain_clients = {
-            'ethereum': None,  # Wird lazy initialisiert
+            'ethereum': None,
             'solana': None
         }
         self.exchange_clients = {
             'binance': None,
-            'coinbase': None
+            'coinbase': None,
+            'kraken': None
+        }
+        
+        # API Endpoints aus .env lesen
+        self.endpoints = {
+            'ethereum': os.getenv('ETHEREUM_API_URL', 'https://api.etherscan.io/api'),
+            'solana': os.getenv('SOLANA_API_URL', 'https://api.mainnet-beta.solana.com'),
+            'binance': os.getenv('BINANCE_API_URL', 'https://api.binance.com/api/v3'),
+            'coinbase': os.getenv('COINBASE_API_URL', 'https://api.coinbase.com/v2'),
+            'kraken': os.getenv('KRAKEN_API_URL', 'https://api.kraken.com/0/public')
         }
     
     def get_current_price(self, symbol: str, blockchain: str, exchanges: Optional[List[str]] = None) -> float:
@@ -40,6 +57,7 @@ class DataSourceManager:
         """Berechnet die Volatilität aus historischen Preisen"""
         prices = self.get_historical_prices(symbol, blockchain, days)
         returns = [prices[i+1]/prices[i] - 1 for i in range(len(prices)-1)]
+        import numpy as np
         return np.std(returns) * np.sqrt(365)  # Annualisierte Volatilität
     
     def _get_blockchain_client(self, blockchain: str) -> BlockchainClient:
@@ -47,19 +65,19 @@ class DataSourceManager:
         if self.blockchain_clients[blockchain] is None:
             if blockchain == 'ethereum':
                 from ..blockchain.ethereum import EthereumClient
-                self.blockchain_clients[blockchain] = EthereumClient()
+                self.blockchain_clients[blockchain] = EthereumClient(self.endpoints['ethereum'])
             elif blockchain == 'solana':
                 from ..blockchain.solana import SolanaClient
-                self.blockchain_clients[blockchain] = SolanaClient()
+                self.blockchain_clients[blockchain] = SolanaClient(self.endpoints['solana'])
         return self.blockchain_clients[blockchain]
     
     def _get_exchange_client(self, exchange: str) -> ExchangeClient:
         """Lazy Initialisierung der Börsen-Clients"""
         if self.exchange_clients[exchange] is None:
             if exchange == 'binance':
-                from ..exchanges.binance import BinanceClient
-                self.exchange_clients[exchange] = BinanceClient()
+                self.exchange_clients[exchange] = BinanceClient(self.endpoints['binance'])
             elif exchange == 'coinbase':
-                from ..exchanges.coinbase import CoinbaseClient
-                self.exchange_clients[exchange] = CoinbaseClient()
+                self.exchange_clients[exchange] = CoinbaseClient(self.endpoints['coinbase'])
+            elif exchange == 'kraken':
+                self.exchange_clients[exchange] = KrakenClient(self.endpoints['kraken'])
         return self.exchange_clients[exchange]
