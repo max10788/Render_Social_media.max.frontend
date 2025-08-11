@@ -1,293 +1,426 @@
-import time
-import json
-import hashlib
+import numpy as np
+import pandas as pd
 import pickle
-from typing import Any, Dict, Optional, Union
-from datetime import datetime, timedelta
-import redis
+import hashlib
+import json
+import time
 import os
+from typing import Any, Dict, Optional, Union, Callable
+from datetime import datetime, timedelta
 from functools import wraps
 import logging
+import redis
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 class CacheManager:
-    """
-    Manages caching for frequently requested data.
-    Supports both in-memory and Redis-based caching.
-    """
+    """Klasse zur Verwaltung von Caching-Funktionalität"""
     
     def __init__(self, 
-                 cache_type: str = "memory",
-                 redis_host: str = None,
+                 cache_type: str = 'memory',
+                 redis_host: str = 'localhost',
                  redis_port: int = 6379,
-                 redis_password: str = None,
                  redis_db: int = 0,
+                 redis_password: Optional[str] = None,
                  default_ttl: int = 3600):
         """
-        Initialize the cache manager.
+        Initialisiere Cache-Manager
         
         Args:
-            cache_type: Type of cache ('memory' or 'redis')
-            redis_host: Redis server host
-            redis_port: Redis server port
-            redis_password: Redis password
-            redis_db: Redis database number
-            default_ttl: Default time-to-live in seconds
+            cache_type: Art des Caches ('memory', 'redis', 'file')
+            redis_host: Redis-Host
+            redis_port: Redis-Port
+            redis_db: Redis-Datenbank
+            redis_password: Redis-Passwort
+            default_ttl: Standard-TTL in Sekunden
         """
         self.cache_type = cache_type
         self.default_ttl = default_ttl
         
-        if cache_type == "memory":
-            self._memory_cache: Dict[str, Dict[str, Any]] = {}
-        elif cache_type == "redis":
+        if cache_type == 'memory':
+            self.cache = {}
+        elif cache_type == 'redis':
             try:
-                self._redis_client = redis.StrictRedis(
-                    host=redis_host or os.getenv("REDIS_HOST", "localhost"),
+                self.cache = redis.StrictRedis(
+                    host=redis_host,
                     port=redis_port,
-                    password=redis_password or os.getenv("REDIS_PASSWORD"),
                     db=redis_db,
+                    password=redis_password,
                     decode_responses=True
                 )
-                # Test connection
-                self._redis_client.ping()
+                # Teste Verbindung
+                self.cache.ping()
+                logger.info("Redis-Verbindung erfolgreich")
             except Exception as e:
-                logger.error(f"Failed to connect to Redis: {str(e)}")
-                logger.info("Falling back to in-memory caching")
-                self.cache_type = "memory"
-                self._memory_cache = {}
+                logger.error(f"Redis-Verbindung fehlgeschlagen: {str(e)}")
+                logger.info("Falle auf In-Memory-Cache zurück")
+                self.cache_type = 'memory'
+                self.cache = {}
+        elif cache_type == 'file':
+            self.cache_dir = Path('./cache')
+            self.cache_dir.mkdir(exist_ok=True)
         else:
-            raise ValueError(f"Unsupported cache type: {cache_type}")
+            raise ValueError(f"Unbekannter Cache-Typ: {cache_type}")
+    
+    def _generate_key(self, func_name: str, args: tuple, kwargs: dict) -> str:
+        """
+        Generiere einen eindeutigen Schlüssel für die Cache-Einträge
+        
+        Args:
+            func_name: Name der Funktion
+            args: Positionale Argumente
+            kwargs: Schlüsselwortargumente
+            
+        Returns:
+            Cache-Schlüssel
+        """
+        # Konvertiere Argumente in einen hashbaren String
+        key_data = {
+            'func_name': func_name,
+            'args': str(args),
+            'kwargs': str(sorted(kwargs.items()))
+        }
+        
+        # Erstelle Hash
+        key_hash = hashlib.md5(json.dumps(key_data, sort_keys=True).encode()).hexdigest()
+        
+        return f"{func_name}:{key_hash}"
     
     def get(self, key: str) -> Optional[Any]:
         """
-        Get a value from the cache.
+        Hole Wert aus dem Cache
         
         Args:
-            key: Cache key
+            key: Cache-Schlüssel
             
         Returns:
-            Cached value or None if not found or expired
+            Gecachter Wert oder None
         """
-        if self.cache_type == "memory":
-            return self._get_from_memory(key)
-        elif self.cache_type == "redis":
-            return self._get_from_redis(key)
-        else:
+        if self.cache_type == 'memory':
+            return self.cache.get(key)
+        elif self.cache_type == 'redis':
+            try:
+                value = self.cache.get(key)
+                if value:
+                    return pickle.loads(value)
+                return None
+            except Exception as e:
+                logger.error(f"Fehler beim Abrufen aus Redis: {str(e)}")
+                return None
+        elif self.cache_type == 'file':
+            cache_file = self.cache_dir / f"{key}.pkl"
+            if cache_file.exists():
+                try:
+                    with open(cache_file, 'rb') as f:
+                        return pickle.load(f)
+                except Exception as e:
+                    logger.error(f"Fehler beim Laden aus Datei: {str(e)}")
+                    return None
             return None
     
-    def set(self, key: str, value: Any, ttl: int = None) -> bool:
+    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
         """
-        Set a value in the cache.
+        Speichere Wert im Cache
         
         Args:
-            key: Cache key
-            value: Value to cache
-            ttl: Time-to-live in seconds (uses default if None)
+            key: Cache-Schlüssel
+            value: Zu speichernder Wert
+            ttl: Time-to-Live in Sekunden
             
         Returns:
-            True if successful, False otherwise
+            True bei Erfolg, False bei Fehler
         """
-        ttl = ttl or self.default_ttl
-        
-        if self.cache_type == "memory":
-            return self._set_in_memory(key, value, ttl)
-        elif self.cache_type == "redis":
-            return self._set_in_redis(key, value, ttl)
-        else:
-            return False
+        if ttl is None:
+            ttl = self.default_ttl
+            
+        if self.cache_type == 'memory':
+            self.cache[key] = value
+            # Setze Ablaufzeit (wird bei get überprüft)
+            self.cache[f"{key}_expires"] = time.time() + ttl
+            return True
+        elif self.cache_type == 'redis':
+            try:
+                value_bytes = pickle.dumps(value)
+                return self.cache.setex(key, ttl, value_bytes)
+            except Exception as e:
+                logger.error(f"Fehler beim Speichern in Redis: {str(e)}")
+                return False
+        elif self.cache_type == 'file':
+            try:
+                cache_file = self.cache_dir / f"{key}.pkl"
+                with open(cache_file, 'wb') as f:
+                    pickle.dump(value, f)
+                
+                # Erstelle Metadatei mit Ablaufzeit
+                metadata_file = self.cache_dir / f"{key}.meta"
+                with open(metadata_file, 'w') as f:
+                    json.dump({'expires': time.time() + ttl}, f)
+                    
+                return True
+            except Exception as e:
+                logger.error(f"Fehler beim Speichern in Datei: {str(e)}")
+                return False
     
     def delete(self, key: str) -> bool:
         """
-        Delete a value from the cache.
+        Lösche Wert aus dem Cache
         
         Args:
-            key: Cache key
+            key: Cache-Schlüssel
             
         Returns:
-            True if successful, False otherwise
+            True bei Erfolg, False bei Fehler
         """
-        if self.cache_type == "memory":
-            return self._delete_from_memory(key)
-        elif self.cache_type == "redis":
-            return self._delete_from_redis(key)
-        else:
+        if self.cache_type == 'memory':
+            if key in self.cache:
+                del self.cache[key]
+                if f"{key}_expires" in self.cache:
+                    del self.cache[f"{key}_expires"]
+                return True
             return False
+        elif self.cache_type == 'redis':
+            try:
+                return self.cache.delete(key) > 0
+            except Exception as e:
+                logger.error(f"Fehler beim Löschen aus Redis: {str(e)}")
+                return False
+        elif self.cache_type == 'file':
+            try:
+                cache_file = self.cache_dir / f"{key}.pkl"
+                metadata_file = self.cache_dir / f"{key}.meta"
+                
+                if cache_file.exists():
+                    cache_file.unlink()
+                if metadata_file.exists():
+                    metadata_file.unlink()
+                    
+                return True
+            except Exception as e:
+                logger.error(f"Fehler beim Löschen aus Datei: {str(e)}")
+                return False
     
     def clear(self) -> bool:
         """
-        Clear all values from the cache.
+        Lösche alle Einträge aus dem Cache
         
         Returns:
-            True if successful, False otherwise
+            True bei Erfolg, False bei Fehler
         """
-        if self.cache_type == "memory":
-            self._memory_cache.clear()
+        if self.cache_type == 'memory':
+            self.cache.clear()
             return True
-        elif self.cache_type == "redis":
+        elif self.cache_type == 'redis':
             try:
-                self._redis_client.flushdb()
+                return self.cache.flushdb()
+            except Exception as e:
+                logger.error(f"Fehler beim Löschen von Redis: {str(e)}")
+                return False
+        elif self.cache_type == 'file':
+            try:
+                for file in self.cache_dir.glob("*.pkl"):
+                    file.unlink()
+                for file in self.cache_dir.glob("*.meta"):
+                    file.unlink()
                 return True
             except Exception as e:
-                logger.error(f"Failed to clear Redis cache: {str(e)}")
+                logger.error(f"Fehler beim Löschen von Dateien: {str(e)}")
                 return False
-        else:
-            return False
     
-    def _get_from_memory(self, key: str) -> Optional[Any]:
-        """Get a value from the in-memory cache."""
-        if key not in self._memory_cache:
-            return None
+    def is_expired(self, key: str) -> bool:
+        """
+        Prüfe, ob ein Cache-Eintrag abgelaufen ist
         
-        cache_entry = self._memory_cache[key]
-        
-        # Check if expired
-        if cache_entry["expires_at"] < time.time():
-            del self._memory_cache[key]
-            return None
-        
-        return cache_entry["value"]
-    
-    def _set_in_memory(self, key: str, value: Any, ttl: int) -> bool:
-        """Set a value in the in-memory cache."""
-        expires_at = time.time() + ttl
-        self._memory_cache[key] = {
-            "value": value,
-            "expires_at": expires_at
-        }
-        return True
-    
-    def _delete_from_memory(self, key: str) -> bool:
-        """Delete a value from the in-memory cache."""
-        if key in self._memory_cache:
-            del self._memory_cache[key]
+        Args:
+            key: Cache-Schlüssel
+            
+        Returns:
+            True wenn abgelaufen, False sonst
+        """
+        if self.cache_type == 'memory':
+            expires_key = f"{key}_expires"
+            if expires_key in self.cache:
+                return time.time() > self.cache[expires_key]
             return True
-        return False
-    
-    def _get_from_redis(self, key: str) -> Optional[Any]:
-        """Get a value from Redis."""
-        try:
-            serialized_value = self._redis_client.get(key)
-            if serialized_value is None:
-                return None
-            
-            # Deserialize the value
-            try:
-                # Try to deserialize as JSON first
-                return json.loads(serialized_value)
-            except json.JSONDecodeError:
-                # If JSON fails, try pickle
+        elif self.cache_type == 'redis':
+            # Redis handhabt TTL automatisch
+            return not self.cache.exists(key)
+        elif self.cache_type == 'file':
+            metadata_file = self.cache_dir / f"{key}.meta"
+            if metadata_file.exists():
                 try:
-                    return pickle.loads(serialized_value.encode('latin-1'))
-                except Exception:
-                    # If all else fails, return as string
-                    return serialized_value
-        except Exception as e:
-            logger.error(f"Failed to get from Redis: {str(e)}")
-            return None
-    
-    def _set_in_redis(self, key: str, value: Any, ttl: int) -> bool:
-        """Set a value in Redis."""
-        try:
-            # Serialize the value
-            try:
-                # Try to serialize as JSON first
-                serialized_value = json.dumps(value)
-            except (TypeError, ValueError):
-                # If JSON fails, try pickle
-                try:
-                    serialized_value = pickle.dumps(value).decode('latin-1')
+                    with open(metadata_file, 'r') as f:
+                        metadata = json.load(f)
+                    return time.time() > metadata['expires']
                 except Exception as e:
-                    logger.error(f"Failed to serialize value for Redis: {str(e)}")
-                    return False
-            
-            # Set in Redis with TTL
-            return self._redis_client.setex(key, ttl, serialized_value)
-        except Exception as e:
-            logger.error(f"Failed to set in Redis: {str(e)}")
-            return False
+                    logger.error(f"Fehler beim Prüfen der Ablaufzeit: {str(e)}")
+                    return True
+            return True
     
-    def _delete_from_redis(self, key: str) -> bool:
-        """Delete a value from Redis."""
-        try:
-            return bool(self._redis_client.delete(key))
-        except Exception as e:
-            logger.error(f"Failed to delete from Redis: {str(e)}")
-            return False
-
-def cache_result(ttl: int = 3600, key_prefix: str = ""):
-    """
-    Decorator to cache function results.
-    
-    Args:
-        ttl: Time-to-live in seconds
-        key_prefix: Prefix for the cache key
-    """
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            # Create a cache key based on function name and arguments
-            arg_string = f"{func.__name__}:{str(args)}:{str(sorted(kwargs.items()))}"
-            cache_key = f"{key_prefix}{hashlib.md5(arg_string.encode()).hexdigest()}"
-            
-            # Try to get from cache
-            cache_manager = get_cache_manager()
-            cached_result = cache_manager.get(cache_key)
-            
-            if cached_result is not None:
-                logger.debug(f"Cache hit for {cache_key}")
-                return cached_result
-            
-            # If not in cache, call the function
-            logger.debug(f"Cache miss for {cache_key}")
-            result = func(*args, **kwargs)
-            
-            # Store in cache
-            cache_manager.set(cache_key, result, ttl)
-            
-            return result
-        return wrapper
-    return decorator
-
-# Global cache manager instance
-_cache_manager: Optional[CacheManager] = None
-
-def get_cache_manager() -> CacheManager:
-    """Get the global cache manager instance."""
-    global _cache_manager
-    
-    if _cache_manager is None:
-        # Initialize cache manager based on environment variables
-        cache_type = os.getenv("CACHE_TYPE", "memory")
+    def cached(self, ttl: Optional[int] = None):
+        """
+        Dekorator zum Cachen von Funktionen
         
-        if cache_type == "redis":
-            _cache_manager = CacheManager(
-                cache_type=cache_type,
-                redis_host=os.getenv("REDIS_HOST"),
-                redis_port=int(os.getenv("REDIS_PORT", 6379)),
-                redis_password=os.getenv("REDIS_PASSWORD"),
-                redis_db=int(os.getenv("REDIS_DB", 0)),
-                default_ttl=int(os.getenv("CACHE_TTL", 3600))
-            )
-        else:
-            _cache_manager = CacheManager(
-                cache_type=cache_type,
-                default_ttl=int(os.getenv("CACHE_TTL", 3600))
-            )
-    
-    return _cache_manager
+        Args:
+            ttl: Time-to-Live in Sekunden
+            
+        Returns:
+            Dekorierte Funktion
+        """
+        def decorator(func):
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                # Generiere Cache-Schlüssel
+                key = self._generate_key(func.__name__, args, kwargs)
+                
+                # Prüfe Cache
+                cached_result = self.get(key)
+                if cached_result is not None and not self.is_expired(key):
+                    logger.debug(f"Cache-Treffer für {func.__name__}")
+                    return cached_result
+                
+                # Führe Funktion aus
+                result = func(*args, **kwargs)
+                
+                # Speichere im Cache
+                self.set(key, result, ttl)
+                
+                return result
+            return wrapper
+        return decorator
 
-def init_cache(cache_type: str = "memory", **kwargs) -> CacheManager:
-    """
-    Initialize the global cache manager.
+class DataCache:
+    """Spezialisierter Cache für Finanzdaten"""
     
-    Args:
-        cache_type: Type of cache ('memory' or 'redis')
-        **kwargs: Additional arguments for CacheManager
+    def __init__(self, cache_manager: CacheManager):
+        """
+        Initialisiere Daten-Cache
         
-    Returns:
-        The initialized cache manager
-    """
-    global _cache_manager
-    _cache_manager = CacheManager(cache_type=cache_type, **kwargs)
-    return _cache_manager
+        Args:
+            cache_manager: Cache-Manager-Instanz
+        """
+        self.cache = cache_manager
+    
+    def get_historical_prices(self, 
+                             assets: List[str], 
+                             start_date: datetime, 
+                             end_date: datetime) -> Optional[pd.DataFrame]:
+        """
+        Hole historische Preise aus dem Cache
+        
+        Args:
+            assets: Liste der Assets
+            start_date: Startdatum
+            end_date: Enddatum
+            
+        Returns:
+            DataFrame mit historischen Preisen oder None
+        """
+        key = f"historical_prices:{','.join(assets)}:{start_date.date()}:{end_date.date()}"
+        return self.cache.get(key)
+    
+    def set_historical_prices(self, 
+                             assets: List[str], 
+                             start_date: datetime, 
+                             end_date: datetime, 
+                             data: pd.DataFrame, 
+                             ttl: int = 86400) -> bool:
+        """
+        Speichere historische Preise im Cache
+        
+        Args:
+            assets: Liste der Assets
+            start_date: Startdatum
+            end_date: Enddatum
+            data: DataFrame mit historischen Preisen
+            ttl: Time-to-Live in Sekunden
+            
+        Returns:
+            True bei Erfolg, False bei Fehler
+        """
+        key = f"historical_prices:{','.join(assets)}:{start_date.date()}:{end_date.date()}"
+        return self.cache.set(key, data, ttl)
+    
+    def get_volatility(self, 
+                      asset: str, 
+                      start_date: datetime, 
+                      end_date: datetime,
+                      model: str = 'historical') -> Optional[float]:
+        """
+        Hole Volatilität aus dem Cache
+        
+        Args:
+            asset: Asset-Symbol
+            start_date: Startdatum
+            end_date: Enddatum
+            model: Volatilitätsmodell
+            
+        Returns:
+            Volatilität oder None
+        """
+        key = f"volatility:{asset}:{start_date.date()}:{end_date.date()}:{model}"
+        return self.cache.get(key)
+    
+    def set_volatility(self, 
+                      asset: str, 
+                      start_date: datetime, 
+                      end_date: datetime,
+                      model: str,
+                      volatility: float, 
+                      ttl: int = 3600) -> bool:
+        """
+        Speichere Volatilität im Cache
+        
+        Args:
+            asset: Asset-Symbol
+            start_date: Startdatum
+            end_date: Enddatum
+            model: Volatilitätsmodell
+            volatility: Volatilitätswert
+            ttl: Time-to-Live in Sekunden
+            
+        Returns:
+            True bei Erfolg, False bei Fehler
+        """
+        key = f"volatility:{asset}:{start_date.date()}:{end_date.date()}:{model}"
+        return self.cache.set(key, volatility, ttl)
+    
+    def get_correlation_matrix(self, 
+                             assets: List[str], 
+                             start_date: datetime, 
+                             end_date: datetime) -> Optional[pd.DataFrame]:
+        """
+        Hole Korrelationsmatrix aus dem Cache
+        
+        Args:
+            assets: Liste der Assets
+            start_date: Startdatum
+            end_date: Enddatum
+            
+        Returns:
+            Korrelationsmatrix oder None
+        """
+        key = f"correlation:{','.join(assets)}:{start_date.date()}:{end_date.date()}"
+        return self.cache.get(key)
+    
+    def set_correlation_matrix(self, 
+                             assets: List[str], 
+                             start_date: datetime, 
+                             end_date: datetime,
+                             correlation_matrix: pd.DataFrame, 
+                             ttl: int = 3600) -> bool:
+        """
+        Speichere Korrelationsmatrix im Cache
+        
+        Args:
+            assets: Liste der Assets
+            start_date: Startdatum
+            end_date: Enddatum
+            correlation_matrix: Korrelationsmatrix
+            ttl: Time-to-Live in Sekunden
+            
+        Returns:
+            True bei Erfolg, False bei Fehler
+        """
+        key = f"correlation:{','.join(assets)}:{start_date.date()}:{end_date.date()}"
+        return self.cache.set(key, correlation_matrix, ttl)
