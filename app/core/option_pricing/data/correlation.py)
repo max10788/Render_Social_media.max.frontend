@@ -1,0 +1,274 @@
+import numpy as np
+import pandas as pd
+from typing import List, Dict, Tuple, Optional, Union
+from datetime import datetime, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
+
+class CorrelationAnalyzer:
+    """Klasse zur Analyse und Modellierung von Korrelationen zwischen Kryptowährungen"""
+    
+    def __init__(self, 
+                 min_data_points: int = 30,
+                 max_lookback_period: int = 365,
+                 correlation_method: str = 'pearson'):
+        """
+        Initialisiere Korrelationsanalysator
+        
+        Args:
+            min_data_points: Minimale Anzahl an Datenpunkten für eine zuverlässige Korrelation
+            max_lookback_period: Maximaler Betrachtungszeitraum in Tagen
+            correlation_method: Methode zur Korrelationsberechnung ('pearson', 'spearman', 'kendall')
+        """
+        self.min_data_points = min_data_points
+        self.max_lookback_period = max_lookback_period
+        self.correlation_method = correlation_method
+        
+    def calculate_correlation_matrix(self, 
+                                    price_data: pd.DataFrame,
+                                    returns_data: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+        """
+        Berechne Korrelationsmatrix aus Preis- oder Renditedaten
+        
+        Args:
+            price_data: DataFrame mit Preisdaten (Assets als Spalten)
+            returns_data: Optional: DataFrame mit Renditedaten (wenn None, wird aus price_data berechnet)
+            
+        Returns:
+            Korrelationsmatrix
+        """
+        if returns_data is None:
+            # Berechne logarithmische Renditen
+            returns_data = np.log(price_data / price_data.shift(1)).dropna()
+            
+        # Überprüfe, ob genug Datenpunkte vorhanden sind
+        if len(returns_data) < self.min_data_points:
+            logger.warning(f"Nur {len(returns_data)} Datenpunkte verfügbar, Minimum ist {self.min_data_points}")
+            
+        # Berechne Korrelationsmatrix
+        if self.correlation_method == 'pearson':
+            corr_matrix = returns_data.corr(method='pearson')
+        elif self.correlation_method == 'spearman':
+            corr_matrix = returns_data.corr(method='spearman')
+        elif self.correlation_method == 'kendall':
+            corr_matrix = returns_data.corr(method='kendall')
+        else:
+            raise ValueError(f"Unbekannte Korrelationsmethode: {self.correlation_method}")
+            
+        return corr_matrix
+    
+    def calculate_rolling_correlation(self, 
+                                     price_data: pd.DataFrame,
+                                     window: int = 30,
+                                     assets: Optional[List[str]] = None) -> Dict[Tuple[str, str], pd.Series]:
+        """
+        Berechne rollende Korrelation zwischen Asset-Paaren
+        
+        Args:
+            price_data: DataFrame mit Preisdaten
+            window: Größe des Rollfensters
+            assets: Liste von Assets, für die Korrelationen berechnet werden sollen
+            
+        Returns:
+            Dictionary mit Korrelationszeitreihen für jedes Asset-Paar
+        """
+        if assets is None:
+            assets = price_data.columns.tolist()
+            
+        # Berechne logarithmische Renditen
+        returns_data = np.log(price_data / price_data.shift(1)).dropna()
+        
+        # Berechne rollende Korrelationen
+        correlations = {}
+        for i, asset1 in enumerate(assets):
+            for asset2 in assets[i+1:]:
+                rolling_corr = returns_data[asset1].rolling(window=window).corr(returns_data[asset2])
+                correlations[(asset1, asset2)] = rolling_corr
+                
+        return correlations
+    
+    def calculate_dynamic_correlation(self, 
+                                     price_data: pd.DataFrame,
+                                     method: str = 'ewma',
+                                     halflife: int = 30) -> pd.DataFrame:
+        """
+        Berechne dynamische Korrelationsmatrix mit zeitlichem Gewicht
+        
+        Args:
+            price_data: DataFrame mit Preisdaten
+            method: Methode zur Gewichtung ('ewma', 'exponential')
+            halflife: Halbwertszeit für exponentielle Gewichtung
+            
+        Returns:
+            Zeitreihe von Korrelationsmatrizen
+        """
+        # Berechne logarithmische Renditen
+        returns_data = np.log(price_data / price_data.shift(1)).dropna()
+        
+        # Berechne exponentiell gewichtete Kovarianzmatrix
+        if method == 'ewma':
+            cov_matrix = returns_data.ewm(halflife=halflife).cov()
+        elif method == 'exponential':
+            cov_matrix = returns_data.ewm(comspan=halflife).cov()
+        else:
+            raise ValueError(f"Unbekannte Methode: {method}")
+            
+        # Extrahiere die Korrelationsmatrizen zu jedem Zeitpunkt
+        dates = returns_data.index.unique()
+        assets = returns_data.columns.tolist()
+        num_assets = len(assets)
+        
+        correlation_matrices = {}
+        
+        for date in dates:
+            # Extrahiere Kovarianzmatrix für den aktuellen Zeitpunkt
+            cov_date = cov_matrix.loc[date].values.reshape(num_assets, num_assets)
+            
+            # Berechne Standardabweichungen
+            std_devs = np.sqrt(np.diag(cov_date))
+            
+            # Berechne Korrelationsmatrix
+            corr_matrix = cov_date / np.outer(std_devs, std_devs)
+            
+            # Stelle sicher, dass die Diagonale 1 ist
+            np.fill_diagonal(corr_matrix, 1.0)
+            
+            correlation_matrices[date] = pd.DataFrame(corr_matrix, index=assets, columns=assets)
+            
+        return correlation_matrices
+    
+    def calculate_correlation_regime(self, 
+                                    rolling_correlations: Dict[Tuple[str, str], pd.Series],
+                                    threshold_high: float = 0.7,
+                                    threshold_low: float = 0.3) -> pd.DataFrame:
+        """
+        Identifiziere Korrelationsregime (hoch, mittel, niedrig)
+        
+        Args:
+            rolling_correlations: Dictionary mit rollenden Korrelationen
+            threshold_high: Schwellenwert für hohe Korrelation
+            threshold_low: Schwellenwert für niedrige Korrelation
+            
+        Returns:
+            DataFrame mit Korrelationsregime für jedes Asset-Paar
+        """
+        # Erstelle DataFrame für alle Korrelationen
+        all_dates = set()
+        for (asset1, asset2), corr_series in rolling_correlations.items():
+            all_dates.update(corr_series.index)
+            
+        all_dates = sorted(all_dates)
+        regime_df = pd.DataFrame(index=all_dates)
+        
+        # Klassifiziere Korrelationen für jedes Asset-Paar
+        for (asset1, asset2), corr_series in rolling_correlations.items():
+            col_name = f"{asset1}-{asset2}"
+            
+            # Initialisiere mit 'medium'
+            regime_df[col_name] = 'medium'
+            
+            # Setze hohe Korrelation
+            regime_df.loc[corr_series > threshold_high, col_name] = 'high'
+            
+            # Setze niedrige Korrelation
+            regime_df.loc[corr_series < threshold_low, col_name] = 'low'
+            
+        return regime_df
+    
+    def calculate_average_correlation(self, 
+                                    correlation_matrix: pd.DataFrame,
+                                    weights: Optional[np.ndarray] = None) -> float:
+        """
+        Berechne durchschnittliche Korrelation unter Berücksichtigung von Gewichten
+        
+        Args:
+            correlation_matrix: Korrelationsmatrix
+            weights: Optional: Gewichte für die Assets
+            
+        Returns:
+            Durchschnittliche Korrelation
+        """
+        if weights is None:
+            # Gleichgewichteter Durchschnitt
+            n = correlation_matrix.shape[0]
+            mask = ~np.eye(n, dtype=bool)  # Ignoriere Diagonale
+            return correlation_matrix.values[mask].mean()
+        else:
+            # Gewichteter Durchschnitt
+            weighted_corr = np.zeros_like(correlation_matrix)
+            for i in range(len(weights)):
+                for j in range(len(weights)):
+                    if i != j:
+                        weighted_corr[i, j] = weights[i] * weights[j] * correlation_matrix.iloc[i, j]
+            
+            return weighted_corr.sum() / (1 - np.sum(weights**2))
+    
+    def calculate_correlation_distance(self, 
+                                      corr_matrix1: pd.DataFrame,
+                                      corr_matrix2: pd.DataFrame) -> float:
+        """
+        Berechne Distanz zwischen zwei Korrelationsmatrizen
+        
+        Args:
+            corr_matrix1: Erste Korrelationsmatrix
+            corr_matrix2: Zweite Korrelationsmatrix
+            
+        Returns:
+            Distanz zwischen den Matrizen
+        """
+        # Überprüfe, ob die Matrizen die gleiche Form haben
+        if corr_matrix1.shape != corr_matrix2.shape:
+            raise ValueError("Korrelationsmatrizen müssen die gleiche Form haben")
+            
+        # Berechne Frobenius-Norm der Differenz
+        diff = corr_matrix1.values - corr_matrix2.values
+        return np.sqrt(np.sum(diff**2))
+    
+    def find_minimum_correlation_portfolio(self, 
+                                          correlation_matrix: pd.DataFrame,
+                                          expected_returns: np.ndarray,
+                                          risk_aversion: float = 1.0) -> np.ndarray:
+        """
+        Finde Portfolio mit minimaler durchschnittlicher Korrelation
+        
+        Args:
+            correlation_matrix: Korrelationsmatrix
+            expected_returns: Erwartete Renditen
+            risk_aversion: Risikotoleranz
+            
+        Returns:
+            Optimale Portfolio-Gewichte
+        """
+        n = correlation_matrix.shape[0]
+        
+        # Definiere Zielfunktion: Minimiere durchschnittliche Korrelation unter Berücksichtigung der Rendite
+        def objective(weights):
+            avg_corr = self.calculate_average_correlation(correlation_matrix, weights)
+            portfolio_return = np.sum(weights * expected_returns)
+            return avg_corr - risk_aversion * portfolio_return
+        
+        # Definiere Nebenbedingungen: Summe der Gewichte = 1
+        constraints = {'type': 'eq', 'fun': lambda w: np.sum(w) - 1}
+        
+        # Definiere Grenzen: Gewichte zwischen 0 und 1
+        bounds = [(0, 1) for _ in range(n)]
+        
+        # Initialisiere Gewichte gleichmäßig
+        initial_weights = np.ones(n) / n
+        
+        # Optimiere mit scipy
+        from scipy.optimize import minimize
+        result = minimize(
+            objective, 
+            initial_weights, 
+            method='SLSQP', 
+            bounds=bounds, 
+            constraints=constraints
+        )
+        
+        if result.success:
+            return result.x
+        else:
+            logger.warning(f"Optimierung fehlgeschlagen: {result.message}")
+            return initial_weights
