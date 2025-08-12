@@ -4,8 +4,8 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Tuple
 from enum import Enum
-from utils.logger import get_logger
-from utils.exceptions import APIException
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException
 
 logger = get_logger(__name__)
 
