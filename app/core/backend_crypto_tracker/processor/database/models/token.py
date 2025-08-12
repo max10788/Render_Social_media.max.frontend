@@ -1,5 +1,5 @@
 # processor/database/models/token.py
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Index, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -30,6 +30,9 @@ class Token(Base):
     # Zeitstempel
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Zusätzliche Daten als JSON - umbenannt von 'metadata' zu 'token_metadata'
+    token_metadata = Column(JSON)
     
     # Beziehungen zu anderen Tabellen
     # scan_results = relationship("ScanResult", back_populates="token", lazy="dynamic")
@@ -62,6 +65,7 @@ class Token(Base):
             'token_score': self.token_score,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'metadata': self.token_metadata,  # Verwendung des umbenannten Attributs
         }
     
     @property
