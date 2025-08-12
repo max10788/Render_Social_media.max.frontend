@@ -1,4 +1,5 @@
 # processor/database/models/transaction.py
+# processor/database/models/transaction.py
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Index, Text, JSON, Float, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -31,9 +32,8 @@ class Transaction(Base):
     status = Column(String(20), default="success")  # success, failed, pending
     method = Column(String(100))  # Transaktionsmethode (z.B. transfer, swap)
     
-    # Zusätzliche Daten als JSON
-    input_data = Column(Text)
-    logs = Column(JSON)
+    # Zusätzliche Daten als JSON - umbenannt von 'metadata' zu 'transaction_metadata'
+    transaction_metadata = Column(JSON)
     
     # Beziehungen
     # from_address_obj = relationship("Address", foreign_keys=[from_address])
@@ -71,4 +71,5 @@ class Transaction(Base):
             'method': self.method,
             'input_data': self.input_data,
             'logs': self.logs,
+            'metadata': self.transaction_metadata,  # Verwendung des umbenannten Attributs
         }
