@@ -3,12 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Path, BackgroundTa
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
-
-from api.controllers.scanner_controller import ScannerController
-from workers.scheduler import SchedulerManager
-from utils.logger import get_logger
-from utils.exceptions import APIException, ScannerException
-
+from app.core.backend_crypto_tracker.api.controllers.scanner_controller import ScannerController
+from app.core.backend_crypto_tracker.workers.scheduler import SchedulerManager
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, ScannerException
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/scanner", tags=["scanner"])
