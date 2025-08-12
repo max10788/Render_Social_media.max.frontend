@@ -1,5 +1,5 @@
 # processor/database/models/address.py
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Index, Text
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Index, Text, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.backend_crypto_tracker.processor.database.models import Base
@@ -22,6 +22,9 @@ class Address(Base):
     first_seen = Column(DateTime, default=func.now())
     last_activity = Column(DateTime, default=func.now(), onupdate=func.now())
     transaction_count = Column(Integer, default=0)
+    
+    # Zusätzliche Daten als JSON - umbenannt von 'metadata' zu 'address_metadata'
+    address_metadata = Column(JSON)
     
     # Beziehungen
     # transactions = relationship("Transaction", back_populates="from_address")
@@ -49,4 +52,5 @@ class Address(Base):
             'first_seen': self.first_seen.isoformat() if self.first_seen else None,
             'last_activity': self.last_activity.isoformat() if self.last_activity else None,
             'transaction_count': self.transaction_count,
+            'metadata': self.address_metadata,  # Verwendung des umbenannten Attributs
         }
