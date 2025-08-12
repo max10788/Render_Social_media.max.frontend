@@ -8,16 +8,15 @@ import numpy as np
 from web3 import Web3
 from dataclasses import dataclass, field
 from enum import Enum
-
-from utils.logger import get_logger
-from utils.exceptions import APIException, InvalidAddressException
-from config.scanner_config import scanner_config
-from services.multichain.price_service import PriceService, TokenPriceData
-from services.eth.etherscan_api import EtherscanAPI
-from services.sol.solana_api import SolanaAPI
-from services.sui.sui_api import SuiAPI
-from processor.database.models.token import Token
-from processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, InvalidAddressException
+from app.core.backend_crypto_tracker.config.scanner_config import scanner_config
+from app.core.backend_crypto_tracker.services.multichain.price_service import PriceService, TokenPriceData
+from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanAPI
+from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPI
+from app.core.backend_crypto_tracker.services.sui.sui_api import SuiAPI
+from app.core.backend_crypto_tracker.processor.database.models.token import Token
+from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
 
 logger = get_logger(__name__)
 
