@@ -1,4 +1,4 @@
-# monitoring/metrics.py
+# app/core/backend_crypto_tracker/monitoring/metrics.py
 from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, Info
 import time
 from functools import wraps
