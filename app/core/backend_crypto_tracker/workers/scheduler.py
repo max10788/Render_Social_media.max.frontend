@@ -7,9 +7,8 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Callable
 from dataclasses import dataclass, field
-
-from utils.logger import get_logger
-from workers.scanner_worker import ScanJobManager, ScanConfig, AlertConfig
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.workers.scanner_worker import ScanJobManager, ScanConfig, AlertConfig
 
 logger = get_logger(__name__)
 
