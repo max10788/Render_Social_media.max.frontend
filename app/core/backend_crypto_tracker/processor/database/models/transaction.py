@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Index, Text, JSON, Float, Numeric
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from processor.database.models import Base
+from app.core.backend_crypto_tracker.processor.database.models import Base
 import decimal
 
 class Transaction(Base):
