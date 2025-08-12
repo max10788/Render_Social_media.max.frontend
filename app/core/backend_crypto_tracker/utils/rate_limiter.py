@@ -4,7 +4,7 @@ import time
 from typing import Dict, Optional, List
 from collections import defaultdict, deque
 from dataclasses import dataclass
-from utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
