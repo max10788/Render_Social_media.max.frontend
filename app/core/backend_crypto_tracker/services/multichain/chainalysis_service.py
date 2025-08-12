@@ -3,8 +3,8 @@ import httpx
 import asyncio
 import logging
 from typing import Optional, Dict, Any, List
-from utils.logger import get_logger
-from utils.exceptions import APIException, RateLimitExceededException
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, RateLimitExceededException
 
 logger = get_logger(__name__)
 
