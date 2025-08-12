@@ -1,9 +1,9 @@
-# utils/rate_limiter.py
+# app/core/backend_crypto_tracker/utils/rate_limiter.py
 import asyncio
 import time
 from typing import Dict, Optional, List
 from collections import defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field  # <-- FEHLENDES IMPORT HINZUGEFÜGT
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 logger = get_logger(__name__)
