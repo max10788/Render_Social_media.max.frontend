@@ -5,8 +5,7 @@ import json
 from typing import Any, Optional, Dict, Union
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from utils.logger import get_logger
-
+from app.core.backend_crypto_tracker.utils.logger import get_logger
 logger = get_logger(__name__)
 
 @dataclass
