@@ -24,8 +24,8 @@ class Cluster(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     is_active = Column(Boolean, default=True)
     
-    # Zusätzliche Daten als JSON
-    metadata = Column(JSON)
+    # Zusätzliche Daten als JSON - umbenannt von 'metadata' zu 'cluster_metadata'
+    cluster_metadata = Column(JSON)
     
     # Beziehungen
     # addresses = relationship("Address", back_populates="cluster")
@@ -53,5 +53,5 @@ class Cluster(Base):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'is_active': self.is_active,
-            'metadata': self.metadata,
+            'metadata': self.cluster_metadata,  # Verwendung des umbenannten Attributs
         }
