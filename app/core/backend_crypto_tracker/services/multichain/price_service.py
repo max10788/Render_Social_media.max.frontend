@@ -3,10 +3,10 @@ import aiohttp
 import logging
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
-from utils.logger import get_logger
-from utils.exceptions import APIException, RateLimitExceededException
-from config.blockchain_api_keys import chain_config
-from processor.database.models.token import Token
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, RateLimitExceededException
+from app.core.backend_crypto_tracker.config.blockchain_api_keys import chain_config
+from app.core.backend_crypto_tracker.processor.database.models.token import Token
 
 logger = get_logger(__name__)
 
