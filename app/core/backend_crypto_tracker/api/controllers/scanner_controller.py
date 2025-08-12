@@ -5,14 +5,13 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
-
-from scanner.token_discovery import TokenDiscoveryService
-from scanner.token_analyzer import TokenAnalyzer
-from scanner.scoring_engine import MultiChainScoringEngine
-from workers.scanner_worker import ScannerWorker
-from workers.scheduler import SchedulerManager
-from utils.logger import get_logger
-from utils.exceptions import APIException, ScannerException
+from app.core.backend_crypto_tracker.scanner.token_discovery import TokenDiscoveryService
+from app.core.backend_crypto_tracker.scanner.token_analyzer import TokenAnalyzer
+from app.core.backend_crypto_tracker.scanner.scoring_engine import MultiChainScoringEngine
+from app.core.backend_crypto_tracker.workers.scanner_worker import ScannerWorker
+from app.core.backend_crypto_tracker.workers.scheduler import SchedulerManager
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, ScannerException
 
 logger = get_logger(__name__)
 
