@@ -3,10 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
-
-from processor.database.manager import DatabaseManager
-from utils.logger import get_logger
-from utils.exceptions import DatabaseException
+from app.core.backend_crypto_tracker.processor.database.manager import DatabaseManager
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import DatabaseException
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/tokens", tags=["tokens"])
