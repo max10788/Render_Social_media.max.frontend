@@ -15,7 +15,6 @@ from app.core.backend_crypto_tracker.utils.logger import get_logger
 from pydantic import BaseModel, Field
 
 logger = get_logger(__name__)
-
 router = APIRouter(prefix="/tokens", tags=["tokens"])
 
 # Pydantic-Modelle für API-Antworten
@@ -315,7 +314,7 @@ async def analyze_token(
                     # Wallet-Analysen für erweiterte Bewertung extrahieren
                     wallet_analyses = []
                     for wallet_data in analysis_result.get('wallet_analysis', {}).get('top_holders', []):
-                        from scanner.wallet_classifier import WalletAnalysis, WalletTypeEnum
+                        from app.core.backend_crypto_tracker.scanner.wallet_classifier import WalletAnalysis, WalletTypeEnum
                         
                         wallet_type = WalletTypeEnum.UNKNOWN
                         for wt in WalletTypeEnum:
@@ -488,7 +487,7 @@ async def get_trending_tokens(
 async def _save_analysis_to_db(token_id: int, analysis_result: Dict[str, Any]):
     """Speichert Analyseergebnisse in der Datenbank (Hintergrundtask)"""
     try:
-        from config.database import SessionLocal
+        from app.core.backend_crypto_tracker.config.database import SessionLocal
         
         with SessionLocal() as db:
             # Hier würde man die Analyseergebnisse in einer separaten Tabelle speichern
@@ -496,6 +495,19 @@ async def _save_analysis_to_db(token_id: int, analysis_result: Dict[str, Any]):
             token = db.query(Token).filter(Token.id == token_id).first()
             if token:
                 token.last_analyzed = datetime.utcnow()
+                
+                # Speichere zusätzliche Metadaten im token_metadata Feld
+                if hasattr(token, 'token_metadata') and token.token_metadata:
+                    token.token_metadata.update({
+                        "last_analysis": analysis_result,
+                        "analysis_date": datetime.utcnow().isoformat()
+                    })
+                else:
+                    token.token_metadata = {
+                        "last_analysis": analysis_result,
+                        "analysis_date": datetime.utcnow().isoformat()
+                    }
+                
                 db.commit()
                 
     except Exception as e:
