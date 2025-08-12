@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Index, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from processor.database.models import Base
+from app.core.backend_crypto_tracker.processor.database.models import Base
 
 class Address(Base):
     __tablename__ = "addresses"
