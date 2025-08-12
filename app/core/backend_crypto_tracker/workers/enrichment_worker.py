@@ -4,15 +4,15 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from dataclasses import dataclass
-from utils.logger import get_logger
-from utils.exceptions import APIException, DatabaseException
-from utils.cache import AnalysisCache
-from processor.database.manager import DatabaseManager
-from processor.database.models.token import Token
-from processor.database.models.wallet import WalletAnalysis
-from services.multichain.community_labels_service import CommunityLabelsAPI
-from services.multichain.chainalysis_service import ChainalysisService
-from services.multichain.elliptic_service import EllipticService
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, DatabaseException
+from app.core.backend_crypto_tracker.utils.cache import AnalysisCache
+from app.core.backend_crypto_tracker.processor.database.manager import DatabaseManager
+from app.core.backend_crypto_tracker.processor.database.models.token import Token
+from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis
+from app.core.backend_crypto_tracker.services.multichain.community_labels_service import CommunityLabelsAPI
+from app.core.backend_crypto_tracker.services.multichain.chainalysis_service import ChainalysisService
+from app.core.backend_crypto_tracker.services.multichain.elliptic_service import EllipticService
 
 logger = get_logger(__name__)
 
