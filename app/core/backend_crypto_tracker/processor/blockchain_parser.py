@@ -2,13 +2,13 @@
 import logging
 from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
-from utils.logger import get_logger
-from utils.exceptions import APIException, BlockchainException
-from services.eth.etherscan_api import EtherscanAPI, BscScanAPI
-from services.sol.solana_api import SolanaAPIService
-from services.sui.sui_api import SuiAPIService
-from processor.database.models.transaction import Transaction
-from processor.database.models.token import Token
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, BlockchainException
+from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanAPI, BscScanAPI
+from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIService
+from app.core.backend_crypto_tracker.services.sui.sui_api import SuiAPIService
+from app.core.backend_crypto_tracker.processor.database.models.transaction import Transaction
+from app.core.backend_crypto_tracker.processor.database.models.token import Token
 
 logger = get_logger(__name__)
 
