@@ -3,14 +3,14 @@ import asyncio
 import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
-from utils.logger import get_logger
-from utils.exceptions import APIException, DatabaseException
-from processor.blockchain_parser import BlockchainParser
-from processor.database.models.transaction import Transaction
-from processor.database.manager import DatabaseManager
-from services.eth.etherscan_api import EtherscanAPI, BscScanAPI
-from services.sol.solana_api import SolanaAPI
-from services.sui.sui_api import SuiAPI
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, DatabaseException
+from app.core.backend_crypto_tracker.processor.blockchain_parser import BlockchainParser
+from app.core.backend_crypto_tracker.processor.database.models.transaction import Transaction
+from app.core.backend_crypto_tracker.processor.database.manager import DatabaseManager
+from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanAPI, BscScanAPI
+from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPI
+from app.core.backend_crypto_tracker.services.sui.sui_api import SuiAPI
 
 logger = get_logger(__name__)
 
