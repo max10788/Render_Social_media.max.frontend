@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Foreig
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
-from processor.database.models import Base  # Zentrale Base-Klasse importieren
+from app.core.backend_crypto_tracker.processor.database.models import Base
 
 class Token(Base):
     __tablename__ = "tokens"
