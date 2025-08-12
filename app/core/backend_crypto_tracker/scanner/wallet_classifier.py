@@ -14,13 +14,13 @@ from app.core.backend_crypto_tracker.services.multichain.chainalysis_service imp
 from app.core.backend_crypto_tracker.services.multichain.elliptic_service import EllipticIntegration
 from app.core.backend_crypto_tracker.services.multichain.community_labels_service import CommunityLabelsAPI
 # Importiere Konfigurationen
-from config.scanner_config import (
+from app.core.backend_crypto_tracker.config.scanner_config import (
     WALLET_CLASSIFIER_CONFIG,
     ONCHAIN_ANALYSIS_CONFIG,
     SOURCE_WEIGHTS,
     load_config # Für chain-spezifische Konfigurationen
 )
-from scanner.risk_assessor import AdvancedRiskAssessor, RiskAssessment, RiskLevel
+from app.core.backend_crypto_tracker.scanner.risk_assessor import AdvancedRiskAssessor, RiskAssessment, RiskLevel
 logger = logging.getLogger(__name__)
 
 # --- Enums und Dataclasses ---
