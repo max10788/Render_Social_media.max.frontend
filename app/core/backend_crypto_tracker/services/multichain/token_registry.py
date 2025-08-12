@@ -2,11 +2,11 @@
 import asyncio
 import logging
 from typing import Dict, List, Optional, Any
-from utils.logger import get_logger
-from utils.cache import Cache
-from utils.exceptions import APIException, DataNotFoundException
-from processor.database.models.token import Token
-from processor.database.manager import DatabaseManager
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.cache import Cache
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, DataNotFoundException
+from app.core.backend_crypto_tracker.processor.database.models.token import Token
+from app.core.backend_crypto_tracker.processor.database.manager import DatabaseManager
 
 logger = get_logger(__name__)
 
