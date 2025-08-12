@@ -4,9 +4,10 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from fastapi import HTTPException
-from utils.logger import get_logger
-from utils.exceptions import APIException, NotFoundException
-from processor.database.manager import get_db
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, NotFoundException
+from app.core.backend_crypto_tracker.processor.database.manager import get_db
+from app.core.backend_crypto_tracker.scanner.risk_assessor import RiskAssessor, RiskLevel
 
 logger = get_logger(__name__)
 
