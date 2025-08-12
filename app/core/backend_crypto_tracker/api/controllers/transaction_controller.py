@@ -3,15 +3,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
-from config.database import get_db
-from processor.database.models.transaction import Transaction
-from processor.database.models.address import Address
-from processor.database.models.token import Token
-from services.eth.etherscan_api import EtherscanAPI
-from services.sol.solana_api import SolanaAPIService
-from services.sui.sui_api import SuiAPIService
-from utils.exceptions import APIException, InvalidAddressException
-from utils.logger import get_logger
+from app.core.backend_crypto_tracker.config.database import get_db
+from app.core.backend_crypto_tracker.processor.database.models.transaction import Transaction
+from app.core.backend_crypto_tracker.processor.database.models.address import Address
+from app.core.backend_crypto_tracker.processor.database.models.token import Token
+from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanAPI
+from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIService
+from app.core.backend_crypto_tracker.services.sui.sui_api import SuiAPIService
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, InvalidAddressException
+from app.core.backend_crypto_tracker.utils.logger import get_logger
 from pydantic import BaseModel, Field
 import asyncio
 
