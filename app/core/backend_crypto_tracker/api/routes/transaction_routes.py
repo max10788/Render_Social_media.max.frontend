@@ -3,10 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Path, BackgroundTa
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from config.database import get_db
-from api.controllers.transaction_controller import transaction_controller
-from utils.logger import get_logger
-from utils.exceptions import APIException
+from app.core.backend_crypto_tracker.config.database import get_db
+from app.core.backend_crypto_tracker.api.controllers.transaction_controller import transaction_controller
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException
 
 logger = get_logger(__name__)
 
