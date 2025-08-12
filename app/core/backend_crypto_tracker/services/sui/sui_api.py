@@ -3,9 +3,9 @@ import aiohttp
 import logging
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
-from utils.logger import get_logger
-from utils.exceptions import APIException, RateLimitExceededException
-from utils.rate_limiter import RateLimiter
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, RateLimitExceededException
+from app.core.backend_crypto_tracker.utils.rate_limiter import RateLimiter
 
 logger = get_logger(__name__)
 
