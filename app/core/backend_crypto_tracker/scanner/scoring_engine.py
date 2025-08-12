@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 import numpy as np
-from scanner.risk_assessor import AdvancedRiskAssessor, RiskAssessment
-from scanner.wallet_classifier import WalletTypeEnum
-from utils.logger import get_logger
+from app.core.backend_crypto_tracker.scanner.risk_assessor import AdvancedRiskAssessor, RiskAssessment
+from app.core.backend_crypto_tracker.scanner.wallet_classifier import WalletTypeEnum
+from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
