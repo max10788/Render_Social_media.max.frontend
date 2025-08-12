@@ -3,7 +3,7 @@ from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, Info
 import time
 from functools import wraps
 from typing import Dict, Any, Optional
-from utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
