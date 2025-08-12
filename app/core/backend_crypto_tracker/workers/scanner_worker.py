@@ -8,12 +8,11 @@ from typing import Dict, List, Optional, Any
 import aiofiles
 from dataclasses import dataclass, field
 from enum import Enum
-
-from utils.logger import get_logger
-from utils.exceptions import APIException, DatabaseException
-from config.scanner_config import scanner_config
-from scanner.token_analyzer import TokenAnalyzer
-from processor.database.manager import DatabaseManager
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import APIException, DatabaseException
+from app.core.backend_crypto_tracker.config.scanner_config import scanner_config
+from app.core.backend_crypto_tracker.scanner.token_analyzer import TokenAnalyzer
+from app.core.backend_crypto_tracker.processor.database.manager import DatabaseManager
 
 logger = get_logger(__name__)
 
