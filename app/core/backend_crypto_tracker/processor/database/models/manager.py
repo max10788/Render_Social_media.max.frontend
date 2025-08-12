@@ -4,22 +4,19 @@ import logging
 from typing import Optional, List, Dict, Any, Union, AsyncGenerator
 from datetime import datetime, timedelta
 from contextlib import contextmanager, asynccontextmanager
-
 # Import Models
-from processor.database.models.token import Token
-from processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
-from processor.database.models.scan_result import ScanResult, ScanJob
-from processor.database.models.custom_analysis import CustomAnalysis
-
+from app.core.backend_crypto_tracker.processor.database.models.token import Token
+from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
+from app.core.backend_crypto_tracker.processor.database.models.scan_result import ScanResult, ScanJob
+from app.core.backend_crypto_tracker.processor.database.models.custom_analysis import CustomAnalysis
 # Import SQLAlchemy
 from sqlalchemy import create_engine, text, func, and_, or_
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-
 # Import Exceptions
-from utils.exceptions import DatabaseException, InvalidAddressException
-from utils.logger import get_logger
+from app.core.backend_crypto_tracker.utils.exceptions import DatabaseException, InvalidAddressException
+from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
