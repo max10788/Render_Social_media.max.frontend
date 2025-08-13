@@ -22,7 +22,7 @@ from textblob import TextBlob
 
 # Core App Imports
 from app.core.config import get_settings, Settings, MetricsConfig
-from app.core.database import get_db, init_db
+from app.core.database import get_db
 
 from app.core.feature_engineering import extract_features, generate_labels
 from app.core.twitter_api import TwitterClient
