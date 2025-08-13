@@ -1,6 +1,12 @@
 # app/core/backend_crypto_tracker/config/database.py
 import os
 from urllib.parse import urlparse
+from typing import Generator
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.exc import SQLAlchemyError
+import logging
+
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -43,3 +49,25 @@ class DatabaseConfig:
 
 # Globale Instanz
 database_config = DatabaseConfig()
+
+# Synchrone Engine und Session für FastAPI-Routen
+engine = create_engine(
+    database_config.database_url,
+    pool_size=database_config.pool_size,
+    max_overflow=database_config.max_overflow,
+    pool_timeout=database_config.pool_timeout,
+    pool_recycle=database_config.pool_recycle,
+    echo=os.getenv("DB_ECHO", "false").lower() == "true",
+    connect_args={"options": f"-csearch_path={database_config.schema_name},public"}
+)
+
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+# Dependency für FastAPI
+def get_db() -> Generator[Session, None, None]:
+    """Stellt eine Datenbank-Session für FastAPI-Routen bereit"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
