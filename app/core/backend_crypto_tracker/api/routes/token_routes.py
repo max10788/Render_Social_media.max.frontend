@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
-from app.core.backend_crypto_tracker.processor.database.manager import DatabaseManager
+from app.core.backend_crypto_tracker.processor.database.models.manager import DatabaseManager
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 from app.core.backend_crypto_tracker.utils.exceptions import DatabaseException
 
