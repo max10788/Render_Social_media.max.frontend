@@ -7,7 +7,7 @@ from fastapi import HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 from app.core.backend_crypto_tracker.utils.exceptions import APIException, NotFoundException
-from app.core.backend_crypto_tracker.processor.database.manager import get_db
+from app.core.backend_crypto_tracker.config.database import get_db
 from app.core.backend_crypto_tracker.scanner.token_analyzer import TokenAnalyzer
 from app.core.backend_crypto_tracker.scanner.wallet_classifier import EnhancedWalletClassifier
 from app.core.backend_crypto_tracker.scanner.risk_assessor import RiskAssessor, RiskLevel
