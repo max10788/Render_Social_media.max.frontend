@@ -1,4 +1,15 @@
+# app/core/backend_crypto_tracker/config/database.py
 import os
+from urllib.parse import urlparse
+from typing import Generator
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.exc import SQLAlchemyError
+import logging
+
+from app.core.backend_crypto_tracker.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 class DatabaseConfig:
     def __init__(self):
