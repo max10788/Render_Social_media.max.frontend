@@ -13,32 +13,43 @@ from fastapi.responses import JSONResponse
 from app.core.backend_crypto_tracker.api.routes.custom_analysis_routes import (
     router as custom_analysis_router,
 )
+from app.core.backend_crypto_tracker.api.routes import token_routes
 from app.core.backend_crypto_tracker.api.routes import transaction_routes
+from app.core.backend_crypto_tracker.api.routes import scanner_routes
 
-from app.core.config import Settings, get_settings
-from app.core.database import init_db
+# Konfiguration und Datenbank
+from app.core.backend_crypto_tracker.config.database import database_config
+from app.core.backend_crypto_tracker.processor.database.manager import DatabaseManager
+from app.core.backend_crypto_tracker.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 BUILD_DIR = "app/frontend/dist"
 ASSETS_DIR = f"{BUILD_DIR}/assets"
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for FastAPI application."""
-    settings = get_settings()
-    init_db()
-    logger.info(f"Starting {settings.PROJECT_NAME}")
+    logger.info("Starting Low-Cap Token Analyzer")
+    
+    # Initialisiere die Datenbank
+    try:
+        db_manager = DatabaseManager()
+        await db_manager.initialize()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        logger.info("Continuing without database...")
+    
     yield
-    logger.info(f"Shutting down {settings.PROJECT_NAME}")
+    logger.info("Shutting down Low-Cap Token Analyzer")
 
 # ------------------------------------------------------------------
 # FastAPI-Instanz
 # ------------------------------------------------------------------
 app = FastAPI(
-    title="Social Media & Blockchain Analysis",
-    description="Enterprise-grade social media and blockchain analysis system",
+    title="Low-Cap Token Analyzer",
+    description="Enterprise-grade low-cap cryptocurrency token analysis system",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -66,8 +77,10 @@ else:
 # ------------------------------------------------------------------
 # Router
 # ------------------------------------------------------------------
-app.include_router(custom_analysis_router, prefix="/api")
-app.include_router(transaction_routes.router, prefix="/api")
+app.include_router(custom_analysis_router, prefix="/api/v1")
+app.include_router(token_routes.router, prefix="/api/v1")
+app.include_router(transaction_routes.router, prefix="/api/v1")
+app.include_router(scanner_routes.router, prefix="/api/v1")
 
 # ------------------------------------------------------------------
 # API-Health-Check
@@ -78,9 +91,14 @@ async def health_check():
         "status": "healthy",
         "version": "1.0.0",
         "services": {
-            "social_analysis": "active",
+            "token_analyzer": "active",
             "blockchain_tracking": "active",
         },
+        "database": {
+            "host": database_config.db_host,
+            "database": database_config.db_name,
+            "schema": database_config.schema_name,
+        }
     }
 
 # ------------------------------------------------------------------
