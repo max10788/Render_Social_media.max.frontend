@@ -42,10 +42,15 @@ class DatabaseConfig:
         return f"postgresql+asyncpg://{self.postgres_config['username']}:{self.postgres_config['password']}@{self.postgres_config['host']}:{self.postgres_config['port']}/{self.postgres_config['database']}"
 
 class DatabaseManager:
-    def __init__(self, database_url: str = None, database_type: str = "postgresql", async_mode: bool = True):
-        self.config = DatabaseConfig(database_type)
-        self.database_url = database_url or (self.config.get_async_postgres_url() if async_mode else self.config.get_postgres_url())
-        self.database_type = database_type
+    def __init__(self, database_url: str = None, async_mode: bool = True):
+        # Verwende die Konfigurationsklasse
+        if database_url is None:
+            if async_mode:
+                database_url = database_config.async_database_url
+            else:
+                database_url = database_config.database_url
+        
+        self.database_url = database_url
         self.async_mode = async_mode
         self.engine = None
         self.SessionLocal = None
@@ -57,11 +62,13 @@ class DatabaseManager:
             if self.async_mode:
                 self.engine = create_async_engine(
                     self.database_url,
-                    pool_size=self.config.postgres_config['pool_size'],
-                    max_overflow=self.config.postgres_config['max_overflow'],
-                    pool_timeout=self.config.postgres_config['pool_timeout'],
-                    pool_recycle=self.config.postgres_config['pool_recycle'],
-                    echo=os.getenv("DB_ECHO", "false").lower() == "true"
+                    pool_size=database_config.pool_size,
+                    max_overflow=database_config.max_overflow,
+                    pool_timeout=database_config.pool_timeout,
+                    pool_recycle=database_config.pool_recycle,
+                    echo=os.getenv("DB_ECHO", "false").lower() == "true",
+                    # Für Render: Füge Schema zum Suchpfad hinzu
+                    connect_args={"options": f"-csearch_path={database_config.schema_name},public"}
                 )
                 self.AsyncSessionLocal = async_sessionmaker(
                     bind=self.engine, 
@@ -71,23 +78,36 @@ class DatabaseManager:
             else:
                 self.engine = create_engine(
                     self.database_url,
-                    pool_size=self.config.postgres_config['pool_size'],
-                    max_overflow=self.config.postgres_config['max_overflow'],
-                    pool_timeout=self.config.postgres_config['pool_timeout'],
-                    pool_recycle=self.config.postgres_config['pool_recycle'],
-                    echo=os.getenv("DB_ECHO", "false").lower() == "true"
+                    pool_size=database_config.pool_size,
+                    max_overflow=database_config.max_overflow,
+                    pool_timeout=database_config.pool_timeout,
+                    pool_recycle=database_config.pool_recycle,
+                    echo=os.getenv("DB_ECHO", "false").lower() == "true",
+                    # Für Render: Füge Schema zum Suchpfad hinzu
+                    connect_args={"options": f"-csearch_path={database_config.schema_name},public"}
                 )
                 self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
             
-            # Erstelle Tabellen falls sie nicht existieren
-            from processor.database.models import Base
-            async with self.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
+            # Erstelle Schema und Tabellen
+            await self._create_schema_and_tables()
                 
-            logger.info(f"{self.database_type} Manager initialized and tables created.")
+            logger.info("Database Manager initialized and tables created.")
         except Exception as e:
             logger.error(f"Error initializing DatabaseManager: {e}")
             raise DatabaseException(f"Failed to initialize database: {str(e)}")
+    
+    async def _create_schema_and_tables(self):
+        """Erstellt das Schema und die Tabellen"""
+        async with self.engine.begin() as conn:
+            # Erstelle Schema wenn es nicht existiert
+            await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {database_config.schema_name}"))
+            
+            # Setze den Suchpfad
+            await conn.execute(text(f"SET search_path TO {database_config.schema_name}, public"))
+            
+            # Erstelle Tabellen
+            from app.core.backend_crypto_tracker.processor.database.models import Base
+            await conn.run_sync(Base.metadata.create_all)
     
     @contextmanager
     def get_session(self):
