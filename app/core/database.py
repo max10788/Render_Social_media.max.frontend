@@ -1,3 +1,5 @@
+import os
+
 class DatabaseConfig:
     def __init__(self):
         # Render.com stellt die Datenbank-URL über die Umgebungsvariable DATABASE_URL bereit
