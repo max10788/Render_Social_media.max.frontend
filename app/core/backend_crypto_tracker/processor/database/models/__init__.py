@@ -15,6 +15,7 @@ from .scan_result import ScanResult
 from .token import Token
 from .transaction import Transaction
 from .wallet import WalletAnalysis
+from .scan_job import ScanJob
 
 # Liste aller Modelle für einfache Referenz
 __all__ = [
