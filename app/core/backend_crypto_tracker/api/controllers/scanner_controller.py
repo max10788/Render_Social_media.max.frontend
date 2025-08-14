@@ -12,30 +12,9 @@ from app.core.backend_crypto_tracker.workers.scanner_worker import ScannerWorker
 from app.core.backend_crypto_tracker.workers.scheduler import SchedulerManager
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 from app.core.backend_crypto_tracker.utils.exceptions import APIException, ScannerException
+from app.core.backend_crypto_tracker.processor.database.models.scan_job import ScanJob, ScanStatus
 
 logger = get_logger(__name__)
-
-class ScanStatus(Enum):
-    IDLE = "idle"
-    SCANNING = "scanning"
-    ANALYZING = "analyzing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    STOPPED = "stopped"
-
-@dataclass
-class ScanJob:
-    id: str
-    status: ScanStatus
-    progress: float  # 0.0 to 1.0
-    start_time: datetime
-    end_time: Optional[datetime] = None
-    error_message: Optional[str] = None
-    tokens_found: int = 0
-    tokens_analyzed: int = 0
-    high_risk_tokens: int = 0
-    chain: Optional[str] = None
-    scan_type: str = "discovery"  # discovery, analysis, custom
     
 class ScannerController:
     """Controller für Scanner-Operationen und -Management"""
@@ -141,7 +120,7 @@ class ScannerController:
             }
         except Exception as e:
             logger.error(f"Error starting discovery scan: {e}")
-            raise ScannerException(f"Failed to start discovery scan: {str(e)}")
+            raise ScannerException(f"Failed to start discovery scan: {str(e)}"
     
     async def start_analysis_scan(
         self,
