@@ -421,3 +421,60 @@ class DatabaseManager:
                 await session.rollback()
                 logger.error(f"Error cleaning up old data: {e}")
                 raise DatabaseException(f"Failed to clean up old data: {str(e)}")
+
+    
+    async def save_scan_job(self, scan_job: ScanJob) -> Dict[str, Any]:
+        """Speichert einen Scan-Job in der Datenbank"""
+        async with self.get_async_session() as session:
+            try:
+                # Prüfen, ob der Scan-Job bereits existiert
+                existing_job = session.query(ScanJob).filter(ScanJob.id == scan_job.id).first()
+                
+                if existing_job:
+                    # Scan-Job aktualisieren
+                    for key, value in scan_job.__dict__.items():
+                        if hasattr(existing_job, key):
+                            setattr(existing_job, key, value)
+                    await session.flush()
+                    result = existing_job
+                else:
+                    # Neuen Scan-Job erstellen
+                    session.add(scan_job)
+                    await session.flush()
+                    result = scan_job
+                
+                await session.commit()
+                return result.to_dict()
+            except SQLAlchemyError as e:
+                logger.error(f"Database error saving scan job: {e}")
+                raise DatabaseException(f"Failed to save scan job: {str(e)}")
+    
+    async def get_scan_job(self, scan_id: str) -> Optional[Dict[str, Any]]:
+        """Holt einen Scan-Job anhand seiner ID"""
+        async with self.get_async_session() as session:
+            try:
+                scan_job = session.query(ScanJob).filter(ScanJob.id == scan_id).first()
+                
+                if not scan_job:
+                    return None
+                
+                return scan_job.to_dict()
+            except SQLAlchemyError as e:
+                logger.error(f"Database error fetching scan job: {e}")
+                raise DatabaseException(f"Failed to fetch scan job: {str(e)}")
+    
+    async def get_scan_jobs(self, limit: int = 50, status: Optional[ScanStatus] = None) -> List[Dict[str, Any]]:
+        """Holt eine Liste von Scan-Jobs"""
+        async with self.get_async_session() as session:
+            try:
+                query = session.query(ScanJob)
+                
+                if status:
+                    query = query.filter(ScanJob.status == status)
+                
+                scan_jobs = query.order_by(ScanJob.start_time.desc()).limit(limit).all()
+                
+                return [job.to_dict() for job in scan_jobs]
+            except SQLAlchemyError as e:
+                logger.error(f"Database error fetching scan jobs: {e}")
+                raise DatabaseException(f"Failed to fetch scan jobs: {str(e)}")
