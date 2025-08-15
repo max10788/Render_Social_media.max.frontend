@@ -120,7 +120,7 @@ class ScannerController:
             }
         except Exception as e:
             logger.error(f"Error starting discovery scan: {e}")
-            raise ScannerException(f"Failed to start discovery scan: {str(e)}"
+            raise ScannerException(f"Failed to start discovery scan: {str(e)}")
     
     async def start_analysis_scan(
         self,
