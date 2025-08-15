@@ -7,7 +7,8 @@ from contextlib import contextmanager, asynccontextmanager
 # Import Models
 from app.core.backend_crypto_tracker.processor.database.models.token import Token
 from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
-from app.core.backend_crypto_tracker.processor.database.models.scan_result import ScanResult, ScanJob
+from app.core.backend_crypto_tracker.processor.database.models.scan_result import ScanResult
+from app.core.backend_crypto_tracker.processor.database.models.scan_job import ScanJob, ScanStatus
 from app.core.backend_crypto_tracker.processor.database.models.custom_analysis import CustomAnalysis
 # Import SQLAlchemy
 from sqlalchemy import create_engine, text, func, and_, or_
