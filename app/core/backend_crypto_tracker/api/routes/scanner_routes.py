@@ -70,3 +70,5 @@ async def get_scanner_status(controller: ScannerController = Depends(get_scanner
     except ScannerException as e:
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
+        logger.error(f"Error getting scanner status: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
