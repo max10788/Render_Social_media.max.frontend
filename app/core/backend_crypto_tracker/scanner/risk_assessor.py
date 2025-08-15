@@ -1,9 +1,16 @@
-# risk_assessor.py
-
+# app/core/backend_crypto_tracker/scanner/risk_assessor.py
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Dict, Any
+from enum import Enum
+
+# --- Enums ---
+class RiskLevel(Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
 
 # --- Basis-Klassen ---
 @dataclass
@@ -34,8 +41,7 @@ class RiskAssessor(ABC):
             details={"message": "Base method not overridden"}
         )
 
-
-# scanner/risk_assessor.py (Erweiterung)
+# --- Erweiterter Risk Assessor ---
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -417,3 +423,26 @@ class AdvancedRiskAssessor(RiskAssessor):
                 'ewma_anomaly': False,
                 'score': 30
             }
+    
+    def _calculate_gini_coefficient(self, balances: List[float]) -> float:
+        """Berechnet den Gini-Koeffizienten für eine Liste von Werten"""
+        if not balances or len(balances) < 2:
+            return 0.0
+        
+        sorted_balances = sorted(balances)
+        n = len(sorted_balances)
+        cumsum = np.cumsum(sorted_balances)
+        
+        # Gini-Koeffizient berechnen
+        return (2.0 * sum((i + 1) * balance for i, balance in enumerate(sorted_balances))) / (n * cumsum[-1]) - (n + 1) / n
+    
+    def _determine_risk_level(self, score: float) -> str:
+        """Bestimmt das Risikolevel basierend auf dem Score"""
+        if score >= 80:
+            return RiskLevel.CRITICAL.value
+        elif score >= 60:
+            return RiskLevel.HIGH.value
+        elif score >= 40:
+            return RiskLevel.MEDIUM.value
+        else:
+            return RiskLevel.LOW.value
