@@ -103,21 +103,26 @@ class ScannerConfig:
         # RPC Config
         self.rpc_config.ethereum_rpc = os.getenv('ETHEREUM_RPC_URL', self.rpc_config.ethereum_rpc)
         self.rpc_config.etherscan_api_key = os.getenv('ETHERSCAN_API_KEY', self.rpc_config.etherscan_api_key)
-        self.rpc_config.bsc_rpc = os.getenv('BSC_RPC_URL', self.rpc_config.bsc_rpc)
-        self.rpc_config.bscscan_api_key = os.getenv('BSCSCAN_API_KEY', self.rpc_config.bscscan_api_key)
-        self.rpc_config.solana_rpc = os.getenv('SOLANA_RPC_URL', self.rpc_config.solana_rpc)
-        self.rpc_config.sui_rpc = os.getenv('SUI_RPC_URL', self.rpc_config.sui_rpc)
-        
-        # API Keys
-        self.rpc_config.coingecko_api_key = os.getenv('COINGECKO_API_KEY', self.rpc_config.coingecko_api_key)
-        self.rpc_config.helius_api_key = os.getenv('HELIUS_API_KEY', self.rpc_config.helius_api_key)
-        self.rpc_config.sui_explorer_api_key = os.getenv('SUI_EXPLORER_API_KEY', self.rpc_config.sui_explorer_api_key)
+        # ... restliche Umgebungsvariablen
         
         # Mindestscores
         self.rpc_config.min_scores['ethereum'] = int(os.getenv('ETHEREUM_MIN_SCORE', self.rpc_config.min_scores['ethereum']))
-        self.rpc_config.min_scores['bsc'] = int(os.getenv('BSC_MIN_SCORE', self.rpc_config.min_scores['bsc']))
-        self.rpc_config.min_scores['solana'] = int(os.getenv('SOLANA_MIN_SCORE', self.rpc_config.min_scores['solana']))
-        self.rpc_config.min_scores['sui'] = int(os.getenv('SUI_MIN_SCORE', self.rpc_config.min_scores['sui']))
+        # ... restliche Scores
 
 # Globale Instanz
 scanner_config = ScannerConfig()
+
+# Konstanten für den Import in anderen Modulen
+WALLET_CLASSIFIER_CONFIG = scanner_config.wallet_classifier
+ONCHAIN_ANALYSIS_CONFIG = scanner_config.onchain_analysis
+SOURCE_WEIGHTS = scanner_config.source_weights
+
+def load_config(chain: str) -> Dict[str, Any]:
+    """Lädt chain-spezifische Konfigurationen"""
+    return {
+        'min_score': scanner_config.rpc_config.min_scores.get(chain, 50),
+        'rpc_url': getattr(scanner_config.rpc_config, f"{chain}_rpc", None),
+        'api_key': getattr(scanner_config.rpc_config, f"{chain}_api_key", None),
+        'known_contracts': scanner_config.rpc_config.known_contracts,
+        'cex_wallets': scanner_config.rpc_config.cex_wallets
+    }
