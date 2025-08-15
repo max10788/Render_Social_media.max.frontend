@@ -1,4 +1,4 @@
-# config/scanner_config.py
+# app/core/backend_crypto_tracker/config/scanner_config.py
 import os
 from typing import Dict, Any, List
 from dataclasses import dataclass, field
@@ -37,11 +37,12 @@ class OnChainAnalysisConfig:
 
 @dataclass
 class SourceWeights:
-    ChainanalysisIntegration: float = 0.4
-    EllipticIntegration: float = 0.35
+    # Angepasste Werte, die sich zu 1.0 summieren
+    ChainalysisIntegration: float = 0.35
+    EllipticIntegration: float = 0.30
     CommunityLabelsAPI: float = 0.15
-    OnChainAnalyzer: float = 0.25
-    InternalLogic: float = 0.3
+    OnChainAnalyzer: float = 0.10
+    InternalLogic: float = 0.10
     
     def validate(self):
         total = sum(self.__dict__.values())
@@ -102,11 +103,21 @@ class ScannerConfig:
         # RPC Config
         self.rpc_config.ethereum_rpc = os.getenv('ETHEREUM_RPC_URL', self.rpc_config.ethereum_rpc)
         self.rpc_config.etherscan_api_key = os.getenv('ETHERSCAN_API_KEY', self.rpc_config.etherscan_api_key)
-        # ... restliche Umgebungsvariablen
+        self.rpc_config.bsc_rpc = os.getenv('BSC_RPC_URL', self.rpc_config.bsc_rpc)
+        self.rpc_config.bscscan_api_key = os.getenv('BSCSCAN_API_KEY', self.rpc_config.bscscan_api_key)
+        self.rpc_config.solana_rpc = os.getenv('SOLANA_RPC_URL', self.rpc_config.solana_rpc)
+        self.rpc_config.sui_rpc = os.getenv('SUI_RPC_URL', self.rpc_config.sui_rpc)
+        
+        # API Keys
+        self.rpc_config.coingecko_api_key = os.getenv('COINGECKO_API_KEY', self.rpc_config.coingecko_api_key)
+        self.rpc_config.helius_api_key = os.getenv('HELIUS_API_KEY', self.rpc_config.helius_api_key)
+        self.rpc_config.sui_explorer_api_key = os.getenv('SUI_EXPLORER_API_KEY', self.rpc_config.sui_explorer_api_key)
         
         # Mindestscores
         self.rpc_config.min_scores['ethereum'] = int(os.getenv('ETHEREUM_MIN_SCORE', self.rpc_config.min_scores['ethereum']))
-        # ... restliche Scores
+        self.rpc_config.min_scores['bsc'] = int(os.getenv('BSC_MIN_SCORE', self.rpc_config.min_scores['bsc']))
+        self.rpc_config.min_scores['solana'] = int(os.getenv('SOLANA_MIN_SCORE', self.rpc_config.min_scores['solana']))
+        self.rpc_config.min_scores['sui'] = int(os.getenv('SUI_MIN_SCORE', self.rpc_config.min_scores['sui']))
 
 # Globale Instanz
 scanner_config = ScannerConfig()
