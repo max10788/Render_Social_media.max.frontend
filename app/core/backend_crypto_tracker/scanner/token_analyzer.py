@@ -14,7 +14,7 @@ from app.core.backend_crypto_tracker.config.scanner_config import scanner_config
 from app.core.backend_crypto_tracker.services.multichain.price_service import PriceService, TokenPriceData
 from app.core.backend_crypto_tracker.services.eth.etherscan_api import EtherscanAPI
 from app.core.backend_crypto_tracker.services.sol.solana_api import SolanaAPIService
-from app.core.backend_crypto_tracker.services.sui.sui_api import SuiAPI
+from app.core.backend_crypto_tracker.services.sui.sui_api import SuiAPIService
 from app.core.backend_crypto_tracker.processor.database.models.token import Token
 from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
 
