@@ -1,3 +1,40 @@
+# risk_assessor.py
+
+from dataclasses import dataclass
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import List, Dict, Any
+
+# --- Basis-Klassen ---
+@dataclass
+class RiskAssessment:
+    overall_score: float
+    risk_level: str
+    risk_factors: List[str]
+    confidence: float
+    assessment_date: datetime
+    details: Dict[str, Any]
+
+@dataclass
+class WalletAnalysis:
+    address: str
+    balance: float
+    is_whale: bool = False
+    transaction_count: int = 0
+
+class RiskAssessor(ABC):
+    async def assess_token_risk(self, token_data: Dict[str, Any], 
+                              wallet_analyses: List[WalletAnalysis]) -> RiskAssessment:
+        return RiskAssessment(
+            overall_score=50.0,
+            risk_level="medium",
+            risk_factors=["placeholder_risk"],
+            confidence=0.7,
+            assessment_date=datetime.utcnow(),
+            details={"message": "Base method not overridden"}
+        )
+
+
 # scanner/risk_assessor.py (Erweiterung)
 import numpy as np
 import pandas as pd
