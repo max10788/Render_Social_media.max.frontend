@@ -1,4 +1,3 @@
-# scanner/wallet_classifier.py
 import asyncio
 import logging
 import numpy as np
@@ -9,10 +8,21 @@ from enum import Enum
 import json
 import hashlib
 from collections import defaultdict
+
+# Add these SQLAlchemy imports
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import ENUM as SQLEnum
+
+# Create the Base class for SQLAlchemy models
+Base = declarative_base()
+
 # Importiere die externen Dienste
 from app.core.backend_crypto_tracker.services.multichain.chainalysis_service import ChainalysisIntegration
 from app.core.backend_crypto_tracker.services.multichain.elliptic_service import EllipticIntegration
 from app.core.backend_crypto_tracker.services.multichain.community_labels_service import CommunityLabelsAPI
+
 # Importiere Konfigurationen
 from app.core.backend_crypto_tracker.config.scanner_config import (
     WALLET_CLASSIFIER_CONFIG,
@@ -21,6 +31,7 @@ from app.core.backend_crypto_tracker.config.scanner_config import (
     load_config # Für chain-spezifische Konfigurationen
 )
 from app.core.backend_crypto_tracker.scanner.risk_assessor import AdvancedRiskAssessor, RiskAssessment, RiskLevel
+
 logger = logging.getLogger(__name__)
 
 # --- Enums und Dataclasses ---
@@ -37,6 +48,7 @@ class WalletTypeEnum(Enum):
 
 class WalletAnalysis(Base):
     __tablename__ = "wallet_analyses"
+    
     id = Column(Integer, primary_key=True, index=True)
     token_id = Column(Integer, ForeignKey("tokens.id"), nullable=False) # Assumes tokens table exists
     wallet_address = Column(String, nullable=False, index=True)
@@ -48,6 +60,7 @@ class WalletAnalysis(Base):
     last_transaction = Column(DateTime)
     risk_score = Column(Float)
     analysis_date = Column(DateTime) # Default handled in code or DB
+    
     # Relationship - String reference avoids circular import if Token is defined later/elsewhere
     # Ensure Token model is loaded before querying relationships
     token = relationship("Token", back_populates="wallet_analyses") # back_populates target must exist in Token
