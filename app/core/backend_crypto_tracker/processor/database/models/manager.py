@@ -2,7 +2,7 @@ import os
 import logging
 from typing import Optional, List, Dict, Any, Union, AsyncGenerator
 from datetime import datetime, timedelta
-from contextlib import asynccontextmanager
+from contextlib import contextmanager, asynccontextmanager  # <-- FIX: Added contextmanager import
 
 # Import Models
 from app.core.backend_crypto_tracker.processor.database.models.token import Token
@@ -22,7 +22,7 @@ from app.core.backend_crypto_tracker.utils.exceptions import DatabaseException, 
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 # Import the database configuration and sessions
-from app.core.backend_crypto_tracker.config.database import database_config, AsyncSessionLocal
+from app.core.backend_crypto_tracker.config.database import database_config, AsyncSessionLocal, SessionLocal
 
 logger = get_logger(__name__)
 
@@ -49,9 +49,10 @@ class DatabaseConfig:
 
 class DatabaseManager:
     def __init__(self):
-        # Use the existing configuration and async session
+        # Use the existing configuration and sessions
         self.database_config = database_config
         self.AsyncSessionLocal = AsyncSessionLocal
+        self.SessionLocal = SessionLocal  # <-- Add this for sync sessions
         
     async def initialize(self):
         """Initializes the database connection and creates tables"""
@@ -75,6 +76,23 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error initializing DatabaseManager: {e}")
             raise DatabaseException(f"Failed to initialize database: {str(e)}")
+    
+    @contextmanager  # <-- Add this decorator
+    def get_session(self):
+        """Context Manager for synchronous database sessions"""
+        if not self.SessionLocal:
+            raise RuntimeError("DatabaseManager not initialized for synchronous mode.")
+        
+        session = self.SessionLocal()
+        try:
+            yield session
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Database session error: {e}")
+            raise DatabaseException(f"Database operation failed: {str(e)}")
+        finally:
+            session.close()
     
     @asynccontextmanager
     async def get_async_session(self):
