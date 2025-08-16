@@ -1,23 +1,28 @@
-# processor/database/manager.py
 import os
 import logging
 from typing import Optional, List, Dict, Any, Union, AsyncGenerator
 from datetime import datetime, timedelta
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import asynccontextmanager
+
 # Import Models
 from app.core.backend_crypto_tracker.processor.database.models.token import Token
 from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
 from app.core.backend_crypto_tracker.processor.database.models.scan_result import ScanResult
 from app.core.backend_crypto_tracker.processor.database.models.scan_job import ScanJob, ScanStatus
 from app.core.backend_crypto_tracker.processor.database.models.custom_analysis import CustomAnalysis
+
 # Import SQLAlchemy
 from sqlalchemy import create_engine, text, func, and_, or_
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+
 # Import Exceptions
 from app.core.backend_crypto_tracker.utils.exceptions import DatabaseException, InvalidAddressException
 from app.core.backend_crypto_tracker.utils.logger import get_logger
+
+# Import the database configuration and sessions
+from app.core.backend_crypto_tracker.config.database import database_config, AsyncSessionLocal
 
 logger = get_logger(__name__)
 
@@ -43,59 +48,52 @@ class DatabaseConfig:
         return f"postgresql+asyncpg://{self.postgres_config['username']}:{self.postgres_config['password']}@{self.postgres_config['host']}:{self.postgres_config['port']}/{self.postgres_config['database']}"
 
 class DatabaseManager:
-    def __init__(self, database_url: str = None, async_mode: bool = True):
-        # Verwende die Konfigurationsklasse
-        if database_url is None:
-            if async_mode:
-                database_url = database_config.async_database_url
-            else:
-                database_url = database_config.database_url
-        
-        self.database_url = database_url
-        self.async_mode = async_mode
-        self.engine = None
-        self.SessionLocal = None
-        self.AsyncSessionLocal = None
+    def __init__(self):
+        # Use the existing configuration and async session
+        self.database_config = database_config
+        self.AsyncSessionLocal = AsyncSessionLocal
         
     async def initialize(self):
-        """Initialisiert die Datenbankverbindung"""
+        """Initializes the database connection and creates tables"""
         try:
-            if self.async_mode:
-                self.engine = create_async_engine(
-                    self.database_url,
-                    pool_size=database_config.pool_size,
-                    max_overflow=database_config.max_overflow,
-                    pool_timeout=database_config.pool_timeout,
-                    pool_recycle=database_config.pool_recycle,
-                    echo=os.getenv("DB_ECHO", "false").lower() == "true",
-                    # Für Render: Füge Schema zum Suchpfad hinzu
-                    connect_args={"options": f"-csearch_path={database_config.schema_name},public"}
-                )
-                self.AsyncSessionLocal = async_sessionmaker(
-                    bind=self.engine, 
-                    class_=AsyncSession, 
-                    expire_on_commit=False
-                )
-            else:
-                self.engine = create_engine(
-                    self.database_url,
-                    pool_size=database_config.pool_size,
-                    max_overflow=database_config.max_overflow,
-                    pool_timeout=database_config.pool_timeout,
-                    pool_recycle=database_config.pool_recycle,
-                    echo=os.getenv("DB_ECHO", "false").lower() == "true",
-                    # Für Render: Füge Schema zum Suchpfad hinzu
-                    connect_args={"options": f"-csearch_path={database_config.schema_name},public"}
-                )
-                self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+            # Get the engine from the AsyncSessionLocal
+            engine = self.AsyncSessionLocal.kw['bind']
             
-            # Erstelle Schema und Tabellen
-            await self._create_schema_and_tables()
+            # Create schema and tables
+            async with engine.begin() as conn:
+                # Create schema if it doesn't exist
+                await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {self.database_config.schema_name}"))
                 
+                # Set search path
+                await conn.execute(text(f"SET search_path TO {self.database_config.schema_name}, public"))
+                
+                # Create tables
+                from app.core.backend_crypto_tracker.processor.database.models import Base
+                await conn.run_sync(Base.metadata.create_all)
+            
             logger.info("Database Manager initialized and tables created.")
         except Exception as e:
             logger.error(f"Error initializing DatabaseManager: {e}")
             raise DatabaseException(f"Failed to initialize database: {str(e)}")
+    
+    @asynccontextmanager
+    async def get_async_session(self):
+        """Async Context Manager for database sessions"""
+        async with self.AsyncSessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Database session error: {e}")
+                raise DatabaseException(f"Database operation failed: {str(e)}")
+    
+    async def close(self):
+        """Closes the database connection"""
+        if self.AsyncSessionLocal:
+            engine = self.AsyncSessionLocal.kw['bind']
+            await engine.dispose()
+            logger.info("Database connection closed.")
     
     async def _create_schema_and_tables(self):
         """Erstellt das Schema und die Tabellen"""
