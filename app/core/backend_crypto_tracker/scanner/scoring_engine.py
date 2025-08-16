@@ -306,7 +306,7 @@ class MultiChainScoringEngine:
         
         return min(100.0, score)
     
-    def _calculate_risk_assessment_score(self, wallet_analyses: List, chain: str) -> Tuple[float, List[str]]:
+    def _calculate_risk_assessment_score(self, wallet_analyses: List, chain: str) -> tuple[float, List[str]]:
         """Bewertet Risikofaktoren mit institutionellen Metriken"""
         score = 100.0
         risk_flags = []
