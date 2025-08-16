@@ -12,7 +12,7 @@ from app.core.backend_crypto_tracker.utils.logger import get_logger
 from app.core.backend_crypto_tracker.utils.exceptions import APIException, DatabaseException
 from app.core.backend_crypto_tracker.config.scanner_config import scanner_config
 from app.core.backend_crypto_tracker.scanner.token_analyzer import TokenAnalyzer
-from app.core.backend_crypto_tracker.processor.database.manager import DatabaseManager
+from app.core.backend_crypto_tracker.processor.database.models.manager import DatabaseManager
 
 logger = get_logger(__name__)
 
