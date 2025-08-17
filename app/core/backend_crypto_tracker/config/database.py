@@ -61,7 +61,7 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
-# Asynchrone Engine und Session
+# Asynchrone Engine und Session - OHNE options-Parameter
 async_engine = create_async_engine(
     database_config.async_database_url,
     pool_size=database_config.pool_size,
@@ -69,8 +69,7 @@ async_engine = create_async_engine(
     pool_timeout=database_config.pool_timeout,
     pool_recycle=database_config.pool_recycle,
     echo=os.getenv("DB_ECHO", "false").lower() == "true",
-    # Für asyncpg können wir den Suchpfad nicht über connect_args setzen
-    # Stattdessen setzen wir ihn in der URL oder nach dem Verbindungsaufbau
+    # Entferne den options-Parameter, da asyncpg ihn nicht unterstützt
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -91,6 +90,6 @@ def get_db() -> Generator[Session, None, None]:
 async def get_async_db() -> AsyncSession:
     """Stellt eine asynchrone Datenbank-Session bereit"""
     async with AsyncSessionLocal() as session:
-        # Setze den Suchpfad für diese Session
+        # Setze den Suchpfad nach dem Verbindungsaufbau
         await session.execute(f"SET search_path TO {database_config.schema_name},public")
         yield session
