@@ -27,8 +27,8 @@ logger = get_logger(__name__)
 # Frontend-Verzeichnisse konfigurieren
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
-BUILD_DIR = FRONTEND_DIR / "dist"
-ASSETS_DIR = BUILD_DIR / "assets"
+BUILD_DIR = FRONTEND_DIR / "dist"  # Next.js Export-Verzeichnis
+ASSETS_DIR = BUILD_DIR / "_next"   # Next.js Assets
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -71,11 +71,11 @@ app.add_middleware(
 # ------------------------------------------------------------------
 # Statische Dateien aus dem gebauten Frontend
 # ------------------------------------------------------------------
-# Nur mounten, wenn das Verzeichnis existiert
+# Mount Next.js assets
 if ASSETS_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+    app.mount("/_next", StaticFiles(directory=ASSETS_DIR), name="next_assets")
 else:
-    logger.warning(f"Frontend assets directory '{ASSETS_DIR}' not found – assets will not be served")
+    logger.warning(f"Next.js assets directory '{ASSETS_DIR}' not found – assets will not be served")
 
 # ------------------------------------------------------------------
 # Router
