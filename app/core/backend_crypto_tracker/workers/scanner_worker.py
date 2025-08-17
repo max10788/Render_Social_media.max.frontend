@@ -13,6 +13,7 @@ from app.core.backend_crypto_tracker.utils.exceptions import APIException, Datab
 from app.core.backend_crypto_tracker.config.scanner_config import scanner_config
 from app.core.backend_crypto_tracker.scanner.token_analyzer import TokenAnalyzer
 from app.core.backend_crypto_tracker.processor.database.models.manager import DatabaseManager
+from app.core.backend_crypto_tracker.processor.database.models.scan_job import ScanJob, ScanStatus
 
 logger = get_logger(__name__)
 
@@ -330,6 +331,284 @@ class ScanJobManager:
                 'max_tokens_per_scan': self.config.max_tokens_per_scan,
                 'min_score_for_alert': self.config.min_score_for_alert
             }
+        }
+
+class ScannerWorker:
+    """Worker-Klasse für Scanner-Operationen, die von ScannerController verwendet wird"""
+    
+    def __init__(self, scan_config: ScanConfig = None, alert_config: AlertConfig = None):
+        # Standardkonfiguration verwenden, wenn keine angegeben
+        self.scan_config = scan_config or ScanConfig()
+        self.alert_config = alert_config or AlertConfig()
+        
+        # JobManager initialisieren
+        self.job_manager = ScanJobManager(self.scan_config, self.alert_config)
+        
+        # Token Analyzer und Database Manager für direkten Zugriff
+        self.token_analyzer = TokenAnalyzer()
+        self.db_manager = DatabaseManager()
+        
+        # Aktive Scans speichern
+        self.active_scans = {}
+        
+        logger.info("ScannerWorker initialized")
+    
+    async def start_discovery_scan(self, chains: List[str], max_market_cap: float, max_tokens: int) -> str:
+        """Startet einen Discovery-Scan und gibt die Scan-ID zurück"""
+        scan_id = f"discovery_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Neuen Scan-Job erstellen
+        scan_job = ScanJob(
+            id=scan_id,
+            status=ScanStatus.SCANNING,
+            progress=0.0,
+            start_time=datetime.utcnow(),
+            chain=",".join(chains),
+            scan_type="discovery"
+        )
+        
+        self.active_scans[scan_id] = scan_job
+        
+        # Scan im Hintergrund starten
+        asyncio.create_task(self._run_discovery_scan(scan_id, chains, max_market_cap, max_tokens))
+        
+        logger.info(f"Started discovery scan {scan_id} for chains: {chains}")
+        return scan_id
+    
+    async def start_analysis_scan(self, token_addresses: List[str], chain: str, include_advanced_metrics: bool) -> str:
+        """Startet einen Analyse-Scan und gibt die Scan-ID zurück"""
+        scan_id = f"analysis_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Neuen Scan-Job erstellen
+        scan_job = ScanJob(
+            id=scan_id,
+            status=ScanStatus.ANALYZING,
+            progress=0.0,
+            start_time=datetime.utcnow(),
+            chain=chain,
+            scan_type="analysis"
+        )
+        
+        self.active_scans[scan_id] = scan_job
+        
+        # Analyse im Hintergrund starten
+        asyncio.create_task(self._run_analysis_scan(scan_id, token_addresses, chain, include_advanced_metrics))
+        
+        logger.info(f"Started analysis scan {scan_id} for {len(token_addresses)} tokens on {chain}")
+        return scan_id
+    
+    async def stop_scan(self, scan_id: str) -> bool:
+        """Stoppt einen aktiven Scan"""
+        if scan_id not in self.active_scans:
+            logger.warning(f"Scan {scan_id} not found or not active")
+            return False
+        
+        scan_job = self.active_scans[scan_id]
+        scan_job.status = ScanStatus.STOPPED
+        scan_job.end_time = datetime.utcnow()
+        
+        # Zum Verlauf hinzufügen und aus aktiven Scans entfernen
+        self.active_scans.pop(scan_id, None)
+        
+        logger.info(f"Stopped scan {scan_id}")
+        return True
+    
+    def get_scan_status(self, scan_id: str) -> Optional[Dict[str, Any]]:
+        """Gibt den Status eines Scans zurück"""
+        if scan_id in self.active_scans:
+            scan_job = self.active_scans[scan_id]
+            return {
+                "scan_id": scan_id,
+                "status": scan_job.status.value,
+                "progress": scan_job.progress,
+                "start_time": scan_job.start_time.isoformat(),
+                "chain": scan_job.chain,
+                "scan_type": scan_job.scan_type,
+                "tokens_found": scan_job.tokens_found,
+                "tokens_analyzed": scan_job.tokens_analyzed,
+                "high_risk_tokens": scan_job.high_risk_tokens
+            }
+        return None
+    
+    async def _run_discovery_scan(self, scan_id: str, chains: List[str], max_market_cap: float, max_tokens: int):
+        """Führt einen Discovery-Scan im Hintergrund durch"""
+        try:
+            scan_job = self.active_scans.get(scan_id)
+            if not scan_job:
+                logger.error(f"Scan job {scan_id} not found")
+                return
+            
+            tokens_found = 0
+            high_risk_tokens = 0
+            
+            try:
+                # Token Discovery durchführen
+                for chain in chains:
+                    tokens = await self.token_analyzer.discover_tokens(
+                        chain, max_market_cap, max_tokens // len(chains)
+                    )
+                    
+                    tokens_found += len(tokens)
+                    
+                    # Scan-Fortschritt aktualisieren
+                    if scan_id in self.active_scans:
+                        scan_job.tokens_found = tokens_found
+                        scan_job.progress = min(0.9, tokens_found / max_tokens)
+                    
+                    # Tokens analysieren
+                    for token in tokens:
+                        try:
+                            analysis = await self.token_analyzer.analyze_token(token)
+                            
+                            if analysis.get('token_score', 0) < 30:  # Niedriger Score = hohes Risiko
+                                high_risk_tokens += 1
+                        except Exception as e:
+                            logger.warning(f"Error analyzing token {token.symbol}: {e}")
+                
+                # Scan abschließen
+                if scan_id in self.active_scans:
+                    scan_job.status = ScanStatus.COMPLETED
+                    scan_job.end_time = datetime.utcnow()
+                    scan_job.tokens_analyzed = tokens_found
+                    scan_job.high_risk_tokens = high_risk_tokens
+                    scan_job.progress = 1.0
+                    
+                    # Aus aktiven Scans entfernen
+                    self.active_scans.pop(scan_id, None)
+                    
+                    logger.info(f"Discovery scan {scan_id} completed: {tokens_found} tokens found, {high_risk_tokens} high risk")
+                
+            except Exception as e:
+                logger.error(f"Error in discovery scan {scan_id}: {e}")
+                
+                if scan_id in self.active_scans:
+                    scan_job.status = ScanStatus.FAILED
+                    scan_job.end_time = datetime.utcnow()
+                    scan_job.error_message = str(e)
+                    
+                    # Aus aktiven Scans entfernen
+                    self.active_scans.pop(scan_id, None)
+        
+        except Exception as e:
+            logger.error(f"Critical error in discovery scan {scan_id}: {e}")
+            
+            if scan_id in self.active_scans:
+                scan_job = self.active_scans[scan_id]
+                scan_job.status = ScanStatus.FAILED
+                scan_job.end_time = datetime.utcnow()
+                scan_job.error_message = str(e)
+                
+                # Aus aktiven Scans entfernen
+                self.active_scans.pop(scan_id, None)
+    
+    async def _run_analysis_scan(self, scan_id: str, token_addresses: List[str], chain: str, include_advanced_metrics: bool):
+        """Führt einen Analyse-Scan im Hintergrund durch"""
+        try:
+            scan_job = self.active_scans.get(scan_id)
+            if not scan_job:
+                logger.error(f"Scan job {scan_id} not found")
+                return
+            
+            tokens_analyzed = 0
+            high_risk_tokens = 0
+            
+            try:
+                # Token-Analysen durchführen
+                for i, token_address in enumerate(token_addresses):
+                    try:
+                        analysis = await self.token_analyzer.analyze_custom_token(token_address, chain)
+                        
+                        tokens_analyzed += 1
+                        
+                        # Fortschritt aktualisieren
+                        if scan_id in self.active_scans:
+                            scan_job.tokens_analyzed = tokens_analyzed
+                            scan_job.progress = min(0.9, tokens_analyzed / len(token_addresses))
+                        
+                        # Risiko bewerten
+                        score = analysis.get('score', 50)
+                        if include_advanced_metrics:
+                            try:
+                                # Erweiterte Analyse durchführen
+                                wallet_analyses = analysis.get('wallet_analyses', {}).get('top_holders', [])
+                                
+                                # Erweiterte Scoring-Engine nutzen
+                                from app.core.backend_crypto_tracker.scanner.scoring_engine import MultiChainScoringEngine
+                                scoring_engine = MultiChainScoringEngine()
+                                advanced_score = await scoring_engine.calculate_token_score_advanced(
+                                    analysis.get('token_info', {}),
+                                    wallet_analyses,
+                                    chain
+                                )
+                                
+                                if advanced_score.get('institutional_score', 50) < 30:
+                                    high_risk_tokens += 1
+                            except Exception as e:
+                                logger.warning(f"Error in advanced scoring for {token_address}: {e}")
+                        else:
+                            if score < 30:
+                                high_risk_tokens += 1
+                    except Exception as e:
+                        logger.warning(f"Error analyzing token {token_address}: {e}")
+                
+                # Scan abschließen
+                if scan_id in self.active_scans:
+                    scan_job.status = ScanStatus.COMPLETED
+                    scan_job.end_time = datetime.utcnow()
+                    scan_job.tokens_found = tokens_analyzed
+                    scan_job.high_risk_tokens = high_risk_tokens
+                    scan_job.progress = 1.0
+                    
+                    # Aus aktiven Scans entfernen
+                    self.active_scans.pop(scan_id, None)
+                    
+                    logger.info(f"Analysis scan {scan_id} completed: {tokens_analyzed} tokens analyzed, {high_risk_tokens} high risk")
+                
+            except Exception as e:
+                logger.error(f"Error in analysis scan {scan_id}: {e}")
+                
+                if scan_id in self.active_scans:
+                    scan_job.status = ScanStatus.FAILED
+                    scan_job.end_time = datetime.utcnow()
+                    scan_job.error_message = str(e)
+                    
+                    # Aus aktiven Scans entfernen
+                    self.active_scans.pop(scan_id, None)
+        
+        except Exception as e:
+            logger.error(f"Critical error in analysis scan {scan_id}: {e}")
+            
+            if scan_id in self.active_scans:
+                scan_job = self.active_scans[scan_id]
+                scan_job.status = ScanStatus.FAILED
+                scan_job.end_time = datetime.utcnow()
+                scan_job.error_message = str(e)
+                
+                # Aus aktiven Scans entfernen
+                self.active_scans.pop(scan_id, None)
+    
+    def get_active_scans(self) -> Dict[str, Any]:
+        """Gibt alle aktiven Scans zurück"""
+        return {
+            scan_id: {
+                "status": scan.status.value,
+                "progress": scan.progress,
+                "start_time": scan.start_time.isoformat(),
+                "chain": scan.chain,
+                "scan_type": scan.scan_type,
+                "tokens_found": scan.tokens_found,
+                "tokens_analyzed": scan.tokens_analyzed,
+                "high_risk_tokens": scan.high_risk_tokens
+            }
+            for scan_id, scan in self.active_scans.items()
+        }
+    
+    def get_worker_status(self) -> Dict[str, Any]:
+        """Gibt den Status des Workers zurück"""
+        return {
+            "active_scans_count": len(self.active_scans),
+            "job_manager_status": self.job_manager.get_status(),
+            "last_updated": datetime.utcnow().isoformat()
         }
 
 # Beispiel-Verwendung
