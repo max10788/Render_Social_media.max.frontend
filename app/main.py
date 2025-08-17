@@ -19,7 +19,7 @@ from app.core.backend_crypto_tracker.api.routes import scanner_routes
 
 # Konfiguration und Datenbank
 from app.core.backend_crypto_tracker.config.database import database_config
-from app.core.backend_crypto_tracker.processor.database.manager import DatabaseManager
+from app.core.backend_crypto_tracker.processor.database.models.manager import DatabaseManager
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 logger = get_logger(__name__)
