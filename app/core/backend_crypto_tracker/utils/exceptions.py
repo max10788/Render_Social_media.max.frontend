@@ -39,6 +39,10 @@ class APIException(BaseCryptoTrackerException):
     """Exception for external API errors"""
     pass
 
+class ScannerException(BaseCryptoTrackerException):
+    """Exception for scanner-related errors"""
+    pass
+
 class BlockchainException(BaseCryptoTrackerException):
     """Exception for blockchain-related errors"""
     pass
