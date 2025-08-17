@@ -25,8 +25,8 @@ from app.core.backend_crypto_tracker.utils.logger import get_logger
 logger = get_logger(__name__)
 
 # Frontend-Verzeichnisse konfigurieren
-BASE_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = BASE_DIR / "crypto-token-analysis-dashboard"  # Angepasster Pfad
+BASE_DIR = Path(__file__).resolve().parent  # app/
+FRONTEND_DIR = BASE_DIR / "crypto-token-analysis-dashboard"  # app/crypto-token-analysis-dashboard
 BUILD_DIR = FRONTEND_DIR / "dist"  # Next.js Export-Verzeichnis
 ASSETS_DIR = BUILD_DIR / "_next"   # Next.js Assets
 
