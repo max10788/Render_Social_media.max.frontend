@@ -1,13 +1,13 @@
 # app/main.py
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 import os
-from fastapi.responses import JSONResponse
+from pathlib import Path
 
 # Router-Imports
 from app.core.backend_crypto_tracker.api.routes.custom_analysis_routes import (
@@ -24,8 +24,11 @@ from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-BUILD_DIR = "app/frontend/dist"
-ASSETS_DIR = f"{BUILD_DIR}/assets"
+# Frontend-Verzeichnisse konfigurieren
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = BASE_DIR / "frontend"
+BUILD_DIR = FRONTEND_DIR / "dist"
+ASSETS_DIR = BUILD_DIR / "assets"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -55,11 +58,11 @@ app = FastAPI(
 )
 
 # ------------------------------------------------------------------
-# CORS (Render: nur notwendig, wenn du zusätzlich von extern zugreifst)
+# CORS (Anpassen für Production)
 # ------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # für Production lieber explizit setzen!
+    allow_origins=["*"],  # In Production: spezifische Domain eintragen
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,10 +72,10 @@ app.add_middleware(
 # Statische Dateien aus dem gebauten Frontend
 # ------------------------------------------------------------------
 # Nur mounten, wenn das Verzeichnis existiert
-if os.path.isdir(ASSETS_DIR):
+if ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 else:
-    logger.warning(f"Frontend build directory '{ASSETS_DIR}' not found – assets will not be served")
+    logger.warning(f"Frontend assets directory '{ASSETS_DIR}' not found – assets will not be served")
 
 # ------------------------------------------------------------------
 # Router
@@ -102,20 +105,48 @@ async def health_check():
     }
 
 # ------------------------------------------------------------------
-# SPA-Frontend ausliefern
+# SPA-Frontend ausliefern (mit Fehlerbehandlung)
 # ------------------------------------------------------------------
 @app.get("/", response_class=FileResponse)
 async def serve_root():
-    return FileResponse(f"{BUILD_DIR}/index.html")
+    index_path = BUILD_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    else:
+        logger.error(f"Frontend index.html not found at {index_path}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Service Unavailable",
+                "message": "Frontend not built. Please run 'npm run build' in the frontend directory.",
+                "build_directory": str(BUILD_DIR),
+                "frontend_directory": str(FRONTEND_DIR)
+            }
+        )
 
-@app.get("/{full_path:path}", response_class=FileResponse)
+@app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
-    # Falls eine echte Datei existiert (z. B. /favicon.ico), dann die Datei liefern
-    file_path = os.path.join(BUILD_DIR, full_path)
-    if os.path.isfile(file_path):
+    # Prüfe, ob eine echte Datei existiert (z. B. /favicon.ico)
+    file_path = BUILD_DIR / full_path
+    
+    if file_path.exists() and file_path.is_file():
         return FileResponse(file_path)
+    
     # Ansonsten index.html für React-Router
-    return FileResponse(f"{BUILD_DIR}/index.html")
+    index_path = BUILD_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    else:
+        logger.error(f"Frontend index.html not found at {index_path}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Service Unavailable",
+                "message": "Frontend not built. Please run 'npm run build' in the frontend directory.",
+                "build_directory": str(BUILD_DIR),
+                "frontend_directory": str(FRONTEND_DIR)
+            }
+        )
 
 # ------------------------------------------------------------------
 # Globaler Exception-Handler
