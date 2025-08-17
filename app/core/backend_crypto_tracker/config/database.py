@@ -5,7 +5,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 import logging
-
 from app.core.backend_crypto_tracker.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -70,7 +69,8 @@ async_engine = create_async_engine(
     pool_timeout=database_config.pool_timeout,
     pool_recycle=database_config.pool_recycle,
     echo=os.getenv("DB_ECHO", "false").lower() == "true",
-    connect_args={"options": f"-csearch_path={database_config.schema_name},public"}
+    # Für asyncpg können wir den Suchpfad nicht über connect_args setzen
+    # Stattdessen setzen wir ihn in der URL oder nach dem Verbindungsaufbau
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -91,4 +91,6 @@ def get_db() -> Generator[Session, None, None]:
 async def get_async_db() -> AsyncSession:
     """Stellt eine asynchrone Datenbank-Session bereit"""
     async with AsyncSessionLocal() as session:
+        # Setze den Suchpfad für diese Session
+        await session.execute(f"SET search_path TO {database_config.schema_name},public")
         yield session
