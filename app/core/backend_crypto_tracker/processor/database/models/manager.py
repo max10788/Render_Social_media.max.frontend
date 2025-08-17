@@ -2,25 +2,21 @@ import os
 import logging
 from typing import Optional, List, Dict, Any, Union, AsyncGenerator
 from datetime import datetime, timedelta
-from contextlib import contextmanager, asynccontextmanager  # <-- FIX: Added contextmanager import
-
+from contextlib import contextmanager, asynccontextmanager
 # Import Models
 from app.core.backend_crypto_tracker.processor.database.models.token import Token
 from app.core.backend_crypto_tracker.processor.database.models.wallet import WalletAnalysis, WalletTypeEnum
 from app.core.backend_crypto_tracker.processor.database.models.scan_result import ScanResult
 from app.core.backend_crypto_tracker.processor.database.models.scan_job import ScanJob, ScanStatus
 from app.core.backend_crypto_tracker.processor.database.models.custom_analysis import CustomAnalysis
-
 # Import SQLAlchemy
 from sqlalchemy import create_engine, text, func, and_, or_
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-
 # Import Exceptions
 from app.core.backend_crypto_tracker.utils.exceptions import DatabaseException, InvalidAddressException
 from app.core.backend_crypto_tracker.utils.logger import get_logger
-
 # Import the database configuration and sessions
 from app.core.backend_crypto_tracker.config.database import database_config, AsyncSessionLocal, SessionLocal
 
@@ -52,21 +48,22 @@ class DatabaseManager:
         # Use the existing configuration and sessions
         self.database_config = database_config
         self.AsyncSessionLocal = AsyncSessionLocal
-        self.SessionLocal = SessionLocal  # <-- Add this for sync sessions
+        self.SessionLocal = SessionLocal
+        self.engine = None
         
     async def initialize(self):
         """Initializes the database connection and creates tables"""
         try:
             # Get the engine from the AsyncSessionLocal
-            engine = self.AsyncSessionLocal.kw['bind']
+            self.engine = self.AsyncSessionLocal.kw['bind']
             
             # Create schema and tables
-            async with engine.begin() as conn:
-                # Create schema if it doesn't exist
-                await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {self.database_config.schema_name}"))
-                
-                # Set search path
-                await conn.execute(text(f"SET search_path TO {self.database_config.schema_name}, public"))
+            async with self.engine.begin() as conn:
+                # Create schema if it doesn't exist (only for PostgreSQL)
+                if hasattr(self.database_config, 'schema_name'):
+                    await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {self.database_config.schema_name}"))
+                    # Set search path
+                    await conn.execute(text(f"SET search_path TO {self.database_config.schema_name}, public"))
                 
                 # Create tables
                 from app.core.backend_crypto_tracker.processor.database.models import Base
@@ -77,7 +74,7 @@ class DatabaseManager:
             logger.error(f"Error initializing DatabaseManager: {e}")
             raise DatabaseException(f"Failed to initialize database: {str(e)}")
     
-    @contextmanager  # <-- Add this decorator
+    @contextmanager
     def get_session(self):
         """Context Manager for synchronous database sessions"""
         if not self.SessionLocal:
@@ -97,55 +94,6 @@ class DatabaseManager:
     @asynccontextmanager
     async def get_async_session(self):
         """Async Context Manager for database sessions"""
-        async with self.AsyncSessionLocal() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception as e:
-                await session.rollback()
-                logger.error(f"Database session error: {e}")
-                raise DatabaseException(f"Database operation failed: {str(e)}")
-    
-    async def close(self):
-        """Closes the database connection"""
-        if self.AsyncSessionLocal:
-            engine = self.AsyncSessionLocal.kw['bind']
-            await engine.dispose()
-            logger.info("Database connection closed.")
-    
-    async def _create_schema_and_tables(self):
-        """Erstellt das Schema und die Tabellen"""
-        async with self.engine.begin() as conn:
-            # Erstelle Schema wenn es nicht existiert
-            await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {database_config.schema_name}"))
-            
-            # Setze den Suchpfad
-            await conn.execute(text(f"SET search_path TO {database_config.schema_name}, public"))
-            
-            # Erstelle Tabellen
-            from app.core.backend_crypto_tracker.processor.database.models import Base
-            await conn.run_sync(Base.metadata.create_all)
-    
-    @contextmanager
-    def get_session(self):
-        """Context Manager für synchrone Datenbank-Sessions"""
-        if not self.SessionLocal:
-            raise RuntimeError("DatabaseManager not initialized for synchronous mode.")
-        
-        session = self.SessionLocal()
-        try:
-            yield session
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            logger.error(f"Database session error: {e}")
-            raise DatabaseException(f"Database operation failed: {str(e)}")
-        finally:
-            session.close()
-    
-    @asynccontextmanager
-    async def get_async_session(self):
-        """Async Context Manager für asynchrone Datenbank-Sessions"""
         if not self.AsyncSessionLocal:
             raise RuntimeError("DatabaseManager not initialized for asynchronous mode.")
         
@@ -159,7 +107,7 @@ class DatabaseManager:
                 raise DatabaseException(f"Database operation failed: {str(e)}")
     
     async def close(self):
-        """Schließt die Datenbankverbindung"""
+        """Closes the database connection"""
         if self.engine:
             await self.engine.dispose()
             logger.info("Database connection closed.")
@@ -438,7 +386,6 @@ class DatabaseManager:
                 await session.rollback()
                 logger.error(f"Error cleaning up old data: {e}")
                 raise DatabaseException(f"Failed to clean up old data: {str(e)}")
-
     
     async def save_scan_job(self, scan_job: ScanJob) -> Dict[str, Any]:
         """Speichert einen Scan-Job in der Datenbank"""
