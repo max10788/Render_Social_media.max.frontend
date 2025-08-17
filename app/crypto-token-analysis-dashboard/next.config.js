@@ -1,17 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  output: 'export',
+  trailingSlash: true,
+  distDir: 'dist',
   images: {
-    domains: ['example.com'], // Fügen Sie hier Ihre Bild-Domains hinzu
+    unoptimized: true
   },
+  // Entferne oder korrigiere die Rewrite-Regeln
   async rewrites() {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/api/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/:path*`,
       },
-    ];
-  },
+    ]
+  }
 }
 
 module.exports = nextConfig
