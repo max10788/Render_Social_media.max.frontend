@@ -6,15 +6,7 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  // Entferne oder korrigiere die Rewrite-Regeln
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/:path*`,
-      },
-    ]
-  }
+  // Rewrite-Regeln entfernt - nicht kompatibel mit statischem Export
 }
 
 module.exports = nextConfig
