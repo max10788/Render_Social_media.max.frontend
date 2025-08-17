@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 
 # Frontend-Verzeichnisse konfigurieren
 BASE_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = BASE_DIR / "frontend"
+FRONTEND_DIR = BASE_DIR / "crypto-token-analysis-dashboard"  # Angepasster Pfad
 BUILD_DIR = FRONTEND_DIR / "dist"  # Next.js Export-Verzeichnis
 ASSETS_DIR = BUILD_DIR / "_next"   # Next.js Assets
 
