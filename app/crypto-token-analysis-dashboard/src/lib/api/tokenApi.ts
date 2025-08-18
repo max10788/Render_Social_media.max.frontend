@@ -6,7 +6,8 @@ import {
   TokenAnalysisRequest,
   TokenAnalysisResponse,
   TokenStatsResponse,
-  AnalysisHistoryResponse
+  AnalysisHistoryResponse,
+  TokenPrice
 } from '@/lib/types/token';
 
 // Token-Liste abrufen
@@ -53,5 +54,16 @@ export const fetchAnalysisHistory = async (params?: {
 // Blockchain-Statistiken abrufen
 export const fetchChainStatistics = async (): Promise<TokenStatsResponse> => {
   const response = await apiClient.get<TokenStatsResponse>('/tokens/statistics/chains');
+  return response.data;
+};
+
+// Token-Preis abrufen
+export const fetchTokenPrice = async (
+  address: string, 
+  chain: string
+): Promise<TokenPrice> => {
+  const response = await apiClient.get<TokenPrice>(`/tokens/${address}/price`, {
+    params: { chain }
+  });
   return response.data;
 };
