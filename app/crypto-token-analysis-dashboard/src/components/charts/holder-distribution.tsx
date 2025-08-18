@@ -3,7 +3,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTokenByAddress, analyzeToken } from '@/lib/api/tokenApi';
-import { TokenDetailResponse, TokenAnalysis } from '@/lib/types/token'; // Geändert von TokenDetail zu TokenDetailResponse
+import { TokenDetailResponse, TokenAnalysisResponse } from '@/lib/types/token'; // Geändert von TokenAnalysis zu TokenAnalysisResponse
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -21,14 +21,14 @@ interface HolderDistributionProps {
 }
 
 export function HolderDistribution({ tokenAddress, chain }: HolderDistributionProps) {
-  const { data: token, isLoading: tokenLoading } = useQuery<TokenDetailResponse>({ // Typ geändert
+  const { data: token, isLoading: tokenLoading } = useQuery<TokenDetailResponse>({
     queryKey: ['token', tokenAddress, chain],
-    queryFn: () => fetchTokenByAddress(tokenAddress, chain, true) as Promise<TokenDetailResponse>, // Typ-Assertion hinzugefügt
+    queryFn: () => fetchTokenByAddress(tokenAddress, chain, true) as Promise<TokenDetailResponse>,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-  const { data: analysis, isLoading: analysisLoading } = useQuery<TokenAnalysis>({
+  const { data: analysis, isLoading: analysisLoading } = useQuery<TokenAnalysisResponse>({ // Typ geändert
     queryKey: ['tokenAnalysis', tokenAddress, chain],
-    queryFn: () => analyzeToken({ token_address: tokenAddress, chain }), // Korrigierter Funktionsaufruf
+    queryFn: () => analyzeToken({ token_address: tokenAddress, chain }),
     staleTime: 10 * 60 * 1000, // 10 minutes
     enabled: !!token, // Nur ausführen, wenn token-Daten vorhanden sind
   });
