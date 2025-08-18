@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 import { useParams } from 'next/navigation';
 import { TokenAnalysisCard } from '@/components/dashboard/token-analysis-card';
@@ -9,6 +8,7 @@ import { DashboardLayout } from '@/components/layouts/dashboard-layout';
 
 export default function TokenPage() {
   const params = useParams();
+  const chain = params.chain as string;
   const tokenAddress = params.address as string;
 
   return (
@@ -17,17 +17,17 @@ export default function TokenPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Token-Analyse</h1>
           <p className="text-neutral-500 dark:text-neutral-400">
-            Detaillierte Analyse des Tokens {tokenAddress}
+            Detaillierte Analyse des Tokens {tokenAddress} auf {chain}
           </p>
         </div>
         
         <div className="grid grid-cols-1 gap-6">
-          <TokenAnalysisCard tokenAddress={tokenAddress} />
+          <TokenAnalysisCard tokenAddress={tokenAddress} chain={chain} />
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PriceChart tokenAddress={tokenAddress} />
-          <HolderDistribution tokenAddress={tokenAddress} />
+          <PriceChart tokenAddress={tokenAddress} chain={chain} />
+          <HolderDistribution tokenAddress={tokenAddress} chain={chain} />
         </div>
       </div>
     </DashboardLayout>
