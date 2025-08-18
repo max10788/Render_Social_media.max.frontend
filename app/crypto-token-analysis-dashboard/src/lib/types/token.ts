@@ -1,4 +1,40 @@
 // lib/types/token.ts
+
+// Add this to your @/lib/types/token.ts file
+
+export interface OptionGreeks {
+  delta?: number;
+  gamma?: number;
+  theta?: number;
+  vega?: number;
+  rho?: number;
+}
+
+export interface ConfidenceInterval {
+  lower?: number;
+  upper?: number;
+}
+
+export interface SensitivityAnalysis {
+  parameter: string;
+  impact: number;
+}
+
+export interface OptionAnalysis {
+  var_95?: number;
+  expected_shortfall?: number;
+  num_simulations?: number;
+  convergence?: number;
+  sensitivity_analysis?: SensitivityAnalysis[];
+}
+
+export interface OptionPricingResponse {
+  price: number;
+  confidence_interval?: ConfidenceInterval;
+  greeks?: OptionGreeks;
+  analysis?: OptionAnalysis;
+}
+
 export interface Token {
   id: number;
   address: string;
