@@ -131,11 +131,14 @@ export interface TokenAnalysisRequest {
 }
 
 export interface TokenAnalysisResponse {
-  token_info: Record<string, any>;
+  token_info: TokenInfo; // Use the TokenInfo interface instead of Record<string, any>
   score: number;
+  institutional_score?: number;
   metrics: Record<string, any>;
   risk_flags: string[];
-  wallet_analysis: Record<string, any>;
+  wallet_analysis: WalletAnalysisData;
+  institutional_metrics?: Record<string, any>;
+  risk_level?: string;
 }
 
 export interface TokenStatsResponse {
