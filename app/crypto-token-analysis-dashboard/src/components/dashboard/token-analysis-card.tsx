@@ -101,8 +101,12 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
   // Extrahiere spezifische Eigenschaften mit Typsicherheit
   const name = typeof tokenInfo.name === 'string' ? tokenInfo.name : token.name;
   const symbol = typeof tokenInfo.symbol === 'string' ? tokenInfo.symbol : token.symbol;
+  
+  // price und price_change_24h sind nur in tokenInfo vorhanden, nicht in TokenDetail
   const price = typeof tokenInfo.price === 'number' ? tokenInfo.price : undefined;
   const priceChange24h = typeof tokenInfo.price_change_24h === 'number' ? tokenInfo.price_change_24h : undefined;
+  
+  // market_cap, volume_24h und holders_count sind in TokenDetail vorhanden
   const marketCap = typeof tokenInfo.market_cap === 'number' ? tokenInfo.market_cap : token.market_cap;
   const volume24h = typeof tokenInfo.volume_24h === 'number' ? tokenInfo.volume_24h : token.volume_24h;
   const holdersCount = typeof tokenInfo.holders_count === 'number' ? tokenInfo.holders_count : token.holders_count;
