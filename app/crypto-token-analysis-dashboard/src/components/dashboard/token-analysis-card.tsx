@@ -1,9 +1,8 @@
 // components/dashboard/token-analysis-card.tsx
 'use client';
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchTokenByAddress, analyzeToken } from '@/lib/api/tokenApi';
+import { fetchTokenDetail, analyzeToken } from '@/lib/api/tokenApi'; // Ändere den Import
 import { TokenDetail, TokenAnalysis } from '@/lib/types/token';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,17 +29,17 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
   
   const { data: token, isLoading, error, refetch } = useQuery<TokenDetail>({
     queryKey: ['token', tokenAddress, chain],
-    queryFn: () => fetchTokenByAddress(tokenAddress, chain, true),
+    queryFn: () => fetchTokenDetail(tokenAddress, chain), // Verwende die neue Funktion
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-
+  
   const { data: analysis, refetch: refetchAnalysis } = useQuery<TokenAnalysis>({
     queryKey: ['tokenAnalysis', tokenAddress, chain],
-    queryFn: () => analyzeToken(tokenAddress, chain),
+    queryFn: () => analyzeToken({ token_address: tokenAddress, chain }), // Korrigierter Funktionsaufruf
     staleTime: 10 * 60 * 1000, // 10 minutes
     enabled: false, // Nur bei Bedarf ausführen
   });
-
+  
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     try {
@@ -49,7 +48,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
       setIsAnalyzing(false);
     }
   };
-
+  
   if (isLoading) {
     return (
       <Card className="w-full">
@@ -68,7 +67,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
       </Card>
     );
   }
-
+  
   if (error) {
     return (
       <Card className="w-full">
@@ -89,16 +88,16 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
       </Card>
     );
   }
-
+  
   if (!token) {
     return null;
   }
-
+  
   const tokenInfo = analysis?.token_info || token;
   const score = analysis?.score || token.token_score || 0;
   const riskFlags = analysis?.risk_flags || [];
   const walletAnalysis = analysis?.wallet_analysis;
-
+  
   // Bestimme die Farbe basierend auf dem Score
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-success';
@@ -106,7 +105,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     if (score >= 40) return 'text-orange-500';
     return 'text-danger';
   };
-
+  
   // Bestimme das Risikolevel
   const getRiskLevel = (score: number) => {
     if (score >= 80) return 'Sicher';
@@ -114,10 +113,10 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     if (score >= 40) return 'Mittleres Risiko';
     return 'Hohes Risiko';
   };
-
+  
   const priceChangeColor = tokenInfo.price_change_24h >= 0 ? 'text-success' : 'text-danger';
   const PriceChangeIcon = tokenInfo.price_change_24h >= 0 ? TrendingUp : TrendingDown;
-
+  
   return (
     <Card className="w-full">
       <CardHeader>
@@ -191,7 +190,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
             <div className="mt-1 text-lg font-semibold">{riskFlags.length}</div>
           </div>
         </div>
-
+        
         {riskFlags.length > 0 && (
           <div className="mb-6">
             <h3 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">
@@ -206,7 +205,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
             </div>
           </div>
         )}
-
+        
         {walletAnalysis && (
           <div className="mb-6">
             <h3 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">
@@ -232,7 +231,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
             </div>
           </div>
         )}
-
+        
         <div className="flex justify-center mt-4">
           <Button 
             onClick={handleAnalyze} 
