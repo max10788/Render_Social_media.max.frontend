@@ -86,7 +86,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       const edge = data.edges?.find(edge => 
         edge.from === node.id || edge.to === node.id
       );
-      const transactionType = edge?.value > 0 ? 'buy' : 'sell';
+      const transactionType = (edge?.value ?? 0) > 0 ? 'buy' : 'sell';
       
       return {
         id: node.id,
