@@ -3,7 +3,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTokenDetail, analyzeToken } from '@/lib/api/tokenApi';
-import { TokenDetail, TokenAnalysisResponse } from '@/lib/types/token'; // Geändert von TokenAnalysis zu TokenAnalysisResponse
+import { TokenDetail, TokenAnalysisResponse } from '@/lib/types/token';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
   
-  const { data: analysis, refetch: refetchAnalysis } = useQuery<TokenAnalysisResponse>({ // Typ geändert
+  const { data: analysis, refetch: refetchAnalysis } = useQuery<TokenAnalysisResponse>({
     queryKey: ['tokenAnalysis', tokenAddress, chain],
     queryFn: () => analyzeToken({ token_address: tokenAddress, chain }),
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -93,17 +93,26 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     return null;
   }
   
-  // Anpassung für den Zugriff auf token_info, da es jetzt Record<string, any> ist
+  // Extrahiere die benötigten Eigenschaften mit Fallbacks
   const tokenInfo = analysis?.token_info || token;
   const score = analysis?.score || token.token_score || 0;
   const riskFlags = analysis?.risk_flags || [];
   
-  // Anpassung für wallet_analysis, da es jetzt Record<string, any> ist
+  // Extrahiere spezifische Eigenschaften mit Typsicherheit
+  const name = typeof tokenInfo.name === 'string' ? tokenInfo.name : token.name;
+  const symbol = typeof tokenInfo.symbol === 'string' ? tokenInfo.symbol : token.symbol;
+  const price = typeof tokenInfo.price === 'number' ? tokenInfo.price : undefined;
+  const priceChange24h = typeof tokenInfo.price_change_24h === 'number' ? tokenInfo.price_change_24h : undefined;
+  const marketCap = typeof tokenInfo.market_cap === 'number' ? tokenInfo.market_cap : token.market_cap;
+  const volume24h = typeof tokenInfo.volume_24h === 'number' ? tokenInfo.volume_24h : token.volume_24h;
+  const holdersCount = typeof tokenInfo.holders_count === 'number' ? tokenInfo.holders_count : token.holders_count;
+  
+  // Wallet-Analyse-Daten mit Typsicherheit
   const walletAnalysisData = analysis?.wallet_analysis ? {
-    total_wallets: analysis.wallet_analysis.total_wallets || 0,
-    dev_wallets: analysis.wallet_analysis.dev_wallets || 0,
-    whale_wallets: analysis.wallet_analysis.whale_wallets || 0,
-    rugpull_suspects: analysis.wallet_analysis.rugpull_suspects || 0,
+    total_wallets: typeof analysis.wallet_analysis.total_wallets === 'number' ? analysis.wallet_analysis.total_wallets : 0,
+    dev_wallets: typeof analysis.wallet_analysis.dev_wallets === 'number' ? analysis.wallet_analysis.dev_wallets : 0,
+    whale_wallets: typeof analysis.wallet_analysis.whale_wallets === 'number' ? analysis.wallet_analysis.whale_wallets : 0,
+    rugpull_suspects: typeof analysis.wallet_analysis.rugpull_suspects === 'number' ? analysis.wallet_analysis.rugpull_suspects : 0,
   } : null;
   
   // Bestimme die Farbe basierend auf dem Score
@@ -122,8 +131,9 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     return 'Hohes Risiko';
   };
   
-  const priceChangeColor = tokenInfo.price_change_24h >= 0 ? 'text-success' : 'text-danger';
-  const PriceChangeIcon = tokenInfo.price_change_24h >= 0 ? TrendingUp : TrendingDown;
+  // Bestimme die Farbe und das Icon für die Preisänderung
+  const priceChangeColor = priceChange24h !== undefined && priceChange24h >= 0 ? 'text-success' : 'text-danger';
+  const PriceChangeIcon = priceChange24h !== undefined && priceChange24h >= 0 ? TrendingUp : TrendingDown;
   
   return (
     <Card className="w-full">
@@ -131,22 +141,24 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="flex items-center gap-2">
-              {tokenInfo.name} ({tokenInfo.symbol})
+              {name} ({symbol})
               <Badge variant="outline">{chain}</Badge>
               {token.contract_verified && (
                 <Badge variant="secondary">Verifiziert</Badge>
               )}
             </CardTitle>
-            {tokenInfo.price && (
+            {price !== undefined && (
               <div className="flex items-center mt-1">
-                <span className="text-2xl font-bold">${tokenInfo.price.toFixed(6)}</span>
-                <div className={`flex items-center ml-2 ${priceChangeColor}`}>
-                  <PriceChangeIcon className="h-4 w-4" />
-                  <span className="ml-1">
-                    {tokenInfo.price_change_24h >= 0 ? '+' : ''}
-                    {tokenInfo.price_change_24h?.toFixed(2)}%
-                  </span>
-                </div>
+                <span className="text-2xl font-bold">${price.toFixed(6)}</span>
+                {priceChange24h !== undefined && (
+                  <div className={`flex items-center ml-2 ${priceChangeColor}`}>
+                    <PriceChangeIcon className="h-4 w-4" />
+                    <span className="ml-1">
+                      {priceChange24h >= 0 ? '+' : ''}
+                      {priceChange24h.toFixed(2)}%
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -169,7 +181,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
               <span className="ml-2 text-sm font-medium">Market Cap</span>
             </div>
             <div className="mt-1 text-lg font-semibold">
-              {tokenInfo.market_cap ? `$${(tokenInfo.market_cap / 1000000).toFixed(2)}M` : 'N/A'}
+              {marketCap ? `$${(marketCap / 1000000).toFixed(2)}M` : 'N/A'}
             </div>
           </div>
           <div className="bg-neutral-50 dark:bg-neutral-800 p-3 rounded-lg">
@@ -178,7 +190,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
               <span className="ml-2 text-sm font-medium">Volume 24h</span>
             </div>
             <div className="mt-1 text-lg font-semibold">
-              {tokenInfo.volume_24h ? `$${(tokenInfo.volume_24h / 1000000).toFixed(2)}M` : 'N/A'}
+              {volume24h ? `$${(volume24h / 1000000).toFixed(2)}M` : 'N/A'}
             </div>
           </div>
           <div className="bg-neutral-50 dark:bg-neutral-800 p-3 rounded-lg">
@@ -187,7 +199,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
               <span className="ml-2 text-sm font-medium">Holders</span>
             </div>
             <div className="mt-1 text-lg font-semibold">
-              {tokenInfo.holders_count?.toLocaleString() || 'N/A'}
+              {holdersCount?.toLocaleString() || 'N/A'}
             </div>
           </div>
           <div className="bg-neutral-50 dark:bg-neutral-800 p-3 rounded-lg">
