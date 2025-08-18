@@ -1,6 +1,4 @@
-// src/components/options/option-pricing-form.tsx
 'use client';
-
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,12 +43,13 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
     setPricingError,
     setSimulationId,
     setSimulationProgress,
+    setPricingResult, // Added this missing import
     resetPricing,
   } = useOptionStore();
-
+  
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
   const [useAsync, setUseAsync] = useState(false);
-
+  
   const {
     register,
     handleSubmit,
@@ -73,10 +72,10 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
       include_analysis: true,
     },
   });
-
+  
   const watchedAssets = watch('assets');
   const watchedWeights = watch('weights');
-
+  
   const handleAssetSelect = (assetSymbol: string) => {
     if (!selectedAssets.includes(assetSymbol)) {
       const newAssets = [...selectedAssets, assetSymbol];
@@ -88,7 +87,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
       setValue('weights', newWeights);
     }
   };
-
+  
   const handleAssetRemove = (assetSymbol: string) => {
     const newAssets = selectedAssets.filter(a => a !== assetSymbol);
     setSelectedAssets(newAssets);
@@ -104,20 +103,20 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
       setValue('weights', []);
     }
   };
-
+  
   const handleWeightChange = (index: number, value: number) => {
     const newWeights = [...watchedWeights];
     newWeights[index] = value;
     setValue('weights', newWeights);
   };
-
+  
   const normalizeWeights = () => {
     const totalWeight = watchedWeights.reduce((sum, w) => sum + w, 0);
     if (totalWeight > 0) {
       setValue('weights', watchedWeights.map(w => w / totalWeight));
     }
   };
-
+  
   const onFormSubmit = async (data: FormData) => {
     try {
       setPricingStatus('calculating');
@@ -144,7 +143,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
             
             if (status.status === 'completed') {
               const result = await apiClient.getOptionPricingResult(simulation_id);
-              setPricingResult(result); // Korrigiert: setPricingResult statt setPricingResult
+              setPricingResult(result);
               setSimulationProgress(null);
               setSimulationId(null);
             } else if (status.status === 'failed') {
@@ -166,14 +165,14 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
       } else {
         // Synchronous calculation
         const result = await apiClient.priceOption(request);
-        setPricingResult(result); // Korrigiert: setPricingResult statt setPricingResult
+        setPricingResult(result);
       }
     } catch (error) {
       setPricingError(error instanceof Error ? error.message : 'An error occurred');
       setPricingStatus('error');
     }
   };
-
+  
   return (
     <Card>
       <CardHeader>
@@ -226,7 +225,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
               </div>
             </div>
           </div>
-
+          
           {/* Weights */}
           {selectedAssets.length > 0 && (
             <div>
@@ -257,7 +256,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
               </div>
             </div>
           )}
-
+          
           {/* Option Parameters */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -272,7 +271,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 <p className="text-sm text-red-600">{errors.strike_price.message}</p>
               )}
             </div>
-
             <div>
               <Label htmlFor="option_type">Option Type</Label>
               <Select onValueChange={(value) => setValue('option_type', value as OptionType)}>
@@ -285,7 +283,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 </SelectContent>
               </Select>
             </div>
-
             <div>
               <Label htmlFor="time_to_maturity">Time to Maturity (Years)</Label>
               <Input
@@ -298,7 +295,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 <p className="text-sm text-red-600">{errors.time_to_maturity.message}</p>
               )}
             </div>
-
             <div>
               <Label htmlFor="risk_free_rate">Risk-Free Rate (Optional)</Label>
               <Input
@@ -309,7 +305,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
               />
             </div>
           </div>
-
+          
           {/* Advanced Parameters */}
           <div className="space-y-4">
             <h3 className="text-sm font-medium">Advanced Parameters</h3>
@@ -323,7 +319,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                   {...register('num_simulations')}
                 />
               </div>
-
               <div>
                 <Label htmlFor="stochastic_model">Stochastic Model</Label>
                 <Select 
@@ -340,7 +335,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 </Select>
               </div>
             </div>
-
+            
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -349,7 +344,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 />
                 <Label htmlFor="calculate_greeks">Calculate Greeks</Label>
               </div>
-
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="include_analysis"
@@ -358,7 +352,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 <Label htmlFor="include_analysis">Include Analysis</Label>
               </div>
             </div>
-
+            
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="use_async"
@@ -368,7 +362,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
               <Label htmlFor="use_async">Use Async Calculation</Label>
             </div>
           </div>
-
+          
           {/* Submit Button */}
           <Button 
             type="submit" 
