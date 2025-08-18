@@ -1,13 +1,23 @@
-// lib/api/tokenApi.ts
 import apiClient from './clients';
 import { 
   TokenResponse, 
-  TokenDetailResponse,  // Stelle sicher, dass dieser Typ importiert wird
+  TokenDetailResponse,
   TokenAnalysisRequest,
   TokenAnalysisResponse,
   TokenStatsResponse,
-  AnalysisHistoryResponse
+  AnalysisHistoryResponse,
+  TokenPrice  // Füge diesen Import hinzu
 } from '@/lib/types/token';
+
+export const fetchTokenPrice = async (
+  address: string, 
+  chain: string
+): Promise<TokenPrice> => {
+  const response = await apiClient.get<TokenPrice>(`/tokens/${address}/price`, {
+    params: { chain }
+  });
+  return response.data;
+};
 
 // Token-Liste abrufen
 export const fetchTokens = async (params?: {
