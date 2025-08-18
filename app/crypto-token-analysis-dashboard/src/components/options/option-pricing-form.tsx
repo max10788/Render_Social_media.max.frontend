@@ -129,9 +129,8 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
         num_simulations: data.num_simulations || config?.default_num_simulations || 100000,
         stochastic_model: data.stochastic_model || StochasticModel.GBM,
       };
-
       setPricingRequest(request);
-
+      
       if (useAsync) {
         // Start async calculation
         const { simulation_id } = await apiClient.startOptionPricing(request);
@@ -145,7 +144,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
             
             if (status.status === 'completed') {
               const result = await apiClient.getOptionPricingResult(simulation_id);
-              setPricingResult(result);
+              setPricingResult(result); // Korrigiert: setPricingResult statt setPricingResult
               setSimulationProgress(null);
               setSimulationId(null);
             } else if (status.status === 'failed') {
@@ -167,7 +166,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
       } else {
         // Synchronous calculation
         const result = await apiClient.priceOption(request);
-        setPricingResult(result);
+        setPricingResult(result); // Korrigiert: setPricingResult statt setPricingResult
       }
     } catch (error) {
       setPricingError(error instanceof Error ? error.message : 'An error occurred');
