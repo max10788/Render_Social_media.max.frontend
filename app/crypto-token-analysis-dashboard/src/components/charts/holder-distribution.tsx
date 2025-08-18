@@ -1,10 +1,9 @@
 // components/charts/holder-distribution.tsx
 'use client';
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTokenByAddress, analyzeToken } from '@/lib/api/tokenApi';
-import { TokenDetail, TokenAnalysis } from '@/lib/types/token';
+import { TokenDetailResponse, TokenAnalysis } from '@/lib/types/token'; // Geändert von TokenDetail zu TokenDetailResponse
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -22,21 +21,20 @@ interface HolderDistributionProps {
 }
 
 export function HolderDistribution({ tokenAddress, chain }: HolderDistributionProps) {
-  const { data: token, isLoading: tokenLoading } = useQuery<TokenDetail>({
+  const { data: token, isLoading: tokenLoading } = useQuery<TokenDetailResponse>({ // Typ geändert
     queryKey: ['token', tokenAddress, chain],
-    queryFn: () => fetchTokenByAddress(tokenAddress, chain, true),
+    queryFn: () => fetchTokenByAddress(tokenAddress, chain, true) as Promise<TokenDetailResponse>, // Typ-Assertion hinzugefügt
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-
   const { data: analysis, isLoading: analysisLoading } = useQuery<TokenAnalysis>({
     queryKey: ['tokenAnalysis', tokenAddress, chain],
-    queryFn: () => analyzeToken(tokenAddress, chain),
+    queryFn: () => analyzeToken({ token_address: tokenAddress, chain }), // Korrigierter Funktionsaufruf
     staleTime: 10 * 60 * 1000, // 10 minutes
-    enabled: false, // Nur bei Bedarf ausführen
+    enabled: !!token, // Nur ausführen, wenn token-Daten vorhanden sind
   });
-
+  
   const isLoading = tokenLoading || analysisLoading;
-
+  
   if (isLoading) {
     return (
       <Card className="w-full">
@@ -49,7 +47,7 @@ export function HolderDistribution({ tokenAddress, chain }: HolderDistributionPr
       </Card>
     );
   }
-
+  
   const walletAnalysis = analysis?.wallet_analysis || token?.wallet_analyses?.reduce((acc, wallet) => {
     if (!acc.total_wallets) acc.total_wallets = 0;
     if (!acc.dev_wallets) acc.dev_wallets = 0;
@@ -73,7 +71,7 @@ export function HolderDistribution({ tokenAddress, chain }: HolderDistributionPr
     whale_wallets: 10,
     rugpull_suspects: 2,
   };
-
+  
   const chartData = [
     { name: 'Dev Wallets', value: walletAnalysis.dev_wallets, color: '#00D4AA' },
     { name: 'Whale Wallets', value: walletAnalysis.whale_wallets, color: '#3B82F6' },
