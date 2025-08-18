@@ -29,6 +29,22 @@ export const fetchTokenDetail = async (
     params: { chain, includeDetails: true }
   });
 
+  // Konvertiere TokenDetailResponse zu TokenDetail
+  const tokenDetailResponse = response.data;
+  return {
+    ...tokenDetailResponse,
+    wallet_analyses: tokenDetailResponse.wallet_analyses.map(wallet => ({
+      wallet_address: wallet.wallet_address,
+      wallet_type: wallet.wallet_type,
+      balance: wallet.balance,
+      percentage_of_supply: wallet.percentage_of_supply,
+      transaction_count: wallet.transaction_count,
+      risk_score: wallet.risk_score
+    })),
+    advanced_metrics: {} // Standardwert, da in Response nicht enthalten
+  };
+};
+
 // Token-Liste abrufen
 export const fetchTokens = async (params?: {
   limit?: number;
