@@ -1,270 +1,393 @@
-// src/app/page.tsx
 'use client';
-
-import { useEffect, useState } from 'react';
-import { DashboardLayout } from '@/components/layouts/dashboard-layout';
-import { OptionPricingForm } from '@/components/options/option-pricing-form';
-import { OptionPricingResult } from '@/components/options/option-pricing-result';
-import { AssetSelector } from '@/components/options/asset-selector';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useOptionStore } from '@/lib/stores/optionStore';
 import { apiClient } from '@/lib/api/client';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Calculator, TrendingUp, BarChart3, PieChart } from 'lucide-react';
+import { OptionType, VolatilityModel, StochasticModel } from "@/lib/types";
+import { Calculator, Play } from 'lucide-react';
 
-export default function DashboardPage() {
+const formSchema = z.object({
+  assets: z.array(z.string()).min(1, 'Select at least one asset'),
+  weights: z.array(z.number()).min(1, 'Weights are required'),
+  strike_price: z.number().min(0.01, 'Strike price must be positive'),
+  option_type: z.nativeEnum(OptionType),
+  time_to_maturity: z.number().min(0.01, 'Time to maturity must be positive'),
+  risk_free_rate: z.number().min(0).max(1).optional(),
+  num_simulations: z.number().min(1000).max(1000000).optional(),
+  stochastic_model: z.nativeEnum(StochasticModel).optional(),
+  calculate_greeks: z.boolean().default(false),
+  include_analysis: z.boolean().default(true),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+interface OptionPricingFormProps {
+  onSubmit?: (data: FormData) => void;
+}
+
+export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) { // Added "export" here
   const {
     assets,
     config,
-    pricingStatus,
-    pricingResult,
-    simulationId,
-    simulationProgress,
-    setAssets,
-    setConfig,
+    setPricingRequest,
+    setPricingStatus,
+    setPricingError,
+    setSimulationId,
+    setSimulationProgress,
+    setPricingResult,
     resetPricing,
   } = useOptionStore();
-
-  const [activeTab, setActiveTab] = useState('pricing');
-
-  useEffect(() => {
-    // Load initial data
-    const loadInitialData = async () => {
-      try {
-        const [assetsData, configData] = await Promise.all([
-          apiClient.getAvailableAssets(),
-          apiClient.getSystemConfig(),
-        ]);
-        setAssets(assetsData);
-        setConfig(configData);
-      } catch (error) {
-        console.error('Failed to load initial data:', error);
+  
+  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
+  const [useAsync, setUseAsync] = useState(false);
+  
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      assets: [],
+      weights: [],
+      strike_price: 100,
+      option_type: OptionType.CALL,
+      time_to_maturity: 1,
+      risk_free_rate: 0.03,
+      num_simulations: config?.default_num_simulations || 100000,
+      stochastic_model: StochasticModel.GBM,
+      calculate_greeks: false,
+      include_analysis: true,
+    },
+  });
+  
+  const watchedAssets = watch('assets');
+  const watchedWeights = watch('weights');
+  
+  const handleAssetSelect = (assetSymbol: string) => {
+    if (!selectedAssets.includes(assetSymbol)) {
+      const newAssets = [...selectedAssets, assetSymbol];
+      setSelectedAssets(newAssets);
+      setValue('assets', newAssets);
+      
+      // Initialize weight for new asset
+      const newWeights = [...watchedWeights, 1 / newAssets.length];
+      setValue('weights', newWeights);
+    }
+  };
+  
+  const handleAssetRemove = (assetSymbol: string) => {
+    const newAssets = selectedAssets.filter(a => a !== assetSymbol);
+    setSelectedAssets(newAssets);
+    setValue('assets', newAssets);
+    
+    // Remove corresponding weight
+    const newWeights = watchedWeights.slice(0, newAssets.length);
+    if (newWeights.length > 0) {
+      // Normalize weights
+      const totalWeight = newWeights.reduce((sum, w) => sum + w, 0);
+      setValue('weights', newWeights.map(w => w / totalWeight));
+    } else {
+      setValue('weights', []);
+    }
+  };
+  
+  const handleWeightChange = (index: number, value: number) => {
+    const newWeights = [...watchedWeights];
+    newWeights[index] = value;
+    setValue('weights', newWeights);
+  };
+  
+  const normalizeWeights = () => {
+    const totalWeight = watchedWeights.reduce((sum, w) => sum + w, 0);
+    if (totalWeight > 0) {
+      setValue('weights', watchedWeights.map(w => w / totalWeight));
+    }
+  };
+  
+  const onFormSubmit = async (data: FormData) => {
+    try {
+      setPricingStatus('calculating');
+      setPricingError(null);
+      
+      const request = {
+        ...data,
+        risk_free_rate: data.risk_free_rate || 0.03,
+        num_simulations: data.num_simulations || config?.default_num_simulations || 100000,
+        stochastic_model: data.stochastic_model || StochasticModel.GBM,
+      };
+      setPricingRequest(request);
+      
+      if (useAsync) {
+        // Start async calculation
+        const { simulation_id } = await apiClient.startOptionPricing(request);
+        setSimulationId(simulation_id);
+        
+        // Poll for progress
+        const pollProgress = async () => {
+          try {
+            const status = await apiClient.getOptionPricingStatus(simulation_id);
+            setSimulationProgress(status.progress);
+            
+            if (status.status === 'completed') {
+              const result = await apiClient.getOptionPricingResult(simulation_id);
+              setPricingResult(result);
+              setSimulationProgress(null);
+              setSimulationId(null);
+            } else if (status.status === 'failed') {
+              setPricingError(status.message || 'Calculation failed');
+              setSimulationProgress(null);
+              setSimulationId(null);
+            } else {
+              // Continue polling
+              setTimeout(pollProgress, 1000);
+            }
+          } catch (error) {
+            setPricingError('Failed to get simulation status');
+            setSimulationProgress(null);
+            setSimulationId(null);
+          }
+        };
+        
+        pollProgress();
+      } else {
+        // Synchronous calculation
+        const result = await apiClient.priceOption(request);
+        setPricingResult(result);
       }
-    };
-
-    loadInitialData();
-  }, [setAssets, setConfig]);
-
+    } catch (error) {
+      setPricingError(error instanceof Error ? error.message : 'An error occurred');
+      setPricingStatus('error');
+    }
+  };
+  
+  // Handler for the async checkbox
+  const handleAsyncChange = (checked: boolean) => {
+    setUseAsync(checked);
+  };
+  
   return (
-    <DashboardLayout>
-      <div className="container mx-auto py-6 space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Calculator className="h-5 w-5" />
+          Option Pricing Parameters
+        </CardTitle>
+        <CardDescription>
+          Configure the parameters for your basket option pricing calculation
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
+          {/* Asset Selection */}
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              Monte-Carlo Basket-Option Pricing
-            </h1>
-            <p className="text-muted-foreground">
-              Advanced pricing engine for cryptocurrency basket options
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Calculator className="h-3 w-3" />
-              Monte-Carlo
-            </Badge>
-            {config && (
-              <Badge variant="outline" className="flex items-center gap-1">
-                <BarChart3 className="h-3 w-3" />
-                {config.supported_stochastic_models.length} Models
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="pricing" className="flex items-center gap-2">
-              <Calculator className="h-4 w-4" />
-              Option Pricing
-            </TabsTrigger>
-            <TabsTrigger value="assets" className="flex items-center gap-2">
-              <PieChart className="h-4 w-4" />
-              Assets
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4" />
-              Configuration
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="pricing" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Pricing Form */}
-              <div>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Option Parameters</CardTitle>
-                    <CardDescription>
-                      Configure your basket option parameters
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <OptionPricingForm />
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Pricing Result */}
-              <div>
-                {pricingStatus === 'calculating' && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Calculating Option Price</CardTitle>
-                      <CardDescription>
-                        Monte-Carlo simulation in progress
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div 
-                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                            style={{ width: `${(simulationProgress || 0) * 100}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-sm text-muted-foreground text-center">
-                          {Math.round((simulationProgress || 0) * 100)}% Complete
-                        </p>
-                        {simulationId && (
-                          <p className="text-xs text-muted-foreground text-center">
-                            Simulation ID: {simulationId}
-                          </p>
-                        )}
+            <Label className="text-sm font-medium">Select Assets</Label>
+            <div className="mt-2 space-y-2">
+              <Select onValueChange={handleAssetSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Add an asset" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assets.map((asset) => (
+                    <SelectItem key={asset.symbol} value={asset.symbol}>
+                      <div className="flex items-center gap-2">
+                        <span>{asset.symbol}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {asset.name}
+                        </span>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {pricingStatus === 'completed' && pricingResult && (
-                  <OptionPricingResult result={pricingResult} />
-                )}
-
-                {pricingStatus === 'error' && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-red-600">Calculation Error</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        There was an error calculating the option price. Please try again.
-                      </p>
-                      <Button 
-                        variant="outline" 
-                        className="mt-4"
-                        onClick={resetPricing}
-                      >
-                        Try Again
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* Selected Assets */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selectedAssets.map((asset, index) => (
+                  <Badge key={asset} variant="secondary" className="flex items-center gap-1">
+                    {asset}
+                    <button
+                      type="button"
+                      onClick={() => handleAssetRemove(asset)}
+                      className="ml-1 rounded-full hover:bg-muted"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
               </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="assets" className="space-y-6">
-            <AssetSelector assets={assets} />
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Market Overview</CardTitle>
-                  <CardDescription>
-                    Real-time market data and analytics
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Analytics features will be implemented here.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Performance Metrics</CardTitle>
-                  <CardDescription>
-                    Key performance indicators
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Performance metrics will be displayed here.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="config" className="space-y-6">
-            {config && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>System Configuration</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Default Simulations</span>
-                      <Badge variant="outline">{config.default_num_simulations.toLocaleString()}</Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Default Timesteps</span>
-                      <Badge variant="outline">{config.default_num_timesteps}</Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Risk-Free Rate</span>
-                      <Badge variant="outline">{(config.default_risk_free_rate * 100).toFixed(2)}%</Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Max Assets per Basket</span>
-                      <Badge variant="outline">{config.max_assets_per_basket}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Supported Models</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Volatility Models</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {config.supported_volatility_models.map((model) => (
-                          <Badge key={model} variant="secondary">
-                            {model}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Stochastic Models</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {config.supported_stochastic_models.map((model) => (
-                          <Badge key={model} variant="secondary">
-                            {model}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+          </div>
+          
+          {/* Weights */}
+          {selectedAssets.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-medium">Asset Weights</Label>
+                <Button type="button" variant="outline" size="sm" onClick={normalizeWeights}>
+                  Normalize
+                </Button>
               </div>
+              <div className="space-y-2">
+                {selectedAssets.map((asset, index) => (
+                  <div key={asset} className="flex items-center gap-2">
+                    <span className="w-16 text-sm">{asset}</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="1"
+                      value={watchedWeights[index] || 0}
+                      onChange={(e) => handleWeightChange(index, parseFloat(e.target.value))}
+                      className="flex-1"
+                    />
+                    <span className="w-16 text-sm text-right">
+                      {((watchedWeights[index] || 0) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Option Parameters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="strike_price">Strike Price</Label>
+              <Input
+                id="strike_price"
+                type="number"
+                step="0.01"
+                {...register('strike_price')}
+              />
+              {errors.strike_price && (
+                <p className="text-sm text-red-600">{errors.strike_price.message}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="option_type">Option Type</Label>
+              <Select onValueChange={(value) => setValue('option_type', value as OptionType)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select option type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={OptionType.CALL}>Call Option</SelectItem>
+                  <SelectItem value={OptionType.PUT}>Put Option</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="time_to_maturity">Time to Maturity (Years)</Label>
+              <Input
+                id="time_to_maturity"
+                type="number"
+                step="0.01"
+                {...register('time_to_maturity')}
+              />
+              {errors.time_to_maturity && (
+                <p className="text-sm text-red-600">{errors.time_to_maturity.message}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="risk_free_rate">Risk-Free Rate (Optional)</Label>
+              <Input
+                id="risk_free_rate"
+                type="number"
+                step="0.001"
+                {...register('risk_free_rate')}
+              />
+            </div>
+          </div>
+          
+          {/* Advanced Parameters */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium">Advanced Parameters</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="num_simulations">Number of Simulations</Label>
+                <Input
+                  id="num_simulations"
+                  type="number"
+                  {...register('num_simulations')}
+                />
+              </div>
+              <div>
+                <Label htmlFor="stochastic_model">Stochastic Model</Label>
+                <Select 
+                  onValueChange={(value) => setValue('stochastic_model', value as StochasticModel)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={StochasticModel.GBM}>Geometric Brownian Motion</SelectItem>
+                    <SelectItem value={StochasticModel.JUMP_DIFFUSION}>Jump Diffusion</SelectItem>
+                    <SelectItem value={StochasticModel.HESTON}>Heston Model</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="calculate_greeks"
+                  {...register('calculate_greeks')}
+                />
+                <Label htmlFor="calculate_greeks">Calculate Greeks</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="include_analysis"
+                  {...register('include_analysis')}
+                />
+                <Label htmlFor="include_analysis">Include Analysis</Label>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="use_async"
+                checked={useAsync}
+                onCheckedChange={handleAsyncChange}
+              />
+              <Label htmlFor="use_async">Use Async Calculation</Label>
+            </div>
+          </div>
+          
+          {/* Submit Button */}
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={isSubmitting || selectedAssets.length === 0}
+          >
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Calculating...
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 h-4 w-4" />
+                Calculate Option Price
+              </>
             )}
-          </TabsContent>
-        </Tabs>
-      </div>
-    </DashboardLayout>
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
