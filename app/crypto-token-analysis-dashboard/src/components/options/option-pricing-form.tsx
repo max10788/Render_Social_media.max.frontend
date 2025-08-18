@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { useOptionStore } from '@/lib/stores/optionStore';
-import { OptionPricingResponse } from '@/lib/types/token'; // Fixed import path
+import { OptionPricingResponse } from '@/lib/types/token';
 import { 
   TrendingUp, 
   TrendingDown, 
