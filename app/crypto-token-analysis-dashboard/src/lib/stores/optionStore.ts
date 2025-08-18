@@ -11,7 +11,7 @@ import {
   CorrelationResponse,
   RiskMetricsResponse,
   ImpliedVolatilityResponse
-} from '@/types';
+} from "@/lib/types";
 
 interface OptionStore {
   // System Information
