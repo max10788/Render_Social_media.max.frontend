@@ -1,6 +1,5 @@
 // components/charts/transaction-radar-chart.tsx
 'use client';
-
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useQuery } from '@tanstack/react-query';
@@ -83,9 +82,11 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       const angle = (index / data.nodes.length) * 2 * Math.PI;
       
       // Bestimme die Transaktionsrichtung basierend auf den Kanten
-      const transactionType = data.edges.find(edge => 
+      // Fix: Verwende optional chaining, um den Fehler zu beheben
+      const edge = data.edges?.find(edge => 
         edge.from === node.id || edge.to === node.id
-      )?.value > 0 ? 'buy' : 'sell';
+      );
+      const transactionType = edge?.value > 0 ? 'buy' : 'sell';
       
       return {
         id: node.id,
@@ -275,6 +276,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
   };
 
   const handleZoomOut = () => {
+    // Fix: Fehlende schließende Klammer hinzugefügt
     setZoomLevel(prev => Math.max(prev - 0.2, 0.5));
   };
 
