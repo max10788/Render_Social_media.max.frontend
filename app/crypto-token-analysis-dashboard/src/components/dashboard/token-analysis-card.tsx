@@ -2,8 +2,8 @@
 'use client';
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchTokenDetail, analyzeToken } from '@/lib/api/tokenApi'; // Ändere den Import
-import { TokenDetail, TokenAnalysis } from '@/lib/types/token';
+import { fetchTokenDetail, analyzeToken } from '@/lib/api/tokenApi';
+import { TokenDetail, TokenAnalysisResponse } from '@/lib/types/token'; // Geändert von TokenAnalysis zu TokenAnalysisResponse
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,13 +29,13 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
   
   const { data: token, isLoading, error, refetch } = useQuery<TokenDetail>({
     queryKey: ['token', tokenAddress, chain],
-    queryFn: () => fetchTokenDetail(tokenAddress, chain), // Verwende die neue Funktion
+    queryFn: () => fetchTokenDetail(tokenAddress, chain),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
   
-  const { data: analysis, refetch: refetchAnalysis } = useQuery<TokenAnalysis>({
+  const { data: analysis, refetch: refetchAnalysis } = useQuery<TokenAnalysisResponse>({ // Typ geändert
     queryKey: ['tokenAnalysis', tokenAddress, chain],
-    queryFn: () => analyzeToken({ token_address: tokenAddress, chain }), // Korrigierter Funktionsaufruf
+    queryFn: () => analyzeToken({ token_address: tokenAddress, chain }),
     staleTime: 10 * 60 * 1000, // 10 minutes
     enabled: false, // Nur bei Bedarf ausführen
   });
@@ -93,10 +93,18 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     return null;
   }
   
+  // Anpassung für den Zugriff auf token_info, da es jetzt Record<string, any> ist
   const tokenInfo = analysis?.token_info || token;
   const score = analysis?.score || token.token_score || 0;
   const riskFlags = analysis?.risk_flags || [];
-  const walletAnalysis = analysis?.wallet_analysis;
+  
+  // Anpassung für wallet_analysis, da es jetzt Record<string, any> ist
+  const walletAnalysisData = analysis?.wallet_analysis ? {
+    total_wallets: analysis.wallet_analysis.total_wallets || 0,
+    dev_wallets: analysis.wallet_analysis.dev_wallets || 0,
+    whale_wallets: analysis.wallet_analysis.whale_wallets || 0,
+    rugpull_suspects: analysis.wallet_analysis.rugpull_suspects || 0,
+  } : null;
   
   // Bestimme die Farbe basierend auf dem Score
   const getScoreColor = (score: number) => {
@@ -206,26 +214,26 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
           </div>
         )}
         
-        {walletAnalysis && (
+        {walletAnalysisData && (
           <div className="mb-6">
             <h3 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">
               Wallet Analysis
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-2 bg-neutral-50 dark:bg-neutral-800 rounded">
-                <div className="text-lg font-semibold">{walletAnalysis.total_wallets}</div>
+                <div className="text-lg font-semibold">{walletAnalysisData.total_wallets}</div>
                 <div className="text-xs text-neutral-500 dark:text-neutral-400">Total Wallets</div>
               </div>
               <div className="text-center p-2 bg-neutral-50 dark:bg-neutral-800 rounded">
-                <div className="text-lg font-semibold">{walletAnalysis.dev_wallets}</div>
+                <div className="text-lg font-semibold">{walletAnalysisData.dev_wallets}</div>
                 <div className="text-xs text-neutral-500 dark:text-neutral-400">Dev Wallets</div>
               </div>
               <div className="text-center p-2 bg-neutral-50 dark:bg-neutral-800 rounded">
-                <div className="text-lg font-semibold">{walletAnalysis.whale_wallets}</div>
+                <div className="text-lg font-semibold">{walletAnalysisData.whale_wallets}</div>
                 <div className="text-xs text-neutral-500 dark:text-neutral-400">Whale Wallets</div>
               </div>
               <div className="text-center p-2 bg-neutral-50 dark:bg-neutral-800 rounded">
-                <div className="text-lg font-semibold">{walletAnalysis.rugpull_suspects}</div>
+                <div className="text-lg font-semibold">{walletAnalysisData.rugpull_suspects}</div>
                 <div className="text-xs text-neutral-500 dark:text-neutral-400">Rugpull Suspects</div>
               </div>
             </div>
