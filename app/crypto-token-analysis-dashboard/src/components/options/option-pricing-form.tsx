@@ -43,7 +43,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
     setPricingError,
     setSimulationId,
     setSimulationProgress,
-    setPricingResult, // Added this missing import
+    setPricingResult,
     resetPricing,
   } = useOptionStore();
   
@@ -171,6 +171,11 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
       setPricingError(error instanceof Error ? error.message : 'An error occurred');
       setPricingStatus('error');
     }
+  };
+  
+  // Handler for the async checkbox
+  const handleAsyncChange = (checked: boolean) => {
+    setUseAsync(checked);
   };
   
   return (
@@ -357,7 +362,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
               <Checkbox
                 id="use_async"
                 checked={useAsync}
-                onCheckedChange={setUseAsync}
+                onCheckedChange={handleAsyncChange}
               />
               <Label htmlFor="use_async">Use Async Calculation</Label>
             </div>
