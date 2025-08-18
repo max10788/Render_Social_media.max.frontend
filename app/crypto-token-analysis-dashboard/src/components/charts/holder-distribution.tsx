@@ -26,7 +26,8 @@ export function HolderDistribution({ tokenAddress, chain }: HolderDistributionPr
     queryFn: () => fetchTokenByAddress(tokenAddress, chain, true) as Promise<TokenDetailResponse>,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-  const { data: analysis, isLoading: analysisLoading } = useQuery<TokenAnalysisResponse>({ // Typ geändert
+  
+  const { data: analysis, isLoading: analysisLoading } = useQuery<TokenAnalysisResponse>({ // Typ geändert zu TokenAnalysisResponse
     queryKey: ['tokenAnalysis', tokenAddress, chain],
     queryFn: () => analyzeToken({ token_address: tokenAddress, chain }),
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -48,6 +49,7 @@ export function HolderDistribution({ tokenAddress, chain }: HolderDistributionPr
     );
   }
   
+  // Anpassung für den Zugriff auf die Daten, da die Struktur von TokenAnalysisResponse anders ist
   const walletAnalysis = analysis?.wallet_analysis || token?.wallet_analyses?.reduce((acc, wallet) => {
     if (!acc.total_wallets) acc.total_wallets = 0;
     if (!acc.dev_wallets) acc.dev_wallets = 0;
