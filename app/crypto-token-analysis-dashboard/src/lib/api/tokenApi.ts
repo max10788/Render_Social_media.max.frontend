@@ -6,7 +6,8 @@ import {
   TokenAnalysisResponse,
   TokenStatsResponse,
   AnalysisHistoryResponse,
-  TokenPrice  // Füge diesen Import hinzu
+  TokenPrice,
+  TokenDetail  // Füge diesen Import hinzu
 } from '@/lib/types/token';
 
 export const fetchTokenPrice = async (
@@ -18,6 +19,15 @@ export const fetchTokenPrice = async (
   });
   return response.data;
 };
+
+// Neue Funktion für das Abrufen von Token-Details
+export const fetchTokenDetail = async (
+  address: string, 
+  chain: string
+): Promise<TokenDetail> => {
+  const response = await apiClient.get<TokenDetailResponse>(`/tokens/address/${address}`, {
+    params: { chain, includeDetails: true }
+  });
 
 // Token-Liste abrufen
 export const fetchTokens = async (params?: {
