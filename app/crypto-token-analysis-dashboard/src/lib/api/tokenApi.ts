@@ -2,12 +2,11 @@
 import apiClient from './clients';
 import { 
   TokenResponse, 
-  TokenDetailResponse, 
+  TokenDetailResponse,  // Stelle sicher, dass dieser Typ importiert wird
   TokenAnalysisRequest,
   TokenAnalysisResponse,
   TokenStatsResponse,
-  AnalysisHistoryResponse,
-  TokenPrice
+  AnalysisHistoryResponse
 } from '@/lib/types/token';
 
 // Token-Liste abrufen
@@ -22,13 +21,14 @@ export const fetchTokens = async (params?: {
   return response.data;
 };
 
-// Token anhand der Adresse abrufen
+// Token anhand der Adresse abrufen - angepasste Version
 export const fetchTokenByAddress = async (
   address: string, 
-  chain: string
-): Promise<TokenResponse> => {
-  const response = await apiClient.get<TokenResponse>(`/tokens/address/${address}`, {
-    params: { chain }
+  chain: string,
+  includeDetails: boolean = false
+): Promise<TokenResponse | TokenDetailResponse> => {
+  const response = await apiClient.get<TokenResponse | TokenDetailResponse>(`/tokens/address/${address}`, {
+    params: { chain, includeDetails }
   });
   return response.data;
 };
@@ -54,16 +54,5 @@ export const fetchAnalysisHistory = async (params?: {
 // Blockchain-Statistiken abrufen
 export const fetchChainStatistics = async (): Promise<TokenStatsResponse> => {
   const response = await apiClient.get<TokenStatsResponse>('/tokens/statistics/chains');
-  return response.data;
-};
-
-// Token-Preis abrufen
-export const fetchTokenPrice = async (
-  address: string, 
-  chain: string
-): Promise<TokenPrice> => {
-  const response = await apiClient.get<TokenPrice>(`/tokens/${address}/price`, {
-    params: { chain }
-  });
   return response.data;
 };
