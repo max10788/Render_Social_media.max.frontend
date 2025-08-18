@@ -1,9 +1,8 @@
-// components/dashboard/token-analysis-card.tsx
 'use client';
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTokenDetail, analyzeToken } from '@/lib/api/tokenApi';
-import { TokenDetail, TokenAnalysisResponse } from '@/lib/types/token';
+import { TokenDetail, TokenAnalysisResponse, TokenInfo } from '@/lib/types/token';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -93,25 +92,27 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     return null;
   }
   
-  // Extrahiere die benötigten Eigenschaften mit Fallbacks
-  const tokenInfo = analysis?.token_info || token;
-  const score = analysis?.score || token.token_score || 0;
+  // Extract token info with proper typing
+  const analysisTokenInfo = analysis?.token_info as TokenInfo | undefined;
+  
+  // Extract properties with fallbacks
+  const name = analysisTokenInfo?.name ?? token.name;
+  const symbol = analysisTokenInfo?.symbol ?? token.symbol;
+  
+  // price and price_change_24h are only in analysisTokenInfo
+  const price = analysisTokenInfo?.price;
+  const priceChange24h = analysisTokenInfo?.price_change_24h;
+  
+  // market_cap, volume_24h and holders_count are in both sources
+  const marketCap = analysisTokenInfo?.market_cap ?? token.market_cap;
+  const volume24h = analysisTokenInfo?.volume_24h ?? token.volume_24h;
+  const holdersCount = analysisTokenInfo?.holders_count ?? token.holders_count;
+  
+  // Score and risk flags
+  const score = analysis?.score ?? token.token_score ?? 0;
   const riskFlags = analysis?.risk_flags || [];
   
-  // Extrahiere spezifische Eigenschaften mit Typsicherheit
-  const name = typeof tokenInfo.name === 'string' ? tokenInfo.name : token.name;
-  const symbol = typeof tokenInfo.symbol === 'string' ? tokenInfo.symbol : token.symbol;
-  
-  // price und price_change_24h sind nur in tokenInfo vorhanden, nicht in TokenDetail
-  const price = typeof tokenInfo.price === 'number' ? tokenInfo.price : undefined;
-  const priceChange24h = typeof tokenInfo.price_change_24h === 'number' ? tokenInfo.price_change_24h : undefined;
-  
-  // market_cap, volume_24h und holders_count sind in TokenDetail vorhanden
-  const marketCap = typeof tokenInfo.market_cap === 'number' ? tokenInfo.market_cap : token.market_cap;
-  const volume24h = typeof tokenInfo.volume_24h === 'number' ? tokenInfo.volume_24h : token.volume_24h;
-  const holdersCount = typeof tokenInfo.holders_count === 'number' ? tokenInfo.holders_count : token.holders_count;
-  
-  // Wallet-Analyse-Daten mit Typsicherheit
+  // Wallet analysis data with type safety
   const walletAnalysisData = analysis?.wallet_analysis ? {
     total_wallets: typeof analysis.wallet_analysis.total_wallets === 'number' ? analysis.wallet_analysis.total_wallets : 0,
     dev_wallets: typeof analysis.wallet_analysis.dev_wallets === 'number' ? analysis.wallet_analysis.dev_wallets : 0,
@@ -119,7 +120,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     rugpull_suspects: typeof analysis.wallet_analysis.rugpull_suspects === 'number' ? analysis.wallet_analysis.rugpull_suspects : 0,
   } : null;
   
-  // Bestimme die Farbe basierend auf dem Score
+  // Determine color based on score
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-success';
     if (score >= 60) return 'text-warning';
@@ -127,7 +128,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     return 'text-danger';
   };
   
-  // Bestimme das Risikolevel
+  // Determine risk level
   const getRiskLevel = (score: number) => {
     if (score >= 80) return 'Sicher';
     if (score >= 60) return 'Niedriges Risiko';
@@ -135,7 +136,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     return 'Hohes Risiko';
   };
   
-  // Bestimme die Farbe und das Icon für die Preisänderung
+  // Determine color and icon for price change
   const priceChangeColor = priceChange24h !== undefined && priceChange24h >= 0 ? 'text-success' : 'text-danger';
   const PriceChangeIcon = priceChange24h !== undefined && priceChange24h >= 0 ? TrendingUp : TrendingDown;
   
