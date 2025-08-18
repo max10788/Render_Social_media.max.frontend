@@ -1,7 +1,5 @@
 // lib/types/token.ts
 
-// Add this to your @/lib/types/token.ts file
-
 export interface OptionGreeks {
   delta?: number;
   gamma?: number;
@@ -131,7 +129,6 @@ export interface TrendingToken {
   volume_to_market_cap_ratio: number;
 }
 
-// lib/types/token.ts
 export interface TokenResponse {
   id: number;
   address: string;
@@ -167,7 +164,7 @@ export interface TokenAnalysisRequest {
 }
 
 export interface TokenAnalysisResponse {
-  token_info: TokenInfo; // Use the TokenInfo interface instead of Record<string, any>
+  token_info: TokenInfo;
   score: number;
   institutional_score?: number;
   metrics: Record<string, any>;
