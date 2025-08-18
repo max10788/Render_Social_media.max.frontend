@@ -1,6 +1,4 @@
-// src/components/options/asset-selector.tsx
 'use client';
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AssetInfo } from "@/lib/types";
 import { useOptionStore } from '@/lib/stores/optionStore';
 import { apiClient } from '@/lib/api/client';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search, Plus, Filter, TrendingUp, TrendingDown } from 'lucide-react'; // Added TrendingUp and TrendingDown
 
 interface AssetSelectorProps {
   assets: AssetInfo[];
@@ -20,12 +18,12 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState({ start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), end: new Date() });
-
+  
   const filteredAssets = assets.filter(asset =>
     asset.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
     asset.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
+  
   const loadAssetPrices = async (assetSymbols: string[]) => {
     try {
       const request = {
@@ -43,7 +41,7 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
       console.error('Failed to load asset prices:', error);
     }
   };
-
+  
   const handleAssetSelect = (assetSymbol: string) => {
     if (!selectedAssets.includes(assetSymbol)) {
       const newSelected = [...selectedAssets, assetSymbol];
@@ -51,7 +49,7 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
       loadAssetPrices(newSelected);
     }
   };
-
+  
   const handleAssetRemove = (assetSymbol: string) => {
     const newSelected = selectedAssets.filter(a => a !== assetSymbol);
     setSelectedAssets(newSelected);
@@ -60,7 +58,7 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
       loadAssetPrices(newSelected);
     }
   };
-
+  
   const getPriceChange = (assetSymbol: string) => {
     const key = selectedAssets.sort().join(',');
     const prices = assetPrices[key];
@@ -73,7 +71,7 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
     }
     return 0;
   };
-
+  
   return (
     <div className="space-y-6">
       {/* Search and Filters */}
@@ -125,7 +123,7 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
           </div>
         </CardContent>
       </Card>
-
+      
       {/* Selected Assets */}
       {selectedAssets.length > 0 && (
         <Card>
@@ -193,7 +191,7 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
           </CardContent>
         </Card>
       )}
-
+      
       {/* Available Assets */}
       <Card>
         <CardHeader>
