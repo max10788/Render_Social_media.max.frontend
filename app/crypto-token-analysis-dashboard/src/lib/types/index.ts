@@ -2,7 +2,6 @@
 
 export * from './token';
 
-// src/types/index.ts
 export enum OptionType {
   CALL = "call",
   PUT = "put"
