@@ -124,23 +124,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
       setPricingStatus('calculating');
       setPricingError(null);
       
-      // Create properly typed request object
-      const request: OptionPricingRequest = {
-        assets: data.assets,
-        weights: data.weights,
-        option_type: data.option_type,
-        strike_price: data.strike_price,
-        time_to_maturity: data.time_to_maturity,
-        risk_free_rate: data.risk_free_rate || 0.03,
-        stochastic_model: data.stochastic_model || StochasticModel.GBM,
-        volatility_model: data.volatility_model || VolatilityModel.BLACK_SCHOLES,
-        num_simulations: data.num_simulations || config?.default_num_simulations || 100000,
-        num_timesteps: config?.default_num_timesteps || 252,
-        calculate_greeks: data.calculate_greeks,
-        include_analysis: data.include_analysis,
-        async_calculation: useAsync,
-      };
-      
       setPricingRequest(request);
       
       if (useAsync) {
