@@ -39,6 +39,13 @@ export interface OptionPricingRequest {
   stochastic_model?: StochasticModel;
   calculate_greeks: boolean;
   include_analysis: boolean;
+  num_timesteps?: number;
+  num_simulations?: number;
+  volatility_model?: VolatilityModel;
+  calculate_greeks?: boolean;
+  include_analysis?: boolean;
+  async_calculation?: boolean;
+}
 }
 
 export interface OptionPricingResult {
