@@ -1,5 +1,25 @@
 // src/lib/api/client.ts
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import {
+  AssetInfo,
+  ExchangeInfo,
+  BlockchainInfo,
+  SystemConfig,
+  AssetPriceRequest,
+  AssetPriceResponse,
+  VolatilityRequest,
+  VolatilityResponse,
+  CorrelationRequest,
+  CorrelationResponse,
+  OptionPricingRequest,
+  OptionPricingResponse,
+  ImpliedVolatilityRequest,
+  ImpliedVolatilityResponse,
+  RiskMetricsRequest,
+  RiskMetricsResponse,
+  SimulationProgress,
+  SimulationStatusResponse
+} from '../types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
