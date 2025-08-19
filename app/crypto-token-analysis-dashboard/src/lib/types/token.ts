@@ -1,5 +1,12 @@
 // lib/types/token.ts
 
+export enum VolatilityModel {
+  BLACK_SCHOLES = 'BLACK_SCHOLES',
+  HESTON = 'HESTON',
+  SABR = 'SABR',
+  GARCH = 'GARCH',
+}
+
 export interface OptionPricingRequest {
   assets: string[];
   weights: number[];
