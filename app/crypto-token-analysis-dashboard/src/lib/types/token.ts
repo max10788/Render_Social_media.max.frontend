@@ -1,5 +1,5 @@
 // Importieren Sie die Typen aus index.ts anstatt sie neu zu definieren
-export {
+export type {
   OptionType,
   VolatilityModel,
   StochasticModel,
