@@ -139,7 +139,7 @@ function DashboardPage() {
                   </Card>
                 )}
                 {pricingStatus === 'completed' && pricingResult && (
-                  <OptionPricingResult />
+                  <OptionPricingResult result={pricingResult} />
                 )}
                 {pricingStatus === 'error' && (
                   <Card>
@@ -261,5 +261,4 @@ function DashboardPage() {
   );
 }
 
-// Hinzufügen des Standard-Exports
 export default DashboardPage;
