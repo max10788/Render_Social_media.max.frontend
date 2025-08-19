@@ -10,9 +10,11 @@ export enum OptionType {
 export enum VolatilityModel {
   HISTORICAL = "historical",
   EWMA = "ewma",
-  GARCH = "garch"
+  GARCH = "garch",
+  BLACK_SCHOLES = "black_scholes",  // HINZUGEFÜGT
+  HESTON = "heston",                 // HINZUGEFÜGT
+  SABR = "sabr"                      // HINZUGEFÜGT
 }
-
 export enum CorrelationMethod {
   PEARSON = "pearson",
   SPEARMAN = "spearman",
