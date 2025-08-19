@@ -1,7 +1,3 @@
-// lib/types/index.ts
-
-export * from './token';
-
 export enum OptionType {
   CALL = "call",
   PUT = "put"
@@ -11,10 +7,11 @@ export enum VolatilityModel {
   HISTORICAL = "historical",
   EWMA = "ewma",
   GARCH = "garch",
-  BLACK_SCHOLES = "black_scholes",  // HINZUGEFÜGT
-  HESTON = "heston",                 // HINZUGEFÜGT
-  SABR = "sabr"                      // HINZUGEFÜGT
+  BLACK_SCHOLES = "black_scholes",
+  HESTON = "heston",
+  SABR = "sabr"
 }
+
 export enum CorrelationMethod {
   PEARSON = "pearson",
   SPEARMAN = "spearman",
@@ -127,6 +124,7 @@ export interface OptionPricingRequest {
   risk_free_rate?: number;
   num_simulations?: number;
   stochastic_model?: StochasticModel;
+  volatility_model?: VolatilityModel;
   calculate_greeks?: boolean;
   include_analysis?: boolean;
   jump_params?: Record<string, number>;
@@ -143,6 +141,7 @@ export interface OptionPricingResponse {
   risk_free_rate: number;
   num_simulations: number;
   stochastic_model: StochasticModel;
+  volatility_model?: VolatilityModel;
   initial_prices: number[];
   drift: number[];
   volatility: number[];
