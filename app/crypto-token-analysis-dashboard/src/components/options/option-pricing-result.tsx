@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { OptionPricingResponse } from '@/types';
+import { OptionPricingResponse } from '@/lib/types'; // Korrigierter Import-Pfad
 import { useOptionStore } from '@/lib/stores/optionStore';
 import { 
   DollarSign, 
