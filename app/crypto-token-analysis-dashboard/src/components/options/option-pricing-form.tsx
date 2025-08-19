@@ -364,6 +364,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                     <SelectItem value={VolatilityModel.BLACK_SCHOLES}>Black-Scholes</SelectItem>
                     <SelectItem value={VolatilityModel.HESTON}>Heston</SelectItem>
                     <SelectItem value={VolatilityModel.SABR}>SABR</SelectItem>
+                    <SelectItem value={VolatilityModel.GARCH}>GARCH</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
