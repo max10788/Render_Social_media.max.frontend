@@ -1,5 +1,21 @@
 // lib/types/token.ts
 
+export interface OptionPricingRequest {
+  assets: string[];
+  weights: number[];
+  option_type: OptionType;
+  strike_price: number;
+  time_to_maturity: number;
+  risk_free_rate?: number;
+  stochastic_model?: StochasticModel;
+  volatility_model?: VolatilityModel;
+  num_simulations?: number;
+  num_timesteps?: number;
+  calculate_greeks?: boolean;
+  include_analysis?: boolean;
+  async_calculation?: boolean;
+}
+
 export interface OptionGreeks {
   delta?: number;
   gamma?: number;
