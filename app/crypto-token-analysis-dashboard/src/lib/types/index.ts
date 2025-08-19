@@ -123,12 +123,14 @@ export interface OptionPricingRequest {
   time_to_maturity: number;
   risk_free_rate?: number;
   num_simulations?: number;
+  num_timesteps?: number; // Add this
   stochastic_model?: StochasticModel;
   volatility_model?: VolatilityModel;
   calculate_greeks?: boolean;
   include_analysis?: boolean;
   jump_params?: Record<string, number>;
   heston_params?: Record<string, number>;
+  async_calculation?: boolean; // Add this
 }
 
 export interface OptionPricingResponse {
