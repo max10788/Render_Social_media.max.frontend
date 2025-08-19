@@ -1,393 +1,372 @@
 'use client';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { useOptionStore } from '@/lib/stores/optionStore';
-import { apiClient } from '@/lib/api/client';
-import { OptionType, VolatilityModel, StochasticModel } from "@/lib/types";
-import { Calculator, Play } from 'lucide-react';
+import { OptionPricingResponse } from '@/lib/types/token';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  BarChart3,
+  AlertTriangle,
+  RefreshCw,
+  CheckCircle,
+  Clock,
+  XCircle
+} from 'lucide-react';
 
-const formSchema = z.object({
-  assets: z.array(z.string()).min(1, 'Select at least one asset'),
-  weights: z.array(z.number()).min(1, 'Weights are required'),
-  strike_price: z.number().min(0.01, 'Strike price must be positive'),
-  option_type: z.nativeEnum(OptionType),
-  time_to_maturity: z.number().min(0.01, 'Time to maturity must be positive'),
-  risk_free_rate: z.number().min(0).max(1).optional(),
-  num_simulations: z.number().min(1000).max(1000000).optional(),
-  stochastic_model: z.nativeEnum(StochasticModel).optional(),
-  calculate_greeks: z.boolean().default(false),
-  include_analysis: z.boolean().default(true),
-});
-
-type FormData = z.infer<typeof formSchema>;
-
-interface OptionPricingFormProps {
-  onSubmit?: (data: FormData) => void;
+interface OptionPricingResultProps {
+  className?: string;
+  result?: OptionPricingResponse; // result prop optional machen
 }
 
-// Funktion definieren und exportieren
-export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
-  const {
-    assets,
-    config,
-    setPricingRequest,
-    setPricingStatus,
-    setPricingError,
-    setSimulationId,
-    setSimulationProgress,
-    setPricingResult,
-    resetPricing,
+export function OptionPricingResult({ className, result }: OptionPricingResultProps) {
+  const { 
+    pricingRequest, 
+    pricingResult, 
+    pricingStatus, 
+    pricingError, 
+    simulationId, 
+    simulationProgress,
+    resetPricing 
   } = useOptionStore();
-  
-  const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
-  const [useAsync, setUseAsync] = useState(false);
-  
-  const {
-    register,
-    handleSubmit,
-    control,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      assets: [],
-      weights: [],
-      strike_price: 100,
-      option_type: OptionType.CALL,
-      time_to_maturity: 1,
-      risk_free_rate: 0.03,
-      num_simulations: config?.default_num_simulations || 100000,
-      stochastic_model: StochasticModel.GBM,
-      calculate_greeks: false,
-      include_analysis: true,
-    },
-  });
-  
-  const watchedAssets = watch('assets');
-  const watchedWeights = watch('weights');
-  
-  const handleAssetSelect = (assetSymbol: string) => {
-    if (!selectedAssets.includes(assetSymbol)) {
-      const newAssets = [...selectedAssets, assetSymbol];
-      setSelectedAssets(newAssets);
-      setValue('assets', newAssets);
-      
-      // Initialize weight for new asset
-      const newWeights = [...watchedWeights, 1 / newAssets.length];
-      setValue('weights', newWeights);
-    }
-  };
-  
-  const handleAssetRemove = (assetSymbol: string) => {
-    const newAssets = selectedAssets.filter(a => a !== assetSymbol);
-    setSelectedAssets(newAssets);
-    setValue('assets', newAssets);
-    
-    // Remove corresponding weight
-    const newWeights = watchedWeights.slice(0, newAssets.length);
-    if (newWeights.length > 0) {
-      // Normalize weights
-      const totalWeight = newWeights.reduce((sum, w) => sum + w, 0);
-      setValue('weights', newWeights.map(w => w / totalWeight));
-    } else {
-      setValue('weights', []);
-    }
-  };
-  
-  const handleWeightChange = (index: number, value: number) => {
-    const newWeights = [...watchedWeights];
-    newWeights[index] = value;
-    setValue('weights', newWeights);
-  };
-  
-  const normalizeWeights = () => {
-    const totalWeight = watchedWeights.reduce((sum, w) => sum + w, 0);
-    if (totalWeight > 0) {
-      setValue('weights', watchedWeights.map(w => w / totalWeight));
-    }
-  };
-  
-  const onFormSubmit = async (data: FormData) => {
-    try {
-      setPricingStatus('calculating');
-      setPricingError(null);
-      
-      const request = {
-        ...data,
-        risk_free_rate: data.risk_free_rate || 0.03,
-        num_simulations: data.num_simulations || config?.default_num_simulations || 100000,
-        stochastic_model: data.stochastic_model || StochasticModel.GBM,
-      };
-      setPricingRequest(request);
-      
-      if (useAsync) {
-        // Start async calculation
-        const { simulation_id } = await apiClient.startOptionPricing(request);
-        setSimulationId(simulation_id);
-        
-        // Poll for progress
-        const pollProgress = async () => {
-          try {
-            const status = await apiClient.getOptionPricingStatus(simulation_id);
-            setSimulationProgress(status.progress);
+
+  // Verwende das übergebene Ergebnis oder das aus dem Store
+  const displayResult = result || pricingResult;
+
+  if (pricingStatus === 'idle') {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Option Pricing Results
+          </CardTitle>
+          <CardDescription>
+            Configure parameters and run a calculation to see results
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-2 text-sm font-medium">No calculation results</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Configure parameters and run a calculation to see results
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (pricingStatus === 'calculating' || simulationId) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Calculating Option Price
+          </CardTitle>
+          <CardDescription>
+            {simulationId ? 'Async calculation in progress' : 'Processing your request'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progress</span>
+                <span>{simulationProgress ? `${Math.round(simulationProgress * 100)}%` : 'Processing...'}</span>
+              </div>
+              <Progress value={simulationProgress ? simulationProgress * 100 : undefined} />
+            </div>
             
-            if (status.status === 'completed') {
-              const result = await apiClient.getOptionPricingResult(simulation_id);
-              setPricingResult(result);
-              setSimulationProgress(null);
-              setSimulationId(null);
-            } else if (status.status === 'failed') {
-              setPricingError(status.message || 'Calculation failed');
-              setSimulationProgress(null);
-              setSimulationId(null);
-            } else {
-              // Continue polling
-              setTimeout(pollProgress, 1000);
-            }
-          } catch (error) {
-            setPricingError('Failed to get simulation status');
-            setSimulationProgress(null);
-            setSimulationId(null);
-          }
-        };
-        
-        pollProgress();
-      } else {
-        // Synchronous calculation
-        const result = await apiClient.priceOption(request);
-        setPricingResult(result);
-      }
-    } catch (error) {
-      setPricingError(error instanceof Error ? error.message : 'An error occurred');
-      setPricingStatus('error');
-    }
-  };
-  
-  // Handler for the async checkbox
-  const handleAsyncChange = (checked: boolean) => {
-    setUseAsync(checked);
-  };
+            <div className="text-sm text-muted-foreground">
+              {simulationId ? (
+                <p>Simulation ID: {simulationId}</p>
+              ) : (
+                <p>Calculating option price using Monte Carlo simulation...</p>
+              )}
+            </div>
+            
+            <div className="flex justify-center pt-4">
+              <button
+                onClick={resetPricing}
+                className="text-sm text-muted-foreground hover:text-primary"
+              >
+                Cancel calculation
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (pricingStatus === 'error' || pricingError) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <XCircle className="h-5 w-5 text-destructive" />
+            Calculation Error
+          </CardTitle>
+          <CardDescription>
+            There was an error calculating the option price
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
+              <h3 className="mt-2 text-sm font-medium">Calculation failed</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {pricingError || 'An unknown error occurred'}
+              </p>
+            </div>
+            
+            <div className="flex justify-center">
+              <button
+                onClick={resetPricing}
+                className="flex items-center gap-2 text-sm"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Try again
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!displayResult) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Option Pricing Results
+          </CardTitle>
+          <CardDescription>
+            No results available
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-2 text-sm font-medium">No calculation results</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Configure parameters and run a calculation to see results
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const finalResult = displayResult as OptionPricingResponse;
   
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Calculator className="h-5 w-5" />
-          Option Pricing Parameters
+          <CheckCircle className="h-5 w-5 text-green-600" />
+          Option Pricing Results
         </CardTitle>
         <CardDescription>
-          Configure the parameters for your basket option pricing calculation
+          Calculation completed successfully
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-          {/* Asset Selection */}
-          <div>
-            <Label className="text-sm font-medium">Select Assets</Label>
-            <div className="mt-2 space-y-2">
-              <Select onValueChange={handleAssetSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Add an asset" />
-                </SelectTrigger>
-                <SelectContent>
-                  {assets.map((asset) => (
-                    <SelectItem key={asset.symbol} value={asset.symbol}>
-                      <div className="flex items-center gap-2">
-                        <span>{asset.symbol}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {asset.name}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <Tabs defaultValue="price" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="price">Price & Greeks</TabsTrigger>
+            <TabsTrigger value="analysis">Analysis</TabsTrigger>
+            <TabsTrigger value="parameters">Parameters</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="price" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                <div className="text-sm font-medium text-green-800 dark:text-green-200">
+                  Option Price
+                </div>
+                <div className="text-2xl font-bold">
+                  ${finalResult.price.toFixed(4)}
+                </div>
+              </div>
               
-              {/* Selected Assets */}
-              <div className="flex flex-wrap gap-2 mt-2">
-                {selectedAssets.map((asset, index) => (
-                  <Badge key={asset} variant="secondary" className="flex items-center gap-1">
-                    {asset}
-                    <button
-                      type="button"
-                      onClick={() => handleAssetRemove(asset)}
-                      className="ml-1 rounded-full hover:bg-muted"
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ))}
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Confidence Interval
+                </div>
+                <div className="text-lg font-semibold">
+                  ${finalResult.confidence_interval?.lower?.toFixed(4)} - ${finalResult.confidence_interval?.upper?.toFixed(4)}
+                </div>
               </div>
             </div>
-          </div>
-          
-          {/* Weights */}
-          {selectedAssets.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-sm font-medium">Asset Weights</Label>
-                <Button type="button" variant="outline" size="sm" onClick={normalizeWeights}>
-                  Normalize
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {selectedAssets.map((asset, index) => (
-                  <div key={asset} className="flex items-center gap-2">
-                    <span className="w-16 text-sm">{asset}</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="1"
-                      value={watchedWeights[index] || 0}
-                      onChange={(e) => handleWeightChange(index, parseFloat(e.target.value))}
-                      className="flex-1"
-                    />
-                    <span className="w-16 text-sm text-right">
-                      {((watchedWeights[index] || 0) * 100).toFixed(1)}%
-                    </span>
+            
+            {finalResult.greeks && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Option Greeks</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="border rounded-lg p-3">
+                    <div className="text-sm font-medium">Delta</div>
+                    <div className="text-lg font-semibold">{finalResult.greeks.delta?.toFixed(4) || 'N/A'}</div>
                   </div>
-                ))}
+                  <div className="border rounded-lg p-3">
+                    <div className="text-sm font-medium">Gamma</div>
+                    <div className="text-lg font-semibold">{finalResult.greeks.gamma?.toFixed(4) || 'N/A'}</div>
+                  </div>
+                  <div className="border rounded-lg p-3">
+                    <div className="text-sm font-medium">Theta</div>
+                    <div className="text-lg font-semibold">{finalResult.greeks.theta?.toFixed(4) || 'N/A'}</div>
+                  </div>
+                  <div className="border rounded-lg p-3">
+                    <div className="text-sm font-medium">Vega</div>
+                    <div className="text-lg font-semibold">{finalResult.greeks.vega?.toFixed(4) || 'N/A'}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-          
-          {/* Option Parameters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="strike_price">Strike Price</Label>
-              <Input
-                id="strike_price"
-                type="number"
-                step="0.01"
-                {...register('strike_price')}
-              />
-              {errors.strike_price && (
-                <p className="text-sm text-red-600">{errors.strike_price.message}</p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="option_type">Option Type</Label>
-              <Select onValueChange={(value) => setValue('option_type', value as OptionType)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select option type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={OptionType.CALL}>Call Option</SelectItem>
-                  <SelectItem value={OptionType.PUT}>Put Option</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="time_to_maturity">Time to Maturity (Years)</Label>
-              <Input
-                id="time_to_maturity"
-                type="number"
-                step="0.01"
-                {...register('time_to_maturity')}
-              />
-              {errors.time_to_maturity && (
-                <p className="text-sm text-red-600">{errors.time_to_maturity.message}</p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="risk_free_rate">Risk-Free Rate (Optional)</Label>
-              <Input
-                id="risk_free_rate"
-                type="number"
-                step="0.001"
-                {...register('risk_free_rate')}
-              />
-            </div>
-          </div>
-          
-          {/* Advanced Parameters */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium">Advanced Parameters</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="num_simulations">Number of Simulations</Label>
-                <Input
-                  id="num_simulations"
-                  type="number"
-                  {...register('num_simulations')}
-                />
-              </div>
-              <div>
-                <Label htmlFor="stochastic_model">Stochastic Model</Label>
-                <Select 
-                  onValueChange={(value) => setValue('stochastic_model', value as StochasticModel)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={StochasticModel.GBM}>Geometric Brownian Motion</SelectItem>
-                    <SelectItem value={StochasticModel.JUMP_DIFFUSION}>Jump Diffusion</SelectItem>
-                    <SelectItem value={StochasticModel.HESTON}>Heston Model</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="calculate_greeks"
-                  {...register('calculate_greeks')}
-                />
-                <Label htmlFor="calculate_greeks">Calculate Greeks</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="include_analysis"
-                  {...register('include_analysis')}
-                />
-                <Label htmlFor="include_analysis">Include Analysis</Label>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="use_async"
-                checked={useAsync}
-                onCheckedChange={handleAsyncChange}
-              />
-              <Label htmlFor="use_async">Use Async Calculation</Label>
-            </div>
-          </div>
-          
-          {/* Submit Button */}
-          <Button 
-            type="submit" 
-            className="w-full" 
-            disabled={isSubmitting || selectedAssets.length === 0}
-          >
-            {isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Calculating...
-              </>
-            ) : (
-              <>
-                <Play className="mr-2 h-4 w-4" />
-                Calculate Option Price
-              </>
             )}
-          </Button>
-        </form>
+          </TabsContent>
+          
+          <TabsContent value="analysis" className="space-y-4">
+            {finalResult.analysis ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border rounded-lg p-4">
+                    <div className="text-sm font-medium mb-2">Risk Analysis</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">VaR (95%)</span>
+                        <span className="text-sm font-medium">${finalResult.analysis.var_95?.toFixed(4) || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Expected Shortfall</span>
+                        <span className="text-sm font-medium">${finalResult.analysis.expected_shortfall?.toFixed(4) || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <div className="text-sm font-medium mb-2">Simulation Stats</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Simulations Run</span>
+                        <span className="text-sm font-medium">{finalResult.analysis.num_simulations?.toLocaleString() || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Convergence</span>
+                        <span className="text-sm font-medium">{(finalResult.analysis.convergence * 100)?.toFixed(2)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {finalResult.analysis.sensitivity_analysis && (
+                  <div className="border rounded-lg p-4">
+                    <div className="text-sm font-medium mb-2">Sensitivity Analysis</div>
+                    <div className="space-y-2">
+                      {finalResult.analysis.sensitivity_analysis.map((sensitivity, index) => (
+                        <div key={index} className="flex justify-between">
+                          <span className="text-sm">{sensitivity.parameter}</span>
+                          <span className="text-sm font-medium">{sensitivity.impact.toFixed(4)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <AlertTriangle className="mx-auto h-8 w-8 text-muted-foreground" />
+                <h3 className="mt-2 text-sm font-medium">No analysis available</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Enable analysis in the calculation parameters to see detailed analysis
+                </p>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="parameters" className="space-y-4">
+            {pricingRequest && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border rounded-lg p-4">
+                    <div className="text-sm font-medium mb-2">Basic Parameters</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Strike Price</span>
+                        <span className="text-sm font-medium">${pricingRequest.strike_price}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Option Type</span>
+                        <span className="text-sm font-medium">{pricingRequest.option_type}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Time to Maturity</span>
+                        <span className="text-sm font-medium">{pricingRequest.time_to_maturity} years</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Risk-Free Rate</span>
+                        <span className="text-sm font-medium">{(pricingRequest.risk_free_rate * 100).toFixed(2)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-lg p-4">
+                    <div className="text-sm font-medium mb-2">Advanced Parameters</div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Stochastic Model</span>
+                        <span className="text-sm font-medium">{pricingRequest.stochastic_model}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Number of Simulations</span>
+                        <span className="text-sm font-medium">{pricingRequest.num_simulations?.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Calculate Greeks</span>
+                        <span className="text-sm font-medium">{pricingRequest.calculate_greeks ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Include Analysis</span>
+                        <span className="text-sm font-medium">{pricingRequest.include_analysis ? 'Yes' : 'No'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <div className="text-sm font-medium mb-2">Basket Composition</div>
+                  <div className="space-y-2">
+                    {pricingRequest.assets.map((asset, index) => (
+                      <div key={asset} className="flex justify-between">
+                        <span className="text-sm">{asset}</span>
+                        <span className="text-sm font-medium">{(pricingRequest.weights[index] * 100).toFixed(2)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+        
+        <div className="flex justify-center mt-6">
+          <button
+            onClick={resetPricing}
+            className="flex items-center gap-2 text-sm"
+          >
+            <RefreshCw className="h-4 w-4" />
+            New Calculation
+          </button>
+        </div>
       </CardContent>
     </Card>
   );
