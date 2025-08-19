@@ -7,6 +7,17 @@ export enum VolatilityModel {
   GARCH = 'GARCH',
 }
 
+export enum OptionType {
+  CALL = 'CALL',
+  PUT = 'PUT',
+}
+
+export enum StochasticModel {
+  GBM = 'GBM',
+  JUMP_DIFFUSION = 'JUMP_DIFFUSION',
+  HESTON = 'HESTON',
+}
+
 export interface OptionPricingRequest {
   assets: string[];
   weights: number[];
