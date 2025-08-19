@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useOptionStore } from '@/lib/stores/optionStore';
 import { apiClient } from '@/lib/api/client';
-import { OptionType, VolatilityModel, StochasticModel, OptionPricingRequest } from "@/lib/types";
+// WICHTIG: Import direkt aus token.ts
+import { OptionType, VolatilityModel, StochasticModel, OptionPricingRequest } from "@/lib/types/token";
 import { Calculator, Play } from 'lucide-react';
 
 const formSchema = z.object({
