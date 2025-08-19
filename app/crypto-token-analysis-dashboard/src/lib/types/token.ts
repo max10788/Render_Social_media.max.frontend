@@ -1,72 +1,30 @@
-// lib/types/token.ts
+// Importieren Sie die Typen aus index.ts anstatt sie neu zu definieren
+export {
+  OptionType,
+  VolatilityModel,
+  StochasticModel,
+  CorrelationMethod,
+  AssetInfo,
+  ExchangeInfo,
+  BlockchainInfo,
+  SystemConfig,
+  AssetPriceRequest,
+  AssetPriceResponse,
+  VolatilityRequest,
+  VolatilityResponse,
+  CorrelationRequest,
+  CorrelationResponse,
+  OptionPricingRequest,
+  OptionPricingResponse,
+  ImpliedVolatilityRequest,
+  ImpliedVolatilityResponse,
+  RiskMetricsRequest,
+  RiskMetricsResponse,
+  SimulationProgress,
+  SimulationStatusResponse
+} from './index';
 
-export enum VolatilityModel {
-  BLACK_SCHOLES = 'BLACK_SCHOLES',
-  HESTON = 'HESTON',
-  SABR = 'SABR',
-  GARCH = 'GARCH',
-}
-
-export enum OptionType {
-  CALL = 'CALL',
-  PUT = 'PUT',
-}
-
-export enum StochasticModel {
-  GBM = 'GBM',
-  JUMP_DIFFUSION = 'JUMP_DIFFUSION',
-  HESTON = 'HESTON',
-}
-
-export interface OptionPricingRequest {
-  assets: string[];
-  weights: number[];
-  option_type: OptionType;
-  strike_price: number;
-  time_to_maturity: number;
-  risk_free_rate?: number;
-  stochastic_model?: StochasticModel;
-  volatility_model?: VolatilityModel;
-  num_simulations?: number;
-  num_timesteps?: number;
-  calculate_greeks?: boolean;
-  include_analysis?: boolean;
-  async_calculation?: boolean;
-}
-
-export interface OptionGreeks {
-  delta?: number;
-  gamma?: number;
-  theta?: number;
-  vega?: number;
-  rho?: number;
-}
-
-export interface ConfidenceInterval {
-  lower?: number;
-  upper?: number;
-}
-
-export interface SensitivityAnalysis {
-  parameter: string;
-  impact: number;
-}
-
-export interface OptionAnalysis {
-  var_95?: number;
-  expected_shortfall?: number;
-  num_simulations?: number;
-  convergence?: number;
-  sensitivity_analysis?: SensitivityAnalysis[];
-}
-
-export interface OptionPricingResponse {
-  price: number;
-  confidence_interval?: ConfidenceInterval;
-  greeks?: OptionGreeks;
-  analysis?: OptionAnalysis;
-}
-
+// Behalten Sie nur die Typen, die spezifisch für token.ts sind
 export interface Token {
   id: number;
   address: string;
