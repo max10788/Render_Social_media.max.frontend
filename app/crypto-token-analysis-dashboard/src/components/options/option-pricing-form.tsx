@@ -49,7 +49,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
   } = useOptionStore();
   
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
-  const [useAsync, setUseAsync] = useState(false);
+  const [useAsync, setUseAsync] = useState(true);
   
   const {
     register,
@@ -141,43 +141,39 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
       
       setPricingRequest(request);
       
-      if (useAsync) {
-        // Start async calculation
-        const { simulation_id } = await apiClient.startOptionPricing(request);
-        setSimulationId(simulation_id);
-        
-        // Poll for progress
-        const pollProgress = async () => {
-          try {
-            const status = await apiClient.getOptionPricingStatus(simulation_id);
-            setSimulationProgress(status.progress);
-            
-            if (status.status === 'completed') {
-              const result = await apiClient.getOptionPricingResult(simulation_id);
-              setPricingResult(result);
-              setSimulationProgress(null);
-              setSimulationId(null);
-            } else if (status.status === 'failed') {
-              setPricingError(status.message || 'Calculation failed');
-              setSimulationProgress(null);
-              setSimulationId(null);
-            } else {
-              // Continue polling
-              setTimeout(pollProgress, 1000);
-            }
-          } catch (error) {
-            setPricingError('Failed to get simulation status');
+      // Start async calculation
+      const response = await apiClient.startOptionPricing(request);
+      const simulation_id = response.simulation_id;
+      setSimulationId(simulation_id);
+      
+      // Poll for progress
+      const pollProgress = async () => {
+        try {
+          const status = await apiClient.getOptionPricingStatus(simulation_id);
+          setSimulationProgress(status.progress);
+          
+          if (status.status === 'completed') {
+            const result = await apiClient.getOptionPricingResult(simulation_id);
+            setPricingResult(result);
             setSimulationProgress(null);
             setSimulationId(null);
+          } else if (status.status === 'failed') {
+            setPricingError(status.message || 'Calculation failed');
+            setSimulationProgress(null);
+            setSimulationId(null);
+          } else {
+            // Continue polling
+            setTimeout(pollProgress, 1000);
           }
-        };
-        
-        pollProgress();
-      } else {
-        // Synchronous calculation
-        const result = await apiClient.calculateOptionPrice(request);
-        setPricingResult(result);
-      }
+        } catch (error) {
+          setPricingError('Failed to get simulation status');
+          setSimulationProgress(null);
+          setSimulationId(null);
+        }
+      };
+      
+      pollProgress();
+      
     } catch (error) {
       setPricingError(error instanceof Error ? error.message : 'An error occurred');
       setPricingStatus('error');
