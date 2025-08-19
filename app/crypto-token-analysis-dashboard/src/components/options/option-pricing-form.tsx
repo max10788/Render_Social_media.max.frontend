@@ -124,6 +124,21 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
       setPricingStatus('calculating');
       setPricingError(null);
       
+      // Create properly typed request object
+      const request: OptionPricingRequest = {
+        assets: data.assets,
+        weights: data.weights,
+        option_type: data.option_type,
+        strike_price: data.strike_price,
+        time_to_maturity: data.time_to_maturity,
+        risk_free_rate: data.risk_free_rate || 0.03,
+        stochastic_model: data.stochastic_model || StochasticModel.GBM,
+        volatility_model: data.volatility_model || VolatilityModel.BLACK_SCHOLES,
+        num_simulations: data.num_simulations || config?.default_num_simulations || 100000,
+        calculate_greeks: data.calculate_greeks,
+        include_analysis: data.include_analysis,
+      };
+      
       setPricingRequest(request);
       
       if (useAsync) {
@@ -266,7 +281,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 id="strike_price"
                 type="number"
                 step="0.01"
-                {...register('strike_price')}
+                {...register('strike_price', { valueAsNumber: true })}
               />
               {errors.strike_price && (
                 <p className="text-sm text-red-600">{errors.strike_price.message}</p>
@@ -290,7 +305,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 id="time_to_maturity"
                 type="number"
                 step="0.01"
-                {...register('time_to_maturity')}
+                {...register('time_to_maturity', { valueAsNumber: true })}
               />
               {errors.time_to_maturity && (
                 <p className="text-sm text-red-600">{errors.time_to_maturity.message}</p>
@@ -302,7 +317,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 id="risk_free_rate"
                 type="number"
                 step="0.001"
-                {...register('risk_free_rate')}
+                {...register('risk_free_rate', { valueAsNumber: true })}
               />
             </div>
           </div>
@@ -317,7 +332,7 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                 <Input
                   id="num_simulations"
                   type="number"
-                  {...register('num_simulations')}
+                  {...register('num_simulations', { valueAsNumber: true })}
                 />
               </div>
               <div>
