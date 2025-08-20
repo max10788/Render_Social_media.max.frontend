@@ -71,13 +71,44 @@ app.add_middleware(
 # ------------------------------------------------------------------
 # Statische Dateien aus dem gebauten Frontend
 # ------------------------------------------------------------------
-# Mount static files
-if BUILD_DIR.exists():
-    app.mount("/static", StaticFiles(directory=ASSETS_DIR), name="static")
-    app.mount("/", StaticFiles(directory=BUILD_DIR, html=True), name="frontend")
-else:
-    logger.warning(f"Build directory '{BUILD_DIR}' not found")
+# Update these paths in main.py
+BUILD_DIR = FRONTEND_DIR / ".next"  # Next.js default build directory
 
+# Serve static files from Next.js build
+if (BUILD_DIR / "static").exists():
+    app.mount("/_next/static", StaticFiles(directory=BUILD_DIR / "static"), name="next_static")
+
+# Serve Next.js build files
+if (BUILD_DIR).exists():
+    templates = Jinja2Templates(directory=BUILD_DIR / "server/pages")
+    
+    @app.get("/{full_path:path}")
+    async def serve_nextjs(request: Request, full_path: str):
+        try:
+            # Try to serve static files first
+            static_path = BUILD_DIR / "static" / full_path
+            if static_path.exists():
+                return FileResponse(static_path)
+            
+            # Serve HTML pages
+            if not full_path or full_path == "/":
+                full_path = "index.html"
+            elif not Path(full_path).suffix:
+                full_path += ".html"
+                
+            page_path = BUILD_DIR / "server/pages" / full_path
+            if page_path.exists():
+                return templates.TemplateResponse(full_path, {"request": request})
+                
+            # Fallback to index.html for client-side routing
+            index_path = BUILD_DIR / "server/pages/index.html"
+            if index_path.exists():
+                return templates.TemplateResponse("index.html", {"request": request})
+                
+            return JSONResponse({"error": "Page not found"}, status_code=404)
+        except Exception as e:
+            logger.error(f"Error serving page: {e}")
+            return JSONResponse({"error": "Internal server error"}, status_code=500)
 # ------------------------------------------------------------------
 # Router
 # ------------------------------------------------------------------
