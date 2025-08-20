@@ -1,11 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',
+  distDir: 'out',
   trailingSlash: true,
-  distDir: 'dist',
   images: {
     unoptimized: true
   },
-  // Rewrite-Regeln entfernt - nicht kompatibel mit statischem Export
+  // Add this to handle dynamic routes
+  skipTrailingSlashRedirect: true
 }
 
 module.exports = nextConfig
