@@ -1,3 +1,4 @@
+# app/core/backend_crypto_tracker/config/database.py
 import os
 from urllib.parse import urlparse
 from typing import Generator, Optional
