@@ -1,3 +1,4 @@
+// app/crypto-token-analysis-dashboard/next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
@@ -6,7 +7,6 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  // Add this to handle dynamic routes
   skipTrailingSlashRedirect: true
 }
 
