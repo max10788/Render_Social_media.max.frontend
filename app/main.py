@@ -1,4 +1,3 @@
-# app/main.py
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -27,8 +26,11 @@ logger = get_logger(__name__)
 # Frontend-Verzeichnisse konfigurieren
 BASE_DIR = Path(__file__).resolve().parent  # app/
 FRONTEND_DIR = BASE_DIR / "crypto-token-analysis-dashboard"  # app/crypto-token-analysis-dashboard
-BUILD_DIR = FRONTEND_DIR / "out"  # Next.js export directory (matches your config)
-ASSETS_DIR = BUILD_DIR / "static"   # Static assets directory
+
+# For regular Next.js build (not export)
+BUILD_DIR = FRONTEND_DIR / ".next" / "standalone"  # Next.js standalone build
+STATIC_DIR = FRONTEND_DIR / ".next" / "static"     # Next.js static files
+PUBLIC_DIR = FRONTEND_DIR / "public"               # Next.js public files
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -69,17 +71,7 @@ app.add_middleware(
 )
 
 # ------------------------------------------------------------------
-# Statische Dateien aus dem gebauten Frontend
-# ------------------------------------------------------------------
-# Mount static files from Next.js export
-if BUILD_DIR.exists():
-    app.mount("/", StaticFiles(directory=BUILD_DIR, html=True), name="frontend")
-    logger.info(f"Serving frontend from {BUILD_DIR}")
-else:
-    logger.warning(f"Frontend build directory not found: {BUILD_DIR}")
-
-# ------------------------------------------------------------------
-# Router
+# API Routes (mount first to prevent conflicts)
 # ------------------------------------------------------------------
 app.include_router(custom_analysis_router, prefix="/api/v1")
 app.include_router(token_routes.router, prefix="/api/v1")
@@ -106,29 +98,87 @@ async def health_check():
     }
 
 # ------------------------------------------------------------------
-# Fallback für nicht gebautes Frontend
+# Option 1: Serve Next.js as separate service (Recommended)
 # ------------------------------------------------------------------
+# For production, it's better to run Next.js separately and use a reverse proxy
+# This is just a development/simple deployment solution
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/{full_path:path}", response_class=HTMLResponse)
 async def serve_frontend_fallback(request: Request, full_path: str = ""):
-    if BUILD_DIR.exists():
-        index_path = BUILD_DIR / "index.html"
-        if index_path.exists():
-            return FileResponse(index_path)
-    
-    # Fallback wenn Frontend nicht gebaut ist
+    """
+    Development fallback - in production, use a reverse proxy to Next.js
+    """
     return HTMLResponse(
         content=f"""
         <html>
+            <head>
+                <title>Low-Cap Token Analyzer</title>
+                <style>
+                    body {{
+                        font-family: system-ui, sans-serif;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        padding: 2rem;
+                        line-height: 1.6;
+                    }}
+                    .status {{ 
+                        background: #f0f9ff;
+                        border: 1px solid #0ea5e9;
+                        border-radius: 0.5rem;
+                        padding: 1rem;
+                        margin: 1rem 0;
+                    }}
+                    .commands {{
+                        background: #1f2937;
+                        color: #f9fafb;
+                        padding: 1rem;
+                        border-radius: 0.5rem;
+                        font-family: monospace;
+                        overflow-x: auto;
+                    }}
+                </style>
+            </head>
             <body>
-                <h1>Frontend Not Built</h1>
-                <p>Please run 'npm run build' in the frontend directory.</p>
-                <p>Build directory: {BUILD_DIR}</p>
-                <p>Frontend directory: {FRONTEND_DIR}</p>
+                <h1>🚀 Low-Cap Token Analyzer</h1>
+                
+                <div class="status">
+                    <strong>Status:</strong> Backend API is running<br>
+                    <strong>Health Check:</strong> <a href="/health">/health</a><br>
+                    <strong>API Documentation:</strong> <a href="/docs">/docs</a>
+                </div>
+                
+                <h2>Frontend Setup Required</h2>
+                <p>The Next.js frontend needs to be built and started separately.</p>
+                
+                <h3>Development Setup:</h3>
+                <div class="commands">
+# Navigate to frontend directory<br>
+cd app/crypto-token-analysis-dashboard<br><br>
+# Install dependencies<br>
+npm install<br><br>
+# Start development server<br>
+npm run dev
+                </div>
+                
+                <h3>Production Setup:</h3>
+                <div class="commands">
+# Build the application<br>
+cd app/crypto-token-analysis-dashboard<br>
+npm run build<br><br>
+# Start production server<br>
+npm run start
+                </div>
+                
+                <p>The frontend will be available at <code>http://localhost:3000</code></p>
+                <p>This API backend is running on the current port.</p>
+                
+                <h3>Alternative: Static Export (Limited)</h3>
+                <p>If you need static export, you must implement <code>generateStaticParams()</code> for dynamic routes.</p>
             </body>
         </html>
         """,
-        status_code=503
+        status_code=200
     )
 
 # ------------------------------------------------------------------
