@@ -27,8 +27,8 @@ logger = get_logger(__name__)
 # Frontend-Verzeichnisse konfigurieren
 BASE_DIR = Path(__file__).resolve().parent  # app/
 FRONTEND_DIR = BASE_DIR / "crypto-token-analysis-dashboard"  # app/crypto-token-analysis-dashboard
-BUILD_DIR = FRONTEND_DIR / "dist"  # Next.js export directory
-ASSETS_DIR = BUILD_DIR / "static"   # Changed from _next to static
+BUILD_DIR = FRONTEND_DIR / "out"  # Next.js export directory (matches your config)
+ASSETS_DIR = BUILD_DIR / "static"   # Static assets directory
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -71,44 +71,13 @@ app.add_middleware(
 # ------------------------------------------------------------------
 # Statische Dateien aus dem gebauten Frontend
 # ------------------------------------------------------------------
-# Update these paths in main.py
-BUILD_DIR = FRONTEND_DIR / ".next"  # Next.js default build directory
+# Mount static files from Next.js export
+if BUILD_DIR.exists():
+    app.mount("/", StaticFiles(directory=BUILD_DIR, html=True), name="frontend")
+    logger.info(f"Serving frontend from {BUILD_DIR}")
+else:
+    logger.warning(f"Frontend build directory not found: {BUILD_DIR}")
 
-# Serve static files from Next.js build
-if (BUILD_DIR / "static").exists():
-    app.mount("/_next/static", StaticFiles(directory=BUILD_DIR / "static"), name="next_static")
-
-# Serve Next.js build files
-if (BUILD_DIR).exists():
-    templates = Jinja2Templates(directory=BUILD_DIR / "server/pages")
-    
-    @app.get("/{full_path:path}")
-    async def serve_nextjs(request: Request, full_path: str):
-        try:
-            # Try to serve static files first
-            static_path = BUILD_DIR / "static" / full_path
-            if static_path.exists():
-                return FileResponse(static_path)
-            
-            # Serve HTML pages
-            if not full_path or full_path == "/":
-                full_path = "index.html"
-            elif not Path(full_path).suffix:
-                full_path += ".html"
-                
-            page_path = BUILD_DIR / "server/pages" / full_path
-            if page_path.exists():
-                return templates.TemplateResponse(full_path, {"request": request})
-                
-            # Fallback to index.html for client-side routing
-            index_path = BUILD_DIR / "server/pages/index.html"
-            if index_path.exists():
-                return templates.TemplateResponse("index.html", {"request": request})
-                
-            return JSONResponse({"error": "Page not found"}, status_code=404)
-        except Exception as e:
-            logger.error(f"Error serving page: {e}")
-            return JSONResponse({"error": "Internal server error"}, status_code=500)
 # ------------------------------------------------------------------
 # Router
 # ------------------------------------------------------------------
@@ -137,48 +106,30 @@ async def health_check():
     }
 
 # ------------------------------------------------------------------
-# SPA-Frontend ausliefern (mit Fehlerbehandlung)
+# Fallback für nicht gebautes Frontend
 # ------------------------------------------------------------------
-@app.get("/", response_class=FileResponse)
-async def serve_root():
-    index_path = BUILD_DIR / "index.html"
-    if index_path.exists():
-        return FileResponse(index_path)
-    else:
-        logger.error(f"Frontend index.html not found at {index_path}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "error": "Service Unavailable",
-                "message": "Frontend not built. Please run 'npm run build' in the frontend directory.",
-                "build_directory": str(BUILD_DIR),
-                "frontend_directory": str(FRONTEND_DIR)
-            }
-        )
-
-@app.get("/{full_path:path}")
-async def serve_spa(full_path: str):
-    # Prüfe, ob eine echte Datei existiert (z. B. /favicon.ico)
-    file_path = BUILD_DIR / full_path
+@app.get("/", response_class=HTMLResponse)
+@app.get("/{full_path:path}", response_class=HTMLResponse)
+async def serve_frontend_fallback(request: Request, full_path: str = ""):
+    if BUILD_DIR.exists():
+        index_path = BUILD_DIR / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
     
-    if file_path.exists() and file_path.is_file():
-        return FileResponse(file_path)
-    
-    # Ansonsten index.html für React-Router
-    index_path = BUILD_DIR / "index.html"
-    if index_path.exists():
-        return FileResponse(index_path)
-    else:
-        logger.error(f"Frontend index.html not found at {index_path}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "error": "Service Unavailable",
-                "message": "Frontend not built. Please run 'npm run build' in the frontend directory.",
-                "build_directory": str(BUILD_DIR),
-                "frontend_directory": str(FRONTEND_DIR)
-            }
-        )
+    # Fallback wenn Frontend nicht gebaut ist
+    return HTMLResponse(
+        content=f"""
+        <html>
+            <body>
+                <h1>Frontend Not Built</h1>
+                <p>Please run 'npm run build' in the frontend directory.</p>
+                <p>Build directory: {BUILD_DIR}</p>
+                <p>Frontend directory: {FRONTEND_DIR}</p>
+            </body>
+        </html>
+        """,
+        status_code=503
+    )
 
 # ------------------------------------------------------------------
 # Globaler Exception-Handler
