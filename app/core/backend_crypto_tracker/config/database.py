@@ -1,8 +1,8 @@
 # app/core/backend_crypto_tracker/config/database.py
 import os
 from urllib.parse import urlparse
-from typing import Generator, Optional
-from sqlalchemy import create_engine
+from typing import Generator, Optional, AsyncGenerator
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 import logging
@@ -62,7 +62,7 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
-# Asynchrone Engine und Session - OHNE options-Parameter
+# Asynchrone Engine und Session
 async_engine = create_async_engine(
     database_config.async_database_url,
     pool_size=database_config.pool_size,
@@ -70,7 +70,6 @@ async_engine = create_async_engine(
     pool_timeout=database_config.pool_timeout,
     pool_recycle=database_config.pool_recycle,
     echo=os.getenv("DB_ECHO", "false").lower() == "true",
-    # Entferne den options-Parameter, da asyncpg ihn nicht unterstützt
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -88,9 +87,14 @@ def get_db() -> Generator[Session, None, None]:
     finally:
         db.close()
 
-async def get_async_db() -> AsyncSession:
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """Stellt eine asynchrone Datenbank-Session bereit"""
     async with AsyncSessionLocal() as session:
         # Setze den Suchpfad nach dem Verbindungsaufbau
-        await session.execute(f"SET search_path TO {database_config.schema_name},public")
-        yield session
+        await session.execute(text(f"SET search_path TO {database_config.schema_name},public"))
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
