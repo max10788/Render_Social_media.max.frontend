@@ -2,83 +2,69 @@
 
 import { useState, useEffect } from 'react';
 
-interface Web3State {
-  provider: any;
-  account: string | null;
-  chainId: string | null;
-  isConnected: boolean;
-  error: string | null;
+interface EthereumProvider {
+  isMetaMask?: boolean;
+  request: (args: { method: string; params?: any[] }) => Promise<any>;
+  on: (event: string, callback: (...args: any[]) => void) => void;
+  removeListener: (event: string, callback: (...args: any[]) => void) => void;
+}
+
+declare global {
+  interface Window {
+    ethereum?: EthereumProvider;
+  }
 }
 
 export function useWeb3() {
-  const [state, setState] = useState<Web3State>({
-    provider: null,
-    account: null,
-    chainId: null,
-    isConnected: false,
-    error: null
-  });
+  const [account, setAccount] = useState<string>('');
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [chainId, setChainId] = useState<string>('');
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    const initWeb3 = async () => {
-      if (typeof window === 'undefined' || !window.ethereum) {
-        setState(prev => ({ ...prev, error: 'No Ethereum provider found' }));
-        return;
-      }
+    // Prüfen, ob bereits eine Verbindung besteht
+    const savedAccount = localStorage.getItem('connectedAccount');
+    if (savedAccount) {
+      setAccount(savedAccount);
+      setIsConnected(true);
+    }
 
-      try {
-        const provider = window.ethereum;
-        
-        // Aktuelle Chain-ID abrufen
-        const chainId = await provider.request({ method: 'eth_chainId' });
-        
-        // Aktuellen Account abrufen
-        const accounts = await provider.request({ method: 'eth_accounts' });
-        
-        setState({
-          provider,
-          account: accounts[0] || null,
-          chainId,
-          isConnected: !!accounts[0],
-          error: null
-        });
+    // Event Listener für Kontowechsel
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+    }
 
-        // Event-Listener für Account-Änderungen
-        const handleAccountsChanged = (accounts: string[]) => {
-          setState(prev => ({
-            ...prev,
-            account: accounts[0] || null,
-            isConnected: !!accounts[0]
-          }));
-        };
-
-        // Event-Listener für Chain-Änderungen
-        const handleChainChanged = (chainId: string) => {
-          setState(prev => ({ ...prev, chainId }));
-        };
-
-        provider.on('accountsChanged', handleAccountsChanged);
-        provider.on('chainChanged', handleChainChanged);
-
-        // Cleanup
-        return () => {
-          provider.removeListener('accountsChanged', handleAccountsChanged);
-          provider.removeListener('chainChanged', handleChainChanged);
-        };
-      } catch (error) {
-        setState(prev => ({ 
-          ...prev, 
-          error: error instanceof Error ? error.message : 'Unknown error' 
-        }));
+    return () => {
+      // Cleanup
+      if (window.ethereum) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
     };
-
-    initWeb3();
   }, []);
 
+  const handleAccountsChanged = (accounts: string[]) => {
+    if (accounts.length > 0) {
+      setAccount(accounts[0]);
+      localStorage.setItem('connectedAccount', accounts[0]);
+      setIsConnected(true);
+    } else {
+      setAccount('');
+      localStorage.removeItem('connectedAccount');
+      setIsConnected(false);
+    }
+  };
+
+  const handleChainChanged = (chainId: string) => {
+    setChainId(chainId);
+  };
+
   const connectWallet = async () => {
+    setError('');
+    
     if (!window.ethereum) {
-      setState(prev => ({ ...prev, error: 'No Ethereum provider found' }));
+      setError('MetaMask is not installed. Please install MetaMask and try again.');
       return;
     }
 
@@ -87,38 +73,34 @@ export function useWeb3() {
         method: 'eth_requestAccounts' 
       });
       
-      setState(prev => ({
-        ...prev,
-        account: accounts[0] || null,
-        isConnected: !!accounts[0],
-        error: null
-      }));
-      
-      // Speichern der verbundenen Adresse im localStorage
-      if (accounts[0]) {
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
         localStorage.setItem('connectedAccount', accounts[0]);
+        setIsConnected(true);
+        
+        // Chain-ID abrufen
+        const chainId = await window.ethereum.request({ 
+          method: 'eth_chainId' 
+        });
+        setChainId(chainId);
       }
-    } catch (error) {
-      setState(prev => ({ 
-        ...prev, 
-        error: error instanceof Error ? error.message : 'Failed to connect wallet' 
-      }));
+    } catch (err: any) {
+      console.error('Error connecting wallet:', err);
+      setError(err.message || 'Failed to connect wallet');
     }
   };
 
   const disconnectWallet = () => {
-    setState(prev => ({
-      ...prev,
-      account: null,
-      isConnected: false
-    }));
-    
-    // Entfernen der gespeicherten Adresse
+    setAccount('');
+    setIsConnected(false);
     localStorage.removeItem('connectedAccount');
   };
 
   return {
-    ...state,
+    account,
+    isConnected,
+    chainId,
+    error,
     connectWallet,
     disconnectWallet
   };
