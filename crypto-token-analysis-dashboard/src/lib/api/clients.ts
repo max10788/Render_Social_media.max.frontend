@@ -1,7 +1,8 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
+// KORRIGIERT: Konsistente URL mit client.ts
 const apiConfig: AxiosRequestConfig = {
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://render-social-media-max-n89a.onrender.com/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -32,13 +33,20 @@ apiClient.interceptors.response.use(
   },
   async function (error) {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    
+    // Retry für 429 (Too Many Requests) oder 503 (Service Unavailable)
+    if ((error.response?.status === 429 || error.response?.status === 503) && !originalRequest._retry) {
       originalRequest._retry = true;
-      // Hier können Sie Token-Refresh-Logik implementieren
-      // const token = await refreshToken();
-      // axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+      
+      // Exponential Backoff
+      const retryCount = originalRequest._retryCount || 0;
+      const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s...
+      originalRequest._retryCount = retryCount + 1;
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
       return apiClient(originalRequest);
     }
+    
     return Promise.reject(error);
   }
 );
