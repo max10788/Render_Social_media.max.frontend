@@ -1,4 +1,3 @@
-// src/lib/api/client.ts
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import {
   AssetInfo,
@@ -25,7 +24,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 class ApiClient {
   private client: AxiosInstance;
-
   constructor() {
     this.client = axios.create({
       baseURL: `${API_BASE_URL}/api`,
@@ -34,7 +32,6 @@ class ApiClient {
         'Content-Type': 'application/json',
       },
     });
-
     this.setupInterceptors();
   }
 
@@ -43,6 +40,17 @@ class ApiClient {
     this.client.interceptors.request.use(
       (config) => {
         console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        
+        // Füge Web3-Authentifizierung hinzu, wenn verfügbar
+        if (typeof window !== 'undefined' && window.ethereum) {
+          // Hier könnten wir die Wallet-Adresse für die Authentifizierung hinzufügen
+          // Dies ist ein Beispiel und sollte an Ihre Backend-Anforderungen angepasst werden
+          const account = localStorage.getItem('connectedAccount');
+          if (account) {
+            config.headers.Authorization = `Bearer ${account}`;
+          }
+        }
+        
         return config;
       },
       (error) => {
