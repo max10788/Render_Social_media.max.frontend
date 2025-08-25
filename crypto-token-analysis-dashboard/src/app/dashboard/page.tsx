@@ -1,6 +1,4 @@
-/// app/dashboard/page.tsx
 'use client';
-
 import React, { useState } from 'react';
 import { DashboardLayout } from '@/components/layouts/dashboard-layout';
 import { TokenAnalysisCard } from '@/components/dashboard/token-analysis-card';
@@ -12,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { fetchChainStatistics } from '@/lib/api/tokenApi';
+import WalletConnect from '@/components/web3/WalletConnect';
 
 // Unterstützte Blockchains
 const supportedChains = [
@@ -46,6 +45,7 @@ export default function DashboardPage() {
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Crypto Token Analysis Dashboard</h1>
+          <WalletConnect />
         </div>
         
         <div className="mb-8">
