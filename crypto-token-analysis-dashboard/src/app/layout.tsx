@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
-import EthereumProvider from '@/components/web3/EthereumProvider';
+import EthereumProvider from '@/web3/EthereumProvider'; // KORRIGIERT: components/web3 -> web3
 
 const inter = Inter({ subsets: ['latin'] });
 
