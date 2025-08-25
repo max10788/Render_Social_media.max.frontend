@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { fetchChainStatistics } from '@/lib/api/tokenApi';
-import WalletConnect from '@/components/web3/WalletConnect';
+import WalletConnect from '@/web3/WalletConnect'; // KORRIGIERT: components/web3 -> web3
 
 // Unterstützte Blockchains
 const supportedChains = [
@@ -26,7 +26,7 @@ export default function DashboardPage() {
   const [submittedAddress, setSubmittedAddress] = useState('');
   const [submittedChain, setSubmittedChain] = useState('');
   
-  const { data: chainStats } = useQuery({
+  const { data: chainStats, error } = useQuery({
     queryKey: ['chainStatistics'],
     queryFn: fetchChainStatistics,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -104,7 +104,11 @@ export default function DashboardPage() {
               Enter a token address and select a blockchain to get started
             </p>
             
-            {chainStats && (
+            {error ? (
+              <div className="bg-red-50 p-4 rounded-lg mb-6">
+                <p className="text-red-700">Error loading chain statistics: {error.message}</p>
+              </div>
+            ) : chainStats ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
                 {Object.entries(chainStats).map(([chain, stats]) => (
                   <div key={chain} className="bg-muted/50 p-4 rounded-lg">
@@ -117,6 +121,10 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="animate-pulse">
+                <p>Loading chain statistics...</p>
               </div>
             )}
             
