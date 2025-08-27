@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { fetchChainStatistics } from '@/lib/api/tokenApi';
-import WalletConnect from '@/web3/WalletConnect'; // KORRIGIERT: components/web3 -> web3
+import WalletConnect from '@/components/web3/WalletConnect';
 
 // Unterstützte Blockchains
 const supportedChains = [
