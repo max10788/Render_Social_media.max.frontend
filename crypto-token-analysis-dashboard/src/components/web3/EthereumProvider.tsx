@@ -55,13 +55,9 @@ export default function EthereumProvider() {
     };
 
     // Versuchen, den Provider sicher zu definieren
-    try {
-      Object.defineProperty(window, 'ethereum', {
-        value: mockProvider,
-        configurable: true,
-        writable: true,
-        enumerable: true
-      });
+    if (!window.ethereum) {
+      window.ethereum = mockProvider; // Direkte Zuweisung statt defineProperty
+    }
       console.log('Mock ethereum provider set successfully');
     } catch (error) {
       console.error('Could not define ethereum provider:', error);
