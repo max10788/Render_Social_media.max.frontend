@@ -20,8 +20,8 @@ import {
   SimulationStatusResponse
 } from '../types';
 
-// KORRIGIERT: Konsistente URL mit clients.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://render-social-media-max-n89a.onrender.com';
+// KORRIGIERT: Neue Backend-URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://render-social-media-max-backend.onrender.com';
 
 class ApiClient {
   private client: AxiosInstance;
