@@ -1,9 +1,9 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-// KORRIGIERT: Neue Backend-URL
+// Timeout erhöhen und URL sicherstellen
 const apiConfig: AxiosRequestConfig = {
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://render-social-media-max-backend.onrender.com/api',
-  timeout: 30000,
+  timeout: 60000, // Erhöht auf 60 Sekunden
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,14 +11,10 @@ const apiConfig: AxiosRequestConfig = {
 
 const apiClient: AxiosInstance = axios.create(apiConfig);
 
-// Request interceptor for API calls
+// Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    // Hier können Sie Authentifizierungs-Token hinzufügen
-    // const token = getAuthToken();
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
   (error) => {
@@ -26,7 +22,7 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor for API calls
+// Response interceptor mit besserer Fehlerbehandlung
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
@@ -34,19 +30,19 @@ apiClient.interceptors.response.use(
   async function (error) {
     const originalRequest = error.config;
     
-    // Retry für 429 (Too Many Requests) oder 503 (Service Unavailable)
-    if ((error.response?.status === 429 || error.response?.status === 503) && !originalRequest._retry) {
+    // Retry für Netzwerkfehler oder 5xx Fehler
+    if (!error.response && !originalRequest._retry) {
       originalRequest._retry = true;
       
-      // Exponential Backoff
       const retryCount = originalRequest._retryCount || 0;
-      const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s...
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10 Sekunden
       originalRequest._retryCount = retryCount + 1;
       
       await new Promise(resolve => setTimeout(resolve, delay));
       return apiClient(originalRequest);
     }
     
+    console.error('API Error:', error.message);
     return Promise.reject(error);
   }
 );
