@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AssetInfo } from "@/lib/types";
 import { useOptionStore } from '@/lib/stores/optionStore';
 import { apiClient } from '@/lib/api/client';
-import { Search, Plus, Filter, TrendingUp, TrendingDown } from 'lucide-react'; // Added TrendingUp and TrendingDown
+import { Search, Plus, Filter, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface AssetSelectorProps {
   assets: AssetInfo[];
@@ -17,7 +17,10 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
   const { assetPrices, setAssetPrices } = useOptionStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssets, setSelectedAssets] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState({ start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), end: new Date() });
+  const [dateRange, setDateRange] = useState({ 
+    start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), 
+    end: new Date() 
+  });
   
   const filteredAssets = assets.filter(asset =>
     asset.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,9 +97,15 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full"
+                  id="asset-search"
+                  name="asset-search"
                 />
               </div>
-              <Button variant="outline" size="icon">
+              <Button 
+                variant="outline" 
+                size="icon"
+                aria-label="Filter assets"
+              >
                 <Filter className="h-4 w-4" />
               </Button>
             </div>
@@ -104,19 +113,27 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
             {/* Date Range */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">Start Date</label>
+                <label htmlFor="start-date" className="text-sm font-medium">
+                  Start Date
+                </label>
                 <Input
                   type="date"
                   value={dateRange.start.toISOString().split('T')[0]}
                   onChange={(e) => setDateRange(prev => ({ ...prev, start: new Date(e.target.value) }))}
+                  id="start-date"
+                  name="start-date"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">End Date</label>
+                <label htmlFor="end-date" className="text-sm font-medium">
+                  End Date
+                </label>
                 <Input
                   type="date"
                   value={dateRange.end.toISOString().split('T')[0]}
                   onChange={(e) => setDateRange(prev => ({ ...prev, end: new Date(e.target.value) }))}
+                  id="end-date"
+                  name="end-date"
                 />
               </div>
             </div>
@@ -180,6 +197,7 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleAssetRemove(assetSymbol)}
+                        aria-label={`Remove ${assetSymbol} from selection`}
                       >
                         ×
                       </Button>
@@ -207,6 +225,14 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
                 key={asset.symbol} 
                 className="cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => handleAssetSelect(asset.symbol)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Select ${asset.name} (${asset.symbol})`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    handleAssetSelect(asset.symbol);
+                  }
+                }}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
@@ -226,9 +252,9 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
                           {exchange}
                         </Badge>
                       ))}
-                     {(asset.exchanges || []).length > 2 && (
+                      {(asset.exchanges || []).length > 2 && (
                         <Badge variant="outline" className="text-xs">
-                          +{asset.exchanges.length - 2}
+                          +{(asset.exchanges || []).length - 2}
                         </Badge>
                       )}
                     </div>
