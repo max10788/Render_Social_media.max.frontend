@@ -24,25 +24,86 @@ function DashboardPage() {
     setConfig,
     resetPricing,
   } = useOptionStore();
+  
   const [activeTab, setActiveTab] = useState('pricing');
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   useEffect(() => {
     // Load initial data
     const loadInitialData = async () => {
+      setIsLoading(true);
+      setError(null);
+      
       try {
-        const [assetsData, configData] = await Promise.all([
+        const [assetsResponse, configResponse] = await Promise.allSettled([
           apiClient.getAvailableAssets(),
           apiClient.getSystemConfig(),
         ]);
-        setAssets(assetsData);
-        setConfig(configData);
-      } catch (error) {
-        console.error('Failed to load initial data:', error);
+        
+        // Process assets response
+        if (assetsResponse.status === 'fulfilled' && Array.isArray(assetsResponse.value)) {
+          setAssets(assetsResponse.value);
+        } else {
+          console.error('Failed to load assets:', assetsResponse.reason);
+          setAssets([]);
+          setError('Failed to load assets data');
+        }
+        
+        // Process config response
+        if (configResponse.status === 'fulfilled' && configResponse.value) {
+          setConfig(configResponse.value);
+        } else {
+          console.error('Failed to load config:', configResponse.reason);
+          setConfig(null);
+          if (!error) setError('Failed to load configuration');
+        }
+      } catch (err) {
+        console.error('Error loading initial data:', err);
+        setError('Network error. Please check your connection.');
+        setAssets([]);
+        setConfig(null);
+      } finally {
+        setIsLoading(false);
       }
     };
+    
     loadInitialData();
-  }, [setAssets, setConfig]);
-
+  }, [setAssets, setConfig, error]);
+  
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+  
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-center text-red-600">Error Loading Data</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>
+                Reload Page
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+  
   return (
     <DashboardLayout>
       <div className="container mx-auto py-6 space-y-6">
@@ -64,12 +125,12 @@ function DashboardPage() {
             {config && (
               <Badge variant="outline" className="flex items-center gap-1">
                 <BarChart3 className="h-3 w-3" />
-                {config.supported_stochastic_models.length} Models
+                {config.supported_stochastic_models?.length || 0} Models
               </Badge>
             )}
           </div>
         </div>
-
+        
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
@@ -90,7 +151,7 @@ function DashboardPage() {
               Configuration
             </TabsTrigger>
           </TabsList>
-
+          
           <TabsContent value="pricing" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Pricing Form */}
@@ -107,7 +168,7 @@ function DashboardPage() {
                   </CardContent>
                 </Card>
               </div>
-
+              
               {/* Pricing Result */}
               <div>
                 {pricingStatus === 'calculating' && (
@@ -138,9 +199,11 @@ function DashboardPage() {
                     </CardContent>
                   </Card>
                 )}
+                
                 {pricingStatus === 'completed' && pricingResult && (
                   <OptionPricingResult result={pricingResult} />
                 )}
+                
                 {pricingStatus === 'error' && (
                   <Card>
                     <CardHeader>
@@ -160,14 +223,30 @@ function DashboardPage() {
                     </CardContent>
                   </Card>
                 )}
+                
+                {!pricingStatus && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Option Pricing</CardTitle>
+                      <CardDescription>
+                        Configure parameters and calculate option prices
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        Fill in the form to start calculating option prices.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           </TabsContent>
-
+          
           <TabsContent value="assets" className="space-y-6">
-            <AssetSelector assets={assets} />
+            <AssetSelector assets={assets || []} />
           </TabsContent>
-
+          
           <TabsContent value="analytics" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
@@ -198,9 +277,9 @@ function DashboardPage() {
               </Card>
             </div>
           </TabsContent>
-
+          
           <TabsContent value="config" className="space-y-6">
-            {config && (
+            {config ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
@@ -209,22 +288,34 @@ function DashboardPage() {
                   <CardContent className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-sm font-medium">Default Simulations</span>
-                      <Badge variant="outline">{config.default_num_simulations.toLocaleString()}</Badge>
+                      <Badge variant="outline">
+                        {config.default_num_simulations?.toLocaleString() || 'N/A'}
+                      </Badge>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm font-medium">Default Timesteps</span>
-                      <Badge variant="outline">{config.default_num_timesteps}</Badge>
+                      <Badge variant="outline">
+                        {config.default_num_timesteps || 'N/A'}
+                      </Badge>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm font-medium">Risk-Free Rate</span>
-                      <Badge variant="outline">{(config.default_risk_free_rate * 100).toFixed(2)}%</Badge>
+                      <Badge variant="outline">
+                        {config.default_risk_free_rate ? 
+                          `${(config.default_risk_free_rate * 100).toFixed(2)}%` : 
+                          'N/A'
+                        }
+                      </Badge>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm font-medium">Max Assets per Basket</span>
-                      <Badge variant="outline">{config.max_assets_per_basket}</Badge>
+                      <Badge variant="outline">
+                        {config.max_assets_per_basket || 'N/A'}
+                      </Badge>
                     </div>
                   </CardContent>
                 </Card>
+                
                 <Card>
                   <CardHeader>
                     <CardTitle>Supported Models</CardTitle>
@@ -233,26 +324,41 @@ function DashboardPage() {
                     <div>
                       <h4 className="text-sm font-medium mb-2">Volatility Models</h4>
                       <div className="flex flex-wrap gap-2">
-                        {config.supported_volatility_models.map((model) => (
+                        {config.supported_volatility_models?.map((model) => (
                           <Badge key={model} variant="secondary">
                             {model}
                           </Badge>
-                        ))}
+                        )) || (
+                          <Badge variant="secondary">N/A</Badge>
+                        )}
                       </div>
                     </div>
                     <div>
                       <h4 className="text-sm font-medium mb-2">Stochastic Models</h4>
                       <div className="flex flex-wrap gap-2">
-                        {config.supported_stochastic_models.map((model) => (
+                        {config.supported_stochastic_models?.map((model) => (
                           <Badge key={model} variant="secondary">
                             {model}
                           </Badge>
-                        ))}
+                        )) || (
+                          <Badge variant="secondary">N/A</Badge>
+                        )}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </div>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Configuration</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    No configuration data available.
+                  </p>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
         </Tabs>
