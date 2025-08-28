@@ -1,8 +1,8 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-// KORRIGIERT: Konsistente URL mit client.ts
+// KORRIGIERT: Neue Backend-URL
 const apiConfig: AxiosRequestConfig = {
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://render-social-media-max-n89a.onrender.com/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://render-social-media-max-backend.onrender.com/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
