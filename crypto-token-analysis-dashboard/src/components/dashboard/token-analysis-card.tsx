@@ -98,8 +98,12 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
   const tokenInfo = analysis?.token_info || token;
   const name = tokenInfo.name;
   const symbol = tokenInfo.symbol;
-  const price = analysis?.token_info?.price || token.price;
+  
+  // Preisdaten nur aus der Analyse, da sie in der Basis-Token-Schnittstelle nicht vorhanden sind
+  const price = analysis?.token_info?.price;
   const priceChange24h = analysis?.token_info?.price_change_24h;
+  
+  // Andere Felder mit Fallback auf die Basis-Token-Daten
   const marketCap = analysis?.token_info?.market_cap || token.market_cap;
   const volume24h = analysis?.token_info?.volume_24h || token.volume_24h;
   const holdersCount = analysis?.token_info?.holders_count || token.holders_count;
