@@ -1,4 +1,3 @@
-// components/charts/transaction-radar-chart.tsx
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
@@ -45,7 +44,6 @@ const WALLET_TYPE_LABELS: Record<string, string> = {
 export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [selectedNode, setSelectedNode] = useState<any>(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
   const [depth, setDepth] = useState(2);
   const [limit, setLimit] = useState(50);
   
@@ -54,7 +52,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
     queryFn: () => fetchTransactionGraph(tokenAddress, chain, depth, limit),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-
+  
   // Transformiere die Graph-Daten in das für die Radar-Visualisierung benötigte Format
   const transformData = (data: TransactionGraphResponse) => {
     if (!data.nodes || !data.edges) return [];
@@ -82,7 +80,6 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       const angle = (index / data.nodes.length) * 2 * Math.PI;
       
       // Bestimme die Transaktionsrichtung basierend auf den Kanten
-      // Fix: Verwende optional chaining, um den Fehler zu beheben
       const edge = data.edges?.find(edge => 
         edge.from === node.id || edge.to === node.id
       );
@@ -102,7 +99,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       };
     });
   };
-
+  
   useEffect(() => {
     if (!graphData || !svgRef.current) return;
     
@@ -118,7 +115,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
     
     // Erstelle die Hauptgruppe
     const g = svg.append("g")
-      .attr("transform", `translate(${centerX}, ${centerY}) scale(${zoomLevel})`);
+      .attr("transform", `translate(${centerX}, ${centerY})`);
     
     // Zeichne die Zeitringe
     const timeRings = [50, 100, 150, 200];
@@ -264,22 +261,31 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       .scaleExtent([0.5, 3])
       .on("zoom", (event) => {
         g.attr("transform", `translate(${centerX}, ${centerY}) scale(${event.transform.k})`);
-        setZoomLevel(event.transform.k);
       });
     
     svg.call(zoom as any);
     
-  }, [graphData, zoomLevel]);
-
+    // Cleanup-Funktion hinzugefügt
+    return () => {
+      svg.selectAll("*").remove();
+      d3.selectAll(".tooltip").remove();
+    };
+  }, [graphData]);
+  
   const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev + 0.2, 3));
+    if (svgRef.current) {
+      const svg = d3.select(svgRef.current);
+      svg.transition().call(d3.zoom().scaleBy, 1.2);
+    }
   };
-
+  
   const handleZoomOut = () => {
-    // Fix: Fehlende schließende Klammer hinzugefügt
-    setZoomLevel(prev => Math.max(prev - 0.2, 0.5));
+    if (svgRef.current) {
+      const svg = d3.select(svgRef.current);
+      svg.transition().call(d3.zoom().scaleBy, 0.8);
+    }
   };
-
+  
   if (isLoading) {
     return (
       <Card className="w-full">
@@ -292,7 +298,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       </Card>
     );
   }
-
+  
   if (error) {
     return (
       <Card className="w-full">
@@ -307,7 +313,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       </Card>
     );
   }
-
+  
   return (
     <Card className="w-full">
       <CardHeader>
@@ -320,6 +326,8 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
                 value={depth} 
                 onChange={(e) => setDepth(Number(e.target.value))}
                 className="border rounded px-2 py-1 text-sm"
+                id="depth-select"
+                name="depth-select"
               >
                 <option value={1}>1</option>
                 <option value={2}>2</option>
@@ -334,6 +342,8 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
                 value={limit} 
                 onChange={(e) => setLimit(Number(e.target.value))}
                 className="border rounded px-2 py-1 text-sm"
+                id="limit-select"
+                name="limit-select"
               >
                 <option value={25}>25</option>
                 <option value={50}>50</option>
@@ -341,13 +351,13 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
                 <option value={200}>200</option>
               </select>
             </div>
-            <Button variant="outline" size="icon" onClick={handleZoomIn}>
+            <Button variant="outline" size="icon" onClick={handleZoomIn} aria-label="Zoom in">
               <ZoomIn className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={handleZoomOut}>
+            <Button variant="outline" size="icon" onClick={handleZoomOut} aria-label="Zoom out">
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={() => refetch()}>
+            <Button variant="outline" size="icon" onClick={() => refetch()} aria-label="Refresh data">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -362,6 +372,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
                 width={600}
                 height={600}
                 className="overflow-visible"
+                aria-label="Transaction radar chart"
               />
             </div>
           </div>
