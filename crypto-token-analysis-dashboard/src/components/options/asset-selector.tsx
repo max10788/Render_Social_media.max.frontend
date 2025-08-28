@@ -221,12 +221,12 @@ export function AssetSelector({ assets }: AssetSelectorProps) {
                     <div className="text-sm text-muted-foreground truncate">{asset.name}</div>
                     
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {asset.exchanges.slice(0, 2).map((exchange) => (
+                      {(asset.exchanges || []).slice(0, 2).map((exchange) => (
                         <Badge key={exchange} variant="outline" className="text-xs">
                           {exchange}
                         </Badge>
                       ))}
-                      {asset.exchanges.length > 2 && (
+                     {(asset.exchanges || []).length > 2 && (
                         <Badge variant="outline" className="text-xs">
                           +{asset.exchanges.length - 2}
                         </Badge>
