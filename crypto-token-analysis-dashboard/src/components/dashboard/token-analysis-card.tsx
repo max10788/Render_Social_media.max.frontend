@@ -32,7 +32,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
   
-  const { data: analysis, refetch: refetchAnalysis } = useQuery<TokenAnalysisResponse>({
+  const { data: analysis, refetch: refetchAnalysis, error: analysisError } = useQuery<TokenAnalysisResponse>({
     queryKey: ['tokenAnalysis', tokenAddress, chain],
     queryFn: () => analyzeToken({ token_address: tokenAddress, chain }),
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -43,6 +43,8 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     setIsAnalyzing(true);
     try {
       await refetchAnalysis();
+    } catch (error) {
+      console.error('Analysis failed:', error);
     } finally {
       setIsAnalyzing(false);
     }
@@ -92,27 +94,19 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     return null;
   }
   
-  // Extract token info with proper typing
-  const analysisTokenInfo = analysis?.token_info as TokenInfo | undefined;
-  
-  // Extract properties with fallbacks
-  const name = analysisTokenInfo?.name ?? token.name;
-  const symbol = analysisTokenInfo?.symbol ?? token.symbol;
-  
-  // price and price_change_24h are only in analysisTokenInfo
-  const price = analysisTokenInfo?.price;
-  const priceChange24h = analysisTokenInfo?.price_change_24h;
-  
-  // market_cap, volume_24h and holders_count are in both sources
-  const marketCap = analysisTokenInfo?.market_cap ?? token.market_cap;
-  const volume24h = analysisTokenInfo?.volume_24h ?? token.volume_24h;
-  const holdersCount = analysisTokenInfo?.holders_count ?? token.holders_count;
-  
-  // Score and risk flags
-  const score = analysis?.score ?? token.token_score ?? 0;
+  // Datenkonsistenz verbessern - einheitliche Datenquelle
+  const tokenInfo = analysis?.token_info || token;
+  const name = tokenInfo.name;
+  const symbol = tokenInfo.symbol;
+  const price = analysis?.token_info?.price || token.price;
+  const priceChange24h = analysis?.token_info?.price_change_24h;
+  const marketCap = analysis?.token_info?.market_cap || token.market_cap;
+  const volume24h = analysis?.token_info?.volume_24h || token.volume_24h;
+  const holdersCount = analysis?.token_info?.holders_count || token.holders_count;
+  const score = analysis?.score || token.token_score || 0;
   const riskFlags = analysis?.risk_flags || [];
   
-  // Wallet analysis data with type safety
+  // Wallet analysis data mit Typsicherheit
   const walletAnalysisData = analysis?.wallet_analysis ? {
     total_wallets: typeof analysis.wallet_analysis.total_wallets === 'number' ? analysis.wallet_analysis.total_wallets : 0,
     dev_wallets: typeof analysis.wallet_analysis.dev_wallets === 'number' ? analysis.wallet_analysis.dev_wallets : 0,
@@ -120,7 +114,7 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     rugpull_suspects: typeof analysis.wallet_analysis.rugpull_suspects === 'number' ? analysis.wallet_analysis.rugpull_suspects : 0,
   } : null;
   
-  // Determine color based on score
+  // Hilfsfunktionen für UI
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-success';
     if (score >= 60) return 'text-warning';
@@ -128,7 +122,6 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     return 'text-danger';
   };
   
-  // Determine risk level
   const getRiskLevel = (score: number) => {
     if (score >= 80) return 'Sicher';
     if (score >= 60) return 'Niedriges Risiko';
@@ -136,7 +129,6 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
     return 'Hohes Risiko';
   };
   
-  // Determine color and icon for price change
   const priceChangeColor = priceChange24h !== undefined && priceChange24h >= 0 ? 'text-success' : 'text-danger';
   const PriceChangeIcon = priceChange24h !== undefined && priceChange24h >= 0 ? TrendingUp : TrendingDown;
   
@@ -257,11 +249,24 @@ export function TokenAnalysisCard({ tokenAddress, chain }: TokenAnalysisCardProp
           </div>
         )}
         
+        {/* Fehlermeldung für Analyse */}
+        {analysisError && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-center">
+              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mr-2" />
+              <span className="text-sm text-red-600 dark:text-red-400">
+                Analyse fehlgeschlagen. Bitte versuchen Sie es erneut.
+              </span>
+            </div>
+          </div>
+        )}
+        
         <div className="flex justify-center mt-4">
           <Button 
             onClick={handleAnalyze} 
             disabled={isAnalyzing}
             className="flex items-center gap-2"
+            aria-label={isAnalyzing ? 'Analysiere Token...' : 'Detaillierte Analyse starten'}
           >
             <RefreshCw className={cn("h-4 w-4", isAnalyzing && "animate-spin")} />
             {isAnalyzing ? 'Analysiere...' : 'Detaillierte Analyse'}
