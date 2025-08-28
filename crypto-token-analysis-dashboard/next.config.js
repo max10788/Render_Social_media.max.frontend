@@ -7,10 +7,10 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://render-social-media-max-backend.onrender.com',
+        // ÄNDERE DIESE ZEILE:
+        destination: 'https://render-social-media-max-backend.onrender.com/api/:path*',
       },
     ]
   },
 }
-
 module.exports = nextConfig
