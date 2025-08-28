@@ -7,7 +7,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'https://render-social-media-max-n89a.onrender.com/api/:path*',
+        destination: 'https://render-social-media-max-backend.onrender.com',
       },
     ]
   },
