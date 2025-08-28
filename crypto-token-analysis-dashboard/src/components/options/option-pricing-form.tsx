@@ -257,8 +257,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
                       value={watchedWeights[index] || 0}
                       onChange={(e) => handleWeightChange(index, parseFloat(e.target.value))}
                       className="flex-1"
-                      id={`weight-${asset}`}
-                      name={`weight-${asset}`}
                     />
                     <span className="w-16 text-sm text-right">
                       {((watchedWeights[index] || 0) * 100).toFixed(1)}%
@@ -274,8 +272,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
             <div>
               <Label htmlFor="strike_price">Strike Price</Label>
               <Input
-                id="strike_price"
-                name="strike_price"
                 type="number"
                 step="0.01"
                 {...register('strike_price', { valueAsNumber: true })}
@@ -299,8 +295,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
             <div>
               <Label htmlFor="time_to_maturity">Time to Maturity (Years)</Label>
               <Input
-                id="time_to_maturity"
-                name="time_to_maturity"
                 type="number"
                 step="0.01"
                 {...register('time_to_maturity', { valueAsNumber: true })}
@@ -312,8 +306,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
             <div>
               <Label htmlFor="risk_free_rate">Risk-Free Rate (Optional)</Label>
               <Input
-                id="risk_free_rate"
-                name="risk_free_rate"
                 type="number"
                 step="0.001"
                 {...register('risk_free_rate', { valueAsNumber: true })}
@@ -329,8 +321,6 @@ export function OptionPricingForm({ onSubmit }: OptionPricingFormProps) {
               <div>
                 <Label htmlFor="num_simulations">Number of Simulations</Label>
                 <Input
-                  id="num_simulations"
-                  name="num_simulations"
                   type="number"
                   {...register('num_simulations', { valueAsNumber: true })}
                 />
