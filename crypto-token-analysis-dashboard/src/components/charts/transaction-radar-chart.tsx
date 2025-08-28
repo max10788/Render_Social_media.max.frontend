@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import * as d3 from 'd3';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTransactionGraph } from '@/lib/api/transactionApi';
@@ -52,6 +52,17 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
     queryFn: () => fetchTransactionGraph(tokenAddress, chain, depth, limit),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+  
+  // Erstelle die Zoom-Behavior einmal mit useMemo
+  const zoom = useMemo(() => d3.zoom()
+    .scaleExtent([0.5, 3])
+    .on("zoom", (event) => {
+      if (svgRef.current) {
+        const svg = d3.select(svgRef.current);
+        const g = svg.select("g");
+        g.attr("transform", event.transform);
+      }
+    }), []);
   
   // Transformiere die Graph-Daten in das für die Radar-Visualisierung benötigte Format
   const transformData = (data: TransactionGraphResponse) => {
@@ -256,13 +267,7 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       .attr("stroke-width", 1)
       .attr("stroke-opacity", 0.3);
     
-    // Zoom-Funktionalität
-    const zoom = d3.zoom()
-      .scaleExtent([0.5, 3])
-      .on("zoom", (event) => {
-        g.attr("transform", `translate(${centerX}, ${centerY}) scale(${event.transform.k})`);
-      });
-    
+    // Wende die Zoom-Behavior auf das SVG an
     svg.call(zoom as any);
     
     // Cleanup-Funktion hinzugefügt
@@ -270,19 +275,19 @@ export function TransactionRadarChart({ tokenAddress, chain }: TransactionRadarC
       svg.selectAll("*").remove();
       d3.selectAll(".tooltip").remove();
     };
-  }, [graphData]);
+  }, [graphData, zoom]);
   
   const handleZoomIn = () => {
     if (svgRef.current) {
       const svg = d3.select(svgRef.current);
-      svg.transition().call(d3.zoom().scaleBy, 1.2);
+      svg.transition().duration(300).call(zoom.scaleBy as any, 1.2);
     }
   };
   
   const handleZoomOut = () => {
     if (svgRef.current) {
       const svg = d3.select(svgRef.current);
-      svg.transition().call(d3.zoom().scaleBy, 0.8);
+      svg.transition().duration(300).call(zoom.scaleBy as any, 0.8);
     }
   };
   
