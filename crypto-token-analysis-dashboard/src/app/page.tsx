@@ -11,8 +11,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Calculator, TrendingUp, BarChart3, PieChart } from 'lucide-react';
-// Importiere den SystemConfig-Typ
 import { SystemConfig } from '@/lib/types';
+
+// Logging-Funktion für konsistente Fehlerprotokollierung
+const logError = (source: string, error: any, additionalInfo?: any) => {
+  console.error(`[${source}] Error:`, error);
+  if (additionalInfo) {
+    console.error(`[${source}] Additional Info:`, additionalInfo);
+  }
+};
 
 function DashboardPage() {
   const {
@@ -31,6 +38,17 @@ function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Ethereum Provider Konflikt vermeiden
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.ethereum) {
+        console.log('[Ethereum Provider] Existing provider detected:', window.ethereum);
+      }
+    } catch (err) {
+      logError('Ethereum Provider Check', err);
+    }
+  }, []);
+  
   useEffect(() => {
     // Load initial data
     const loadInitialData = async () => {
@@ -38,53 +56,86 @@ function DashboardPage() {
       setError(null);
       
       try {
+        console.log('[API] Starting to load initial data');
+        
+        // Timeout-Promise für kürzere Wartezeiten
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 15000)
+        );
+        
         const [assetsResponse, configResponse] = await Promise.allSettled([
-          apiClient.getAvailableAssets(),
-          apiClient.getSystemConfig(),
+          Promise.race([
+            apiClient.getAvailableAssets(),
+            timeoutPromise
+          ]).catch(err => {
+            logError('Assets API', err);
+            throw err;
+          }),
+          Promise.race([
+            apiClient.getSystemConfig(),
+            timeoutPromise
+          ]).catch(err => {
+            logError('Config API', err);
+            throw err;
+          })
         ]);
+        
+        console.log('[API] Responses received:', {
+          assets: assetsResponse.status,
+          config: configResponse.status
+        });
         
         // Process assets response
         if (assetsResponse.status === 'fulfilled') {
-          setAssets(assetsResponse.value);
+          const assetsData = assetsResponse.value || [];
+          console.log('[Assets] Successfully loaded:', assetsData.length, 'assets');
+          setAssets(assetsData);
         } else {
-          console.error('Failed to load assets:', assetsResponse.reason);
+          logError('Assets Loading', assetsResponse.reason);
           setAssets([]);
           setError('Failed to load assets data');
         }
         
         // Process config response
         if (configResponse.status === 'fulfilled') {
+          console.log('[Config] Successfully loaded');
           setConfig(configResponse.value);
         } else {
-          console.error('Failed to load config:', configResponse.reason);
-          // Vollständiges SystemConfig-Objekt als Fallback mit allen erforderlichen Eigenschaften
-          setConfig({
+          logError('Config Loading', configResponse.reason);
+          const fallbackConfig = {
             default_num_simulations: 100000,
             default_num_timesteps: 252,
             default_risk_free_rate: 0.03,
-            exchange_priority: ['binance', 'coinbase', 'kraken'], // Hinzugefügt
+            exchange_priority: ['binance', 'coinbase', 'kraken'],
             supported_volatility_models: ['BLACK_SCHOLES', 'GARCH', 'EWMA', 'HISTORICAL'],
             supported_stochastic_models: ['GBM', 'JUMP_DIFFUSION', 'HESTON'],
             max_assets_per_basket: 10,
-          } as unknown as SystemConfig);
-          setError('Failed to load configuration');
+          } as unknown as SystemConfig;
+          
+          console.log('[Config] Using fallback config:', fallbackConfig);
+          setConfig(fallbackConfig);
+          setError(prev => prev ? `${prev} Also failed to load configuration.` : 'Failed to load configuration.');
         }
       } catch (err) {
-        console.error('Error loading initial data:', err);
+        logError('Initial Data Loading', err);
         setError('Network error. Please check your connection.');
         setAssets([]);
-        // Vollständiges SystemConfig-Objekt als Fallback
-        setConfig({
+        
+        const fallbackConfig = {
           default_num_simulations: 100000,
           default_num_timesteps: 252,
           default_risk_free_rate: 0.03,
-          exchange_priority: ['binance', 'coinbase', 'kraken'], // Hinzugefügt
+          exchange_priority: ['binance', 'coinbase', 'kraken'],
           supported_volatility_models: ['BLACK_SCHOLES', 'GARCH', 'EWMA', 'HISTORICAL'],
           supported_stochastic_models: ['GBM', 'JUMP_DIFFUSION', 'HESTON'],
           max_assets_per_basket: 10,
-        } as unknown as SystemConfig);
+        } as unknown as SystemConfig;
+        
+        console.log('[Config] Using fallback config after error:', fallbackConfig);
+        setConfig(fallbackConfig);
       } finally {
         setIsLoading(false);
+        console.log('[Dashboard] Initial data loading completed');
       }
     };
     
@@ -110,19 +161,36 @@ function DashboardPage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <CardTitle className="text-center text-red-600">Error Loading Data</CardTitle>
+              <CardTitle className="text-center text-red-600">Connection Error</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
               <p className="text-muted-foreground mb-4">{error}</p>
-              <Button onClick={() => window.location.reload()}>
-                Reload Page
-              </Button>
+              <div className="space-y-2">
+                <Button onClick={() => window.location.reload()}>
+                  Reload Page
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setError(null);
+                    setIsLoading(true);
+                    setTimeout(() => window.location.reload(), 100);
+                  }}
+                >
+                  Retry Connection
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
       </DashboardLayout>
     );
   }
+  
+  // Sicherheitsprüfung für Array-Längen
+  const assetCount = assets ? assets.length : 0;
+  const volatilityModelsCount = config?.supported_volatility_models?.length || 0;
+  const stochasticModelsCount = config?.supported_stochastic_models?.length || 0;
   
   return (
     <DashboardLayout>
@@ -145,7 +213,7 @@ function DashboardPage() {
             {config && (
               <Badge variant="outline" className="flex items-center gap-1">
                 <BarChart3 className="h-3 w-3" />
-                {config.supported_stochastic_models?.length || 0} Models
+                {stochasticModelsCount} Models
               </Badge>
             )}
           </div>
@@ -160,7 +228,7 @@ function DashboardPage() {
             </TabsTrigger>
             <TabsTrigger value="assets" className="flex items-center gap-2">
               <PieChart className="h-4 w-4" />
-              Assets
+              Assets ({assetCount})
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
