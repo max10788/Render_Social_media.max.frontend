@@ -42,7 +42,7 @@ function DashboardPage() {
         ]);
         
         // Process assets response
-        if (assetsResponse.status === 'fulfilled' && Array.isArray(assetsResponse.value)) {
+        if (assetsResponse.status === 'fulfilled') {
           setAssets(assetsResponse.value);
         } else {
           console.error('Failed to load assets:', assetsResponse.reason);
@@ -51,12 +51,12 @@ function DashboardPage() {
         }
         
         // Process config response
-        if (configResponse.status === 'fulfilled' && configResponse.value) {
+        if (configResponse.status === 'fulfilled') {
           setConfig(configResponse.value);
         } else {
           console.error('Failed to load config:', configResponse.reason);
           setConfig(null);
-          if (!error) setError('Failed to load configuration');
+          setError('Failed to load configuration');
         }
       } catch (err) {
         console.error('Error loading initial data:', err);
@@ -69,7 +69,7 @@ function DashboardPage() {
     };
     
     loadInitialData();
-  }, [setAssets, setConfig, error]);
+  }, [setAssets, setConfig]); // Entferne error aus den Dependencies
   
   if (isLoading) {
     return (
