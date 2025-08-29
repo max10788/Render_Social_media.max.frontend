@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Calculator, TrendingUp, BarChart3, PieChart } from 'lucide-react';
 
+// Importiere den SystemConfig-Typ
+import { SystemConfig } from '@/lib/types';
+
 function DashboardPage() {
   const {
     assets,
@@ -55,21 +58,37 @@ function DashboardPage() {
           setConfig(configResponse.value);
         } else {
           console.error('Failed to load config:', configResponse.reason);
-          setConfig(null);
+          // Leeres SystemConfig-Objekt als Fallback
+          setConfig({
+            default_num_simulations: 100000,
+            default_num_timesteps: 252,
+            default_risk_free_rate: 0.03,
+            max_assets_per_basket: 10,
+            supported_volatility_models: ['BLACK_SCHOLES'],
+            supported_stochastic_models: ['GBM'],
+          } as SystemConfig);
           setError('Failed to load configuration');
         }
       } catch (err) {
         console.error('Error loading initial data:', err);
         setError('Network error. Please check your connection.');
         setAssets([]);
-        setConfig(null);
+        // Leeres SystemConfig-Objekt als Fallback
+        setConfig({
+          default_num_simulations: 100000,
+          default_num_timesteps: 252,
+          default_risk_free_rate: 0.03,
+          max_assets_per_basket: 10,
+          supported_volatility_models: ['BLACK_SCHOLES'],
+          supported_stochastic_models: ['GBM'],
+        } as SystemConfig);
       } finally {
         setIsLoading(false);
       }
     };
     
     loadInitialData();
-  }, [setAssets, setConfig]); // Entferne error aus den Dependencies
+  }, [setAssets, setConfig]);
   
   if (isLoading) {
     return (
