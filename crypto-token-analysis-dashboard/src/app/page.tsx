@@ -58,14 +58,15 @@ function DashboardPage() {
           setConfig(configResponse.value);
         } else {
           console.error('Failed to load config:', configResponse.reason);
-          // Leeres SystemConfig-Objekt als Fallback
+          // Vollständiges SystemConfig-Objekt als Fallback mit allen erforderlichen Eigenschaften
           setConfig({
             default_num_simulations: 100000,
             default_num_timesteps: 252,
             default_risk_free_rate: 0.03,
+            exchange_priority: ['binance', 'coinbase', 'kraken'], // Hinzugefügt
+            supported_volatility_models: ['BLACK_SCHOLES', 'GARCH', 'EWMA', 'HISTORICAL'],
+            supported_stochastic_models: ['GBM', 'JUMP_DIFFUSION', 'HESTON'],
             max_assets_per_basket: 10,
-            supported_volatility_models: ['BLACK_SCHOLES'],
-            supported_stochastic_models: ['GBM'],
           } as SystemConfig);
           setError('Failed to load configuration');
         }
@@ -73,14 +74,15 @@ function DashboardPage() {
         console.error('Error loading initial data:', err);
         setError('Network error. Please check your connection.');
         setAssets([]);
-        // Leeres SystemConfig-Objekt als Fallback
+        // Vollständiges SystemConfig-Objekt als Fallback
         setConfig({
           default_num_simulations: 100000,
           default_num_timesteps: 252,
           default_risk_free_rate: 0.03,
+          exchange_priority: ['binance', 'coinbase', 'kraken'], // Hinzugefügt
+          supported_volatility_models: ['BLACK_SCHOLES', 'GARCH', 'EWMA', 'HISTORICAL'],
+          supported_stochastic_models: ['GBM', 'JUMP_DIFFUSION', 'HESTON'],
           max_assets_per_basket: 10,
-          supported_volatility_models: ['BLACK_SCHOLES'],
-          supported_stochastic_models: ['GBM'],
         } as SystemConfig);
       } finally {
         setIsLoading(false);
