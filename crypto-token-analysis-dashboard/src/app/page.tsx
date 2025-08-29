@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Calculator, TrendingUp, BarChart3, PieChart } from 'lucide-react';
-
 // Importiere den SystemConfig-Typ
 import { SystemConfig } from '@/lib/types';
 
@@ -67,7 +66,7 @@ function DashboardPage() {
             supported_volatility_models: ['BLACK_SCHOLES', 'GARCH', 'EWMA', 'HISTORICAL'],
             supported_stochastic_models: ['GBM', 'JUMP_DIFFUSION', 'HESTON'],
             max_assets_per_basket: 10,
-          } as SystemConfig);
+          } as unknown as SystemConfig);
           setError('Failed to load configuration');
         }
       } catch (err) {
@@ -83,7 +82,7 @@ function DashboardPage() {
           supported_volatility_models: ['BLACK_SCHOLES', 'GARCH', 'EWMA', 'HISTORICAL'],
           supported_stochastic_models: ['GBM', 'JUMP_DIFFUSION', 'HESTON'],
           max_assets_per_basket: 10,
-        } as SystemConfig);
+        } as unknown as SystemConfig);
       } finally {
         setIsLoading(false);
       }
