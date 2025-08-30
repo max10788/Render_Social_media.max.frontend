@@ -1,168 +1,184 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import {
-  AssetInfo,
-  ExchangeInfo,
-  BlockchainInfo,
-  SystemConfig,
-  AssetPriceRequest,
-  AssetPriceResponse,
-  VolatilityRequest,
-  VolatilityResponse,
-  CorrelationRequest,
-  CorrelationResponse,
-  OptionPricingRequest,
-  OptionPricingResponse,
-  ImpliedVolatilityRequest,
-  ImpliedVolatilityResponse,
-  RiskMetricsRequest,
-  RiskMetricsResponse,
-  SimulationProgress,
-  SimulationStatusResponse
-} from '../types';
+import axios, { AxiosInstance, AxiosError } from 'axios';
 
-// KORRIGIERT: Neue Backend-URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://render-social-media-max-backend.onrender.com';
+// Types
+export interface APIError {
+  message: string;
+  code: string;
+  status: number;
+}
 
-class ApiClient {
+export interface APIResponse<T> {
+  data: T;
+  status: number;
+  timestamp: string;
+}
+
+// Configuration
+const API_CONFIG = {
+  PRODUCTION_URL: '/api',  // Using Next.js rewrite
+  DEVELOPMENT_URL: 'https://render-social-media-max-backend.onrender.com/api',
+  TIMEOUT: 30000,
+  RETRY_ATTEMPTS: 3,
+  RETRY_STATUS_CODES: [408, 429, 500, 502, 503, 504],
+  BACKOFF_MULTIPLIER: 1.5,
+};
+
+class APIClient {
   private client: AxiosInstance;
-  
+  private retryCount: Map<string, number>;
+
   constructor() {
+    this.retryCount = new Map();
+    
     this.client = axios.create({
-      baseURL: `${API_BASE_URL}/api`,
-      timeout: 30000,
+      baseURL: process.env.NODE_ENV === 'production' 
+        ? API_CONFIG.PRODUCTION_URL 
+        : API_CONFIG.DEVELOPMENT_URL,
+      timeout: API_CONFIG.TIMEOUT,
       headers: {
         'Content-Type': 'application/json',
       },
     });
-    
+
     this.setupInterceptors();
   }
-  
-  private setupInterceptors() {
-    // Request interceptor
+
+  private setupInterceptors(): void {
+    // Request Interceptor
     this.client.interceptors.request.use(
       (config) => {
-        console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        // Add request ID for tracking
+        config.headers['X-Request-ID'] = crypto.randomUUID();
         
-        // Füge Web3-Authentifizierung hinzu, wenn verfügbar
-        if (typeof window !== 'undefined' && window.ethereum) {
-          const account = localStorage.getItem('connectedAccount');
-          if (account) {
-            config.headers.Authorization = `Bearer ${account}`;
-          }
+        // Add authentication if available
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
         }
-        
+
+        // Log request (development only)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
+        }
+
         return config;
       },
       (error) => {
-        return Promise.reject(error);
+        return Promise.reject(this.handleError(error));
       }
     );
-    
-    // Response interceptor mit Retry-Logik
+
+    // Response Interceptor
     this.client.interceptors.response.use(
       (response) => {
         return response;
       },
       async (error) => {
-        const originalRequest = error.config;
-        
-        // Retry für 429 (Too Many Requests) oder 503 (Service Unavailable)
-        if ((error.response?.status === 429 || error.response?.status === 503) && !originalRequest._retry) {
-          originalRequest._retry = true;
-          
-          // Exponential Backoff
-          const retryCount = originalRequest._retryCount || 0;
-          const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s...
-          originalRequest._retryCount = retryCount + 1;
-          
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return this.client(originalRequest);
-        }
-        
-        console.error('API Error:', error.response?.data || error.message);
-        return Promise.reject(error);
+        return this.handleResponseError(error);
       }
     );
   }
 
-  // System Information
-  async getAvailableAssets(): Promise<AssetInfo[]> {
-    const response = await this.client.get<AssetInfo[]>('/assets');
-    return response.data;
+  private async handleResponseError(error: AxiosError): Promise<never> {
+    const originalRequest = error.config;
+    
+    if (!originalRequest) {
+      return Promise.reject(this.handleError(error));
+    }
+
+    const requestId = originalRequest.headers['X-Request-ID'] as string;
+    const currentRetryCount = this.retryCount.get(requestId) || 0;
+
+    // Check if we should retry
+    if (
+      currentRetryCount < API_CONFIG.RETRY_ATTEMPTS &&
+      API_CONFIG.RETRY_STATUS_CODES.includes(error.response?.status || 0)
+    ) {
+      this.retryCount.set(requestId, currentRetryCount + 1);
+
+      // Calculate delay with exponential backoff
+      const delay = Math.pow(API_CONFIG.BACKOFF_MULTIPLIER, currentRetryCount) * 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+
+      return this.client(originalRequest);
+    }
+
+    // Clean up retry count
+    this.retryCount.delete(requestId);
+    
+    return Promise.reject(this.handleError(error));
   }
-  
-  async getAvailableExchanges(): Promise<ExchangeInfo[]> {
-    const response = await this.client.get<ExchangeInfo[]>('/exchanges');
-    return response.data;
+
+  private handleError(error: AxiosError): APIError {
+    const defaultError: APIError = {
+      message: 'An unexpected error occurred',
+      code: 'UNKNOWN_ERROR',
+      status: 500,
+    };
+
+    if (!error.response) {
+      return {
+        ...defaultError,
+        message: 'Network error or server is unreachable',
+        code: 'NETWORK_ERROR',
+      };
+    }
+
+    const status = error.response.status;
+    const data = error.response.data as any;
+
+    return {
+      message: data?.message || defaultError.message,
+      code: data?.code || `HTTP_${status}`,
+      status,
+    };
   }
-  
-  async getAvailableBlockchains(): Promise<BlockchainInfo[]> {
-    const response = await this.client.get<BlockchainInfo[]>('/blockchains');
-    return response.data;
-  }
-  
-  async getSystemConfig(): Promise<SystemConfig> {
-    const response = await this.client.get<SystemConfig>('/config');
+
+  // API Methods
+  async get<T>(endpoint: string, params?: Record<string, any>): Promise<APIResponse<T>> {
+    const response = await this.client.get(endpoint, { params });
     return response.data;
   }
 
-  // Asset Prices
-  async getAssetPrices(request: AssetPriceRequest): Promise<AssetPriceResponse> {
-    const response = await this.client.post<AssetPriceResponse>('/asset_prices', request);
+  async post<T>(endpoint: string, data?: any): Promise<APIResponse<T>> {
+    const response = await this.client.post(endpoint, data);
     return response.data;
   }
 
-  // Volatility
-  async getVolatility(request: VolatilityRequest): Promise<VolatilityResponse> {
-    const response = await this.client.post<VolatilityResponse>('/volatility', request);
+  async put<T>(endpoint: string, data?: any): Promise<APIResponse<T>> {
+    const response = await this.client.put(endpoint, data);
     return response.data;
   }
 
-  // Correlation
-  async getCorrelation(request: CorrelationRequest): Promise<CorrelationResponse> {
-    const response = await this.client.post<CorrelationResponse>('/correlation', request);
+  async delete<T>(endpoint: string): Promise<APIResponse<T>> {
+    const response = await this.client.delete(endpoint);
     return response.data;
   }
 
-  // Option Pricing
-  async startOptionPricing(request: OptionPricingRequest): Promise<{ simulation_id: string }> {
-    const response = await this.client.post<{ simulation_id: string }>('/price_option/start', request);
-    return response.data;
-  }
-  
-  async getOptionPricingStatus(simulationId: string): Promise<SimulationProgress> {
-    const response = await this.client.get<SimulationProgress>(`/price_option/status/${simulationId}`);
-    return response.data;
-  }
-  
-  async getOptionPricingResult(simulationId: string): Promise<OptionPricingResponse> {
-    const response = await this.client.get<OptionPricingResponse>(`/price_option/result/${simulationId}`);
-    return response.data;
-  }
-  
-  async priceOption(request: OptionPricingRequest): Promise<OptionPricingResponse> {
-    const response = await this.client.post<OptionPricingResponse>('/price_option', request);
-    return response.data;
+  // Endpoints
+  // Asset Management
+  async getAssets() {
+    return this.get<AssetInfo[]>('/assets');
   }
 
-  // Implied Volatility
-  async calculateImpliedVolatility(request: ImpliedVolatilityRequest): Promise<ImpliedVolatilityResponse> {
-    const response = await this.client.post<ImpliedVolatilityResponse>('/implied_volatility', request);
-    return response.data;
+  async getAssetPrice(assetId: string) {
+    return this.get<AssetPriceResponse>(`/assets/${assetId}/price`);
   }
 
-  // Risk Metrics
-  async calculateRiskMetrics(request: RiskMetricsRequest): Promise<RiskMetricsResponse> {
-    const response = await this.client.post<RiskMetricsResponse>('/risk_metrics', request);
-    return response.data;
+  // Analytics
+  async getAnalytics(params: AnalyticsRequest) {
+    return this.post<AnalyticsResponse>('/analytics', params);
   }
 
-  // Simulation Status
-  async getAllSimulations(): Promise<SimulationStatusResponse> {
-    const response = await this.client.get<SimulationStatusResponse>('/simulations');
-    return response.data;
+  // Settings
+  async getSettings() {
+    return this.get<SystemConfig>('/settings');
+  }
+
+  async updateSettings(settings: Partial<SystemConfig>) {
+    return this.put<SystemConfig>('/settings', settings);
   }
 }
 
-export const apiClient = new ApiClient();
+// Singleton instance
+export const apiClient = new APIClient();
