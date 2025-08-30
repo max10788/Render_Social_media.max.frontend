@@ -87,7 +87,10 @@ function DashboardPage() {
         
         // Process assets response
         if (assetsResponse.status === 'fulfilled') {
-          const assetsData = assetsResponse.value || [];
+          // Explizite Typ-Überprüfung und sichere Array-Extraktion
+          const assetsValue = assetsResponse.value;
+          const assetsData = Array.isArray(assetsValue) ? assetsValue : [];
+          
           console.log('[Assets] Successfully loaded:', assetsData.length, 'assets');
           setAssets(assetsData);
         } else {
@@ -188,9 +191,9 @@ function DashboardPage() {
   }
   
   // Sicherheitsprüfung für Array-Längen
-  const assetCount = assets ? assets.length : 0;
-  const volatilityModelsCount = config?.supported_volatility_models?.length || 0;
-  const stochasticModelsCount = config?.supported_stochastic_models?.length || 0;
+  const assetCount = Array.isArray(assets) ? assets.length : 0;
+  const volatilityModelsCount = Array.isArray(config?.supported_volatility_models) ? config.supported_volatility_models.length : 0;
+  const stochasticModelsCount = Array.isArray(config?.supported_stochastic_models) ? config.supported_stochastic_models.length : 0;
   
   return (
     <DashboardLayout>
@@ -332,7 +335,7 @@ function DashboardPage() {
           </TabsContent>
           
           <TabsContent value="assets" className="space-y-6">
-            <AssetSelector assets={assets || []} />
+            <AssetSelector assets={Array.isArray(assets) ? assets : []} />
           </TabsContent>
           
           <TabsContent value="analytics" className="space-y-6">
@@ -412,11 +415,12 @@ function DashboardPage() {
                     <div>
                       <h4 className="text-sm font-medium mb-2">Volatility Models</h4>
                       <div className="flex flex-wrap gap-2">
-                        {config.supported_volatility_models?.map((model) => (
-                          <Badge key={model} variant="secondary">
-                            {model}
-                          </Badge>
-                        )) || (
+                        {Array.isArray(config.supported_volatility_models) ? 
+                          config.supported_volatility_models.map((model) => (
+                            <Badge key={model} variant="secondary">
+                              {model}
+                            </Badge>
+                          )) : (
                           <Badge variant="secondary">N/A</Badge>
                         )}
                       </div>
@@ -424,11 +428,12 @@ function DashboardPage() {
                     <div>
                       <h4 className="text-sm font-medium mb-2">Stochastic Models</h4>
                       <div className="flex flex-wrap gap-2">
-                        {config.supported_stochastic_models?.map((model) => (
-                          <Badge key={model} variant="secondary">
-                            {model}
-                          </Badge>
-                        )) || (
+                        {Array.isArray(config.supported_stochastic_models) ? 
+                          config.supported_stochastic_models.map((model) => (
+                            <Badge key={model} variant="secondary">
+                              {model}
+                            </Badge>
+                          )) : (
                           <Badge variant="secondary">N/A</Badge>
                         )}
                       </div>
