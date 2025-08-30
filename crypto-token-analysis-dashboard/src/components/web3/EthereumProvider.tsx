@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import ethereumProviderManager from '../utils/ethereumProvider';
+import ethereumProviderManager from '@/utils/ethereumProvider';
 
-export default function EthereumProvider({ children }) {
-  const [provider, setProvider] = useState(null);
-  const [error, setError] = useState(null);
+interface EthereumProviderProps {
+  children: React.ReactNode;
+}
+
+export default function EthereumProvider({ children }: EthereumProviderProps) {
+  const [provider, setProvider] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const initializeProvider = async () => {
@@ -34,5 +38,5 @@ export default function EthereumProvider({ children }) {
     );
   }
 
-  return children;
+  return <>{children}</>;
 }
