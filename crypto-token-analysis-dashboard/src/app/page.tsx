@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Calculator, TrendingUp, BarChart3, PieChart } from 'lucide-react';
-import { SystemConfig } from '@/lib/types';
+import { SystemConfig, VolatilityModel, StochasticModel } from '@/lib/types';
 
 // Logging-Funktion für konsistente Fehlerprotokollierung
 const logError = (source: string, error: any, additionalInfo?: any) => {
@@ -102,18 +102,33 @@ function DashboardPage() {
         // Process config response
         if (configResponse.status === 'fulfilled') {
           console.log('[Config] Successfully loaded');
-          setConfig(configResponse.value);
+          // Typ-Überprüfung und sichere Zuweisung
+          const configValue = configResponse.value;
+          if (configValue && typeof configValue === 'object') {
+            setConfig(configValue as SystemConfig);
+          } else {
+            throw new Error('Invalid config format');
+          }
         } else {
           logError('Config Loading', configResponse.reason);
-          const fallbackConfig = {
+          const fallbackConfig: SystemConfig = {
             default_num_simulations: 100000,
             default_num_timesteps: 252,
             default_risk_free_rate: 0.03,
             exchange_priority: ['binance', 'coinbase', 'kraken'],
-            supported_volatility_models: ['BLACK_SCHOLES', 'GARCH', 'EWMA', 'HISTORICAL'],
-            supported_stochastic_models: ['GBM', 'JUMP_DIFFUSION', 'HESTON'],
+            supported_volatility_models: [
+              VolatilityModel.BLACK_SCHOLES, 
+              VolatilityModel.GARCH, 
+              VolatilityModel.EWMA, 
+              VolatilityModel.HISTORICAL
+            ],
+            supported_stochastic_models: [
+              StochasticModel.GBM, 
+              StochasticModel.JUMP_DIFFUSION, 
+              StochasticModel.HESTON
+            ],
             max_assets_per_basket: 10,
-          } as unknown as SystemConfig;
+          };
           
           console.log('[Config] Using fallback config:', fallbackConfig);
           setConfig(fallbackConfig);
@@ -124,15 +139,24 @@ function DashboardPage() {
         setError('Network error. Please check your connection.');
         setAssets([]);
         
-        const fallbackConfig = {
+        const fallbackConfig: SystemConfig = {
           default_num_simulations: 100000,
           default_num_timesteps: 252,
           default_risk_free_rate: 0.03,
           exchange_priority: ['binance', 'coinbase', 'kraken'],
-          supported_volatility_models: ['BLACK_SCHOLES', 'GARCH', 'EWMA', 'HISTORICAL'],
-          supported_stochastic_models: ['GBM', 'JUMP_DIFFUSION', 'HESTON'],
+          supported_volatility_models: [
+            VolatilityModel.BLACK_SCHOLES, 
+            VolatilityModel.GARCH, 
+            VolatilityModel.EWMA, 
+            VolatilityModel.HISTORICAL
+          ],
+          supported_stochastic_models: [
+            StochasticModel.GBM, 
+            StochasticModel.JUMP_DIFFUSION, 
+            StochasticModel.HESTON
+          ],
           max_assets_per_basket: 10,
-        } as unknown as SystemConfig;
+        };
         
         console.log('[Config] Using fallback config after error:', fallbackConfig);
         setConfig(fallbackConfig);
