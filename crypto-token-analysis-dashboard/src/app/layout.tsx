@@ -1,14 +1,4 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
-import { Providers } from './providers';
-import EthereumProvider from '@/components/web3/EthereumProvider';
-const inter = Inter({ subsets: ['latin'] });
-
-export const metadata: Metadata = {
-  title: 'Monte-Carlo Basket-Option Pricing',
-  description: 'Advanced pricing engine for cryptocurrency basket options',
-};
+import { Toaster } from '@/components/ui/toast';
 
 export default function RootLayout({
   children,
@@ -17,11 +7,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <EthereumProvider />
-        <Providers>
-          {children}
-        </Providers>
+      <body>
+        {children}
+        <Toaster />
       </body>
     </html>
   );
