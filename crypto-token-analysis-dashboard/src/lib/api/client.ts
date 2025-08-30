@@ -1,3 +1,16 @@
+import {
+  AssetInfo,
+  AssetPriceRequest,
+  AssetPriceResponse,
+  AnalyticsRequest,
+  AnalyticsResponse,
+  SystemConfig,
+  APIErrorResponse,
+  UserSettings,
+  SentimentData,
+  PaginationParams
+} from './types';
+
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 // Types
