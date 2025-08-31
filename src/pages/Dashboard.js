@@ -176,8 +176,8 @@ function Dashboard() {
         setBlockchains(blockchainsResponse);
         setSettings(settingsResponse.settings);
         setUsingMockData(false);
-      } catch (err) {
-        console.log('API nicht erreichbar, verwende Mock-Daten:', err);
+      } catch {
+        console.log('API nicht erreichbar, verwende Mock-Daten');
         
         // Fallback auf Mock-Daten
         setConfig(MOCK_DATA.config);
