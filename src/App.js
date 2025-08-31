@@ -1,9 +1,18 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import Page1 from './pages/Page1';
-import Page2 from './pages/Page2';
-import Page3 from './pages/Page3';
 import './App.css';
+
+// Lazy Loading der Seiten
+const Page1 = lazy(() => import('./pages/Page1'));
+const Page2 = lazy(() => import('./pages/Page2'));
+const Page3 = lazy(() => import('./pages/Page3'));
+
+// Lade-Komponente
+const LoadingSpinner = () => (
+  <div style={{ textAlign: 'center', padding: '50px' }}>
+    <p>Lade Seite...</p>
+  </div>
+);
 
 function App() {
   return (
@@ -19,12 +28,14 @@ function App() {
         </nav>
 
         <main className="content">
-          <Routes>
-            <Route path="/" element={<Page1 />} />
-            <Route path="/page1" element={<Page1 />} />
-            <Route path="/page2" element={<Page2 />} />
-            <Route path="/page3" element={<Page3 />} />
-          </Routes>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              <Route path="/" element={<Page1 />} />
+              <Route path="/page1" element={<Page1 />} />
+              <Route path="/page2" element={<Page2 />} />
+              <Route path="/page3" element={<Page3 />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </Router>
