@@ -2,7 +2,7 @@ services:
   - type: web
     name: meine-react-app
     env: static
-    buildCommand: npm cache clean --force && npm install && npm run build
+    buildCommand: npm install && npm run build
     staticPublishPath: ./build
     pullRequestPreviewsEnabled: true
     envVars:
@@ -10,5 +10,9 @@ services:
         value: production
       - key: NODE_VERSION
         value: 20
-      - key: CI
+      - key: GENERATE_SOURCEMAP
+        value: "false"  # Reduziert Bundle-Größe
+      - key: INLINE_RUNTIME_CHUNK
+        value: "false"  # Bessere Caching
+      - key: ESLINT_NO_DEV_ERRORS
         value: "true"
