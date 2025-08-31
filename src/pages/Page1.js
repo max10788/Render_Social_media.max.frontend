@@ -12,4 +12,4 @@ function Page1() {
   );
 }
 
-export default Page1;
+export default React.memo(Page1); // Memoization für Performance
