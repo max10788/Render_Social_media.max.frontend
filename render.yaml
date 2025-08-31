@@ -1,4 +1,5 @@
 services:
+  # Frontend Service
   - type: web
     name: meine-react-app
     env: static
@@ -10,9 +11,16 @@ services:
         value: production
       - key: NODE_VERSION
         value: 20
-      - key: GENERATE_SOURCEMAP
-        value: "false"  # Reduziert Bundle-Größe
-      - key: INLINE_RUNTIME_CHUNK
-        value: "false"  # Bessere Caching
-      - key: ESLINT_NO_DEV_ERRORS
-        value: "true"
+      - key: REACT_APP_API_URL
+        value: https://render-social-media-max-backend.onrender.com
+  
+  # Backend Service (falls du es auf Render hostest)
+  - type: web
+    name: python-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      # Füge hier deine Backend-Umgebungsvariablen hinzu
