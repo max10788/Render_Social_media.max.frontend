@@ -1,108 +1,97 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../api'; // Einfacher Import
+import { apiService } from '../services/api';
+import { useApi, usePollingApi } from '../hooks/useApi';
+import { BLOCKCHAIN_CONFIG } from '../config/api';
 import '../App.css';
 
 function Dashboard() {
-  const [config, setConfig] = useState(null);
-  const [analytics, setAnalytics] = useState(null);
-  const [assets, setAssets] = useState(null);
-  const [blockchains, setBlockchains] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Systemdaten mit Polling für Echtzeit-Updates
+  const { data: config, loading: configLoading, error: configError } = useApi(
+    () => apiService.getConfig()
+  );
   
+  const { data: analytics, loading: analyticsLoading } = usePollingApi(
+    () => apiService.getAnalytics(),
+    30000 // Alle 30 Sekunden aktualisieren
+  );
+  
+  const { data: assets, loading: assetsLoading } = useApi(
+    () => apiService.getAssets()
+  );
+  
+  const { data: blockchains, loading: blockchainsLoading } = useApi(
+    () => apiService.getBlockchains()
+  );
+
+  // Status für Analyse
   const [selectedAsset, setSelectedAsset] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [settings, setSettings] = useState(null);
 
-  // Echte API-Aufrufe
+  // Einstellungen laden
   useEffect(() => {
-    const fetchData = async () => {
+    const loadSettings = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        
-        const [configData, analyticsData, assetsData, blockchainsData] = await Promise.all([
-          api.getConfig(),
-          api.getAnalytics(),
-          api.getAssets(),
-          api.getBlockchains()
-        ]);
-        
-        setConfig(configData);
-        setAnalytics(analyticsData);
-        setAssets(assetsData);
-        setBlockchains(blockchainsData);
-      } catch (err) {
-        setError('Fehler beim Laden der Daten: ' + err.message);
-        console.error('API Error:', err);
-      } finally {
-        setLoading(false);
+        const settingsData = await apiService.getSettings();
+        setSettings(settingsData.settings);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
       }
     };
-
-    fetchData();
+    loadSettings();
   }, []);
 
+  // Analyse durchführen
   const handleAnalyze = async () => {
     if (!selectedAsset) return;
     
     setAnalysisLoading(true);
     try {
-      const result = await api.submitAnalysis({
+      const result = await apiService.submitAnalysis({
         assetId: selectedAsset,
         timeframe: '1d',
       });
       setAnalysisResult(result);
-    } catch (err) {
-      alert('Analyse fehlgeschlagen: ' + err.message);
+    } catch (error) {
+      alert('Analyse fehlgeschlagen: ' + error.message);
     } finally {
       setAnalysisLoading(false);
     }
   };
 
+  // Einstellungen aktualisieren
+  const handleSettingsUpdate = async (newSettings) => {
+    try {
+      await apiService.updateSettings(newSettings);
+      setSettings({ ...settings, ...newSettings });
+      alert('Einstellungen gespeichert!');
+    } catch (error) {
+      alert('Fehler beim Speichern: ' + error.message);
+    }
+  };
+
+  // Feedback senden
   const handleFeedback = async () => {
     const feedback = prompt('Bitte geben Sie Ihr Feedback ein:');
     if (feedback) {
       try {
-        await api.submitFeedback(feedback);
+        await apiService.submitFeedback(feedback);
         alert('Feedback gesendet!');
-      } catch (err) {
-        alert('Fehler beim Senden: ' + err.message);
+      } catch (error) {
+        alert('Fehler beim Senden: ' + error.message);
       }
     }
   };
 
-  if (loading) {
-    return (
-      <div className="page-content">
-        <h2>On-Chain Analyse Dashboard</h2>
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <p>Lade Daten...</p>
-        </div>
-      </div>
-    );
-  }
+  // Blockchain-Explorer öffnen
+  const openExplorer = (chainId) => {
+    const config = BLOCKCHAIN_CONFIG[chainId.toUpperCase()];
+    if (config?.explorer) {
+      window.open(config.explorer, '_blank');
+    }
+  };
 
-  if (error) {
-    return (
-      <div className="page-content">
-        <h2>On-Chain Analyse Dashboard</h2>
-        <div style={{ 
-          background: 'rgba(255, 0, 0, 0.1)', 
-          border: '1px solid rgba(255, 0, 0, 0.3)', 
-          borderRadius: '12px', 
-          padding: '20px',
-          textAlign: 'center'
-        }}>
-          <h3>Fehler</h3>
-          <p>{error}</p>
-          <p>Stellen Sie sicher, dass das Backend unter {process.env.REACT_APP_API_URL || '/api'} erreichbar ist.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Rest des Components bleibt gleich...
   return (
     <div className="page-content">
       <h2>On-Chain Analyse Dashboard</h2>
@@ -110,33 +99,41 @@ function Dashboard() {
       {/* System-Status */}
       <div style={{ marginBottom: '30px' }}>
         <h3>System-Status</h3>
-        <div style={{ 
-          background: 'rgba(0, 212, 255, 0.1)', 
-          border: '1px solid rgba(0, 212, 255, 0.3)', 
-          borderRadius: '12px', 
-          padding: '20px' 
-        }}>
-          <p>Min. Score: {config?.minScore}</p>
-          <p>Max. Analysen/Stunde: {config?.maxAnalysesPerHour}</p>
-          <p>Cache-TTL: {config?.cacheTTL}s</p>
-          <p>Unterstützte Blockchains: {config?.supportedChains?.join(', ')}</p>
-        </div>
+        {configLoading ? (
+          <p>Lade Konfiguration...</p>
+        ) : configError ? (
+          <p>Fehler: {configError.message}</p>
+        ) : (
+          <div style={{ 
+            background: 'rgba(0, 212, 255, 0.1)', 
+            border: '1px solid rgba(0, 212, 255, 0.3)', 
+            borderRadius: '12px', 
+            padding: '20px' 
+          }}>
+            <p>Min. Score: {config?.minScore}</p>
+            <p>Max. Analysen/Stunde: {config?.maxAnalysesPerHour}</p>
+            <p>Cache-TTL: {config?.cacheTTL}s</p>
+            <p>Unterstützte Blockchains: {config?.supportedChains?.join(', ')}</p>
+          </div>
+        )}
       </div>
       
       {/* Analytics */}
       <div style={{ marginBottom: '30px' }}>
-        <h3>Analysen-Statistik</h3>
-        <div style={{ 
-          background: 'rgba(0, 102, 255, 0.1)', 
-          border: '1px solid rgba(0, 102, 255, 0.3)', 
-          borderRadius: '12px', 
-          padding: '20px' 
-        }}>
-          <p>Gesamtanalysen: {analytics?.analytics?.totalAnalyses}</p>
-          <p>Erfolgreich: {analytics?.analytics?.successfulAnalyses}</p>
-          <p>Fehlgeschlagen: {analytics?.analytics?.failedAnalyses}</p>
-          <p>Durchschn. Score: {analytics?.analytics?.averageScore}</p>
-        </div>
+        <h3>Analysen-Statistik {analyticsLoading && '(Aktualisiere...)'}</h3>
+        {analytics && (
+          <div style={{ 
+            background: 'rgba(0, 102, 255, 0.1)', 
+            border: '1px solid rgba(0, 102, 255, 0.3)', 
+            borderRadius: '12px', 
+            padding: '20px' 
+          }}>
+            <p>Gesamtanalysen: {analytics.analytics.totalAnalyses}</p>
+            <p>Erfolgreich: {analytics.analytics.successfulAnalyses}</p>
+            <p>Fehlgeschlagen: {analytics.analytics.failedAnalyses}</p>
+            <p>Durchschn. Score: {analytics.analytics.averageScore}</p>
+          </div>
+        )}
       </div>
       
       {/* Asset-Auswahl und Analyse */}
@@ -212,14 +209,83 @@ function Dashboard() {
               border: '1px solid rgba(0, 102, 255, 0.3)', 
               borderRadius: '12px', 
               padding: '15px', 
-              width: '250px' 
-            }}>
-              <h4 style={{ fontFamily: 'Orbitron, sans-serif', color: '#0066ff' }}>{blockchain.name}</h4>
-              <p style={{ fontSize: '0.9rem', color: '#a0b0c0' }}>Explorer: {blockchain.explorer}</p>
+              width: '250px',
+              cursor: 'pointer',
+              transition: 'transform 0.3s ease'
+            }}
+            onClick={() => openExplorer(blockchain.id)}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <h4 style={{ fontFamily: 'Orbitron, sans-serif', color: '#0066ff' }}>
+                {blockchain.name}
+              </h4>
+              <p style={{ fontSize: '0.9rem', color: '#a0b0c0' }}>
+                Blockzeit: {blockchain.block_time}s
+              </p>
+              <p style={{ fontSize: '0.8rem', color: '#00d4ff', marginTop: '10px' }}>
+                Explorer öffnen →
+              </p>
             </div>
           ))}
         </div>
       </div>
+      
+      {/* Einstellungen */}
+      {settings && (
+        <div style={{ marginBottom: '30px' }}>
+          <h3>Einstellungen</h3>
+          <div style={{ 
+            background: 'rgba(0, 153, 204, 0.1)', 
+            border: '1px solid rgba(0, 153, 204, 0.3)', 
+            borderRadius: '12px', 
+            padding: '20px' 
+          }}>
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.notifications}
+                  onChange={(e) => handleSettingsUpdate({ notifications: e.target.checked })}
+                />
+                Benachrichtigungen aktivieren
+              </label>
+            </div>
+            
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.autoRefresh}
+                  onChange={(e) => handleSettingsUpdate({ autoRefresh: e.target.checked })}
+                />
+                Automatische Aktualisierung
+              </label>
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px' }}>
+                Aktualisierungsintervall (Sekunden):
+              </label>
+              <input
+                type="number"
+                min="5"
+                max="300"
+                value={settings.refreshInterval}
+                onChange={(e) => handleSettingsUpdate({ refreshInterval: parseInt(e.target.value) })}
+                style={{ 
+                  width: '100px', 
+                  padding: '8px', 
+                  borderRadius: '4px', 
+                  border: '1px solid rgba(0, 212, 255, 0.3)', 
+                  background: 'rgba(10, 14, 39, 0.7)', 
+                  color: '#e0e6ed'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Feedback-Button */}
       <button 
