@@ -10,3 +10,5 @@ services:
         value: production
       - key: NODE_VERSION
         value: 20
+      - key: CI
+        value: "true"
