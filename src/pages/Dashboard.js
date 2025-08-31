@@ -1,80 +1,74 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '../api'; // Einfacher Import
 import '../App.css';
 
 function Dashboard() {
-  // Mock-Daten statt API-Aufrufe
   const [config, setConfig] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [assets, setAssets] = useState(null);
   const [blockchains, setBlockchains] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
-  // Status für Analyse
   const [selectedAsset, setSelectedAsset] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
 
-  // Mock-Daten laden
+  // Echte API-Aufrufe
   useEffect(() => {
-    // Simuliere API-Aufrufe mit setTimeout
-    setTimeout(() => {
-      setConfig({
-        minScore: 0.5,
-        maxAnalysesPerHour: 100,
-        cacheTTL: 300,
-        supportedChains: ['Ethereum', 'Solana', 'Sui']
-      });
-      
-      setAnalytics({
-        analytics: {
-          totalAnalyses: 1250,
-          successfulAnalyses: 1180,
-          failedAnalyses: 70,
-          averageScore: 0.78
-        },
-        status: 'ok'
-      });
-      
-      setAssets([
-        { id: 'btc', name: 'Bitcoin', symbol: 'BTC', blockchain: 'Bitcoin' },
-        { id: 'eth', name: 'Ethereum', symbol: 'ETH', blockchain: 'Ethereum' },
-        { id: 'sol', name: 'Solana', symbol: 'SOL', blockchain: 'Solana' },
-        { id: 'sui', name: 'Sui', symbol: 'SUI', blockchain: 'Sui' }
-      ]);
-      
-      setBlockchains([
-        { id: 'eth', name: 'Ethereum', rpcUrl: 'https://mainnet.infura.io/v3/YOUR-PROJECT-ID', explorer: 'https://etherscan.io' },
-        { id: 'sol', name: 'Solana', rpcUrl: 'https://api.mainnet-beta.solana.com', explorer: 'https://explorer.solana.com' },
-        { id: 'sui', name: 'Sui', rpcUrl: 'https://fullnode.mainnet.sui.io:443', explorer: 'https://explorer.sui.io' }
-      ]);
-      
-      setLoading(false);
-    }, 1000); // 1 Sekunde Verzögerung zum Simulieren von Ladezeiten
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const [configData, analyticsData, assetsData, blockchainsData] = await Promise.all([
+          api.getConfig(),
+          api.getAnalytics(),
+          api.getAssets(),
+          api.getBlockchains()
+        ]);
+        
+        setConfig(configData);
+        setAnalytics(analyticsData);
+        setAssets(assetsData);
+        setBlockchains(blockchainsData);
+      } catch (err) {
+        setError('Fehler beim Laden der Daten: ' + err.message);
+        console.error('API Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  // Analyse durchführen (Mock)
   const handleAnalyze = async () => {
     if (!selectedAsset) return;
     
     setAnalysisLoading(true);
-    
-    // Simuliere API-Aufruf
-    setTimeout(() => {
-      setAnalysisResult({
-        analysisId: `analysis-${Date.now()}`,
-        score: Math.random().toFixed(2),
-        result: { status: 'completed' },
-        timestamp: new Date().toISOString()
+    try {
+      const result = await api.submitAnalysis({
+        assetId: selectedAsset,
+        timeframe: '1d',
       });
+      setAnalysisResult(result);
+    } catch (err) {
+      alert('Analyse fehlgeschlagen: ' + err.message);
+    } finally {
       setAnalysisLoading(false);
-    }, 1500);
+    }
   };
 
-  // Feedback senden (Mock)
-  const handleFeedback = () => {
+  const handleFeedback = async () => {
     const feedback = prompt('Bitte geben Sie Ihr Feedback ein:');
     if (feedback) {
-      alert('Feedback gesendet! Vielen Dank.');
+      try {
+        await api.submitFeedback(feedback);
+        alert('Feedback gesendet!');
+      } catch (err) {
+        alert('Fehler beim Senden: ' + err.message);
+      }
     }
   };
 
@@ -83,12 +77,32 @@ function Dashboard() {
       <div className="page-content">
         <h2>On-Chain Analyse Dashboard</h2>
         <div style={{ textAlign: 'center', padding: '50px' }}>
-          <p>Lade Dashboard...</p>
+          <p>Lade Daten...</p>
         </div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="page-content">
+        <h2>On-Chain Analyse Dashboard</h2>
+        <div style={{ 
+          background: 'rgba(255, 0, 0, 0.1)', 
+          border: '1px solid rgba(255, 0, 0, 0.3)', 
+          borderRadius: '12px', 
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <h3>Fehler</h3>
+          <p>{error}</p>
+          <p>Stellen Sie sicher, dass das Backend unter {process.env.REACT_APP_API_URL || '/api'} erreichbar ist.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Rest des Components bleibt gleich...
   return (
     <div className="page-content">
       <h2>On-Chain Analyse Dashboard</h2>
