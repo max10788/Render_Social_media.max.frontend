@@ -13,6 +13,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
+    "analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js"
   },
   "engines": {
     "node": "20.x"
