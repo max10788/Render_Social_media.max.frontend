@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: meine-react-app
+    env: static
+    buildCommand: npm run build
+    staticPublishPath: ./build
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: NODE_ENV
+        value: production
