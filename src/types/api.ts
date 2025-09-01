@@ -1,4 +1,60 @@
 // System-Konfiguration
+
+// src/types/api.ts
+// Add these interfaces to your existing types
+
+export interface Transaction {
+  hash: string;
+  amount: number;
+  fee: number;
+  to_address: string;
+  from_address: string;
+  timestamp: number;
+}
+
+export interface TrackingResult {
+  transactions: Transaction[];
+  source_currency: string;
+  target_currency: string;
+  start_transaction: string;
+  transactions_count: number;
+  tracking_timestamp: number;
+  exchange_rate?: number;
+}
+
+export interface TokenData {
+  address: string;
+  name: string;
+  symbol: string;
+  chain: string;
+  market_cap?: number;
+  volume_24h?: number;
+  price?: number;
+  listing_date?: string;
+}
+
+export interface DiscoveryParams {
+  chain: string;
+  maxMarketCap?: number;
+  minVolume?: number;
+  hoursAgo?: number;
+  limit?: number;
+}
+
+export interface WalletAnalysis {
+  address: string;
+  risk_score: number;
+  entity_type: string;
+  labels: string[];
+  confidence: number;
+  transaction_count: number;
+  total_value: number;
+  first_activity: string;
+  last_activity: string;
+  associated_entities: string[];
+  compliance_flags: string[];
+}
+
 export interface SystemConfig {
   minScore: number;
   maxAnalysesPerHour: number;
