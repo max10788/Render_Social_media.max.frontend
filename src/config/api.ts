@@ -1,3 +1,11 @@
+
+export const CRYPTO_TRACKER_ENDPOINTS = {
+  TRACK_TRANSACTION: '/crypto/track-transaction',
+  DISCOVER_TOKENS: '/crypto/discover-tokens',
+  DISCOVER_TRENDING_TOKENS: '/crypto/discover-trending-tokens',
+  ANALYZE_WALLET: '/crypto/analyze-wallet',
+};
+
 export const API_CONFIG = {
   BASE_URL: process.env.REACT_APP_API_URL || '/api',
   V1_PREFIX: '/api/v1',
