@@ -1,11 +1,11 @@
 // src/pages/WalletAnalysis.js
 import React, { useState } from 'react';
-import { useCryptoTracker } from '../hooks/useCryptoTracker'; // Updated import path
+import useCryptoTracker from '../hooks/useCryptoTracker'; // Use default import
 
 const WalletAnalysis = () => {
   const [address, setAddress] = useState('');
   const [analysis, setAnalysis] = useState(null);
-  const { analyzeWallet, loading, error } = useCryptoTracker();
+  const { analyzeWallet, loading, error } = useCryptoTracker(); // Use destructuring
 
   const handleAnalyze = async () => {
     const result = await analyzeWallet(address);
