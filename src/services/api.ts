@@ -14,6 +14,16 @@ import {
   AnalysisResponse,
 } from '../types/api';
 
+// API Client Setup
+const API_URL = process.env.REACT_APP_API_URL || '/api';
+
+const apiClient = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // API-Service-Klasse für das Haupt-API
 class ApiService {
   private baseUrl: string;
@@ -70,7 +80,7 @@ class ApiService {
   }
 }
 
-// Crypto Tracker API Service
+// Crypto Tracker API Service (kombiniert mit axios client)
 export const cryptoTrackerApi = {
   // Transaction Tracking
   trackTransaction: (
@@ -78,7 +88,7 @@ export const cryptoTrackerApi = {
     targetCurrency: string,
     numTransactions: number = 10
   ): Promise<TrackingResult> => {
-    return axios.post(CRYPTO_TRACKER_ENDPOINTS.TRACK_TRANSACTION, {
+    return apiClient.post(CRYPTO_TRACKER_ENDPOINTS.TRACK_TRANSACTION, {
       start_tx_hash: startTxHash,
       target_currency: targetCurrency,
       num_transactions: numTransactions,
@@ -87,21 +97,22 @@ export const cryptoTrackerApi = {
 
   // Token Discovery
   discoverTokens: (params: DiscoveryParams): Promise<TokenData[]> => {
-    return axios.post(CRYPTO_TRACKER_ENDPOINTS.DISCOVER_TOKENS, params)
+    return apiClient.post(CRYPTO_TRACKER_ENDPOINTS.DISCOVER_TOKENS, params)
       .then(response => response.data);
   },
 
   discoverTrendingTokens: (params: DiscoveryParams): Promise<TokenData[]> => {
-    return axios.post(CRYPTO_TRACKER_ENDPOINTS.DISCOVER_TRENDING_TOKENS, params)
+    return apiClient.post(CRYPTO_TRACKER_ENDPOINTS.DISCOVER_TRENDING_TOKENS, params)
       .then(response => response.data);
   },
 
   // Wallet Analysis
   analyzeWallet: (address: string): Promise<WalletAnalysis> => {
-    return axios.get(`${CRYPTO_TRACKER_ENDPOINTS.ANALYZE_WALLET}/${address}`)
+    return apiClient.get(`${CRYPTO_TRACKER_ENDPOINTS.ANALYZE_WALLET}/${address}`)
       .then(response => response.data);
   },
 };
 
 // Exporte
 export const apiService = new ApiService();
+export default apiClient;
