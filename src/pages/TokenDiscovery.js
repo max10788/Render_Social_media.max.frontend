@@ -1,6 +1,6 @@
 // src/pages/TokenDiscovery.js
 import React, { useState } from 'react';
-import { useCryptoTracker } from '../hooks/useApi';
+import { useCryptoTracker } from '../hooks/useApi'; // This should be correct
 
 const TokenDiscovery = () => {
   const [chain, setChain] = useState('ethereum');
