@@ -1,6 +1,6 @@
 // src/pages/WalletAnalysis.js
 import React, { useState } from 'react';
-import { useCryptoTracker } from '../hooks/useApi';
+import { useCryptoTracker } from '../hooks/useApi'; // This should be correct
 
 const WalletAnalysis = () => {
   const [address, setAddress] = useState('');
