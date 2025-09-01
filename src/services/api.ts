@@ -1,51 +1,20 @@
-import { API_CONFIG } from '../config/api';
+// src/services/api.ts
+import axios from 'axios';
+import { API_CONFIG, CRYPTO_TRACKER_ENDPOINTS } from '../config/api';
+import {
+  TrackingResult,
+  TokenData,
+  DiscoveryParams,
+  WalletAnalysis,
+  SystemConfig,
+  AnalyticsData,
+  AssetInfo,
+  BlockchainInfo,
+  AnalysisRequest,
+  AnalysisResponse,
+} from '../types/api';
 
-// Typdefinitionen
-export interface SystemConfig {
-  minScore: number;
-  maxAnalysesPerHour: number;
-  cacheTTL: number;
-  supportedChains: string[];
-}
-
-export interface AnalyticsData {
-  analytics: {
-    totalAnalyses: number;
-    successfulAnalyses: number;
-    failedAnalyses: number;
-    averageScore: number;
-  };
-  status: string;
-}
-
-export interface Asset {
-  id: string;
-  name: string;
-  symbol: string;
-  blockchain: string;
-}
-
-export interface Blockchain {
-  id: string;
-  name: string;
-  rpcUrl: string;
-  explorer: string;
-}
-
-export interface AnalyzeRequest {
-  assetId: string;
-  timeframe: string;
-  parameters?: Record<string, any>;
-}
-
-export interface AnalyzeResponse {
-  analysisId: string;
-  score: number;
-  result: any;
-  timestamp: string;
-}
-
-// API-Service-Klasse
+// API-Service-Klasse für das Haupt-API
 class ApiService {
   private baseUrl: string;
 
@@ -71,34 +40,68 @@ class ApiService {
   }
 
   async getConfig(): Promise<SystemConfig> {
-    return this.request(API_CONFIG.ENDPOINTS.CONFIG);
+    return this.request<SystemConfig>(API_CONFIG.ENDPOINTS.CONFIG);
   }
 
   async getAnalytics(): Promise<AnalyticsData> {
-    return this.request(API_CONFIG.ENDPOINTS.ANALYTICS);
+    return this.request<AnalyticsData>(API_CONFIG.ENDPOINTS.ANALYTICS);
   }
 
-  async getAssets(): Promise<Asset[]> {
-    return this.request(API_CONFIG.ENDPOINTS.ASSETS);
+  async getAssets(): Promise<AssetInfo[]> {
+    return this.request<AssetInfo[]>(API_CONFIG.ENDPOINTS.ASSETS);
   }
 
-  async getBlockchains(): Promise<Blockchain[]> {
-    return this.request(API_CONFIG.ENDPOINTS.BLOCKCHAINS);
+  async getBlockchains(): Promise<BlockchainInfo[]> {
+    return this.request<BlockchainInfo[]>(API_CONFIG.ENDPOINTS.BLOCKCHAINS);
   }
 
-  async submitAnalysis(data: AnalyzeRequest): Promise<AnalyzeResponse> {
-    return this.request(API_CONFIG.ENDPOINTS.ANALYZE_ML, {
+  async submitAnalysis(data: AnalysisRequest): Promise<AnalysisResponse> {
+    return this.request<AnalysisResponse>(API_CONFIG.ENDPOINTS.ANALYZE_ML, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async submitFeedback(feedback: string): Promise<{ status: string }> {
-    return this.request(API_CONFIG.ENDPOINTS.FEEDBACK, {
+    return this.request<{ status: string }>(API_CONFIG.ENDPOINTS.FEEDBACK, {
       method: 'POST',
       body: JSON.stringify({ feedback }),
     });
   }
 }
 
+// Crypto Tracker API Service
+export const cryptoTrackerApi = {
+  // Transaction Tracking
+  trackTransaction: (
+    startTxHash: string,
+    targetCurrency: string,
+    numTransactions: number = 10
+  ): Promise<TrackingResult> => {
+    return axios.post(CRYPTO_TRACKER_ENDPOINTS.TRACK_TRANSACTION, {
+      start_tx_hash: startTxHash,
+      target_currency: targetCurrency,
+      num_transactions: numTransactions,
+    }).then(response => response.data);
+  },
+
+  // Token Discovery
+  discoverTokens: (params: DiscoveryParams): Promise<TokenData[]> => {
+    return axios.post(CRYPTO_TRACKER_ENDPOINTS.DISCOVER_TOKENS, params)
+      .then(response => response.data);
+  },
+
+  discoverTrendingTokens: (params: DiscoveryParams): Promise<TokenData[]> => {
+    return axios.post(CRYPTO_TRACKER_ENDPOINTS.DISCOVER_TRENDING_TOKENS, params)
+      .then(response => response.data);
+  },
+
+  // Wallet Analysis
+  analyzeWallet: (address: string): Promise<WalletAnalysis> => {
+    return axios.get(`${CRYPTO_TRACKER_ENDPOINTS.ANALYZE_WALLET}/${address}`)
+      .then(response => response.data);
+  },
+};
+
+// Exporte
 export const apiService = new ApiService();
