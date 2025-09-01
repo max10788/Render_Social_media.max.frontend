@@ -16,8 +16,6 @@ export const API_CONFIG = {
     BLOCKCHAINS: '/blockchains',
     
     // Analysis Endpoints
-    ML_ANALYSIS: '/v1/analyze/ml',
-    FEEDBACK: '/v1/feedback',
     TRAINING_PROGRESS: '/v1/training-progress',
     
     // Market Data
