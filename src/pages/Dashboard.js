@@ -194,20 +194,17 @@ function Dashboard() {
 
     fetchData();
 
-    // Polling für Analytics-Daten
-    const interval = setInterval(async () => {
-      try {
-        const analyticsData = await apiService.getAnalytics();
-        setAnalytics(analyticsData);
-        setUsingMockData(false);
-      } catch (error) {
-        console.log('API nicht erreichbar, verwende Mock-Daten:', error);
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
-
+  // Polling für Analytics-Daten
+  const interval = setInterval(async () => {
+    try {
+      const analyticsData = await apiService.getAnalytics();
+      setAnalytics(analyticsData);
+      setUsingMockData(false);
+    } catch {  // <-- Parameter entfernt
+      console.log('API nicht erreichbar, verwende Mock-Daten');
+    }
+  }, 30000);
+    
   const handleAnalyze = async () => {
     if (!selectedAsset) return;
     
