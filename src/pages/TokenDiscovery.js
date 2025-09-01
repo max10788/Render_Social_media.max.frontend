@@ -1,13 +1,13 @@
 // src/pages/TokenDiscovery.js
 import React, { useState } from 'react';
-import { useCryptoTracker } from '../hooks/useCryptoTracker'; // Updated import path
+import useCryptoTracker from '../hooks/useCryptoTracker'; // Use default import
 
 const TokenDiscovery = () => {
   const [chain, setChain] = useState('ethereum');
   const [tokens, setTokens] = useState([]);
   const [maxMarketCap, setMaxMarketCap] = useState(5000000);
   const [limit, setLimit] = useState(100);
-  const { discoverTokens, loading, error } = useCryptoTracker();
+  const { discoverTokens, loading, error } = useCryptoTracker(); // Use destructuring
 
   const handleDiscover = async () => {
     const result = await discoverTokens({
