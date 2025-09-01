@@ -37,19 +37,6 @@ class ApiService {
     return this.request('/blockchains');
   }
 
-  async submitAnalysis(data) {
-    return this.request('/v1/analyze/ml', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async submitFeedback(feedback) {
-    return this.request('/v1/feedback', {
-      method: 'POST',
-      body: JSON.stringify({ feedback }),
-    });
-  }
 }
 
 export const api = new ApiService();
