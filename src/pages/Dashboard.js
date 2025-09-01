@@ -116,7 +116,6 @@ function Dashboard() {
   const [blockchains, setBlockchains] = useState(null);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [usingMockData, setUsingMockData] = useState(false);
   
   const [selectedAsset, setSelectedAsset] = useState('');
@@ -128,7 +127,6 @@ function Dashboard() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        setError(null);
         
         // Versuche, echte API-Daten zu laden
         const [configResponse, analyticsResponse, assetsResponse, blockchainsResponse, settingsResponse] = await Promise.all([
@@ -155,7 +153,6 @@ function Dashboard() {
         setBlockchains(MOCK_DATA.blockchains);
         setSettings(MOCK_DATA.settings.settings);
         setUsingMockData(true);
-        setError(null);
       } finally {
         setLoading(false);
       }
@@ -171,7 +168,6 @@ function Dashboard() {
         setUsingMockData(false);
       } catch (err) {
         console.log('API nicht erreichbar, verwende Mock-Daten:', err);
-        setError(err.message);
       }
     }, 30000);
     
