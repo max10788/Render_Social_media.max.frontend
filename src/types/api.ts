@@ -1,8 +1,6 @@
-// System-Konfiguration
-
 // src/types/api.ts
-// Add these interfaces to your existing types
 
+// Grundlegende Blockchain-Typen
 export interface Transaction {
   hash: string;
   amount: number;
@@ -55,6 +53,7 @@ export interface WalletAnalysis {
   compliance_flags: string[];
 }
 
+// System-Konfiguration
 export interface SystemConfig {
   minScore: number;
   maxAnalysesPerHour: number;
@@ -112,7 +111,7 @@ export interface BlockchainInfo {
 export interface APIError {
   status: 'error';
   message: string;
-  code?: keyof typeof ERROR_CODES;
+  code?: string;
 }
 
 // Analyse-Anfrage
