@@ -79,35 +79,99 @@ interface UseCryptoTracker {
 }
 
 const useCryptoTracker = (): UseCryptoTracker => {
-  const [loading, setLoading] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({
+    tracking: false,
+    discovering: false,
+    analyzing: false
+  });
   const [error, setError] = useState<Error | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [tokens, setTokens] = useState<TokenData[]>([]);
   const [walletAnalysis, setWalletAnalysis] = useState<WalletAnalysis | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const handleRequest = async <T>(
+  const handleRequest = useCallback(async <T>(
     requestFn: () => Promise<T>,
-    errorMessage: string
+    errorMessage: string,
+    loadingKey: keyof typeof loadingStates,
+    maxRetries = 3
   ): Promise<T | null> => {
-    try {
-      setLoading(true);
-      setError(null);
-      return await requestFn();
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(errorMessage);
-      setError(error);
-      return null;
-    } finally {
-      setLoading(false);
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-  };
+    
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
+    let retryCount = 0;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
+        setError(null);
+        return await requestFn();
+      } catch (err) {
+        retryCount++;
+        
+        if (retryCount > maxRetries || err.name === 'AbortError') {
+          if (err.name !== 'AbortError') {
+            const error = err instanceof Error ? err : new Error(errorMessage);
+            setError(error);
+          }
+          return null;
+        }
+        
+        // Exponential backoff
+        await new Promise(resolve => 
+          setTimeout(resolve, 1000 * Math.pow(2, retryCount))
+        );
+      } finally {
+        setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+      }
+    }
+    
+    return null;
+  }, []);
+
+  const discoverTokensHelper = useCallback(async (
+    endpoint: string,
+    params: DiscoveryParams,
+    errorMessage: string
+  ) => {
+    const result = await handleRequest<TokenData[]>(
+      async () => {
+        const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+          signal: abortControllerRef.current?.signal
+        });
+        
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        
+        const data = await response.json();
+        
+        // Validate response structure
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid response structure');
+        }
+        
+        return data;
+      },
+      errorMessage,
+      'discovering'
+    );
+    
+    if (result) setTokens(result);
+  }, [handleRequest]);
 
   const trackTransactionChain = useCallback(async (
     startTxHash: string,
     targetCurrency: string,
     numTransactions: number = 10
   ) => {
-    const result = await handleRequest(
+    const result = await handleRequest<TrackingResult>(
       async () => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/track-transaction-chain`, {
           method: 'POST',
@@ -116,104 +180,87 @@ const useCryptoTracker = (): UseCryptoTracker => {
             start_tx_hash: startTxHash,
             target_currency: targetCurrency,
             num_transactions: numTransactions
-          })
+          }),
+          signal: abortControllerRef.current?.signal
         });
         
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        
+        const data = await response.json();
+        
+        // Validate response structure
+        if (!data || !Array.isArray(data.transactions)) {
+          throw new Error('Invalid response structure');
         }
-
-        const data: TrackingResult = await response.json();
+        
         return data;
       },
-      'Failed to track transaction chain'
+      'Failed to track transaction chain',
+      'tracking'
     );
-
+    
     if (result) {
       setTransactions(result.transactions);
     }
-  }, []);
+  }, [handleRequest]);
 
   const discoverTokens = useCallback(async (params: DiscoveryParams) => {
-    const result = await handleRequest(
-      async () => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/discover-tokens`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(params)
-        });
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        return await response.json();
-      },
-      'Failed to discover tokens'
-    );
-
-    if (result) {
-      setTokens(result);
-    }
-  }, []);
+    await discoverTokensHelper('/discover-tokens', params, 'Failed to discover tokens');
+  }, [discoverTokensHelper]);
 
   const discoverTrendingTokens = useCallback(async (params: DiscoveryParams) => {
-    const result = await handleRequest(
-      async () => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/discover-trending-tokens`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(params)
-        });
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        return await response.json();
-      },
-      'Failed to discover trending tokens'
-    );
-
-    if (result) {
-      setTokens(result);
-    }
-  }, []);
+    await discoverTokensHelper('/discover-trending-tokens', params, 'Failed to discover trending tokens');
+  }, [discoverTokensHelper]);
 
   const analyzeWallet = useCallback(async (address: string) => {
-    const result = await handleRequest(
+    const result = await handleRequest<WalletAnalysis>(
       async () => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/analyze-wallet/${address}`, {
           method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          signal: abortControllerRef.current?.signal
         });
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
+        
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        
+        const data = await response.json();
+        
+        // Validate response structure
+        if (!data || typeof data.risk_score !== 'number') {
+          throw new Error('Invalid response structure');
         }
-
-        return await response.json();
+        
+        return data;
       },
-      'Failed to analyze wallet'
+      'Failed to analyze wallet',
+      'analyzing'
     );
-
+    
     if (result) {
       setWalletAnalysis(result);
     }
-  }, []);
+  }, [handleRequest]);
 
   const clearError = useCallback(() => {
     setError(null);
   }, []);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   return {
     // States
-    loading,
+    loading: loadingStates.tracking || loadingStates.discovering || loadingStates.analyzing,
     error,
     transactions,
     tokens,
     walletAnalysis,
-
     // Actions
     trackTransactionChain,
     discoverTokens,
