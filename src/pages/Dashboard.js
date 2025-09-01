@@ -200,8 +200,8 @@ function Dashboard() {
         const analyticsData = await apiService.getAnalytics();
         setAnalytics(analyticsData);
         setUsingMockData(false);
-      } catch (err) {
-        // Bei Fehlern nichts tun, um Mock-Daten beizubehalten
+      } catch (error) {
+        console.log('API nicht erreichbar, verwende Mock-Daten:', error);
       }
     }, 30000);
 
