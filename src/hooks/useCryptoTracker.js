@@ -1,6 +1,7 @@
 // src/hooks/useCryptoTracker.js
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { API_CONFIG } from '../config/api';
+
+const BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 const useCryptoTracker = () => {
   const [loadingStates, setLoadingStates] = useState({
@@ -69,7 +70,7 @@ const useCryptoTracker = () => {
   ) => {
     const result = await handleRequest(
       async () => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+        const response = await fetch(`${BASE_URL}${endpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(params),
@@ -101,7 +102,7 @@ const useCryptoTracker = () => {
   ) => {
     const result = await handleRequest(
       async () => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/track-transaction-chain`, {
+        const response = await fetch(`${BASE_URL}/track-transaction-chain`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -143,7 +144,7 @@ const useCryptoTracker = () => {
   const analyzeWallet = useCallback(async (address) => {
     const result = await handleRequest(
       async () => {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/analyze-wallet/${address}`, {
+        const response = await fetch(`${BASE_URL}/analyze-wallet/${address}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           signal: abortControllerRef.current?.signal
