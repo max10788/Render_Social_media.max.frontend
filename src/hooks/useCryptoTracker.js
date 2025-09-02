@@ -2,82 +2,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { API_CONFIG } from '../config/api';
 
-// Types (commented for documentation)
-/*
-interface Transaction {
-  hash: string;
-  from_address: string;
-  to_address: string;
-  amount: number;
-  fee: number;
-  timestamp: number;
-  currency: string;
-  direction: string;
-  block_number?: number;
-  gas_price?: number;
-}
-
-interface TrackingResult {
-  transactions: Transaction[];
-  source_currency: string;
-  target_currency: string;
-  start_transaction: string;
-  transactions_count: number;
-  tracking_timestamp: number;
-  exchange_rate?: number;
-}
-
-interface TokenData {
-  address: string;
-  name: string;
-  symbol: string;
-  chain: string;
-  market_cap?: number;
-  volume_24h?: number;
-  liquidity?: number;
-  holders_count?: number;
-  contract_verified?: boolean;
-  creation_date?: string;
-  last_analyzed?: string;
-  token_score?: number;
-}
-
-interface WalletAnalysis {
-  address: string;
-  risk_score: number;
-  entity_type: string;
-  labels: string[];
-  confidence: number;
-  transaction_count: number;
-  total_value: number;
-  first_activity?: string;
-  last_activity?: string;
-  associated_entities: string[];
-  compliance_flags: string[];
-}
-
-interface DiscoveryParams {
-  chain: string;
-  maxMarketCap?: number;
-  minVolume?: number;
-  hoursAgo?: number;
-  limit?: number;
-}
-
-interface UseCryptoTracker {
-  loading: boolean;
-  error: Error | null;
-  transactions: Transaction[];
-  tokens: TokenData[];
-  walletAnalysis: WalletAnalysis | null;
-  trackTransactionChain: (startTxHash: string, targetCurrency: string, numTransactions?: number) => Promise<void>;
-  discoverTokens: (params: DiscoveryParams) => Promise<void>;
-  discoverTrendingTokens: (params: DiscoveryParams) => Promise<void>;
-  analyzeWallet: (address: string) => Promise<void>;
-  clearError: () => void;
-}
-*/
-
 const useCryptoTracker = () => {
   const [loadingStates, setLoadingStates] = useState({
     tracking: false,
@@ -106,7 +30,8 @@ const useCryptoTracker = () => {
     
     let retryCount = 0;
     
-    while (retryCount <= maxRetries) {
+    // Move the retry logic outside the function to avoid the ESLint warning
+    const executeWithRetry = async () => {
       try {
         setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
         setError(null);
@@ -126,12 +51,15 @@ const useCryptoTracker = () => {
         await new Promise(resolve => 
           setTimeout(resolve, 1000 * Math.pow(2, retryCount))
         );
+        
+        // Retry recursively
+        return executeWithRetry();
       } finally {
         setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
       }
-    }
+    };
     
-    return null;
+    return executeWithRetry();
   }, []);
 
   const discoverTokensHelper = useCallback(async (
