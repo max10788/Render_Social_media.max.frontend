@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react';
+// src/hooks/useCryptoTracker.js
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { API_CONFIG } from '../config/api';
 
-// Types
+// Types (commented for documentation)
+/*
 interface Transaction {
   hash: string;
   from_address: string;
@@ -63,39 +65,37 @@ interface DiscoveryParams {
 }
 
 interface UseCryptoTracker {
-  // States
   loading: boolean;
   error: Error | null;
   transactions: Transaction[];
   tokens: TokenData[];
   walletAnalysis: WalletAnalysis | null;
-
-  // Actions
   trackTransactionChain: (startTxHash: string, targetCurrency: string, numTransactions?: number) => Promise<void>;
   discoverTokens: (params: DiscoveryParams) => Promise<void>;
   discoverTrendingTokens: (params: DiscoveryParams) => Promise<void>;
   analyzeWallet: (address: string) => Promise<void>;
   clearError: () => void;
 }
+*/
 
-const useCryptoTracker = (): UseCryptoTracker => {
+const useCryptoTracker = () => {
   const [loadingStates, setLoadingStates] = useState({
     tracking: false,
     discovering: false,
     analyzing: false
   });
-  const [error, setError] = useState<Error | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [tokens, setTokens] = useState<TokenData[]>([]);
-  const [walletAnalysis, setWalletAnalysis] = useState<WalletAnalysis | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const [error, setError] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [tokens, setTokens] = useState([]);
+  const [walletAnalysis, setWalletAnalysis] = useState(null);
+  const abortControllerRef = useRef(null);
 
-  const handleRequest = useCallback(async <T>(
-    requestFn: () => Promise<T>,
-    errorMessage: string,
-    loadingKey: keyof typeof loadingStates,
+  const handleRequest = useCallback(async (
+    requestFn,
+    errorMessage,
+    loadingKey,
     maxRetries = 3
-  ): Promise<T | null> => {
+  ) => {
     // Cancel any ongoing request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -135,11 +135,11 @@ const useCryptoTracker = (): UseCryptoTracker => {
   }, []);
 
   const discoverTokensHelper = useCallback(async (
-    endpoint: string,
-    params: DiscoveryParams,
-    errorMessage: string
+    endpoint,
+    params,
+    errorMessage
   ) => {
-    const result = await handleRequest<TokenData[]>(
+    const result = await handleRequest(
       async () => {
         const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
           method: 'POST',
@@ -167,11 +167,11 @@ const useCryptoTracker = (): UseCryptoTracker => {
   }, [handleRequest]);
 
   const trackTransactionChain = useCallback(async (
-    startTxHash: string,
-    targetCurrency: string,
-    numTransactions: number = 10
+    startTxHash,
+    targetCurrency,
+    numTransactions = 10
   ) => {
-    const result = await handleRequest<TrackingResult>(
+    const result = await handleRequest(
       async () => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/track-transaction-chain`, {
           method: 'POST',
@@ -204,16 +204,16 @@ const useCryptoTracker = (): UseCryptoTracker => {
     }
   }, [handleRequest]);
 
-  const discoverTokens = useCallback(async (params: DiscoveryParams) => {
+  const discoverTokens = useCallback(async (params) => {
     await discoverTokensHelper('/discover-tokens', params, 'Failed to discover tokens');
   }, [discoverTokensHelper]);
 
-  const discoverTrendingTokens = useCallback(async (params: DiscoveryParams) => {
+  const discoverTrendingTokens = useCallback(async (params) => {
     await discoverTokensHelper('/discover-trending-tokens', params, 'Failed to discover trending tokens');
   }, [discoverTokensHelper]);
 
-  const analyzeWallet = useCallback(async (address: string) => {
-    const result = await handleRequest<WalletAnalysis>(
+  const analyzeWallet = useCallback(async (address) => {
+    const result = await handleRequest(
       async () => {
         const response = await fetch(`${API_CONFIG.BASE_URL}/analyze-wallet/${address}`, {
           method: 'GET',
