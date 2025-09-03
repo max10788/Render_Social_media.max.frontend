@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import '../App.css';
 
-// API-Konfiguration (direkt in der Datei)
+// API-Konfiguration (mit /api Pfad)
 const API_CONFIG = {
-  BASE_URL: process.env.REACT_APP_API_URL || '/api',
+  BASE_URL: process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : '/api',
   ENDPOINTS: {
     CONFIG: '/config',
     ANALYTICS: '/analytics',
@@ -49,7 +49,17 @@ class ApiService {
       if (!contentType || !contentType.includes('application/json')) {
         const responseText = await response.text();
         console.error('Unexpected Content-Type. Response preview:', responseText.substring(0, 500));
-        throw new Error(`Unexpected Content-Type: ${contentType}. Expected: application/json`);
+        
+        // Versuche, aus der HTML-Antwort nützliche Informationen zu extrahieren
+        let errorMessage = 'Server returned HTML instead of JSON';
+        if (responseText.includes('<title>')) {
+          const titleMatch = responseText.match(/<title>(.*?)<\/title>/);
+          if (titleMatch && titleMatch[1]) {
+            errorMessage = `Server returned page: ${titleMatch[1]}`;
+          }
+        }
+        
+        throw new Error(`Unexpected Content-Type: ${contentType}. Expected: application/json. ${errorMessage}`);
       }
 
       const data = await response.json();
