@@ -1,4 +1,3 @@
-// src/hooks/useCryptoTracker.js
 import { useState, useCallback, useEffect, useRef } from 'react';
 
 const BASE_URL = process.env.REACT_APP_API_URL || '/api';
@@ -31,7 +30,6 @@ const useCryptoTracker = () => {
     
     let retryCount = 0;
     
-    // Move the retry logic outside the function to avoid the ESLint warning
     const executeWithRetry = async () => {
       try {
         setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
@@ -53,7 +51,6 @@ const useCryptoTracker = () => {
           setTimeout(resolve, 1000 * Math.pow(2, retryCount))
         );
         
-        // Retry recursively
         return executeWithRetry();
       } finally {
         setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
@@ -70,20 +67,40 @@ const useCryptoTracker = () => {
   ) => {
     const result = await handleRequest(
       async () => {
-        const response = await fetch(`${BASE_URL}${endpoint}`, {
+        const url = `${BASE_URL}${endpoint}`;
+        console.log(`Sending request to: ${url}`);
+        
+        const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(params),
           signal: abortControllerRef.current?.signal
         });
         
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        // Protokolliere wichtige Antwortinformationen
+        console.log('Response URL:', response.url);
+        console.log('Response Status:', response.status);
+        console.log('Content-Type:', response.headers.get('content-type'));
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Server error response:', errorText.substring(0, 500));
+          throw new Error(`API error: ${response.status} - ${errorText.substring(0, 100)}`);
+        }
+        
+        // Prüfe den Content-Type
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const responseText = await response.text();
+          console.error('Unexpected Content-Type. Response preview:', responseText.substring(0, 500));
+          throw new Error(`Unexpected Content-Type: ${contentType}. Expected: application/json`);
+        }
         
         const data = await response.json();
         
         // Validate response structure
         if (!Array.isArray(data)) {
-          throw new Error('Invalid response structure');
+          throw new Error('Invalid response structure - expected array');
         }
         
         return data;
@@ -102,7 +119,10 @@ const useCryptoTracker = () => {
   ) => {
     const result = await handleRequest(
       async () => {
-        const response = await fetch(`${BASE_URL}/track-transaction-chain`, {
+        const url = `${BASE_URL}/track-transaction-chain`;
+        console.log(`Tracking transaction chain: ${url}`);
+        
+        const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -113,13 +133,30 @@ const useCryptoTracker = () => {
           signal: abortControllerRef.current?.signal
         });
         
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        // Protokolliere wichtige Antwortinformationen
+        console.log('Response URL:', response.url);
+        console.log('Response Status:', response.status);
+        console.log('Content-Type:', response.headers.get('content-type'));
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Server error response:', errorText.substring(0, 500));
+          throw new Error(`API error: ${response.status} - ${errorText.substring(0, 100)}`);
+        }
+        
+        // Prüfe den Content-Type
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const responseText = await response.text();
+          console.error('Unexpected Content-Type. Response preview:', responseText.substring(0, 500));
+          throw new Error(`Unexpected Content-Type: ${contentType}. Expected: application/json`);
+        }
         
         const data = await response.json();
         
         // Validate response structure
         if (!data || !Array.isArray(data.transactions)) {
-          throw new Error('Invalid response structure');
+          throw new Error('Invalid response structure - missing transactions array');
         }
         
         return data;
@@ -144,19 +181,39 @@ const useCryptoTracker = () => {
   const analyzeWallet = useCallback(async (address) => {
     const result = await handleRequest(
       async () => {
-        const response = await fetch(`${BASE_URL}/analyze-wallet/${address}`, {
+        const url = `${BASE_URL}/analyze-wallet/${address}`;
+        console.log(`Analyzing wallet: ${url}`);
+        
+        const response = await fetch(url, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           signal: abortControllerRef.current?.signal
         });
         
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        // Protokolliere wichtige Antwortinformationen
+        console.log('Response URL:', response.url);
+        console.log('Response Status:', response.status);
+        console.log('Content-Type:', response.headers.get('content-type'));
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Server error response:', errorText.substring(0, 500));
+          throw new Error(`API error: ${response.status} - ${errorText.substring(0, 100)}`);
+        }
+        
+        // Prüfe den Content-Type
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const responseText = await response.text();
+          console.error('Unexpected Content-Type. Response preview:', responseText.substring(0, 500));
+          throw new Error(`Unexpected Content-Type: ${contentType}. Expected: application/json`);
+        }
         
         const data = await response.json();
         
         // Validate response structure
         if (!data || typeof data.risk_score !== 'number') {
-          throw new Error('Invalid response structure');
+          throw new Error('Invalid response structure - missing risk_score');
         }
         
         return data;
