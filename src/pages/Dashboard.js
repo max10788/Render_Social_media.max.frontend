@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../App.css';
 
-// API-Konfiguration für Dashboard-Endpunkte
+// API-Konfiguration
 const API_CONFIG = {
   BASE_URL: process.env.REACT_APP_API_URL || '/api',
   ENDPOINTS: {
@@ -14,85 +14,40 @@ const API_CONFIG = {
   }
 };
 
-// Verbesserter API-Service mit detaillierter Fehlerbehandlung
+// API-Service
 class ApiService {
   constructor() {
     this.baseUrl = API_CONFIG.BASE_URL;
-    console.log('API Service initialized with baseUrl:', this.baseUrl);
   }
   
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
-    console.log(`API Request: ${options.method || 'GET'} ${url}`);
-    
     try {
       const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
+        headers: { 'Content-Type': 'application/json', ...options.headers },
         ...options,
       });
       
-      console.log('Response URL:', response.url);
-      console.log('Response Status:', response.status);
-      console.log('Content-Type:', response.headers.get('content-type'));
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error response:', errorText.substring(0, 500));
-        throw new Error(`API Error: ${response.status} - ${errorText.substring(0, 100)}`);
-      }
+      if (!response.ok) throw new Error(`API Error: ${response.status}`);
       
       const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const responseText = await response.text();
-        console.error('Unexpected Content-Type. Response preview:', responseText.substring(0, 500));
-        
-        let errorMessage = 'Server returned HTML instead of JSON';
-        if (responseText.includes('<title>')) {
-          const titleMatch = responseText.match(/<title>(.*?)<\/title>/);
-          if (titleMatch && titleMatch[1]) {
-            errorMessage = `Server returned page: ${titleMatch[1]}`;
-          }
-        }
-        
-        throw new Error(`Unexpected Content-Type: ${contentType}. Expected: application/json. ${errorMessage}`);
+      if (!contentType?.includes('application/json')) {
+        throw new Error('Unexpected Content-Type');
       }
       
-      const data = await response.json();
-      console.log('API Response data:', data);
-      return data;
+      return await response.json();
     } catch (error) {
       console.error('API Request failed:', error);
       throw error;
     }
   }
   
-  async getConfig() {
-    return this.request(API_CONFIG.ENDPOINTS.CONFIG);
-  }
-  
-  async getAnalytics() {
-    return this.request(API_CONFIG.ENDPOINTS.ANALYTICS);
-  }
-  
-  async getTokensStatistics() {
-    return this.request(API_CONFIG.ENDPOINTS.TOKENS_STATISTICS);
-  }
-  
-  async getTokensTrending(limit = 5) {
-    return this.request(`${API_CONFIG.ENDPOINTS.TOKENS_TRENDING}?limit=${limit}`);
-  }
-  
-  async getHealth() {
-    return this.request(API_CONFIG.ENDPOINTS.HEALTH);
-  }
-  
-  async getSettings() {
-    return this.request(API_CONFIG.ENDPOINTS.SETTINGS);
-  }
-  
+  async getConfig() { return this.request(API_CONFIG.ENDPOINTS.CONFIG); }
+  async getAnalytics() { return this.request(API_CONFIG.ENDPOINTS.ANALYTICS); }
+  async getTokensStatistics() { return this.request(API_CONFIG.ENDPOINTS.TOKENS_STATISTICS); }
+  async getTokensTrending(limit = 5) { return this.request(`${API_CONFIG.ENDPOINTS.TOKENS_TRENDING}?limit=${limit}`); }
+  async getHealth() { return this.request(API_CONFIG.ENDPOINTS.HEALTH); }
+  async getSettings() { return this.request(API_CONFIG.ENDPOINTS.SETTINGS); }
   async updateSettings(settings) {
     return this.request(API_CONFIG.ENDPOINTS.SETTINGS, {
       method: 'PUT',
@@ -103,31 +58,11 @@ class ApiService {
 
 const apiService = new ApiService();
 
-// Mock-Daten als Fallback
+// Mock-Daten
 const MOCK_DATA = {
-  config: {
-    minScore: 0.5,
-    maxAnalysesPerHour: 100,
-    cacheTTL: 300,
-    supportedChains: ['Ethereum', 'Solana', 'Sui']
-  },
-  analytics: {
-    analytics: {
-      totalAnalyses: 1250,
-      successfulAnalyses: 1180,
-      failedAnalyses: 70,
-      averageScore: 0.78
-    },
-    status: 'success'
-  },
-  tokensStatistics: {
-    totalTokens: 1250,
-    tokensByChain: {
-      'Ethereum': 750,
-      'Solana': 300,
-      'Sui': 200
-    }
-  },
+  config: { minScore: 0.5, maxAnalysesPerHour: 100, cacheTTL: 300, supportedChains: ['Ethereum', 'Solana', 'Sui'] },
+  analytics: { analytics: { totalAnalyses: 1250, successfulAnalyses: 1180, failedAnalyses: 70, averageScore: 0.78 }, status: 'success' },
+  tokensStatistics: { totalTokens: 1250, tokensByChain: { 'Ethereum': 750, 'Solana': 300, 'Sui': 200 } },
   trendingTokens: [
     { name: 'Bitcoin', symbol: 'BTC', price: 45000, volume: 2500000000 },
     { name: 'Ethereum', symbol: 'ETH', price: 3000, volume: 1500000000 },
@@ -135,33 +70,153 @@ const MOCK_DATA = {
     { name: 'Sui', symbol: 'SUI', price: 1.5, volume: 100000000 },
     { name: 'Polygon', symbol: 'MATIC', price: 0.8, volume: 80000000 }
   ],
-  systemHealth: {
-    status: 'healthy',
-    uptime: '99.9%',
-    lastChecked: new Date().toISOString()
-  },
-  settings: {
-    settings: {
-      theme: 'dark',
-      notifications: true,
-      autoRefresh: true,
-      refreshInterval: 30
-    },
-    status: 'success'
-  }
+  systemHealth: { status: 'healthy', uptime: '99.9%', lastChecked: new Date().toISOString() },
+  settings: { settings: { theme: 'dark', notifications: true, autoRefresh: true, refreshInterval: 30 }, status: 'success' }
 };
 
 // Blockchain-Konfiguration
 const BLOCKCHAIN_CONFIG = {
-  ETHEREUM: {
-    explorer: 'https://etherscan.io'
-  },
-  SOLANA: {
-    explorer: 'https://explorer.solana.com'
-  },
-  SUI: {
-    explorer: 'https://explorer.sui.io'
-  }
+  ETHEREUM: { explorer: 'https://etherscan.io', color: '#627eea' },
+  SOLANA: { explorer: 'https://explorer.solana.com', color: '#00ffa3' },
+  SUI: { explorer: 'https://explorer.sui.io', color: '#40e0d0' }
+};
+
+// 3D-Radar-Komponente
+const Radar3D = ({ data, title }) => {
+  return (
+    <div className="radar-container">
+      <h3 className="radar-title">{title}</h3>
+      <div className="radar-3d">
+        <svg viewBox="0 0 500 500" className="radar-svg">
+          {/* Radar-Kreise */}
+          {[20, 40, 60, 80, 100].map((radius, i) => (
+            <circle key={i} cx="250" cy="250" r={radius} 
+                    fill="none" stroke="rgba(0, 212, 255, 0.2)" strokeWidth="1" />
+          ))}
+          
+          {/* Achsenlinien */}
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => {
+            const rad = (angle * Math.PI) / 180;
+            const x2 = 250 + 100 * Math.cos(rad);
+            const y2 = 250 + 100 * Math.sin(rad);
+            return (
+              <line key={i} x1="250" y1="250" x2={x2} y2={y2} 
+                    stroke="rgba(0, 212, 255, 0.3)" strokeWidth="1" />
+            );
+          })}
+          
+          {/* Daten-Polygon */}
+          <polygon points={data.map((value, i) => {
+            const angle = (i * 45) * Math.PI / 180;
+            const distance = value * 100;
+            const x = 250 + distance * Math.cos(angle);
+            const y = 250 + distance * Math.sin(angle);
+            return `${x},${y}`;
+          }).join(' ')} 
+                   fill="rgba(0, 212, 255, 0.2)" 
+                   stroke="rgba(0, 212, 255, 0.8)" 
+                   strokeWidth="2" />
+          
+          {/* Daten-Punkte */}
+          {data.map((value, i) => {
+            const angle = (i * 45) * Math.PI / 180;
+            const distance = value * 100;
+            const x = 250 + distance * Math.cos(angle);
+            const y = 250 + distance * Math.sin(angle);
+            return (
+              <circle key={i} cx={x} cy={y} r="5" 
+                      fill="#00d4ff" stroke="white" strokeWidth="2" />
+            );
+          })}
+        </svg>
+        
+        {/* Daten-Labels */}
+        <div className="radar-labels">
+          {data.map((value, i) => (
+            <div key={i} className="radar-label">
+              <span className="radar-label-text">
+                {['Liquidity', 'Volume', 'Social', 'Development', 'Security', 'Adoption', 'Community', 'Innovation'][i]}: 
+                <span className="radar-value">{(value * 100).toFixed(0)}%</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Token-Trend-Komponente
+const TokenTrendChart = ({ tokens }) => {
+  return (
+    <div className="trend-chart-container">
+      <h3 className="trend-chart-title">Token Performance Trends</h3>
+      <div className="trend-chart">
+        {tokens.map((token, index) => (
+          <div key={index} className="token-trend">
+            <div className="token-info">
+              <div className="token-name">{token.name} ({token.symbol})</div>
+              <div className="token-price">${token.price.toLocaleString()}</div>
+            </div>
+            <div className="trend-bar">
+              <div 
+                className="trend-fill" 
+                style={{ 
+                  width: `${(token.volume / 3000000000) * 100}%`,
+                  background: `linear-gradient(90deg, ${index % 2 === 0 ? '#00d4ff' : '#ff6b6b'}, ${index % 2 === 0 ? '#0066ff' : '#ff4d4d'})`
+                }}
+              ></div>
+            </div>
+            <div className="trend-volume">${(token.volume / 1000000).toFixed(1)}M</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// System-Status-Komponente
+const SystemStatus = ({ health, config }) => {
+  return (
+    <div className="system-status-container">
+      <h3 className="system-status-title">System Health Monitor</h3>
+      <div className="system-status-grid">
+        <div className="status-card">
+          <div className="status-icon">🖥️</div>
+          <div className="status-info">
+            <div className="status-label">System Status</div>
+            <div className={`status-value ${health.status === 'healthy' ? 'status-healthy' : 'status-error'}`}>
+              {health.status}
+            </div>
+          </div>
+        </div>
+        
+        <div className="status-card">
+          <div className="status-icon">⏱️</div>
+          <div className="status-info">
+            <div className="status-label">Uptime</div>
+            <div className="status-value">{health.uptime}</div>
+          </div>
+        </div>
+        
+        <div className="status-card">
+          <div className="status-icon">📊</div>
+          <div className="status-info">
+            <div className="status-label">Max. Analysen</div>
+            <div className="status-value">{config.maxAnalysesPerHour}/h</div>
+          </div>
+        </div>
+        
+        <div className="status-card">
+          <div className="status-icon">🔧</div>
+          <div className="status-info">
+            <div className="status-label">Cache TTL</div>
+            <div className="status-value">{config.cacheTTL}s</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 function Dashboard() {
@@ -175,48 +230,21 @@ function Dashboard() {
   const [usingMockData, setUsingMockData] = useState(false);
   const [apiError, setApiError] = useState(null);
   
-  const [selectedAsset, setSelectedAsset] = useState('');
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-  
-  // Daten laden mit Fallback auf Mock-Daten
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setApiError(null);
         
-        console.log('Attempting to fetch data from API...');
-        
-        // Versuche, echte API-Daten zu laden
         const [configResponse, analyticsResponse, tokensStatisticsResponse, trendingTokensResponse, healthResponse, settingsResponse] = await Promise.all([
-          apiService.getConfig().catch(err => {
-            console.error('Failed to fetch config:', err);
-            return null;
-          }),
-          apiService.getAnalytics().catch(err => {
-            console.error('Failed to fetch analytics:', err);
-            return null;
-          }),
-          apiService.getTokensStatistics().catch(err => {
-            console.error('Failed to fetch tokens statistics:', err);
-            return null;
-          }),
-          apiService.getTokensTrending().catch(err => {
-            console.error('Failed to fetch trending tokens:', err);
-            return null;
-          }),
-          apiService.getHealth().catch(err => {
-            console.error('Failed to fetch health status:', err);
-            return null;
-          }),
-          apiService.getSettings().catch(err => {
-            console.error('Failed to fetch settings:', err);
-            return null;
-          })
+          apiService.getConfig().catch(() => null),
+          apiService.getAnalytics().catch(() => null),
+          apiService.getTokensStatistics().catch(() => null),
+          apiService.getTokensTrending().catch(() => null),
+          apiService.getHealth().catch(() => null),
+          apiService.getSettings().catch(() => null)
         ]);
         
-        // Prüfe, ob alle Anfragen erfolgreich waren
         if (configResponse && analyticsResponse && tokensStatisticsResponse && trendingTokensResponse && healthResponse && settingsResponse) {
           setConfig(configResponse);
           setAnalytics(analyticsResponse);
@@ -225,15 +253,13 @@ function Dashboard() {
           setSystemHealth(healthResponse);
           setSettings(settingsResponse.settings);
           setUsingMockData(false);
-          console.log('Successfully loaded all data from API');
         } else {
-          throw new Error('One or more API requests failed');
+          throw new Error('API requests failed');
         }
       } catch (error) {
         console.error('API nicht erreichbar, verwende Mock-Daten:', error);
         setApiError(error.message);
         
-        // Fallback auf Mock-Daten
         setConfig(MOCK_DATA.config);
         setAnalytics(MOCK_DATA.analytics);
         setTokensStatistics(MOCK_DATA.tokensStatistics);
@@ -248,37 +274,18 @@ function Dashboard() {
     
     fetchData();
     
-    // Polling für Analytics-Daten
     const interval = setInterval(async () => {
       try {
         const analyticsData = await apiService.getAnalytics();
         setAnalytics(analyticsData);
         setUsingMockData(false);
       } catch (err) {
-        console.log('API nicht erreichbar, verwende Mock-Daten:', err);
+        console.log('API nicht erreichbar');
       }
     }, 30000);
     
-    // Cleanup
     return () => clearInterval(interval);
   }, []);
-  
-  const handleAnalyze = async () => {
-    if (!selectedAsset) return;
-    
-    setAnalysisLoading(true);
-    try {
-      // Mock-Ergebnis direkt verwenden (kein API-Aufruf)
-      setAnalysisResult({
-        analysisId: `analysis-${Date.now()}`,
-        score: Math.random().toFixed(2),
-        result: { status: 'completed' },
-        timestamp: new Date().toISOString()
-      });
-    } finally {
-      setAnalysisLoading(false);
-    }
-  };
   
   const handleSettingsUpdate = async (newSettings) => {
     try {
@@ -288,14 +295,6 @@ function Dashboard() {
     } catch (err) {
       console.error('Failed to update settings:', err);
       alert('Fehler beim Speichern: ' + err.message);
-    }
-  };
-  
-  const handleFeedback = async () => {
-    const feedback = prompt('Bitte geben Sie Ihr Feedback ein:');
-    if (feedback) {
-      // Mock-Antwort direkt anzeigen (kein API-Aufruf)
-      alert('Feedback gesendet!');
     }
   };
   
@@ -309,9 +308,9 @@ function Dashboard() {
   if (loading) {
     return (
       <div className="page-content">
-        <h2>On-Chain Analyse Dashboard</h2>
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <p>Lade Daten...</p>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Lade On-Chain Analyse Daten...</p>
         </div>
       </div>
     );
@@ -319,161 +318,104 @@ function Dashboard() {
   
   return (
     <div className="page-content">
-      <div style={{ 
-        background: usingMockData ? 'rgba(255, 165, 0, 0.1)' : 'rgba(0, 212, 255, 0.1)', 
-        border: `1px solid ${usingMockData ? 'rgba(255, 165, 0, 0.3)' : 'rgba(0, 212, 255, 0.3)'}`, 
-        borderRadius: '12px', 
-        padding: '15px', 
-        marginBottom: '20px',
-        textAlign: 'center'
-      }}>
-        <p style={{ color: usingMockData ? '#ffa500' : '#00d4ff' }}>
+      <div className={`status-banner ${usingMockData ? 'warning' : 'success'}`}>
+        <p>
           {usingMockData 
             ? '⚠️ Verwende Demo-Daten (Backend nicht erreichbar)' 
             : '✅ Verbunden mit Backend'}
         </p>
-        {apiError && (
-          <p style={{ fontSize: '0.8rem', color: '#ff6b6b', marginTop: '5px' }}>
-            Fehler: {apiError}
-          </p>
-        )}
+        {apiError && <p className="error-text">Fehler: {apiError}</p>}
       </div>
       
-      <h2>On-Chain Analyse Dashboard</h2>
+      <div className="dashboard-header">
+        <h1>On-Chain Analyse Dashboard</h1>
+        <p>Professionelle Blockchain-Analyse in Echtzeit</p>
+      </div>
       
-      {/* System-Status */}
-      <div style={{ marginBottom: '30px' }}>
-        <h3>System-Status</h3>
-        <div style={{ 
-          background: 'rgba(0, 212, 255, 0.1)', 
-          border: '1px solid rgba(0, 212, 255, 0.3)', 
-          borderRadius: '12px', 
-          padding: '20px' 
-        }}>
-          <p>Status: {systemHealth?.status}</p>
-          <p>Uptime: {systemHealth?.uptime}</p>
-          <p>Zuletzt geprüft: {systemHealth?.lastChecked ? new Date(systemHealth.lastChecked).toLocaleString() : 'N/A'}</p>
-          <p>Min. Score: {config?.minScore}</p>
-          <p>Max. Analysen/Stunde: {config?.maxAnalysesPerHour}</p>
-          <p>Cache-TTL: {config?.cacheTTL}s</p>
-          <p>Unterstützte Blockchains: {config?.supportedChains?.join(', ')}</p>
+      <div className="dashboard-grid">
+        <div className="dashboard-card full-width">
+          <SystemStatus health={systemHealth} config={config} />
         </div>
-      </div>
-      
-      {/* Token-Statistiken */}
-      <div style={{ marginBottom: '30px' }}>
-        <h3>Token-Statistiken</h3>
-        {tokensStatistics && (
-          <div style={{ 
-            background: 'rgba(0, 102, 255, 0.1)', 
-            border: '1px solid rgba(0, 102, 255, 0.3)', 
-            borderRadius: '12px', 
-            padding: '20px' 
-          }}>
-            <p>Gesamt-Tokens: {tokensStatistics.totalTokens}</p>
-            <h4>Tokens nach Blockchain:</h4>
-            <ul>
-              {Object.entries(tokensStatistics.tokensByChain || {}).map(([chain, count]) => (
-                <li key={chain}>{chain}: {count}</li>
+        
+        <div className="dashboard-card">
+          <Radar3D 
+            data={[0.8, 0.7, 0.9, 0.6, 0.85, 0.75, 0.8, 0.65]} 
+            title="System Metriken" 
+          />
+        </div>
+        
+        <div className="dashboard-card">
+          <div className="analytics-container">
+            <h3>Analysen-Statistik</h3>
+            <div className="analytics-stats">
+              <div className="stat-item">
+                <div className="stat-value">{analytics?.analytics.totalAnalyses || 0}</div>
+                <div className="stat-label">Gesamtanalysen</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-value">{analytics?.analytics.successfulAnalyses || 0}</div>
+                <div className="stat-label">Erfolgreich</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-value">{analytics?.analytics.failedAnalyses || 0}</div>
+                <div className="stat-label">Fehlgeschlagen</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-value">{(analytics?.analytics.averageScore * 100 || 0).toFixed(0)}%</div>
+                <div className="stat-label">Durchschn. Score</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="dashboard-card full-width">
+          <TokenTrendChart tokens={trendingTokens} />
+        </div>
+        
+        <div className="dashboard-card">
+          <div className="blockchains-container">
+            <h3>Unterstützte Blockchains</h3>
+            <div className="blockchain-grid">
+              {config?.supportedChains?.map((blockchain, index) => (
+                <div 
+                  key={index} 
+                  className="blockchain-card"
+                  onClick={() => openExplorer(blockchain)}
+                  style={{ borderLeft: `4px solid ${BLOCKCHAIN_CONFIG[blockchain.toUpperCase()]?.color || '#00d4ff'}` }}
+                >
+                  <div className="blockchain-name">{blockchain}</div>
+                  <div className="blockchain-action">Explorer öffnen →</div>
+                </div>
               ))}
-            </ul>
-          </div>
-        )}
-      </div>
-      
-      {/* Trending Tokens */}
-      <div style={{ marginBottom: '30px' }}>
-        <h3>Trending Tokens</h3>
-        <div style={{ 
-          display: 'flex', 
-          flexWrap: 'wrap', 
-          gap: '15px' 
-        }}>
-          {trendingTokens?.map((token, index) => (
-            <div key={index} style={{ 
-              background: 'rgba(0, 153, 204, 0.1)', 
-              border: '1px solid rgba(0, 153, 204, 0.3)', 
-              borderRadius: '12px', 
-              padding: '15px', 
-              width: '200px'
-            }}>
-              <h4 style={{ fontFamily: 'Orbitron, sans-serif', color: '#0099cc' }}>
-                {token.name} ({token.symbol})
-              </h4>
-              <p style={{ fontSize: '0.9rem', color: '#a0b0c0' }}>
-                Preis: ${token.price?.toLocaleString()}
-              </p>
-              <p style={{ fontSize: '0.9rem', color: '#a0b0c0' }}>
-                Volumen: ${(token.volume / 1000000).toFixed(2)}M
-              </p>
             </div>
-          ))}
+          </div>
+        </div>
+        
+        <div className="dashboard-card">
+          <div className="token-stats-container">
+            <h3>Token-Statistiken</h3>
+            <div className="token-stats">
+              <div className="token-stat-item">
+                <div className="token-stat-value">{tokensStatistics?.totalTokens || 0}</div>
+                <div className="token-stat-label">Gesamt-Tokens</div>
+              </div>
+              {Object.entries(tokensStatistics?.tokensByChain || {}).map(([chain, count]) => (
+                <div key={chain} className="token-stat-item">
+                  <div className="token-stat-value">{count}</div>
+                  <div className="token-stat-label">{chain}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
       
-      {/* Analytics */}
-      <div style={{ marginBottom: '30px' }}>
-        <h3>Analysen-Statistik</h3>
-        {analytics && (
-          <div style={{ 
-            background: 'rgba(0, 102, 255, 0.1)', 
-            border: '1px solid rgba(0, 102, 255, 0.3)', 
-            borderRadius: '12px', 
-            padding: '20px' 
-          }}>
-            <p>Gesamtanalysen: {analytics.analytics.totalAnalyses}</p>
-            <p>Erfolgreich: {analytics.analytics.successfulAnalyses}</p>
-            <p>Fehlgeschlagen: {analytics.analytics.failedAnalyses}</p>
-            <p>Durchschn. Score: {analytics.analytics.averageScore}</p>
-          </div>
-        )}
-      </div>
-      
-      {/* Blockchains */}
-      <div style={{ marginBottom: '30px' }}>
-        <h3>Unterstützte Blockchains</h3>
-        <div style={{ 
-          display: 'flex', 
-          flexWrap: 'wrap', 
-          gap: '15px' 
-        }}>
-          {config?.supportedChains?.map((blockchain, index) => (
-            <div key={index} style={{ 
-              background: 'rgba(0, 102, 255, 0.1)', 
-              border: '1px solid rgba(0, 102, 255, 0.3)', 
-              borderRadius: '12px', 
-              padding: '15px', 
-              width: '250px',
-              cursor: 'pointer',
-              transition: 'transform 0.3s ease'
-            }}
-            onClick={() => openExplorer(blockchain)}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-            >
-              <h4 style={{ fontFamily: 'Orbitron, sans-serif', color: '#0066ff' }}>
-                {blockchain}
-              </h4>
-              <p style={{ fontSize: '0.9rem', color: '#00d4ff', marginTop: '10px' }}>
-                Explorer öffnen →
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Einstellungen */}
       {settings && (
-        <div style={{ marginBottom: '30px' }}>
+        <div className="settings-container">
           <h3>Einstellungen</h3>
-          <div style={{ 
-            background: 'rgba(0, 153, 204, 0.1)', 
-            border: '1px solid rgba(0, 153, 204, 0.3)', 
-            borderRadius: '12px', 
-            padding: '20px' 
-          }}>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="settings-grid">
+            <div className="setting-item">
+              <label className="setting-label">
                 <input
                   type="checkbox"
                   checked={settings.notifications}
@@ -483,8 +425,8 @@ function Dashboard() {
               </label>
             </div>
             
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="setting-item">
+              <label className="setting-label">
                 <input
                   type="checkbox"
                   checked={settings.autoRefresh}
@@ -494,46 +436,20 @@ function Dashboard() {
               </label>
             </div>
             
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px' }}>
-                Aktualisierungsintervall (Sekunden):
-              </label>
+            <div className="setting-item">
+              <label className="setting-label">Aktualisierungsintervall (Sekunden):</label>
               <input
                 type="number"
                 min="5"
                 max="300"
                 value={settings.refreshInterval}
                 onChange={(e) => handleSettingsUpdate({ refreshInterval: parseInt(e.target.value) })}
-                style={{ 
-                  width: '100px', 
-                  padding: '8px', 
-                  borderRadius: '4px', 
-                  border: '1px solid rgba(0, 212, 255, 0.3)', 
-                  background: 'rgba(10, 14, 39, 0.7)', 
-                  color: '#e0e6ed'
-                }}
+                className="setting-input"
               />
             </div>
           </div>
         </div>
       )}
-      
-      {/* Feedback-Button */}
-      <button 
-        onClick={handleFeedback}
-        style={{ 
-          background: 'rgba(0, 212, 255, 0.1)', 
-          border: '1px solid rgba(0, 212, 255, 0.3)', 
-          color: '#00d4ff', 
-          padding: '10px 25px', 
-          borderRadius: '25px', 
-          cursor: 'pointer', 
-          fontFamily: 'Orbitron, sans-serif', 
-          fontWeight: '500'
-        }}
-      >
-        Feedback senden
-      </button>
     </div>
   );
 }
