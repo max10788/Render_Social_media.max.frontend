@@ -1,5 +1,5 @@
 // src/pages/TokenDiscovery.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 
 // API-Konfiguration
@@ -95,7 +95,7 @@ const TokenDiscovery = () => {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   
-  const handleDiscover = async () => {
+  const handleDiscover = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -123,9 +123,9 @@ const TokenDiscovery = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [chain, maxMarketCap, minScore, limit]);
   
-  const handleDiscoverLowCap = async () => {
+  const handleDiscoverLowCap = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -151,9 +151,9 @@ const TokenDiscovery = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [chain, limit]);
   
-  const handleAnalyzeToken = async () => {
+  const handleAnalyzeToken = useCallback(async () => {
     if (!selectedToken) return;
     
     setAnalysisLoading(true);
@@ -181,24 +181,17 @@ const TokenDiscovery = () => {
     } finally {
       setAnalysisLoading(false);
     }
-  };
+  }, [selectedToken]);
   
-  const handleGetTokenPrice = async () => {
+  const handleGetTokenPrice = useCallback(async () => {
     if (!selectedToken) return;
     
     setAnalysisLoading(true);
     try {
       const result = await apiService.getTokenPrice(selectedToken.id, selectedToken.chain);
-      setAnalysisResult({
-        token: selectedToken,
-        price: result.price,
-        price_change_24h: result.price_change_24h,
-        market_cap: result.market_cap,
-        volume_24h: result.volume_24h
-      });
+      setAnalysisResult(result);
     } catch (err) {
       console.error('Failed to get token price:', err);
-      setError(err.message);
       
       // Fallback auf Mock-Daten
       setAnalysisResult({
@@ -211,11 +204,11 @@ const TokenDiscovery = () => {
     } finally {
       setAnalysisLoading(false);
     }
-  };
+  }, [selectedToken]);
   
   useEffect(() => {
     handleDiscover();
-  }, []);
+  }, [handleDiscover]);
   
   return (
     <div className="page-content">
