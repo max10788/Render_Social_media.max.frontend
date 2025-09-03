@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import '../App.css';
 
-// API-Konfiguration (korrigiert, um doppeltes /api zu vermeiden)
+// API-Konfiguration für Dashboard-Endpunkte
 const API_CONFIG = {
-  // Wenn REACT_APP_API_URL bereits /api enthält, fügen wir kein weiteres /api hinzu
   BASE_URL: process.env.REACT_APP_API_URL || '/api',
   ENDPOINTS: {
     CONFIG: '/config',
     ANALYTICS: '/analytics',
-    ASSETS: '/assets',
-    BLOCKCHAINS: '/blockchains',
+    TOKENS_STATISTICS: '/tokens/statistics',
+    TOKENS_TRENDING: '/tokens/trending',
+    HEALTH: '/health',
     SETTINGS: '/settings'
   }
 };
@@ -20,7 +20,7 @@ class ApiService {
     this.baseUrl = API_CONFIG.BASE_URL;
     console.log('API Service initialized with baseUrl:', this.baseUrl);
   }
-
+  
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
     console.log(`API Request: ${options.method || 'GET'} ${url}`);
@@ -33,25 +33,22 @@ class ApiService {
         },
         ...options,
       });
-
-      // Protokolliere wichtige Antwortinformationen
+      
       console.log('Response URL:', response.url);
       console.log('Response Status:', response.status);
       console.log('Content-Type:', response.headers.get('content-type'));
-
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Server error response:', errorText.substring(0, 500));
         throw new Error(`API Error: ${response.status} - ${errorText.substring(0, 100)}`);
       }
-
-      // Prüfe den Content-Type
+      
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const responseText = await response.text();
         console.error('Unexpected Content-Type. Response preview:', responseText.substring(0, 500));
         
-        // Versuche, aus der HTML-Antwort nützliche Informationen zu extrahieren
         let errorMessage = 'Server returned HTML instead of JSON';
         if (responseText.includes('<title>')) {
           const titleMatch = responseText.match(/<title>(.*?)<\/title>/);
@@ -62,7 +59,7 @@ class ApiService {
         
         throw new Error(`Unexpected Content-Type: ${contentType}. Expected: application/json. ${errorMessage}`);
       }
-
+      
       const data = await response.json();
       console.log('API Response data:', data);
       return data;
@@ -71,27 +68,31 @@ class ApiService {
       throw error;
     }
   }
-
+  
   async getConfig() {
     return this.request(API_CONFIG.ENDPOINTS.CONFIG);
   }
-
+  
   async getAnalytics() {
     return this.request(API_CONFIG.ENDPOINTS.ANALYTICS);
   }
-
-  async getAssets() {
-    return this.request(API_CONFIG.ENDPOINTS.ASSETS);
+  
+  async getTokensStatistics() {
+    return this.request(API_CONFIG.ENDPOINTS.TOKENS_STATISTICS);
   }
-
-  async getBlockchains() {
-    return this.request(API_CONFIG.ENDPOINTS.BLOCKCHAINS);
+  
+  async getTokensTrending(limit = 5) {
+    return this.request(`${API_CONFIG.ENDPOINTS.TOKENS_TRENDING}?limit=${limit}`);
   }
-
+  
+  async getHealth() {
+    return this.request(API_CONFIG.ENDPOINTS.HEALTH);
+  }
+  
   async getSettings() {
     return this.request(API_CONFIG.ENDPOINTS.SETTINGS);
   }
-
+  
   async updateSettings(settings) {
     return this.request(API_CONFIG.ENDPOINTS.SETTINGS, {
       method: 'PUT',
@@ -119,17 +120,26 @@ const MOCK_DATA = {
     },
     status: 'success'
   },
-  assets: [
-    { id: 'btc', name: 'Bitcoin', symbol: 'BTC', exchanges: ['Binance', 'Coinbase'] },
-    { id: 'eth', name: 'Ethereum', symbol: 'ETH', exchanges: ['Binance', 'Coinbase'] },
-    { id: 'sol', name: 'Solana', symbol: 'SOL', exchanges: ['Binance', 'FTX'] },
-    { id: 'sui', name: 'Sui', symbol: 'SUI', exchanges: ['Binance', 'KuCoin'] }
+  tokensStatistics: {
+    totalTokens: 1250,
+    tokensByChain: {
+      'Ethereum': 750,
+      'Solana': 300,
+      'Sui': 200
+    }
+  },
+  trendingTokens: [
+    { name: 'Bitcoin', symbol: 'BTC', price: 45000, volume: 2500000000 },
+    { name: 'Ethereum', symbol: 'ETH', price: 3000, volume: 1500000000 },
+    { name: 'Solana', symbol: 'SOL', price: 100, volume: 500000000 },
+    { name: 'Sui', symbol: 'SUI', price: 1.5, volume: 100000000 },
+    { name: 'Polygon', symbol: 'MATIC', price: 0.8, volume: 80000000 }
   ],
-  blockchains: [
-    { id: 'ethereum', name: 'Ethereum', block_time: 12 },
-    { id: 'solana', name: 'Solana', block_time: 0.4 },
-    { id: 'sui', name: 'Sui', block_time: 0.5 }
-  ],
+  systemHealth: {
+    status: 'healthy',
+    uptime: '99.9%',
+    lastChecked: new Date().toISOString()
+  },
   settings: {
     settings: {
       theme: 'dark',
@@ -157,8 +167,9 @@ const BLOCKCHAIN_CONFIG = {
 function Dashboard() {
   const [config, setConfig] = useState(null);
   const [analytics, setAnalytics] = useState(null);
-  const [assets, setAssets] = useState(null);
-  const [blockchains, setBlockchains] = useState(null);
+  const [tokensStatistics, setTokensStatistics] = useState(null);
+  const [trendingTokens, setTrendingTokens] = useState([]);
+  const [systemHealth, setSystemHealth] = useState(null);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [usingMockData, setUsingMockData] = useState(false);
@@ -178,7 +189,7 @@ function Dashboard() {
         console.log('Attempting to fetch data from API...');
         
         // Versuche, echte API-Daten zu laden
-        const [configResponse, analyticsResponse, assetsResponse, blockchainsResponse, settingsResponse] = await Promise.all([
+        const [configResponse, analyticsResponse, tokensStatisticsResponse, trendingTokensResponse, healthResponse, settingsResponse] = await Promise.all([
           apiService.getConfig().catch(err => {
             console.error('Failed to fetch config:', err);
             return null;
@@ -187,12 +198,16 @@ function Dashboard() {
             console.error('Failed to fetch analytics:', err);
             return null;
           }),
-          apiService.getAssets().catch(err => {
-            console.error('Failed to fetch assets:', err);
+          apiService.getTokensStatistics().catch(err => {
+            console.error('Failed to fetch tokens statistics:', err);
             return null;
           }),
-          apiService.getBlockchains().catch(err => {
-            console.error('Failed to fetch blockchains:', err);
+          apiService.getTokensTrending().catch(err => {
+            console.error('Failed to fetch trending tokens:', err);
+            return null;
+          }),
+          apiService.getHealth().catch(err => {
+            console.error('Failed to fetch health status:', err);
             return null;
           }),
           apiService.getSettings().catch(err => {
@@ -202,11 +217,12 @@ function Dashboard() {
         ]);
         
         // Prüfe, ob alle Anfragen erfolgreich waren
-        if (configResponse && analyticsResponse && assetsResponse && blockchainsResponse && settingsResponse) {
+        if (configResponse && analyticsResponse && tokensStatisticsResponse && trendingTokensResponse && healthResponse && settingsResponse) {
           setConfig(configResponse);
           setAnalytics(analyticsResponse);
-          setAssets(assetsResponse);
-          setBlockchains(blockchainsResponse);
+          setTokensStatistics(tokensStatisticsResponse);
+          setTrendingTokens(trendingTokensResponse);
+          setSystemHealth(healthResponse);
           setSettings(settingsResponse.settings);
           setUsingMockData(false);
           console.log('Successfully loaded all data from API');
@@ -220,8 +236,9 @@ function Dashboard() {
         // Fallback auf Mock-Daten
         setConfig(MOCK_DATA.config);
         setAnalytics(MOCK_DATA.analytics);
-        setAssets(MOCK_DATA.assets);
-        setBlockchains(MOCK_DATA.blockchains);
+        setTokensStatistics(MOCK_DATA.tokensStatistics);
+        setTrendingTokens(MOCK_DATA.trendingTokens);
+        setSystemHealth(MOCK_DATA.systemHealth);
         setSettings(MOCK_DATA.settings.settings);
         setUsingMockData(true);
       } finally {
@@ -333,10 +350,64 @@ function Dashboard() {
           borderRadius: '12px', 
           padding: '20px' 
         }}>
+          <p>Status: {systemHealth?.status}</p>
+          <p>Uptime: {systemHealth?.uptime}</p>
+          <p>Zuletzt geprüft: {systemHealth?.lastChecked ? new Date(systemHealth.lastChecked).toLocaleString() : 'N/A'}</p>
           <p>Min. Score: {config?.minScore}</p>
           <p>Max. Analysen/Stunde: {config?.maxAnalysesPerHour}</p>
           <p>Cache-TTL: {config?.cacheTTL}s</p>
           <p>Unterstützte Blockchains: {config?.supportedChains?.join(', ')}</p>
+        </div>
+      </div>
+      
+      {/* Token-Statistiken */}
+      <div style={{ marginBottom: '30px' }}>
+        <h3>Token-Statistiken</h3>
+        {tokensStatistics && (
+          <div style={{ 
+            background: 'rgba(0, 102, 255, 0.1)', 
+            border: '1px solid rgba(0, 102, 255, 0.3)', 
+            borderRadius: '12px', 
+            padding: '20px' 
+          }}>
+            <p>Gesamt-Tokens: {tokensStatistics.totalTokens}</p>
+            <h4>Tokens nach Blockchain:</h4>
+            <ul>
+              {Object.entries(tokensStatistics.tokensByChain || {}).map(([chain, count]) => (
+                <li key={chain}>{chain}: {count}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+      
+      {/* Trending Tokens */}
+      <div style={{ marginBottom: '30px' }}>
+        <h3>Trending Tokens</h3>
+        <div style={{ 
+          display: 'flex', 
+          flexWrap: 'wrap', 
+          gap: '15px' 
+        }}>
+          {trendingTokens?.map((token, index) => (
+            <div key={index} style={{ 
+              background: 'rgba(0, 153, 204, 0.1)', 
+              border: '1px solid rgba(0, 153, 204, 0.3)', 
+              borderRadius: '12px', 
+              padding: '15px', 
+              width: '200px'
+            }}>
+              <h4 style={{ fontFamily: 'Orbitron, sans-serif', color: '#0099cc' }}>
+                {token.name} ({token.symbol})
+              </h4>
+              <p style={{ fontSize: '0.9rem', color: '#a0b0c0' }}>
+                Preis: ${token.price?.toLocaleString()}
+              </p>
+              <p style={{ fontSize: '0.9rem', color: '#a0b0c0' }}>
+                Volumen: ${(token.volume / 1000000).toFixed(2)}M
+              </p>
+            </div>
+          ))}
         </div>
       </div>
       
@@ -358,70 +429,6 @@ function Dashboard() {
         )}
       </div>
       
-      {/* Asset-Auswahl und Analyse */}
-      <div style={{ marginBottom: '30px' }}>
-        <h3>Asset-Analyse</h3>
-        <div style={{ 
-          background: 'rgba(0, 153, 204, 0.1)', 
-          border: '1px solid rgba(0, 153, 204, 0.3)', 
-          borderRadius: '12px', 
-          padding: '20px' 
-        }}>
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '8px' }}>Asset auswählen:</label>
-            <select 
-              value={selectedAsset} 
-              onChange={(e) => setSelectedAsset(e.target.value)}
-              style={{ 
-                width: '100%', 
-                padding: '10px', 
-                borderRadius: '6px', 
-                border: '1px solid rgba(0, 212, 255, 0.3)', 
-                background: 'rgba(10, 14, 39, 0.7)', 
-                color: '#e0e6ed'
-              }}
-            >
-              <option value="">-- Asset auswählen --</option>
-              {assets?.map(asset => (
-                <option key={asset.id} value={asset.id}>
-                  {asset.name} ({asset.symbol})
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <button 
-            onClick={handleAnalyze}
-            disabled={!selectedAsset || analysisLoading}
-            style={{ 
-              background: 'linear-gradient(135deg, #00d4ff, #0066ff)', 
-              border: 'none', 
-              color: 'white', 
-              padding: '10px 25px', 
-              borderRadius: '25px', 
-              cursor: 'pointer', 
-              fontFamily: 'Orbitron, sans-serif', 
-              fontWeight: '500'
-            }}
-          >
-            {analysisLoading ? 'Analysiere...' : 'Analyse starten'}
-          </button>
-          
-          {analysisResult && (
-            <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(0, 212, 255, 0.1)', borderRadius: '8px' }}>
-              <h4>Ergebnis:</h4>
-              <p>Score: {analysisResult.score}</p>
-              <p>Zeitstempel: {new Date(analysisResult.timestamp).toLocaleString()}</p>
-              {usingMockData && (
-                <p style={{ fontSize: '0.9rem', color: '#ffa500' }}>
-                  (Demo-Ergebnis)
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      
       {/* Blockchains */}
       <div style={{ marginBottom: '30px' }}>
         <h3>Unterstützte Blockchains</h3>
@@ -430,8 +437,8 @@ function Dashboard() {
           flexWrap: 'wrap', 
           gap: '15px' 
         }}>
-          {blockchains?.map(blockchain => (
-            <div key={blockchain.id} style={{ 
+          {config?.supportedChains?.map((blockchain, index) => (
+            <div key={index} style={{ 
               background: 'rgba(0, 102, 255, 0.1)', 
               border: '1px solid rgba(0, 102, 255, 0.3)', 
               borderRadius: '12px', 
@@ -440,17 +447,14 @@ function Dashboard() {
               cursor: 'pointer',
               transition: 'transform 0.3s ease'
             }}
-            onClick={() => openExplorer(blockchain.id)}
+            onClick={() => openExplorer(blockchain)}
             onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
             >
               <h4 style={{ fontFamily: 'Orbitron, sans-serif', color: '#0066ff' }}>
-                {blockchain.name}
+                {blockchain}
               </h4>
-              <p style={{ fontSize: '0.9rem', color: '#a0b0c0' }}>
-                Blockzeit: {blockchain.block_time}s
-              </p>
-              <p style={{ fontSize: '0.8rem', color: '#00d4ff', marginTop: '10px' }}>
+              <p style={{ fontSize: '0.9rem', color: '#00d4ff', marginTop: '10px' }}>
                 Explorer öffnen →
               </p>
             </div>
