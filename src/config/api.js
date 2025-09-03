@@ -1,4 +1,8 @@
 // src/config/api.js
+import config from './index';
+
+const API_BASE_URL = config.apiUrl || '';
+
 export const API_CONFIG = {
   BASE_URL: process.env.REACT_APP_API_URL || '/api'
 };
