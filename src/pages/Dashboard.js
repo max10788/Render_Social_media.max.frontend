@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import '../App.css';
 
-// API-Konfiguration (mit /api Pfad)
+// API-Konfiguration (korrigiert, um doppeltes /api zu vermeiden)
 const API_CONFIG = {
-  BASE_URL: process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : '/api',
+  // Wenn REACT_APP_API_URL bereits /api enthält, fügen wir kein weiteres /api hinzu
+  BASE_URL: process.env.REACT_APP_API_URL || '/api',
   ENDPOINTS: {
     CONFIG: '/config',
     ANALYTICS: '/analytics',
