@@ -1,5 +1,5 @@
 // src/pages/WalletAnalysis.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 
 // API-Konfiguration
@@ -99,7 +99,7 @@ const WalletAnalysis = () => {
   const [error, setError] = useState(null);
   const [usingMockData, setUsingMockData] = useState(false);
   
-  const handleAnalyze = async () => {
+  const handleAnalyze = useCallback(async () => {
     if (!address) return;
     
     setLoading(true);
@@ -123,7 +123,7 @@ const WalletAnalysis = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [address, chain]);
   
   return (
     <div className="page-content">
@@ -538,4 +538,4 @@ const WalletAnalysis = () => {
   );
 };
 
-export default React.memo(WalletAnalysis);
+export default React.memo(WalletAnalysis);;
