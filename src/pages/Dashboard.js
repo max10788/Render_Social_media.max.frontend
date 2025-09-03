@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../App.css';
+
 // API-Konfiguration (direkt in der Datei)
 const API_CONFIG = {
   BASE_URL: process.env.REACT_APP_API_URL || '/api',
@@ -11,13 +12,17 @@ const API_CONFIG = {
     SETTINGS: '/settings'
   }
 };
-// Vereinfachter API-Service
+
+// Verbesserter API-Service mit detaillierter Fehlerbehandlung
 class ApiService {
   constructor() {
     this.baseUrl = API_CONFIG.BASE_URL;
+    console.log('API Service initialized with baseUrl:', this.baseUrl);
   }
+
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+    console.log(`API Request: ${options.method || 'GET'} ${url}`);
     
     try {
       const response = await fetch(url, {
@@ -27,30 +32,55 @@ class ApiService {
         },
         ...options,
       });
+
+      // Protokolliere wichtige Antwortinformationen
+      console.log('Response URL:', response.url);
+      console.log('Response Status:', response.status);
+      console.log('Content-Type:', response.headers.get('content-type'));
+
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Server error response:', errorText.substring(0, 500));
+        throw new Error(`API Error: ${response.status} - ${errorText.substring(0, 100)}`);
       }
-      return await response.json();
+
+      // Prüfe den Content-Type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const responseText = await response.text();
+        console.error('Unexpected Content-Type. Response preview:', responseText.substring(0, 500));
+        throw new Error(`Unexpected Content-Type: ${contentType}. Expected: application/json`);
+      }
+
+      const data = await response.json();
+      console.log('API Response data:', data);
+      return data;
     } catch (error) {
       console.error('API Request failed:', error);
       throw error;
     }
   }
+
   async getConfig() {
     return this.request(API_CONFIG.ENDPOINTS.CONFIG);
   }
+
   async getAnalytics() {
     return this.request(API_CONFIG.ENDPOINTS.ANALYTICS);
   }
+
   async getAssets() {
     return this.request(API_CONFIG.ENDPOINTS.ASSETS);
   }
+
   async getBlockchains() {
     return this.request(API_CONFIG.ENDPOINTS.BLOCKCHAINS);
   }
+
   async getSettings() {
     return this.request(API_CONFIG.ENDPOINTS.SETTINGS);
   }
+
   async updateSettings(settings) {
     return this.request(API_CONFIG.ENDPOINTS.SETTINGS, {
       method: 'PUT',
@@ -58,7 +88,9 @@ class ApiService {
     });
   }
 }
+
 const apiService = new ApiService();
+
 // Mock-Daten als Fallback
 const MOCK_DATA = {
   config: {
@@ -97,6 +129,7 @@ const MOCK_DATA = {
     status: 'success'
   }
 };
+
 // Blockchain-Konfiguration
 const BLOCKCHAIN_CONFIG = {
   ETHEREUM: {
@@ -109,6 +142,7 @@ const BLOCKCHAIN_CONFIG = {
     explorer: 'https://explorer.sui.io'
   }
 };
+
 function Dashboard() {
   const [config, setConfig] = useState(null);
   const [analytics, setAnalytics] = useState(null);
@@ -117,6 +151,7 @@ function Dashboard() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [usingMockData, setUsingMockData] = useState(false);
+  const [apiError, setApiError] = useState(null);
   
   const [selectedAsset, setSelectedAsset] = useState('');
   const [analysisResult, setAnalysisResult] = useState(null);
@@ -127,24 +162,49 @@ function Dashboard() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setApiError(null);
+        
+        console.log('Attempting to fetch data from API...');
         
         // Versuche, echte API-Daten zu laden
         const [configResponse, analyticsResponse, assetsResponse, blockchainsResponse, settingsResponse] = await Promise.all([
-          apiService.getConfig(),
-          apiService.getAnalytics(),
-          apiService.getAssets(),
-          apiService.getBlockchains(),
-          apiService.getSettings()
+          apiService.getConfig().catch(err => {
+            console.error('Failed to fetch config:', err);
+            return null;
+          }),
+          apiService.getAnalytics().catch(err => {
+            console.error('Failed to fetch analytics:', err);
+            return null;
+          }),
+          apiService.getAssets().catch(err => {
+            console.error('Failed to fetch assets:', err);
+            return null;
+          }),
+          apiService.getBlockchains().catch(err => {
+            console.error('Failed to fetch blockchains:', err);
+            return null;
+          }),
+          apiService.getSettings().catch(err => {
+            console.error('Failed to fetch settings:', err);
+            return null;
+          })
         ]);
         
-        setConfig(configResponse);
-        setAnalytics(analyticsResponse);
-        setAssets(assetsResponse);
-        setBlockchains(blockchainsResponse);
-        setSettings(settingsResponse.settings);
-        setUsingMockData(false);
-      } catch {
-        console.log('API nicht erreichbar, verwende Mock-Daten');
+        // Prüfe, ob alle Anfragen erfolgreich waren
+        if (configResponse && analyticsResponse && assetsResponse && blockchainsResponse && settingsResponse) {
+          setConfig(configResponse);
+          setAnalytics(analyticsResponse);
+          setAssets(assetsResponse);
+          setBlockchains(blockchainsResponse);
+          setSettings(settingsResponse.settings);
+          setUsingMockData(false);
+          console.log('Successfully loaded all data from API');
+        } else {
+          throw new Error('One or more API requests failed');
+        }
+      } catch (error) {
+        console.error('API nicht erreichbar, verwende Mock-Daten:', error);
+        setApiError(error.message);
         
         // Fallback auf Mock-Daten
         setConfig(MOCK_DATA.config);
@@ -198,6 +258,7 @@ function Dashboard() {
       setSettings({ ...settings, ...newSettings });
       alert('Einstellungen gespeichert!');
     } catch (err) {
+      console.error('Failed to update settings:', err);
       alert('Fehler beim Speichern: ' + err.message);
     }
   };
@@ -243,6 +304,11 @@ function Dashboard() {
             ? '⚠️ Verwende Demo-Daten (Backend nicht erreichbar)' 
             : '✅ Verbunden mit Backend'}
         </p>
+        {apiError && (
+          <p style={{ fontSize: '0.8rem', color: '#ff6b6b', marginTop: '5px' }}>
+            Fehler: {apiError}
+          </p>
+        )}
       </div>
       
       <h2>On-Chain Analyse Dashboard</h2>
