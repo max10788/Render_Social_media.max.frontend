@@ -1,6 +1,4 @@
 // src/config/api.js
-import config from './index';
-
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend.onrender.com';
 
 export const API_CONFIG = {
