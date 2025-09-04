@@ -124,31 +124,31 @@ class ApiService {
   
   // Legacy Methods
   async getConfig() {
-    return this.request('/api/v1/config');
+    return this.request(API_CONFIG.ENDPOINTS.CONFIG);
   }
   
   async getAnalytics() {
-    return this.request('/api/v1/analytics');
+    return this.request(API_CONFIG.ENDPOINTS.ANALYTICS);
   }
   
   async getTokensStatistics() {
-    return this.request('/api/v1/tokens/statistics');
+    return this.request(API_CONFIG.ENDPOINTS.TOKENS_STATISTICS);
   }
   
   async getTokensTrending(limit = 5) {
-    return this.request(`/api/v1/tokens/trending?limit=${limit}`);
+    return this.request(API_CONFIG.ENDPOINTS.TOKENS_TRENDING(limit));
   }
   
   async getHealth() {
-    return this.request('/api/v1/health');
+    return this.request(API_CONFIG.ENDPOINTS.HEALTH);
   }
   
   async getSettings() {
-    return this.request('/api/v1/settings');
+    return this.request(API_CONFIG.ENDPOINTS.SETTINGS);
   }
   
   async updateSettings(settings) {
-    return this.request('/api/v1/settings', {
+    return this.request(API_CONFIG.ENDPOINTS.SETTINGS, {
       method: 'PUT',
       body: JSON.stringify({ settings }),
     });
