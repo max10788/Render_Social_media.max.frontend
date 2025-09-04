@@ -1,51 +1,55 @@
-// src/config/api.js
-import config from './index';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend.onrender.com';
-
-export const API_CONFIG = {
-  BASE_URL: API_BASE_URL,
-  ENDPOINTS: {
-    // Contract Endpoints
-    CONTRACT_INFO: (address, chain) => `/api/v1/contracts/${address}/info?chain=${chain}`,
-    CONTRACT_INTERACTIONS: (address, chain, timePeriod) => `/api/v1/contracts/${address}/interactions?chain=${chain}&time_period=${timePeriod}`,
-    CONTRACT_SECURITY: (address, chain) => `/api/v1/contracts/${address}/security?chain=${chain}`,
-    CONTRACT_TIME_SERIES: (address, chain, timePeriod, interval) => `/api/v1/contracts/${address}/time-series?chain=${chain}&time_period=${timePeriod}&interval=${interval}`,
-    
-    // Radar Endpoints
-    RADAR_CONTRACT_DATA: (address, chain, timePeriod) => `/api/v1/radar/contract/${address}/data?chain=${chain}&time_period=${timePeriod}`,
-    RADAR_WALLET_DETAILS: (address, chain, contractAddress, timePeriod) => `/api/v1/radar/wallet/${address}/details?chain=${chain}&contract_address=${contractAddress}&time_period=${timePeriod}`,
-    
-    // Legacy Endpoints
-    DATA: `${API_BASE_URL}/api/data`,
-    TRACK_TRANSACTION: `${API_BASE_URL}/track-transaction-chain`,
-    DISCOVER_TOKENS: `${API_BASE_URL}/discover-tokens`,
-    DISCOVER_TRENDING_TOKENS: `${API_BASE_URL}/discover-trending-tokens`,
-    ANALYZE_WALLET: `${API_BASE_URL}/analyze-wallet`,
+// Einfache API-Service ohne komplexe Typen
+class ApiService {
+  constructor() {
+    this.baseUrl = process.env.REACT_APP_API_URL || '/api';
   }
-};
 
-export const ERROR_CODES = {
-  UNAUTHORIZED: 'UNAUTHORIZED',
-  NOT_FOUND: 'NOT_FOUND'
-};
+  async request(endpoint, options = {}) {
+    const url = `${this.baseUrl}${endpoint}`;
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    });
 
-export const BLOCKCHAIN_CONFIG = {
-  SUPPORTED_CHAINS: ['ethereum', 'bsc', 'solana', 'sui'],
-  DEFAULT_CHAIN: 'ethereum'
-};
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
 
-export const TIME_PERIODS = [
-  { id: '1h', label: '1 Stunde', hours: 1 },
-  { id: '24h', label: '24 Stunden', hours: 24 },
-  { id: '7d', label: '7 Tage', hours: 168 },
-  { id: '30d', label: '30 Tage', hours: 720 }
-];
+    return response.json();
+  }
 
-export const INTERVALS = [
-  { id: '1m', label: '1 Minute', minutes: 1 },
-  { id: '5m', label: '5 Minuten', minutes: 5 },
-  { id: '15m', label: '15 Minuten', minutes: 15 },
-  { id: '1h', label: '1 Stunde', minutes: 60 },
-  { id: '4h', label: '4 Stunden', minutes: 240 }
-];
+  async getConfig() {
+    return this.request('/config');
+  }
+
+  async getAnalytics() {
+    return this.request('/analytics');
+  }
+
+  async getAssets() {
+    return this.request('/assets');
+  }
+
+  async getBlockchains() {
+    return this.request('/blockchains');
+  }
+
+  async submitAnalysis(data) {
+    return this.request('/v1/analyze/ml', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async submitFeedback(feedback) {
+    return this.request('/v1/feedback', {
+      method: 'POST',
+      body: JSON.stringify({ feedback }),
+    });
+  }
+}
+
+export const api = new ApiService();
