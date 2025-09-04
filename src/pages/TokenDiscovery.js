@@ -1,10 +1,22 @@
 // src/pages/TokenDiscovery.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { apiService } from '../services/api';
+import { BLOCKCHAIN_CONFIG, TIME_PERIODS } from '../config/api';
+import '../App.css';
+
+// Mock-Daten als Fallback
+const MOCK_TOKENS = [
+  { id: '1', name: 'TokenA', symbol: 'TKNA', chain: 'ethereum', price: 0.5, marketCap: 1000000 },
+  { id: '2', name: 'TokenB', symbol: 'TKNB', chain: 'ethereum', price: 0.2, marketCap: 500000 },
+  { id: '3', name: 'TokenC', symbol: 'TKNC', chain: 'solana', price: 0.1, marketCap: 300000 },
+  { id: '4', name: 'TokenD', symbol: 'TKND', chain: 'sui', price: 0.05, marketCap: 200000 },
+  { id: '5', name: 'TokenE', symbol: 'TKNE', chain: 'ethereum', price: 0.3, marketCap: 800000 }
+];
 
 // API-Konfiguration
 const API_CONFIG = {
-  BASE_URL: process.env.REACT_APP_API_URL || '/api',
+  BASE_URL: process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend.onrender.com',
   ENDPOINTS: {
     TOKENS: '/tokens',
     TOKENS_LOWCAP: '/tokens/lowcap',
@@ -14,7 +26,7 @@ const API_CONFIG = {
 };
 
 // API-Service
-class ApiService {
+class TokenApiService {
   constructor() {
     this.baseUrl = API_CONFIG.BASE_URL;
   }
@@ -71,17 +83,6 @@ class ApiService {
   }
 }
 
-const apiService = new ApiService();
-
-// Mock-Daten als Fallback
-const MOCK_TOKENS = [
-  { id: '1', name: 'TokenA', symbol: 'TKNA', chain: 'ethereum', price: 0.5, marketCap: 1000000 },
-  { id: '2', name: 'TokenB', symbol: 'TKNB', chain: 'ethereum', price: 0.2, marketCap: 500000 },
-  { id: '3', name: 'TokenC', symbol: 'TKNC', chain: 'solana', price: 0.1, marketCap: 300000 },
-  { id: '4', name: 'TokenD', symbol: 'TKND', chain: 'sui', price: 0.05, marketCap: 200000 },
-  { id: '5', name: 'TokenE', symbol: 'TKNE', chain: 'ethereum', price: 0.3, marketCap: 800000 }
-];
-
 const TokenDiscovery = () => {
   const [chain, setChain] = useState('ethereum');
   const [tokens, setTokens] = useState([]);
@@ -95,7 +96,9 @@ const TokenDiscovery = () => {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   
-  const handleDiscover = useCallback(async () => {
+  const tokenApiService = new TokenApiService();
+  
+  const handleDiscover = async () => {
     setLoading(true);
     setError(null);
     
@@ -107,7 +110,7 @@ const TokenDiscovery = () => {
         limit
       };
       
-      const result = await apiService.getTokens(params);
+      const result = await tokenApiService.getTokens(params);
       setTokens(result);
       setUsingMockData(false);
     } catch (err) {
@@ -123,9 +126,9 @@ const TokenDiscovery = () => {
     } finally {
       setLoading(false);
     }
-  }, [chain, maxMarketCap, minScore, limit]);
+  };
   
-  const handleDiscoverLowCap = useCallback(async () => {
+  const handleDiscoverLowCap = async () => {
     setLoading(true);
     setError(null);
     
@@ -135,7 +138,7 @@ const TokenDiscovery = () => {
         limit
       };
       
-      const result = await apiService.getLowCapTokens(params);
+      const result = await tokenApiService.getLowCapTokens(params);
       setTokens(result);
       setUsingMockData(false);
     } catch (err) {
@@ -151,14 +154,14 @@ const TokenDiscovery = () => {
     } finally {
       setLoading(false);
     }
-  }, [chain, limit]);
+  };
   
-  const handleAnalyzeToken = useCallback(async () => {
+  const handleAnalyzeToken = async () => {
     if (!selectedToken) return;
     
     setAnalysisLoading(true);
     try {
-      const result = await apiService.analyzeToken({
+      const result = await tokenApiService.analyzeToken({
         token_address: selectedToken.id,
         chain: selectedToken.chain,
         include_advanced_metrics: true
@@ -181,14 +184,14 @@ const TokenDiscovery = () => {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [selectedToken]);
+  };
   
-  const handleGetTokenPrice = useCallback(async () => {
+  const handleGetTokenPrice = async () => {
     if (!selectedToken) return;
     
     setAnalysisLoading(true);
     try {
-      const result = await apiService.getTokenPrice(selectedToken.id, selectedToken.chain);
+      const result = await tokenApiService.getTokenPrice(selectedToken.id, selectedToken.chain);
       setAnalysisResult(result);
     } catch (err) {
       console.error('Failed to get token price:', err);
@@ -204,7 +207,7 @@ const TokenDiscovery = () => {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [selectedToken]);
+  };
   
   useEffect(() => {
     handleDiscover();
