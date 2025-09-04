@@ -5,21 +5,27 @@ export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
   ENDPOINTS: {
     // Contract Endpoints
-    CONTRACT_INFO: (address, chain) => `/api/v1/contracts/${address}/info?chain=${chain}`,
-    CONTRACT_INTERACTIONS: (address, chain, timePeriod) => `/api/v1/contracts/${address}/interactions?chain=${chain}&time_period=${timePeriod}`,
-    CONTRACT_SECURITY: (address, chain) => `/api/v1/contracts/${address}/security?chain=${chain}`,
-    CONTRACT_TIME_SERIES: (address, chain, timePeriod, interval) => `/api/v1/contracts/${address}/time-series?chain=${chain}&time_period=${timePeriod}&interval=${interval}`,
+    CONTRACT_INFO: (address, chain) => `/contracts/${address}/info?chain=${chain}`,
+    CONTRACT_INTERACTIONS: (address, chain, timePeriod) => `/contracts/${address}/interactions?chain=${chain}&time_period=${timePeriod}`,
+    CONTRACT_SECURITY: (address, chain) => `/contracts/${address}/security?chain=${chain}`,
+    CONTRACT_TIME_SERIES: (address, chain, timePeriod, interval) => `/contracts/${address}/time-series?chain=${chain}&time_period=${timePeriod}&interval=${interval}`,
     
     // Radar Endpoints
-    RADAR_CONTRACT_DATA: (address, chain, timePeriod) => `/api/v1/radar/contract/${address}/data?chain=${chain}&time_period=${timePeriod}`,
-    RADAR_WALLET_DETAILS: (address, chain, contractAddress, timePeriod) => `/api/v1/radar/wallet/${address}/details?chain=${chain}&contract_address=${contractAddress}&time_period=${timePeriod}`,
+    RADAR_CONTRACT_DATA: (address, chain, timePeriod) => `/radar/contract/${address}/data?chain=${chain}&time_period=${timePeriod}`,
+    RADAR_WALLET_DETAILS: (address, chain, contractAddress, timePeriod) => `/radar/wallet/${address}/details?chain=${chain}&contract_address=${contractAddress}&time_period=${timePeriod}`,
     
     // Legacy Endpoints
-    DATA: `/api/data`,
+    DATA: `/data`,
     TRACK_TRANSACTION: `/track-transaction-chain`,
-    DISCOVER_TOKENS: `/discover-tokens`,
-    DISCOVER_TRENDING_TOKENS: `/discover-trending-tokens`,
+    DISCOVER_TOKENS: `/tokens`,
+    DISCOVER_TRENDING_TOKENS: `/tokens/trending`,
     ANALYZE_WALLET: `/analyze-wallet`,
+    CONFIG: `/config`,
+    ANALYTICS: `/analytics`,
+    TOKENS_STATISTICS: `/tokens/statistics`,
+    TOKENS_TRENDING: (limit) => `/tokens/trending?limit=${limit}`,
+    HEALTH: `/health`,
+    SETTINGS: `/settings`,
   }
 };
 
