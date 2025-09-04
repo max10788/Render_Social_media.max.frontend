@@ -15,11 +15,11 @@ export const API_CONFIG = {
     RADAR_WALLET_DETAILS: (address, chain, contractAddress, timePeriod) => `/api/v1/radar/wallet/${address}/details?chain=${chain}&contract_address=${contractAddress}&time_period=${timePeriod}`,
     
     // Legacy Endpoints
-    DATA: `${API_BASE_URL}/api/data`,
-    TRACK_TRANSACTION: `${API_BASE_URL}/track-transaction-chain`,
-    DISCOVER_TOKENS: `${API_BASE_URL}/discover-tokens`,
-    DISCOVER_TRENDING_TOKENS: `${API_BASE_URL}/discover-trending-tokens`,
-    ANALYZE_WALLET: `${API_BASE_URL}/analyze-wallet`,
+    DATA: `/api/data`,
+    TRACK_TRANSACTION: `/track-transaction-chain`,
+    DISCOVER_TOKENS: `/discover-tokens`,
+    DISCOVER_TRENDING_TOKENS: `/discover-trending-tokens`,
+    ANALYZE_WALLET: `/analyze-wallet`,
   }
 };
 
