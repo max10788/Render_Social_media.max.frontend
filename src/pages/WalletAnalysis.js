@@ -1,7 +1,6 @@
 // src/pages/WalletAnalysis.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-
 // API-Konfiguration
 const API_CONFIG = {
   BASE_URL: process.env.REACT_APP_API_URL || '/api',
@@ -10,7 +9,6 @@ const API_CONFIG = {
     TOKEN_ID: '/tokens'
   }
 };
-
 // API-Service
 class ApiService {
   constructor() {
@@ -55,9 +53,7 @@ class ApiService {
     return this.request(`${API_CONFIG.ENDPOINTS.TOKEN_ID}/${tokenId}?include_wallets=true`);
   }
 }
-
 const apiService = new ApiService();
-
 // Mock-Daten als Fallback
 const MOCK_WALLET_ANALYSIS = {
   address: '0x742d35Cc6634C0532925a3b844Bc9e7595f1234',
@@ -90,7 +86,6 @@ const MOCK_WALLET_ANALYSIS = {
     { symbol: 'SOL', amount: 1000.0, value: 100000.00 }
   ]
 };
-
 const WalletAnalysis = () => {
   const [address, setAddress] = useState('');
   const [chain, setChain] = useState('ethereum');
@@ -99,7 +94,7 @@ const WalletAnalysis = () => {
   const [error, setError] = useState(null);
   const [usingMockData, setUsingMockData] = useState(false);
   
-  const handleAnalyze = useCallback(async () => {
+  const handleAnalyze = async () => {
     if (!address) return;
     
     setLoading(true);
@@ -123,7 +118,7 @@ const WalletAnalysis = () => {
     } finally {
       setLoading(false);
     }
-  }, [address, chain]);
+  };
   
   return (
     <div className="page-content">
@@ -537,5 +532,4 @@ const WalletAnalysis = () => {
     </div>
   );
 };
-
-export default React.memo(WalletAnalysis);;
+export default React.memo(WalletAnalysis);
