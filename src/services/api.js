@@ -1,9 +1,9 @@
 // src/services/api.js
 import axios from 'axios';
-import { API_CONFIG, CRYPTO_TRACKER_ENDPOINTS } from '../config/api';
+import { API_CONFIG } from '../config/api';
 
 // API Client Setup
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+const API_URL = API_CONFIG.BASE_URL;
 
 // Request Interceptor for logging
 const requestInterceptor = (config) => {
@@ -96,93 +96,64 @@ class ApiService {
     return response.json();
   }
   
+  // Contract API Methods
+  async getContractInfo(address, chain) {
+    return this.request(API_CONFIG.ENDPOINTS.CONTRACT_INFO(address, chain));
+  }
+  
+  async getContractInteractions(address, chain, timePeriod = '24h') {
+    return this.request(API_CONFIG.ENDPOINTS.CONTRACT_INTERACTIONS(address, chain, timePeriod));
+  }
+  
+  async getContractSecurity(address, chain) {
+    return this.request(API_CONFIG.ENDPOINTS.CONTRACT_SECURITY(address, chain));
+  }
+  
+  async getContractTimeSeries(address, chain, timePeriod = '24h', interval = '1h') {
+    return this.request(API_CONFIG.ENDPOINTS.CONTRACT_TIME_SERIES(address, chain, timePeriod, interval));
+  }
+  
+  // Radar API Methods
+  async getRadarContractData(address, chain, timePeriod = '24h') {
+    return this.request(API_CONFIG.ENDPOINTS.RADAR_CONTRACT_DATA(address, chain, timePeriod));
+  }
+  
+  async getRadarWalletDetails(address, chain, contractAddress, timePeriod = '24h') {
+    return this.request(API_CONFIG.ENDPOINTS.RADAR_WALLET_DETAILS(address, chain, contractAddress, timePeriod));
+  }
+  
+  // Legacy Methods
   async getConfig() {
-    return this.request(API_CONFIG.ENDPOINTS.CONFIG);
+    return this.request('/api/v1/config');
   }
   
   async getAnalytics() {
-    return this.request(API_CONFIG.ENDPOINTS.ANALYTICS);
+    return this.request('/api/v1/analytics');
   }
   
-  async getAssets() {
-    return this.request(API_CONFIG.ENDPOINTS.ASSETS);
+  async getTokensStatistics() {
+    return this.request('/api/v1/tokens/statistics');
   }
   
-  async getBlockchains() {
-    return this.request(API_CONFIG.ENDPOINTS.BLOCKCHAINS);
+  async getTokensTrending(limit = 5) {
+    return this.request(`/api/v1/tokens/trending?limit=${limit}`);
   }
   
-  async submitAnalysis(data) {
-    return this.request(API_CONFIG.ENDPOINTS.ANALYZE_ML, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+  async getHealth() {
+    return this.request('/api/v1/health');
   }
   
-  async submitFeedback(feedback) {
-    return this.request(API_CONFIG.ENDPOINTS.FEEDBACK, {
-      method: 'POST',
-      body: JSON.stringify({ feedback }),
+  async getSettings() {
+    return this.request('/api/v1/settings');
+  }
+  
+  async updateSettings(settings) {
+    return this.request('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ settings }),
     });
   }
 }
-
-// Crypto Tracker API Service (kombiniert mit axios client)
-export const cryptoTrackerApi = {
-  // Transaction Tracking
-  trackTransaction: (
-    startTxHash,
-    targetCurrency,
-    numTransactions = 10
-  ) => {
-    return apiClient.post(CRYPTO_TRACKER_ENDPOINTS.TRACK_TRANSACTION, {
-      start_tx_hash: startTxHash,
-      target_currency: targetCurrency,
-      num_transactions: numTransactions,
-    }).then(response => {
-      // Validate response structure
-      if (!response.data || !Array.isArray(response.data.transactions)) {
-        throw new Error('Invalid response structure - missing transactions array');
-      }
-      return response.data;
-    });
-  },
-  
-  // Token Discovery
-  discoverTokens: (params) => {
-    return apiClient.post(CRYPTO_TRACKER_ENDPOINTS.DISCOVER_TOKENS, params)
-      .then(response => {
-        // Validate response structure
-        if (!Array.isArray(response.data)) {
-          throw new Error('Invalid response structure - expected array');
-        }
-        return response.data;
-      });
-  },
-  
-  discoverTrendingTokens: (params) => {
-    return apiClient.post(CRYPTO_TRACKER_ENDPOINTS.DISCOVER_TRENDING_TOKENS, params)
-      .then(response => {
-        // Validate response structure
-        if (!Array.isArray(response.data)) {
-          throw new Error('Invalid response structure - expected array');
-        }
-        return response.data;
-      });
-  },
-  
-  // Wallet Analysis
-  analyzeWallet: (address) => {
-    return apiClient.get(`${CRYPTO_TRACKER_ENDPOINTS.ANALYZE_WALLET}/${address}`)
-      .then(response => {
-        // Validate response structure
-        if (!response.data || typeof response.data.risk_score !== 'number') {
-          throw new Error('Invalid response structure - missing risk_score');
-        }
-        return response.data;
-      });
-  },
-};
 
 // Exporte
 export const apiService = new ApiService();
