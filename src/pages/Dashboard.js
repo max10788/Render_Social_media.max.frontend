@@ -1,64 +1,10 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/Dashboard.js
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { apiService } from '../services/api';
 import '../App.css';
 
-// API-Konfiguration
-const API_CONFIG = {
-  BASE_URL: process.env.REACT_APP_API_URL || '/api',
-  ENDPOINTS: {
-    CONFIG: '/config',
-    ANALYTICS: '/analytics',
-    TOKENS_STATISTICS: '/tokens/statistics',
-    TOKENS_TRENDING: '/tokens/trending',
-    HEALTH: '/health',
-    SETTINGS: '/settings'
-  }
-};
-
-// API-Service
-class ApiService {
-  constructor() {
-    this.baseUrl = API_CONFIG.BASE_URL;
-  }
-  
-  async request(endpoint, options = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
-    try {
-      const response = await fetch(url, {
-        headers: { 'Content-Type': 'application/json', ...options.headers },
-        ...options,
-      });
-      
-      if (!response.ok) throw new Error(`API Error: ${response.status}`);
-      
-      const contentType = response.headers.get('content-type');
-      if (!contentType?.includes('application/json')) {
-        throw new Error('Unexpected Content-Type');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('API Request failed:', error);
-      throw error;
-    }
-  }
-  
-  async getConfig() { return this.request(API_CONFIG.ENDPOINTS.CONFIG); }
-  async getAnalytics() { return this.request(API_CONFIG.ENDPOINTS.ANALYTICS); }
-  async getTokensStatistics() { return this.request(API_CONFIG.ENDPOINTS.TOKENS_STATISTICS); }
-  async getTokensTrending(limit = 5) { return this.request(`${API_CONFIG.ENDPOINTS.TOKENS_TRENDING}?limit=${limit}`); }
-  async getHealth() { return this.request(API_CONFIG.ENDPOINTS.HEALTH); }
-  async getSettings() { return this.request(API_CONFIG.ENDPOINTS.SETTINGS); }
-  async updateSettings(settings) {
-    return this.request(API_CONFIG.ENDPOINTS.SETTINGS, {
-      method: 'PUT',
-      body: JSON.stringify({ settings }),
-    });
-  }
-}
-
-const apiService = new ApiService();
-
-// Mock-Daten
+// Mock-Daten als Fallback
 const MOCK_DATA = {
   config: { minScore: 0.5, maxAnalysesPerHour: 100, cacheTTL: 300, supportedChains: ['Ethereum', 'Solana', 'Sui'] },
   analytics: { analytics: { totalAnalyses: 1250, successfulAnalyses: 1180, failedAnalyses: 70, averageScore: 0.78 }, status: 'success' },
