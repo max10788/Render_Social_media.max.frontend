@@ -969,3 +969,387 @@ body {
     flex-wrap: wrap;
   }
 }
+
+/* Zusätzliche Stile für Contract Radar */
+
+/* Contract Info Container */
+.contract-info-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 25px;
+  margin-bottom: 30px;
+  backdrop-filter: blur(10px);
+}
+
+.contract-info-container h3 {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+}
+
+.contract-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.contract-info-item {
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 12px;
+  padding: 15px;
+}
+
+.contract-info-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.contract-info-value {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+
+/* Contract Security Container */
+.contract-security-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 25px;
+  margin-bottom: 30px;
+  backdrop-filter: blur(10px);
+}
+
+.contract-security-container h3 {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+}
+
+.security-overview {
+  display: flex;
+  gap: 30px;
+}
+
+.security-score {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.score-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.score-inner {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: var(--dark-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-value {
+  font-family: var(--font-orbitron);
+  font-size: 1.8rem;
+  color: var(--primary-color);
+}
+
+.score-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.security-level {
+  font-family: var(--font-orbitron);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.security-details {
+  flex: 2;
+}
+
+.security-vulnerabilities h4 {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  margin-bottom: 15px;
+}
+
+.vulnerability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vulnerability-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.vulnerability-severity {
+  font-family: var(--font-orbitron);
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.vulnerability-description {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.vulnerability-more {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
+  margin-top: 5px;
+}
+
+/* Chain Selector */
+.chain-selector {
+  display: flex;
+  flex-direction: column;
+}
+
+.chain-select {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: rgba(0, 212, 255, 0.05);
+  color: var(--text-primary);
+  font-family: var(--font-roboto);
+}
+
+/* Interval Selector */
+.interval-selector {
+  display: flex;
+  flex-direction: column;
+}
+
+.interval-select {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: rgba(0, 212, 255, 0.05);
+  color: var(--text-primary);
+  font-family: var(--font-roboto);
+}
+
+/* Contract Interactions */
+.contract-interactions-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 25px;
+  margin-bottom: 30px;
+  backdrop-filter: blur(10px);
+}
+
+.contract-interactions-container h3 {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+}
+
+.interactions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.interaction-card {
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 12px;
+  padding: 15px;
+  transition: all 0.3s ease;
+}
+
+.interaction-card:hover {
+  background: rgba(0, 212, 255, 0.1);
+  transform: translateY(-3px);
+}
+
+.interaction-method {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+}
+
+.interaction-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.interaction-stat {
+  text-align: center;
+}
+
+.interaction-stat .stat-value {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  font-size: 1.2rem;
+}
+
+.interaction-stat .stat-label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.interaction-popularity {
+  margin-top: 10px;
+}
+
+.popularity-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.popularity-bar {
+  height: 8px;
+  background: rgba(0, 212, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+
+.popularity-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+  border-radius: 4px;
+}
+
+.popularity-value {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  text-align: right;
+}
+
+/* Time Series */
+.time-series-container {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 25px;
+  margin-bottom: 30px;
+  backdrop-filter: blur(10px);
+}
+
+.time-series-container h3 {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  font-size: 1.3rem;
+}
+
+.time-series-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.time-series-stat {
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+}
+
+.time-series-stat .stat-value {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  margin-bottom: 5px;
+}
+
+.time-series-stat .stat-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Wallet Scores */
+.wallet-scores {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.wallet-score {
+  flex: 1;
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+}
+
+.score-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+.score-value {
+  font-family: var(--font-orbitron);
+  color: var(--primary-color);
+  font-size: 1.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .security-overview {
+    flex-direction: column;
+  }
+  
+  .interactions-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .time-series-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .contract-input-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .contract-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .time-series-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .wallet-scores {
+    flex-direction: column;
+  }
+}
