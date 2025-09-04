@@ -18,10 +18,10 @@ const MOCK_TOKENS = [
 const API_CONFIG = {
   BASE_URL: process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend.onrender.com',
   ENDPOINTS: {
-    TOKENS: '/tokens',
-    TOKENS_LOWCAP: '/tokens/lowcap',
-    TOKENS_ANALYZE: '/tokens/analyze',
-    TOKEN_ADDRESS_PRICE: '/tokens'
+    TOKENS: '/api/tokens',
+    TOKENS_LOWCAP: '/api/tokens/lowcap',
+    TOKENS_ANALYZE: '/api/tokens/analyze',
+    TOKEN_ADDRESS_PRICE: '/api/tokens'
   }
 };
 
