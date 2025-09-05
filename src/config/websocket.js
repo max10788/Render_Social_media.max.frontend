@@ -1,6 +1,3 @@
 // src/config/websocket.js
-import config from './index';
-
-const WS_URL = config.wsUrl || 'ws://localhost:8000/ws';
-
+const WS_URL = process.env.REACT_APP_WS_URL || 'wss://render-social-media-max-backend.onrender.com/ws';
 export default WS_URL;
