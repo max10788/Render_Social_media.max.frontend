@@ -1,13 +1,15 @@
+// src/index.js
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import { initSocket } from './socket';
 
 // Konfigurationsobjekt für Umgebungsvariablen
 const config = {
-  apiUrl: process.env.REACT_APP_API_URL,
-  wsUrl: process.env.REACT_APP_WS_URL,
-  environment: process.env.REACT_APP_ENVIRONMENT,
+  apiUrl: process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend.onrender.com',
+  wsUrl: process.env.REACT_APP_WS_URL || 'wss://render-social-media-max-backend.onrender.com/ws',
+  environment: process.env.REACT_APP_ENVIRONMENT || 'production',
   ethereumRpcUrl: process.env.REACT_APP_ETHEREUM_RPC_URL,
   solanaRpcUrl: process.env.REACT_APP_SOLANA_RPC_URL,
   suiRpcUrl: process.env.REACT_APP_SUI_RPC_URL,
@@ -30,6 +32,7 @@ if (config.environment === 'development') {
 if (window.ethereum) {
   try {
     // Ethereum-bezogener Code hier
+    console.log('Ethereum provider detected');
   } catch (error) {
     if (error.message && error.message.includes('Cannot redefine property: ethereum')) {
       console.warn('Ethereum property redefinition error ignored');
@@ -42,9 +45,36 @@ if (window.ethereum) {
 // Globale Konfiguration für die gesamte App verfügbar machen
 window.appConfig = config;
 
+// Initialize WebSocket connection
+const socket = initSocket();
+
+// Log socket connection status
+socket.on('connected', () => {
+  console.log('🔌 WebSocket connected successfully');
+});
+
+socket.on('disconnected', () => {
+  console.log('🔌 WebSocket disconnected');
+});
+
+socket.on('error', (error) => {
+  console.error('🔌 WebSocket error:', error);
+});
+
+socket.on('message', (data) => {
+  console.log('🔌 WebSocket message received:', data);
+});
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
+
+// Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  if (socket) {
+    socket.disconnect();
+  }
+});
