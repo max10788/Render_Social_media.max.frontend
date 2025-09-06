@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { apiService } from '../services/api';
 import '../App.css';
+import React from 'react';
+import Radar from './components/Radar';
 
 // Mock-Daten als Fallback
 const MOCK_DATA = {
