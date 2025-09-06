@@ -92,30 +92,39 @@ const Radar3D = ({ data, title }) => {
   );
 };
 
-// Token-Trend-Komponente
+// Token-Trend-Komponente mit Fehlerbehandlung
 const TokenTrendChart = ({ tokens }) => {
+  // Sicherstellen, dass tokens ein Array ist
+  const tokenArray = Array.isArray(tokens) ? tokens : [];
+  
   return (
     <div className="trend-chart-container">
       <h3 className="trend-chart-title">Token Performance Trends</h3>
       <div className="trend-chart">
-        {tokens.map((token, index) => (
-          <div key={index} className="token-trend">
-            <div className="token-info">
-              <div className="token-name">{token.name} ({token.symbol})</div>
-              <div className="token-price">${token.price.toLocaleString()}</div>
+        {tokenArray.length > 0 ? (
+          tokenArray.map((token, index) => (
+            <div key={index} className="token-trend">
+              <div className="token-info">
+                <div className="token-name">{token.name} ({token.symbol})</div>
+                <div className="token-price">${token.price?.toLocaleString() || '0'}</div>
+              </div>
+              <div className="trend-bar">
+                <div 
+                  className="trend-fill" 
+                  style={{ 
+                    width: `${((token.volume || 0) / 3000000000) * 100}%`,
+                    background: `linear-gradient(90deg, ${index % 2 === 0 ? '#00d4ff' : '#ff6b6b'}, ${index % 2 === 0 ? '#0066ff' : '#ff4d4d'})`
+                  }}
+                ></div>
+              </div>
+              <div className="trend-volume">${((token.volume || 0) / 1000000).toFixed(1)}M</div>
             </div>
-            <div className="trend-bar">
-              <div 
-                className="trend-fill" 
-                style={{ 
-                  width: `${(token.volume / 3000000000) * 100}%`,
-                  background: `linear-gradient(90deg, ${index % 2 === 0 ? '#00d4ff' : '#ff6b6b'}, ${index % 2 === 0 ? '#0066ff' : '#ff4d4d'})`
-                }}
-              ></div>
-            </div>
-            <div className="trend-volume">${(token.volume / 1000000).toFixed(1)}M</div>
+          ))
+        ) : (
+          <div className="no-data-message">
+            <p>Keine Token-Daten verfügbar</p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -169,7 +178,7 @@ function Dashboard() {
   const [config, setConfig] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [tokensStatistics, setTokensStatistics] = useState(null);
-  const [trendingTokens, setTrendingTokens] = useState([]);
+  const [trendingTokens, setTrendingTokens] = useState([]); // Initialisiert als leeres Array
   const [systemHealth, setSystemHealth] = useState(null);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -203,7 +212,8 @@ function Dashboard() {
           setConfig(configResponse);
           setAnalytics(analyticsResponse);
           setTokensStatistics(tokensStatisticsResponse);
-          setTrendingTokens(trendingTokensResponse);
+          // Sicherstellen, dass trendingTokens ein Array ist
+          setTrendingTokens(Array.isArray(trendingTokensResponse) ? trendingTokensResponse : []);
           setSystemHealth(healthResponse);
           setSettings(settingsResponse.settings);
           setUsingMockData(false);
