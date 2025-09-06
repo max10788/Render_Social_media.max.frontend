@@ -3,14 +3,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { BLOCKCHAIN_CONFIG, TIME_PERIODS, INTERVALS } from '../config/api';
-import Badge from '../components/ui/badge';
-import Button from '../components/ui/button';
-import Card from '../components/ui/card';
-import Input from '../components/ui/input';
-import Select from '../components/ui/select';
-import Table from '../components/ui/table';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../components/ui/select';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/table';
 import Navigation from '../components/Navigation';
-import Radar from '../components/Radar';
 
 // Mock-Daten für Wallets im Radar (als Fallback)
 const MOCK_WALLETS = [
@@ -75,6 +74,136 @@ const MOCK_WALLETS = [
     labels: ['ICO', 'Investor']
   }
 ];
+
+// Radar-Komponente für die Visualisierung
+const RadarVisualization = ({ 
+  wallets, 
+  connections, 
+  selectedWallet, 
+  loading, 
+  onWalletClick, 
+  getRiskColor, 
+  getRiskIcon 
+}) => {
+  const [radarSize, setRadarSize] = useState({ width: 600, height: 600 });
+  const [radarAngle, setRadarAngle] = useState(0);
+  const radarIntervalRef = useRef(null);
+  
+  // Radar-Größe basierend auf Fenstergröße anpassen
+  useEffect(() => {
+    const updateRadarSize = () => {
+      const width = Math.min(window.innerWidth * 0.8, 800);
+      setRadarSize({ width, height: width });
+    };
+    
+    updateRadarSize();
+    window.addEventListener('resize', updateRadarSize);
+    return () => window.removeEventListener('resize', updateRadarSize);
+  }, []);
+  
+  // Radar-Animation starten/stoppen
+  useEffect(() => {
+    if (loading) {
+      radarIntervalRef.current = setInterval(() => {
+        setRadarAngle(prev => (prev + 2) % 360);
+      }, 50);
+    } else {
+      if (radarIntervalRef.current) {
+        clearInterval(radarIntervalRef.current);
+        radarIntervalRef.current = null;
+      }
+      setRadarAngle(0);
+    }
+    
+    return () => {
+      if (radarIntervalRef.current) {
+        clearInterval(radarIntervalRef.current);
+      }
+    };
+  }, [loading]);
+  
+  return (
+    <div className="flex justify-center">
+      <div className="relative" style={{ width: radarSize.width, height: radarSize.height }}>
+        {/* Radar-Kreise */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div 
+              key={i} 
+              className="absolute rounded-full border border-gray-600" 
+              style={{ 
+                width: `${i * 20}%`, 
+                height: `${i * 20}%` 
+              }}
+            ></div>
+          ))}
+        </div>
+        
+        {/* Radar-Linien */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {[0, 45, 90, 135].map(angle => (
+            <div 
+              key={angle}
+              className="absolute w-1/2 h-px bg-gray-600"
+              style={{ transform: `rotate(${angle}deg)` }}
+            ></div>
+          ))}
+        </div>
+        
+        {/* Radar-Zeiger (während des Ladens) */}
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div 
+              className="absolute w-1/2 h-1 bg-gradient-to-r from-transparent to-blue-500 origin-left"
+              style={{ transform: `rotate(${radarAngle}deg)` }}
+            ></div>
+            <div className="absolute w-4 h-4 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50"></div>
+          </div>
+        )}
+        
+        {/* Verbindungslinien zwischen Wallets */}
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+          {connections.map((conn, index) => {
+            const fromWallet = wallets.find(w => w.address === conn.from);
+            const toWallet = wallets.find(w => w.address === conn.to);
+            
+            if (!fromWallet || !toWallet) return null;
+            
+            return (
+              <line
+                key={index}
+                x1={fromWallet.position.x * 100}
+                y1={fromWallet.position.y * 100}
+                x2={toWallet.position.x * 100}
+                y2={toWallet.position.y * 100}
+                stroke={`rgba(0, 212, 255, ${conn.strength * 0.5})`}
+                strokeWidth={conn.strength * 2}
+                strokeDasharray="5,5"
+              />
+            );
+          })}
+        </svg>
+        
+        {/* Wallet-Punkte */}
+        {wallets.map(wallet => (
+          <div
+            key={wallet.id}
+            className={`absolute transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-125 ${selectedWallet?.id === wallet.id ? 'ring-4 ring-white scale-125' : ''}`}
+            style={{
+              left: `${wallet.position.x * 100}%`,
+              top: `${wallet.position.y * 100}%`,
+              backgroundColor: getRiskColor(wallet.riskLevel),
+              boxShadow: `0 0 15px ${getRiskColor(wallet.riskLevel)}`
+            }}
+            onClick={() => onWalletClick(wallet)}
+          >
+            <div className="text-lg">{getRiskIcon(wallet.riskLevel)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const ContractRadar = () => {
   const [contractAddress, setContractAddress] = useState('');
@@ -372,289 +501,309 @@ const ContractRadar = () => {
         </div>
         
         <Card className="mb-10 bg-gray-800/30 backdrop-blur-lg border border-gray-700">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-400 mb-1">Smart Contract Adresse</label>
-              <Input
-                type="text"
-                value={contractAddress}
-                onChange={(e) => setContractAddress(e.target.value)}
-                placeholder="0x..."
-                className="w-full bg-gray-700/50 border border-gray-600"
-              />
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+              <div className="lg:col-span-2">
+                <label className="block text-sm font-medium text-gray-400 mb-1">Smart Contract Adresse</label>
+                <Input
+                  type="text"
+                  value={contractAddress}
+                  onChange={(e) => setContractAddress(e.target.value)}
+                  placeholder="0x..."
+                  className="w-full bg-gray-700/50 border border-gray-600"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Blockchain</label>
+                <Select value={chain} onValueChange={(value) => setChain(value)}>
+                  <SelectTrigger className="w-full bg-gray-700/50 border border-gray-600">
+                    <SelectValue placeholder="Blockchain auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BLOCKCHAIN_CONFIG.SUPPORTED_CHAINS.map((chainOption) => (
+                      <SelectItem key={chainOption} value={chainOption}>
+                        {chainOption.charAt(0).toUpperCase() + chainOption.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Zeitperiode</label>
+                <Select value={timePeriod} onValueChange={(value) => setTimePeriod(value)}>
+                  <SelectTrigger className="w-full bg-gray-700/50 border border-gray-600">
+                    <SelectValue placeholder="Zeitperiode auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_PERIODS.map(period => (
+                      <SelectItem key={period.id} value={period.id}>
+                        {period.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Intervall</label>
+                <Select value={interval} onValueChange={(value) => setInterval(value)}>
+                  <SelectTrigger className="w-full bg-gray-700/50 border border-gray-600">
+                    <SelectValue placeholder="Intervall auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INTERVALS.map(intervalOption => (
+                      <SelectItem key={intervalOption.id} value={intervalOption.id}>
+                        {intervalOption.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Blockchain</label>
-              <Select
-                value={chain}
-                onChange={(e) => setChain(e.target.value)}
-                className="w-full bg-gray-700/50 border border-gray-600"
+            <div className="flex justify-center">
+              <Button
+                onClick={handleAnalyzeContract}
+                disabled={!contractAddress || loading}
+                className={`px-8 py-3 ${!contractAddress || loading ? 'bg-gray-700 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500'}`}
               >
-                {BLOCKCHAIN_CONFIG.SUPPORTED_CHAINS.map((chain) => (
-                  <option key={chain} value={chain}>
-                    {chain.charAt(0).toUpperCase() + chain.slice(1)}
-                  </option>
-                ))}
-              </Select>
+                {loading ? 'Analysiere...' : 'Radar starten'}
+              </Button>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Zeitperiode</label>
-              <Select
-                value={timePeriod}
-                onChange={(e) => setTimePeriod(e.target.value)}
-                className="w-full bg-gray-700/50 border border-gray-600"
-              >
-                {TIME_PERIODS.map(period => (
-                  <option key={period.id} value={period.id}>
-                    {period.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Intervall</label>
-              <Select
-                value={interval}
-                onChange={(e) => setInterval(e.target.value)}
-                className="w-full bg-gray-700/50 border border-gray-600"
-              >
-                {INTERVALS.map(interval => (
-                  <option key={interval.id} value={interval.id}>
-                    {interval.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
-          
-          <div className="flex justify-center">
-            <Button
-              onClick={handleAnalyzeContract}
-              disabled={!contractAddress || loading}
-              className={`px-8 py-3 ${!contractAddress || loading ? 'bg-gray-700 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500'}`}
-            >
-              {loading ? 'Analysiere...' : 'Radar starten'}
-            </Button>
-          </div>
+          </CardContent>
         </Card>
         
         {/* Contract-Informationen */}
         {contractInfo && (
           <Card className="mb-10 bg-gray-800/30 backdrop-blur-lg border border-gray-700">
-            <h3 className="text-2xl font-bold mb-4 text-blue-400">Contract-Informationen</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="bg-gray-700/50 p-4 rounded-xl">
-                <div className="text-gray-400 text-sm">Name</div>
-                <div className="text-lg font-semibold">{contractInfo.name || 'Unbekannt'}</div>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-blue-400">Contract-Informationen</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="bg-gray-700/50 p-4 rounded-xl">
+                  <div className="text-gray-400 text-sm">Name</div>
+                  <div className="text-lg font-semibold">{contractInfo.name || 'Unbekannt'}</div>
+                </div>
+                <div className="bg-gray-700/50 p-4 rounded-xl">
+                  <div className="text-gray-400 text-sm">Symbol</div>
+                  <div className="text-lg font-semibold">{contractInfo.symbol || 'N/A'}</div>
+                </div>
+                <div className="bg-gray-700/50 p-4 rounded-xl">
+                  <div className="text-gray-400 text-sm">Blockchain</div>
+                  <div className="text-lg font-semibold">{chain}</div>
+                </div>
+                <div className="bg-gray-700/50 p-4 rounded-xl">
+                  <div className="text-gray-400 text-sm">Verifiziert</div>
+                  <div className="text-lg font-semibold">{contractInfo.verification_status ? '✅ Ja' : '❌ Nein'}</div>
+                </div>
+                <div className="bg-gray-700/50 p-4 rounded-xl">
+                  <div className="text-gray-400 text-sm">Transaktionen</div>
+                  <div className="text-lg font-semibold">{contractInfo.total_transactions}</div>
+                </div>
+                <div className="bg-gray-700/50 p-4 rounded-xl">
+                  <div className="text-gray-400 text-sm">Eindeutige Nutzer</div>
+                  <div className="text-lg font-semibold">{contractInfo.unique_users}</div>
+                </div>
               </div>
-              <div className="bg-gray-700/50 p-4 rounded-xl">
-                <div className="text-gray-400 text-sm">Symbol</div>
-                <div className="text-lg font-semibold">{contractInfo.symbol || 'N/A'}</div>
-              </div>
-              <div className="bg-gray-700/50 p-4 rounded-xl">
-                <div className="text-gray-400 text-sm">Blockchain</div>
-                <div className="text-lg font-semibold">{chain}</div>
-              </div>
-              <div className="bg-gray-700/50 p-4 rounded-xl">
-                <div className="text-gray-400 text-sm">Verifiziert</div>
-                <div className="text-lg font-semibold">{contractInfo.verification_status ? '✅ Ja' : '❌ Nein'}</div>
-              </div>
-              <div className="bg-gray-700/50 p-4 rounded-xl">
-                <div className="text-gray-400 text-sm">Transaktionen</div>
-                <div className="text-lg font-semibold">{contractInfo.total_transactions}</div>
-              </div>
-              <div className="bg-gray-700/50 p-4 rounded-xl">
-                <div className="text-gray-400 text-sm">Eindeutige Nutzer</div>
-                <div className="text-lg font-semibold">{contractInfo.unique_users}</div>
-              </div>
-            </div>
+            </CardContent>
           </Card>
         )}
         
         {/* Sicherheitsbewertung */}
         {contractSecurity && (
           <Card className="mb-10 bg-gray-800/30 backdrop-blur-lg border border-gray-700">
-            <h3 className="text-2xl font-bold mb-4 text-blue-400">Sicherheitsbewertung</h3>
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="flex flex-col items-center">
-                <div className="relative w-40 h-40">
-                  <div className="score-circle absolute inset-0 rounded-full" style={{ 
-                    background: `conic-gradient(${getSecurityLevelColor(contractSecurity.security_level)} 0% ${contractSecurity.overall_score * 100}%, #333 ${contractSecurity.overall_score * 100}% 100%)` 
-                  }}></div>
-                  <div className="absolute inset-4 bg-gray-800 rounded-full flex flex-col items-center justify-center">
-                    <div className="text-3xl font-bold">{Math.round(contractSecurity.overall_score)}</div>
-                    <div className="text-xs text-gray-400">Score</div>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-blue-400">Sicherheitsbewertung</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="flex flex-col items-center">
+                  <div className="relative w-40 h-40">
+                    <div className="score-circle absolute inset-0 rounded-full" style={{ 
+                      background: `conic-gradient(${getSecurityLevelColor(contractSecurity.security_level)} 0% ${contractSecurity.overall_score * 100}%, #333 ${contractSecurity.overall_score * 100}% 100%)` 
+                    }}></div>
+                    <div className="absolute inset-4 bg-gray-800 rounded-full flex flex-col items-center justify-center">
+                      <div className="text-3xl font-bold">{Math.round(contractSecurity.overall_score)}</div>
+                      <div className="text-xs text-gray-400">Score</div>
+                    </div>
                   </div>
-                </div>
-                <Badge className={`mt-2 ${contractSecurity.security_level === 'secure' ? 'bg-blue-900/50 text-blue-300' : 
+                  <Badge className={`mt-2 ${contractSecurity.security_level === 'secure' ? 'bg-blue-900/50 text-blue-300' : 
                                   contractSecurity.security_level === 'moderate' ? 'bg-yellow-900/50 text-yellow-300' :
                                   contractSecurity.security_level === 'risky' ? 'bg-orange-900/50 text-orange-300' : 'bg-red-900/50 text-red-300'}`}>
-                  {contractSecurity.security_level.toUpperCase()}
-                </Badge>
-              </div>
-              
-              <div className="flex-1">
-                <h4 className="text-lg font-semibold mb-3">Schwachstellen ({contractSecurity.vulnerabilities.length})</h4>
-                <div className="space-y-3">
-                  {contractSecurity.vulnerabilities.slice(0, 3).map((vuln, index) => (
-                    <div key={index} className="bg-gray-700/50 p-3 rounded-lg">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge className={`${
-                          vuln.severity === 'critical' ? 'bg-red-900/50 text-red-300' : 
-                          vuln.severity === 'high' ? 'bg-red-800/50 text-red-300' : 
-                          vuln.severity === 'medium' ? 'bg-yellow-800/50 text-yellow-300' : 'bg-blue-800/50 text-blue-300'
-                        }`}>
-                          {vuln.severity}
-                        </Badge>
+                    {contractSecurity.security_level.toUpperCase()}
+                  </Badge>
+                </div>
+                
+                <div className="flex-1">
+                  <h4 className="text-lg font-semibold mb-3">Schwachstellen ({contractSecurity.vulnerabilities.length})</h4>
+                  <div className="space-y-3">
+                    {contractSecurity.vulnerabilities.slice(0, 3).map((vuln, index) => (
+                      <div key={index} className="bg-gray-700/50 p-3 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge className={`${
+                            vuln.severity === 'critical' ? 'bg-red-900/50 text-red-300' : 
+                            vuln.severity === 'high' ? 'bg-red-800/50 text-red-300' : 
+                            vuln.severity === 'medium' ? 'bg-yellow-800/50 text-yellow-300' : 'bg-blue-800/50 text-blue-300'
+                          }`}>
+                            {vuln.severity}
+                          </Badge>
+                        </div>
+                        <div className="text-sm">{vuln.description || 'Keine Beschreibung'}</div>
                       </div>
-                      <div className="text-sm">{vuln.description || 'Keine Beschreibung'}</div>
-                    </div>
-                  ))}
-                  {contractSecurity.vulnerabilities.length > 3 && (
-                    <div className="text-center text-gray-400 text-sm">
-                      +{contractSecurity.vulnerabilities.length - 3} weitere Schwachstellen
-                    </div>
-                  )}
+                    ))}
+                    {contractSecurity.vulnerabilities.length > 3 && (
+                      <div className="text-center text-gray-400 text-sm">
+                        +{contractSecurity.vulnerabilities.length - 3} weitere Schwachstellen
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            </CardContent>
           </Card>
         )}
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
           <div className="lg:col-span-2">
             <Card className="bg-gray-800/30 backdrop-blur-lg border border-gray-700">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-2xl font-bold text-blue-400">Wallet-Radar</h3>
-                {loading && (
-                  <div className="text-sm text-gray-400">
-                    Scanne Wallets... {loadingProgress}%
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-2xl font-bold text-blue-400">Wallet-Radar</CardTitle>
+                  {loading && (
+                    <div className="text-sm text-gray-400">
+                      Scanne Wallets... {loadingProgress}%
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <RadarVisualization 
+                  wallets={displayedWallets}
+                  connections={connections}
+                  selectedWallet={selectedWallet}
+                  loading={loading}
+                  onWalletClick={handleWalletClick}
+                  getRiskColor={getRiskColor}
+                  getRiskIcon={getRiskIcon}
+                />
+                
+                <div className="flex justify-center mt-6 gap-6">
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
+                    <span>Hohes Risiko</span>
                   </div>
-                )}
-              </div>
-              
-              <Radar 
-                wallets={displayedWallets}
-                connections={connections}
-                selectedWallet={selectedWallet}
-                loading={loading}
-                onWalletClick={handleWalletClick}
-                getRiskColor={getRiskColor}
-                getRiskIcon={getRiskIcon}
-              />
-              
-              <div className="flex justify-center mt-6 gap-6">
-                <div className="flex items-center">
-                  <div className="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
-                  <span>Hohes Risiko</span>
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-yellow-500 mr-2"></div>
+                    <span>Mittleres Risiko</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full bg-blue-400 mr-2"></div>
+                    <span>Niedriges Risiko</span>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 rounded-full bg-yellow-500 mr-2"></div>
-                  <span>Mittleres Risiko</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 rounded-full bg-blue-400 mr-2"></div>
-                  <span>Niedriges Risiko</span>
-                </div>
-              </div>
+              </CardContent>
             </Card>
           </div>
           
           <div>
             <Card className="bg-gray-800/30 backdrop-blur-lg border border-gray-700">
-              <h3 className="text-2xl font-bold mb-4 text-blue-400">Wallet-Details</h3>
-              {selectedWallet ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start">
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold text-blue-400">Wallet-Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedWallet ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="text-xl font-bold">{selectedWallet.name}</div>
+                        <div className="text-sm" style={{ color: getRiskColor(selectedWallet.riskLevel) }}>
+                          {getRiskIcon(selectedWallet.riskLevel)} {selectedWallet.riskLevel.toUpperCase()} RISIKO
+                        </div>
+                      </div>
+                    </div>
+                    
                     <div>
-                      <div className="text-xl font-bold">{selectedWallet.name}</div>
-                      <div className="text-sm" style={{ color: getRiskColor(selectedWallet.riskLevel) }}>
-                        {getRiskIcon(selectedWallet.riskLevel)} {selectedWallet.riskLevel.toUpperCase()} RISIKO
+                      <div className="text-gray-400 text-sm mb-1">Adresse</div>
+                      <div className="text-sm bg-gray-700/50 p-2 rounded-lg break-all">
+                        {selectedWallet.address}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-gray-700/50 p-3 rounded-lg text-center">
+                        <div className="text-lg font-bold">{selectedWallet.transactionCount}</div>
+                        <div className="text-xs text-gray-400">Transaktionen</div>
+                      </div>
+                      <div className="bg-gray-700/50 p-3 rounded-lg text-center">
+                        <div className="text-lg font-bold">${(selectedWallet.totalValue / 1000000).toFixed(2)}M</div>
+                        <div className="text-xs text-gray-400">Gesamtwert</div>
+                      </div>
+                      <div className="bg-gray-700/50 p-3 rounded-lg text-center">
+                        <div className="text-lg font-bold">{new Date(selectedWallet.lastActivity).toLocaleDateString()}</div>
+                        <div className="text-xs text-gray-400">Letzte Aktivität</div>
+                      </div>
+                    </div>
+                    
+                    {selectedWallet.activityScore !== undefined && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-gray-700/50 p-3 rounded-lg">
+                          <div className="text-gray-400 text-sm mb-1">Aktivitäts-Score</div>
+                          <div className="text-lg font-bold">{(selectedWallet.activityScore * 100).toFixed(0)}%</div>
+                        </div>
+                        <div className="bg-gray-700/50 p-3 rounded-lg">
+                          <div className="text-gray-400 text-sm mb-1">Risiko-Score</div>
+                          <div className="text-lg font-bold">{(selectedWallet.riskScore * 100).toFixed(0)}%</div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <div className="text-gray-400 text-sm mb-2">Labels</div>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedWallet.labels.map((label, index) => (
+                          <Badge key={index} className="bg-blue-900/50 text-blue-300">
+                            {label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="text-gray-400 text-sm mb-2">Verbunden mit</div>
+                      <div className="space-y-2">
+                        {selectedWallet.connections.map(connId => {
+                          const wallet = displayedWallets.find(w => w.address === connId);
+                          return wallet ? (
+                            <div 
+                              key={connId} 
+                              className="flex justify-between items-center bg-gray-700/50 p-2 rounded-lg cursor-pointer hover:bg-gray-700"
+                              onClick={() => handleWalletClick(wallet)}
+                            >
+                              <div className="font-medium">{wallet.name}</div>
+                              <Badge className={`${
+                                wallet.riskLevel === 'high' ? 'bg-red-900/50 text-red-300' : 
+                                wallet.riskLevel === 'medium' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-blue-900/50 text-blue-300'
+                              }`}>
+                                {wallet.riskLevel}
+                              </Badge>
+                            </div>
+                          ) : null;
+                        })}
                       </div>
                     </div>
                   </div>
-                  
-                  <div>
-                    <div className="text-gray-400 text-sm mb-1">Adresse</div>
-                    <div className="text-sm bg-gray-700/50 p-2 rounded-lg break-all">
-                      {selectedWallet.address}
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                    <div className="text-4xl mb-2">🔍</div>
+                    <div className="text-center">
+                      Wählen Sie eine Wallet im Radar aus, um Details anzuzeigen
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-gray-700/50 p-3 rounded-lg text-center">
-                      <div className="text-lg font-bold">{selectedWallet.transactionCount}</div>
-                      <div className="text-xs text-gray-400">Transaktionen</div>
-                    </div>
-                    <div className="bg-gray-700/50 p-3 rounded-lg text-center">
-                      <div className="text-lg font-bold">${(selectedWallet.totalValue / 1000000).toFixed(2)}M</div>
-                      <div className="text-xs text-gray-400">Gesamtwert</div>
-                    </div>
-                    <div className="bg-gray-700/50 p-3 rounded-lg text-center">
-                      <div className="text-lg font-bold">{new Date(selectedWallet.lastActivity).toLocaleDateString()}</div>
-                      <div className="text-xs text-gray-400">Letzte Aktivität</div>
-                    </div>
-                  </div>
-                  
-                  {selectedWallet.activityScore !== undefined && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-gray-700/50 p-3 rounded-lg">
-                        <div className="text-gray-400 text-sm mb-1">Aktivitäts-Score</div>
-                        <div className="text-lg font-bold">{(selectedWallet.activityScore * 100).toFixed(0)}%</div>
-                      </div>
-                      <div className="bg-gray-700/50 p-3 rounded-lg">
-                        <div className="text-gray-400 text-sm mb-1">Risiko-Score</div>
-                        <div className="text-lg font-bold">{(selectedWallet.riskScore * 100).toFixed(0)}%</div>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div>
-                    <div className="text-gray-400 text-sm mb-2">Labels</div>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedWallet.labels.map((label, index) => (
-                        <Badge key={index} className="bg-blue-900/50 text-blue-300">
-                          {label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <div className="text-gray-400 text-sm mb-2">Verbunden mit</div>
-                    <div className="space-y-2">
-                      {selectedWallet.connections.map(connId => {
-                        const wallet = displayedWallets.find(w => w.address === connId);
-                        return wallet ? (
-                          <div 
-                            key={connId} 
-                            className="flex justify-between items-center bg-gray-700/50 p-2 rounded-lg cursor-pointer hover:bg-gray-700"
-                            onClick={() => handleWalletClick(wallet)}
-                          >
-                            <div className="font-medium">{wallet.name}</div>
-                            <Badge className={`${
-                              wallet.riskLevel === 'high' ? 'bg-red-900/50 text-red-300' : 
-                              wallet.riskLevel === 'medium' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-blue-900/50 text-blue-300'
-                            }`}>
-                              {wallet.riskLevel}
-                            </Badge>
-                          </div>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                  <div className="text-4xl mb-2">🔍</div>
-                  <div className="text-center">
-                    Wählen Sie eine Wallet im Radar aus, um Details anzuzeigen
-                  </div>
-                </div>
-              )}
+                )}
+              </CardContent>
             </Card>
           </div>
         </div>
@@ -662,48 +811,77 @@ const ContractRadar = () => {
         {/* Contract-Interaktionen */}
         {contractInteractions.length > 0 && (
           <Card className="mb-10 bg-gray-800/30 backdrop-blur-lg border border-gray-700">
-            <h3 className="text-2xl font-bold mb-4 text-blue-400">Contract-Interaktionen</h3>
-            <Table 
-              columns={interactionColumns}
-              data={contractInteractions.slice(0, 6)}
-              className="w-full"
-            />
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-blue-400">Contract-Interaktionen</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {interactionColumns.map((column, index) => (
+                      <TableHead key={index}>{column.header}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {contractInteractions.slice(0, 6).map((interaction, index) => (
+                    <TableRow key={index}>
+                      {interactionColumns.map((column, colIndex) => (
+                        <TableCell key={colIndex}>
+                          {typeof column.accessor === 'function' 
+                            ? column.accessor(interaction) 
+                            : interaction[column.accessor]}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
           </Card>
         )}
         
         {/* Zeitreihen-Daten */}
         {timeSeriesData && (
           <Card className="mb-10 bg-gray-800/30 backdrop-blur-lg border border-gray-700">
-            <h3 className="text-2xl font-bold mb-4 text-blue-400">Aktivitätsverlauf</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gray-700/50 p-4 rounded-xl text-center">
-                <div className="text-2xl font-bold">{timeSeriesData.total_transactions}</div>
-                <div className="text-gray-400">Gesamttransaktionen</div>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-blue-400">Aktivitätsverlauf</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gray-700/50 p-4 rounded-xl text-center">
+                  <div className="text-2xl font-bold">{timeSeriesData.total_transactions}</div>
+                  <div className="text-gray-400">Gesamttransaktionen</div>
+                </div>
+                <div className="bg-gray-700/50 p-4 rounded-xl text-center">
+                  <div className="text-2xl font-bold">{timeSeriesData.unique_wallets}</div>
+                  <div className="text-gray-400">Eindeutige Wallets</div>
+                </div>
+                <div className="bg-gray-700/50 p-4 rounded-xl text-center">
+                  <div className="text-2xl font-bold">${(timeSeriesData.volume_transferred / 1000000).toFixed(2)}M</div>
+                  <div className="text-gray-400">Transferiertes Volumen</div>
+                </div>
+                <div className="bg-gray-700/50 p-4 rounded-xl text-center">
+                  <div className="text-2xl font-bold">{timeSeriesData.trend_direction}</div>
+                  <div className="text-gray-400">Trend</div>
+                </div>
               </div>
-              <div className="bg-gray-700/50 p-4 rounded-xl text-center">
-                <div className="text-2xl font-bold">{timeSeriesData.unique_wallets}</div>
-                <div className="text-gray-400">Eindeutige Wallets</div>
-              </div>
-              <div className="bg-gray-700/50 p-4 rounded-xl text-center">
-                <div className="text-2xl font-bold">${(timeSeriesData.volume_transferred / 1000000).toFixed(2)}M</div>
-                <div className="text-gray-400">Transferiertes Volumen</div>
-              </div>
-              <div className="bg-gray-700/50 p-4 rounded-xl text-center">
-                <div className="text-2xl font-bold">{timeSeriesData.trend_direction}</div>
-                <div className="text-gray-400">Trend</div>
-              </div>
-            </div>
+            </CardContent>
           </Card>
         )}
         
         <Card className="mb-10 bg-gray-800/30 backdrop-blur-lg border border-gray-700">
-          <h3 className="text-2xl font-bold mb-4 text-blue-400">Wie funktioniert der Smart Contract Radar?</h3>
-          <p className="text-gray-300">
-            Der Smart Contract Radar visualisiert Wallet-Interaktionen und Transaktionsmuster um einen Smart Contract. 
-            Jeder Punkt repräsentiert eine Wallet, die mit dem Contract interagiert hat. Die Position im Radar zeigt 
-            die Aktivitätsdichte an, während die Farbe das Risikolevel der Wallet angibt. Linien zwischen Wallets zeigen 
-            Transaktionsbeziehungen an.
-          </p>
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-blue-400">Wie funktioniert der Smart Contract Radar?</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-300">
+              Der Smart Contract Radar visualisiert Wallet-Interaktionen und Transaktionsmuster um einen Smart Contract. 
+              Jeder Punkt repräsentiert eine Wallet, die mit dem Contract interagiert hat. Die Position im Radar zeigt 
+              die Aktivitätsdichte an, während die Farbe das Risikolevel der Wallet angibt. Linien zwischen Wallets zeigen 
+              Transaktionsbeziehungen an.
+            </p>
+          </CardContent>
         </Card>
         
         <div>
