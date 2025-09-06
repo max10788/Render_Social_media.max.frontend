@@ -73,6 +73,58 @@ const MOCK_WALLETS = [
   }
 ];
 
+// Mock-Daten für Contract-Informationen
+const MOCK_CONTRACT_INFO = {
+  name: 'Example Token',
+  symbol: 'EXT',
+  verification_status: true,
+  total_transactions: 15420,
+  unique_users: 3421
+};
+
+// Mock-Daten für Sicherheitsbewertung
+const MOCK_SECURITY = {
+  overall_score: 0.75,
+  security_level: 'moderate',
+  vulnerabilities: [
+    { severity: 'medium', description: 'Potential reentrancy vulnerability' },
+    { severity: 'low', description: 'Unused state variables' }
+  ]
+};
+
+// Mock-Daten für Interaktionen
+const MOCK_INTERACTIONS = [
+  {
+    method_name: 'transfer',
+    call_count: 5420,
+    unique_callers: 1203,
+    average_gas_used: 45000,
+    popularity_score: 0.85
+  },
+  {
+    method_name: 'approve',
+    call_count: 3210,
+    unique_callers: 987,
+    average_gas_used: 38000,
+    popularity_score: 0.65
+  },
+  {
+    method_name: 'balanceOf',
+    call_count: 2150,
+    unique_callers: 543,
+    average_gas_used: 2500,
+    popularity_score: 0.45
+  }
+];
+
+// Mock-Daten für Zeitreihen
+const MOCK_TIME_SERIES = {
+  total_transactions: 15420,
+  unique_wallets: 3421,
+  volume_transferred: 2850000,
+  trend_direction: '📈 Aufwärts'
+};
+
 // Radar-Komponente für die Visualisierung
 const RadarVisualization = ({ 
   wallets, 
@@ -220,21 +272,47 @@ const ContractRadar = () => {
   const [timeSeriesData, setTimeSeriesData] = useState(null);
   const [displayedWallets, setDisplayedWallets] = useState([]);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
   
   const walletDisplayIntervalRef = useRef(null);
+  
+  // Hilfsfunktion für API-Aufrufe mit Retry-Logik
+  const fetchWithRetry = async (fetchFunction, maxRetries = 3) => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const result = await fetchFunction();
+        return result;
+      } catch (err) {
+        if (i === maxRetries - 1) {
+          throw err;
+        }
+        // Warte vor dem nächsten Versuch
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      }
+    }
+  };
   
   // Contract-Informationen laden
   const loadContractInfo = useCallback(async () => {
     if (!contractAddress) return;
     
     try {
-      const data = await apiService.getContractInfo(contractAddress, chain);
+      const data = await fetchWithRetry(() => 
+        apiService.getContractInfo(contractAddress, chain)
+      );
       setContractInfo(data);
       setUsingMockData(false);
+      setRetryCount(0);
     } catch (err) {
       console.error('Failed to load contract info:', err);
-      setError(err.message);
+      if (err.message.includes('503') || err.message.includes('Service Unavailable')) {
+        setError('Backend-Dienst nicht verfügbar. Verwende Demo-Daten.');
+      } else {
+        setError(err.message);
+      }
       setUsingMockData(true);
+      // Fallback zu Mock-Daten
+      setContractInfo(MOCK_CONTRACT_INFO);
     }
   }, [contractAddress, chain]);
   
@@ -243,13 +321,16 @@ const ContractRadar = () => {
     if (!contractAddress) return;
     
     try {
-      const data = await apiService.getContractInteractions(contractAddress, chain, timePeriod);
+      const data = await fetchWithRetry(() => 
+        apiService.getContractInteractions(contractAddress, chain, timePeriod)
+      );
       setContractInteractions(data);
       setUsingMockData(false);
     } catch (err) {
       console.error('Failed to load contract interactions:', err);
-      setError(err.message);
       setUsingMockData(true);
+      // Fallback zu Mock-Daten
+      setContractInteractions(MOCK_INTERACTIONS);
     }
   }, [contractAddress, chain, timePeriod]);
   
@@ -258,13 +339,16 @@ const ContractRadar = () => {
     if (!contractAddress) return;
     
     try {
-      const data = await apiService.getContractSecurity(contractAddress, chain);
+      const data = await fetchWithRetry(() => 
+        apiService.getContractSecurity(contractAddress, chain)
+      );
       setContractSecurity(data);
       setUsingMockData(false);
     } catch (err) {
       console.error('Failed to load contract security:', err);
-      setError(err.message);
       setUsingMockData(true);
+      // Fallback zu Mock-Daten
+      setContractSecurity(MOCK_SECURITY);
     }
   }, [contractAddress, chain]);
   
@@ -273,13 +357,16 @@ const ContractRadar = () => {
     if (!contractAddress) return;
     
     try {
-      const data = await apiService.getTimeSeriesData(contractAddress, chain, timePeriod, interval);
+      const data = await fetchWithRetry(() => 
+        apiService.getTimeSeriesData(contractAddress, chain, timePeriod, interval)
+      );
       setTimeSeriesData(data);
       setUsingMockData(false);
     } catch (err) {
       console.error('Failed to load time series data:', err);
-      setError(err.message);
       setUsingMockData(true);
+      // Fallback zu Mock-Daten
+      setTimeSeriesData(MOCK_TIME_SERIES);
     }
   }, [contractAddress, chain, timePeriod, interval]);
   
@@ -293,7 +380,9 @@ const ContractRadar = () => {
     setLoadingProgress(0);
     
     try {
-      const data = await apiService.getRadarContractData(contractAddress, chain, timePeriod);
+      const data = await fetchWithRetry(() => 
+        apiService.getRadarContractData(contractAddress, chain, timePeriod)
+      );
       
       // Wallet-Positionen extrahieren
       const walletPositions = data.wallet_positions.map(wallet => ({
@@ -353,7 +442,11 @@ const ContractRadar = () => {
       
     } catch (err) {
       console.error('Failed to load radar data:', err);
-      setError(err.message);
+      if (err.message.includes('503') || err.message.includes('Service Unavailable')) {
+        setError('Backend-Dienst nicht verfügbar. Verwende Demo-Daten.');
+      } else {
+        setError(err.message);
+      }
       
       // Fallback auf Mock-Daten
       setWallets(MOCK_WALLETS);
@@ -384,15 +477,21 @@ const ContractRadar = () => {
     if (!contractAddress || !walletAddress) return;
     
     try {
-      const data = await apiService.getRadarWalletDetails(walletAddress, chain, contractAddress, timePeriod);
+      const data = await fetchWithRetry(() => 
+        apiService.getRadarWalletDetails(walletAddress, chain, contractAddress, timePeriod)
+      );
       setSelectedWallet(data);
       setUsingMockData(false);
     } catch (err) {
       console.error('Failed to load wallet details:', err);
-      setError(err.message);
       setUsingMockData(true);
+      // Fallback: Verwende die Wallet-Daten aus der Liste
+      const wallet = displayedWallets.find(w => w.address === walletAddress);
+      if (wallet) {
+        setSelectedWallet(wallet);
+      }
     }
-  }, [contractAddress, chain, timePeriod]);
+  }, [contractAddress, chain, timePeriod, displayedWallets]);
   
   // Alle Daten laden, wenn sich der Contract oder die Zeitperiode ändert
   useEffect(() => {
@@ -418,6 +517,7 @@ const ContractRadar = () => {
   
   const handleAnalyzeContract = () => {
     if (!contractAddress) return;
+    setRetryCount(0);
     loadRadarData();
   };
   
@@ -483,6 +583,9 @@ const ContractRadar = () => {
         </p>
         {error && (
           <p className="text-red-400 mt-2">Fehler: {error}</p>
+        )}
+        {retryCount > 0 && (
+          <p className="text-yellow-400 mt-2">Versuch {retryCount} von 3...</p>
         )}
       </div>
       
@@ -554,7 +657,7 @@ const ContractRadar = () => {
           </div>
         </div>
         
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-4">
           <Button
             onClick={handleAnalyzeContract}
             disabled={!contractAddress || loading}
@@ -562,8 +665,23 @@ const ContractRadar = () => {
           >
             {loading ? 'Analysiere...' : 'Radar starten'}
           </Button>
+          
+          {usingMockData && (
+            <Button
+              onClick={() => {
+                setRetryCount(prev => prev + 1);
+                loadRadarData();
+              }}
+              disabled={loading}
+              className="px-8 py-3 rounded-lg font-semibold bg-yellow-600 hover:bg-yellow-500"
+            >
+              Erneut versuchen
+            </Button>
+          )}
         </div>
       </div>
+      
+      {/* Rest des Codes bleibt gleich... */}
       
       {/* Contract-Informationen */}
       {contractInfo && (
