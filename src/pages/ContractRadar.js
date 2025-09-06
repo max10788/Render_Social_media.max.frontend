@@ -83,6 +83,19 @@ const ContractRadar = () => {
   const [contractInteractions, setContractInteractions] = useState([]);
   const [contractSecurity, setContractSecurity] = useState(null);
   const [timeSeriesData, setTimeSeriesData] = useState(null);
+  const [radarSize, setRadarSize] = useState({ width: 600, height: 600 });
+  
+  // Radar-Größe basierend auf Fenstergröße anpassen
+  useEffect(() => {
+    const updateRadarSize = () => {
+      const width = Math.min(window.innerWidth * 0.8, 800);
+      setRadarSize({ width, height: width });
+    };
+    
+    updateRadarSize();
+    window.addEventListener('resize', updateRadarSize);
+    return () => window.removeEventListener('resize', updateRadarSize);
+  }, []);
   
   // Contract-Informationen laden
   const loadContractInfo = useCallback(async () => {
@@ -272,119 +285,125 @@ const ContractRadar = () => {
   };
   
   return (
-    <div className="page-content">
-      <div className={`status-banner ${usingMockData ? 'warning' : 'success'}`}>
-        <p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white p-4 md:p-8">
+      <div className={`max-w-7xl mx-auto mb-6 p-4 rounded-lg ${usingMockData ? 'bg-yellow-900/30 border border-yellow-700' : 'bg-green-900/30 border border-green-700'}`}>
+        <p className="flex items-center">
           {usingMockData 
-            ? '⚠️ Verwende Demo-Daten (Backend nicht erreichbar)' 
-            : '✅ Verbunden mit Backend'}
+            ? <><span className="mr-2">⚠️</span> Verwende Demo-Daten (Backend nicht erreichbar)</> 
+            : <><span className="mr-2">✅</span> Verbunden mit Backend</>}
         </p>
         {error && (
-          <p className="error-text">Fehler: {error}</p>
+          <p className="text-red-400 mt-2">Fehler: {error}</p>
         )}
       </div>
       
-      <div className="contract-radar-header">
-        <h1>Smart Contract Radar</h1>
-        <p>Analysieren Sie Wallet-Interaktionen und Transaktionsmuster um Smart Contracts</p>
+      <div className="max-w-7xl mx-auto mb-10">
+        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+          Smart Contract Radar
+        </h1>
+        <p className="text-gray-400">
+          Analysieren Sie Wallet-Interaktionen und Transaktionsmuster um Smart Contracts
+        </p>
       </div>
       
-      <div className="contract-input-container">
-        <div className="contract-input">
-          <label>Smart Contract Adresse</label>
-          <input
-            type="text"
-            value={contractAddress}
-            onChange={(e) => setContractAddress(e.target.value)}
-            placeholder="0x..."
-            className="contract-address-input"
-          />
-        </div>
-        
-        <div className="chain-selector">
-          <label>Blockchain</label>
-          <select
-            value={chain}
-            onChange={(e) => setChain(e.target.value)}
-            className="chain-select"
-          >
-            {BLOCKCHAIN_CONFIG.SUPPORTED_CHAINS.map((chain) => (
-              <option key={chain} value={chain}>
-                {chain.charAt(0).toUpperCase() + chain.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="time-period-selector">
-          <label>Zeitperiode</label>
-          <div className="time-period-buttons">
-            {TIME_PERIODS.map(period => (
-              <button
-                key={period.id}
-                className={`time-period-btn ${timePeriod === period.id ? 'active' : ''}`}
-                onClick={() => setTimePeriod(period.id)}
-              >
-                {period.label}
-              </button>
-            ))}
+      <div className="max-w-7xl mx-auto bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 mb-10 border border-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div className="lg:col-span-2">
+            <label className="block text-sm font-medium text-gray-400 mb-1">Smart Contract Adresse</label>
+            <input
+              type="text"
+              value={contractAddress}
+              onChange={(e) => setContractAddress(e.target.value)}
+              placeholder="0x..."
+              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Blockchain</label>
+            <select
+              value={chain}
+              onChange={(e) => setChain(e.target.value)}
+              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {BLOCKCHAIN_CONFIG.SUPPORTED_CHAINS.map((chain) => (
+                <option key={chain} value={chain}>
+                  {chain.charAt(0).toUpperCase() + chain.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Zeitperiode</label>
+            <select
+              value={timePeriod}
+              onChange={(e) => setTimePeriod(e.target.value)}
+              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {TIME_PERIODS.map(period => (
+                <option key={period.id} value={period.id}>
+                  {period.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Intervall</label>
+            <select
+              value={interval}
+              onChange={(e) => setInterval(e.target.value)}
+              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {INTERVALS.map(interval => (
+                <option key={interval.id} value={interval.id}>
+                  {interval.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         
-        <div className="interval-selector">
-          <label>Intervall</label>
-          <select
-            value={interval}
-            onChange={(e) => setInterval(e.target.value)}
-            className="interval-select"
+        <div className="flex justify-center">
+          <button
+            onClick={handleAnalyzeContract}
+            disabled={!contractAddress || loading}
+            className={`px-8 py-3 rounded-lg font-semibold transition-all ${!contractAddress || loading ? 'bg-gray-700 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transform hover:scale-105'}`}
           >
-            {INTERVALS.map(interval => (
-              <option key={interval.id} value={interval.id}>
-                {interval.label}
-              </option>
-            ))}
-          </select>
+            {loading ? 'Analysiere...' : 'Radar starten'}
+          </button>
         </div>
-        
-        <button
-          onClick={handleAnalyzeContract}
-          disabled={!contractAddress || loading}
-          className="analyze-btn"
-        >
-          {loading ? 'Analysiere...' : 'Radar starten'}
-        </button>
       </div>
       
       {/* Contract-Informationen */}
       {contractInfo && (
-        <div className="contract-info-container">
-          <h3>Contract-Informationen</h3>
-          <div className="contract-info-grid">
-            <div className="contract-info-item">
-              <div className="contract-info-label">Name</div>
-              <div className="contract-info-value">{contractInfo.name || 'Unbekannt'}</div>
+        <div className="max-w-7xl mx-auto bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 mb-10 border border-gray-700">
+          <h3 className="text-2xl font-bold mb-4 text-blue-400">Contract-Informationen</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-gray-700/50 p-4 rounded-xl">
+              <div className="text-gray-400 text-sm">Name</div>
+              <div className="text-lg font-semibold">{contractInfo.name || 'Unbekannt'}</div>
             </div>
-            <div className="contract-info-item">
-              <div className="contract-info-label">Symbol</div>
-              <div className="contract-info-value">{contractInfo.symbol || 'N/A'}</div>
+            <div className="bg-gray-700/50 p-4 rounded-xl">
+              <div className="text-gray-400 text-sm">Symbol</div>
+              <div className="text-lg font-semibold">{contractInfo.symbol || 'N/A'}</div>
             </div>
-            <div className="contract-info-item">
-              <div className="contract-info-label">Blockchain</div>
-              <div className="contract-info-value">{chain}</div>
+            <div className="bg-gray-700/50 p-4 rounded-xl">
+              <div className="text-gray-400 text-sm">Blockchain</div>
+              <div className="text-lg font-semibold">{chain}</div>
             </div>
-            <div className="contract-info-item">
-              <div className="contract-info-label">Verifiziert</div>
-              <div className="contract-info-value">
-                {contractInfo.verification_status ? '✅ Ja' : '❌ Nein'}
-              </div>
+            <div className="bg-gray-700/50 p-4 rounded-xl">
+              <div className="text-gray-400 text-sm">Verifiziert</div>
+              <div className="text-lg font-semibold">{contractInfo.verification_status ? '✅ Ja' : '❌ Nein'}</div>
             </div>
-            <div className="contract-info-item">
-              <div className="contract-info-label">Transaktionen</div>
-              <div className="contract-info-value">{contractInfo.total_transactions}</div>
+            <div className="bg-gray-700/50 p-4 rounded-xl">
+              <div className="text-gray-400 text-sm">Transaktionen</div>
+              <div className="text-lg font-semibold">{contractInfo.total_transactions}</div>
             </div>
-            <div className="contract-info-item">
-              <div className="contract-info-label">Eindeutige Nutzer</div>
-              <div className="contract-info-value">{contractInfo.unique_users}</div>
+            <div className="bg-gray-700/50 p-4 rounded-xl">
+              <div className="text-gray-400 text-sm">Eindeutige Nutzer</div>
+              <div className="text-lg font-semibold">{contractInfo.unique_users}</div>
             </div>
           </div>
         </div>
@@ -392,182 +411,201 @@ const ContractRadar = () => {
       
       {/* Sicherheitsbewertung */}
       {contractSecurity && (
-        <div className="contract-security-container">
-          <h3>Sicherheitsbewertung</h3>
-          <div className="security-overview">
-            <div className="security-score">
-              <div className="score-circle" style={{ 
-                background: `conic-gradient(${getSecurityLevelColor(contractSecurity.security_level)} 0% ${contractSecurity.overall_score * 100}%, #333 ${contractSecurity.overall_score * 100}% 100%)` 
-              }}>
-                <div className="score-inner">
-                  <div className="score-value">{Math.round(contractSecurity.overall_score)}</div>
-                  <div className="score-label">Score</div>
+        <div className="max-w-7xl mx-auto bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 mb-10 border border-gray-700">
+          <h3 className="text-2xl font-bold mb-4 text-blue-400">Sicherheitsbewertung</h3>
+          <div className="flex flex-col md:flex-row items-center gap-8">
+            <div className="flex flex-col items-center">
+              <div className="relative w-40 h-40">
+                <div className="score-circle absolute inset-0 rounded-full" style={{ 
+                  background: `conic-gradient(${getSecurityLevelColor(contractSecurity.security_level)} 0% ${contractSecurity.overall_score * 100}%, #333 ${contractSecurity.overall_score * 100}% 100%)` 
+                }}></div>
+                <div className="absolute inset-4 bg-gray-800 rounded-full flex flex-col items-center justify-center">
+                  <div className="text-3xl font-bold">{Math.round(contractSecurity.overall_score)}</div>
+                  <div className="text-xs text-gray-400">Score</div>
                 </div>
               </div>
-              <div className="security-level" style={{ color: getSecurityLevelColor(contractSecurity.security_level) }}>
+              <div className="mt-2 text-lg font-semibold" style={{ color: getSecurityLevelColor(contractSecurity.security_level) }}>
                 {contractSecurity.security_level.toUpperCase()}
               </div>
             </div>
-            <div className="security-details">
-              <div className="security-vulnerabilities">
-                <h4>Schwachstellen ({contractSecurity.vulnerabilities.length})</h4>
-                <div className="vulnerability-list">
-                  {contractSecurity.vulnerabilities.slice(0, 3).map((vuln, index) => (
-                    <div key={index} className="vulnerability-item">
-                      <div className="vulnerability-severity" style={{ 
-                        color: vuln.severity === 'critical' ? '#ff4d4d' : 
-                               vuln.severity === 'high' ? '#ff6b6b' : 
-                               vuln.severity === 'medium' ? '#ffaa00' : '#00d4ff' 
-                      }}>
+            
+            <div className="flex-1">
+              <h4 className="text-lg font-semibold mb-3">Schwachstellen ({contractSecurity.vulnerabilities.length})</h4>
+              <div className="space-y-3">
+                {contractSecurity.vulnerabilities.slice(0, 3).map((vuln, index) => (
+                  <div key={index} className="bg-gray-700/50 p-3 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`px-2 py-1 rounded text-xs font-semibold ${
+                        vuln.severity === 'critical' ? 'bg-red-900/50 text-red-300' : 
+                        vuln.severity === 'high' ? 'bg-red-800/50 text-red-300' : 
+                        vuln.severity === 'medium' ? 'bg-yellow-800/50 text-yellow-300' : 'bg-blue-800/50 text-blue-300'
+                      }`}>
                         {vuln.severity}
                       </div>
-                      <div className="vulnerability-description">{vuln.description || 'Keine Beschreibung'}</div>
                     </div>
-                  ))}
-                  {contractSecurity.vulnerabilities.length > 3 && (
-                    <div className="vulnerability-more">
-                      +{contractSecurity.vulnerabilities.length - 3} weitere Schwachstellen
-                    </div>
-                  )}
-                </div>
+                    <div className="text-sm">{vuln.description || 'Keine Beschreibung'}</div>
+                  </div>
+                ))}
+                {contractSecurity.vulnerabilities.length > 3 && (
+                  <div className="text-center text-gray-400 text-sm">
+                    +{contractSecurity.vulnerabilities.length - 3} weitere Schwachstellen
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
       
-      <div className="radar-visualization-container">
-        <div className="radar-visualization">
-          <div className="radar-background">
-            {/* Radar-Kreise */}
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="radar-circle" style={{ 
-                width: `${i * 20}%`, 
-                height: `${i * 20}%` 
-              }}></div>
-            ))}
-            
-            {/* Verbindungslinien zwischen Wallets */}
-            <svg className="radar-connections" viewBox="0 0 100 100">
-              {connections.map((conn, index) => {
-                const fromWallet = wallets.find(w => w.address === conn.from);
-                const toWallet = wallets.find(w => w.address === conn.to);
-                
-                if (!fromWallet || !toWallet) return null;
-                
-                return (
-                  <line
-                    key={index}
-                    x1={fromWallet.position.x * 100}
-                    y1={fromWallet.position.y * 100}
-                    x2={toWallet.position.x * 100}
-                    y2={toWallet.position.y * 100}
-                    stroke={`rgba(0, 212, 255, ${conn.strength * 0.5})`}
-                    strokeWidth={conn.strength * 2}
-                  />
-                );
-              })}
-            </svg>
-            
-            {/* Wallet-Punkte */}
-            {wallets.map(wallet => (
-              <div
-                key={wallet.id}
-                className={`wallet-point ${selectedWallet?.id === wallet.id ? 'selected' : ''}`}
-                style={{
-                  left: `${wallet.position.x * 100}%`,
-                  top: `${wallet.position.y * 100}%`,
-                  backgroundColor: getRiskColor(wallet.riskLevel),
-                  boxShadow: `0 0 15px ${getRiskColor(wallet.riskLevel)}`
-                }}
-                onClick={() => handleWalletClick(wallet)}
-              >
-                <div className="wallet-icon">{getRiskIcon(wallet.riskLevel)}</div>
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+        <div className="lg:col-span-2 bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 border border-gray-700">
+          <h3 className="text-2xl font-bold mb-4 text-blue-400">Wallet-Radar</h3>
+          <div className="flex justify-center">
+            <div className="relative" style={{ width: radarSize.width, height: radarSize.height }}>
+              {/* Radar-Kreise */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div 
+                    key={i} 
+                    className="absolute rounded-full border border-gray-600" 
+                    style={{ 
+                      width: `${i * 20}%`, 
+                      height: `${i * 20}%` 
+                    }}
+                  ></div>
+                ))}
               </div>
-            ))}
+              
+              {/* Verbindungslinien zwischen Wallets */}
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                {connections.map((conn, index) => {
+                  const fromWallet = wallets.find(w => w.address === conn.from);
+                  const toWallet = wallets.find(w => w.address === conn.to);
+                  
+                  if (!fromWallet || !toWallet) return null;
+                  
+                  return (
+                    <line
+                      key={index}
+                      x1={fromWallet.position.x * 100}
+                      y1={fromWallet.position.y * 100}
+                      x2={toWallet.position.x * 100}
+                      y2={toWallet.position.y * 100}
+                      stroke={`rgba(0, 212, 255, ${conn.strength * 0.5})`}
+                      strokeWidth={conn.strength * 2}
+                      strokeDasharray="5,5"
+                    />
+                  );
+                })}
+              </svg>
+              
+              {/* Wallet-Punkte */}
+              {wallets.map(wallet => (
+                <div
+                  key={wallet.id}
+                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-125 ${selectedWallet?.id === wallet.id ? 'ring-4 ring-white scale-125' : ''}`}
+                  style={{
+                    left: `${wallet.position.x * 100}%`,
+                    top: `${wallet.position.y * 100}%`,
+                    backgroundColor: getRiskColor(wallet.riskLevel),
+                    boxShadow: `0 0 15px ${getRiskColor(wallet.riskLevel)}`
+                  }}
+                  onClick={() => handleWalletClick(wallet)}
+                >
+                  <div className="text-lg">{getRiskIcon(wallet.riskLevel)}</div>
+                </div>
+              ))}
+            </div>
           </div>
           
-          <div className="radar-legend">
-            <div className="legend-item">
-              <div className="legend-color" style={{ backgroundColor: '#ff4d4d' }}></div>
-              <div>Hohes Risiko</div>
+          <div className="flex justify-center mt-6 gap-6">
+            <div className="flex items-center">
+              <div className="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
+              <span>Hohes Risiko</span>
             </div>
-            <div className="legend-item">
-              <div className="legend-color" style={{ backgroundColor: '#ffaa00' }}></div>
-              <div>Mittleres Risiko</div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 rounded-full bg-yellow-500 mr-2"></div>
+              <span>Mittleres Risiko</span>
             </div>
-            <div className="legend-item">
-              <div className="legend-color" style={{ backgroundColor: '#00d4ff' }}></div>
-              <div>Niedriges Risiko</div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 rounded-full bg-blue-400 mr-2"></div>
+              <span>Niedriges Risiko</span>
             </div>
           </div>
         </div>
         
-        <div className="wallet-details">
+        <div className="bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 border border-gray-700">
+          <h3 className="text-2xl font-bold mb-4 text-blue-400">Wallet-Details</h3>
           {selectedWallet ? (
-            <div className="wallet-info">
-              <div className="wallet-header">
-                <div className="wallet-name">{selectedWallet.name}</div>
-                <div className="wallet-risk" style={{ color: getRiskColor(selectedWallet.riskLevel) }}>
-                  {getRiskIcon(selectedWallet.riskLevel)} {selectedWallet.riskLevel.toUpperCase()} RISIKO
+            <div className="space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="text-xl font-bold">{selectedWallet.name}</div>
+                  <div className="text-sm" style={{ color: getRiskColor(selectedWallet.riskLevel) }}>
+                    {getRiskIcon(selectedWallet.riskLevel)} {selectedWallet.riskLevel.toUpperCase()} RISIKO
+                  </div>
                 </div>
               </div>
               
-              <div className="wallet-address">
-                <div className="address-label">Adresse:</div>
-                <div className="address-value">{selectedWallet.address}</div>
+              <div>
+                <div className="text-gray-400 text-sm mb-1">Adresse</div>
+                <div className="text-sm bg-gray-700/50 p-2 rounded-lg break-all">
+                  {selectedWallet.address}
+                </div>
               </div>
               
-              <div className="wallet-stats">
-                <div className="wallet-stat">
-                  <div className="stat-value">{selectedWallet.transactionCount}</div>
-                  <div className="stat-label">Transaktionen</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-gray-700/50 p-3 rounded-lg text-center">
+                  <div className="text-lg font-bold">{selectedWallet.transactionCount}</div>
+                  <div className="text-xs text-gray-400">Transaktionen</div>
                 </div>
-                <div className="wallet-stat">
-                  <div className="stat-value">${(selectedWallet.totalValue / 1000000).toFixed(2)}M</div>
-                  <div className="stat-label">Gesamtwert</div>
+                <div className="bg-gray-700/50 p-3 rounded-lg text-center">
+                  <div className="text-lg font-bold">${(selectedWallet.totalValue / 1000000).toFixed(2)}M</div>
+                  <div className="text-xs text-gray-400">Gesamtwert</div>
                 </div>
-                <div className="wallet-stat">
-                  <div className="stat-value">{new Date(selectedWallet.lastActivity).toLocaleDateString()}</div>
-                  <div className="stat-label">Letzte Aktivität</div>
+                <div className="bg-gray-700/50 p-3 rounded-lg text-center">
+                  <div className="text-lg font-bold">{new Date(selectedWallet.lastActivity).toLocaleDateString()}</div>
+                  <div className="text-xs text-gray-400">Letzte Aktivität</div>
                 </div>
               </div>
               
               {selectedWallet.activityScore !== undefined && (
-                <div className="wallet-scores">
-                  <div className="wallet-score">
-                    <div className="score-label">Aktivitäts-Score</div>
-                    <div className="score-value">{(selectedWallet.activityScore * 100).toFixed(0)}%</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-gray-700/50 p-3 rounded-lg">
+                    <div className="text-gray-400 text-sm mb-1">Aktivitäts-Score</div>
+                    <div className="text-lg font-bold">{(selectedWallet.activityScore * 100).toFixed(0)}%</div>
                   </div>
-                  <div className="wallet-score">
-                    <div className="score-label">Risiko-Score</div>
-                    <div className="score-value">{(selectedWallet.riskScore * 100).toFixed(0)}%</div>
+                  <div className="bg-gray-700/50 p-3 rounded-lg">
+                    <div className="text-gray-400 text-sm mb-1">Risiko-Score</div>
+                    <div className="text-lg font-bold">{(selectedWallet.riskScore * 100).toFixed(0)}%</div>
                   </div>
                 </div>
               )}
               
-              <div className="wallet-labels">
-                <div className="labels-label">Labels:</div>
-                <div className="labels-container">
+              <div>
+                <div className="text-gray-400 text-sm mb-2">Labels</div>
+                <div className="flex flex-wrap gap-2">
                   {selectedWallet.labels.map((label, index) => (
-                    <div key={index} className="wallet-label">{label}</div>
+                    <div key={index} className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded-full text-sm">
+                      {label}
+                    </div>
                   ))}
                 </div>
               </div>
               
-              <div className="wallet-connections">
-                <div className="connections-label">Verbunden mit:</div>
-                <div className="connections-container">
+              <div>
+                <div className="text-gray-400 text-sm mb-2">Verbunden mit</div>
+                <div className="space-y-2">
                   {selectedWallet.connections.map(connId => {
                     const wallet = wallets.find(w => w.address === connId);
                     return wallet ? (
                       <div 
                         key={connId} 
-                        className="connection-item"
+                        className="flex justify-between items-center bg-gray-700/50 p-2 rounded-lg cursor-pointer hover:bg-gray-700"
                         onClick={() => handleWalletClick(wallet)}
                       >
-                        <div className="connection-name">{wallet.name}</div>
-                        <div className="connection-risk" style={{ color: getRiskColor(wallet.riskLevel) }}>
+                        <div className="font-medium">{wallet.name}</div>
+                        <div className="text-sm" style={{ color: getRiskColor(wallet.riskLevel) }}>
                           {wallet.riskLevel}
                         </div>
                       </div>
@@ -577,9 +615,9 @@ const ContractRadar = () => {
               </div>
             </div>
           ) : (
-            <div className="no-wallet-selected">
-              <div className="no-selection-icon">🔍</div>
-              <div className="no-selection-text">
+            <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+              <div className="text-4xl mb-2">🔍</div>
+              <div className="text-center">
                 Wählen Sie eine Wallet im Radar aus, um Details anzuzeigen
               </div>
             </div>
@@ -589,35 +627,35 @@ const ContractRadar = () => {
       
       {/* Contract-Interaktionen */}
       {contractInteractions.length > 0 && (
-        <div className="contract-interactions-container">
-          <h3>Contract-Interaktionen</h3>
-          <div className="interactions-grid">
-            {contractInteractions.slice(0, 5).map((interaction, index) => (
-              <div key={index} className="interaction-card">
-                <div className="interaction-method">{interaction.method_name}</div>
-                <div className="interaction-stats">
-                  <div className="interaction-stat">
-                    <div className="stat-value">{interaction.call_count}</div>
-                    <div className="stat-label">Aufrufe</div>
+        <div className="max-w-7xl mx-auto bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 mb-10 border border-gray-700">
+          <h3 className="text-2xl font-bold mb-4 text-blue-400">Contract-Interaktionen</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {contractInteractions.slice(0, 6).map((interaction, index) => (
+              <div key={index} className="bg-gray-700/50 p-4 rounded-xl">
+                <div className="font-bold text-lg mb-2">{interaction.method_name}</div>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div className="text-center">
+                    <div className="font-bold">{interaction.call_count}</div>
+                    <div className="text-xs text-gray-400">Aufrufe</div>
                   </div>
-                  <div className="interaction-stat">
-                    <div className="stat-value">{interaction.unique_callers}</div>
-                    <div className="stat-label">Eindeutige Aufrufer</div>
+                  <div className="text-center">
+                    <div className="font-bold">{interaction.unique_callers}</div>
+                    <div className="text-xs text-gray-400">Aufrufer</div>
                   </div>
-                  <div className="interaction-stat">
-                    <div className="stat-value">{(interaction.average_gas_used / 1000).toFixed(1)}K</div>
-                    <div className="stat-label">Durchschn. Gas</div>
+                  <div className="text-center">
+                    <div className="font-bold">{(interaction.average_gas_used / 1000).toFixed(1)}K</div>
+                    <div className="text-xs text-gray-400">Gas</div>
                   </div>
                 </div>
-                <div className="interaction-popularity">
-                  <div className="popularity-label">Popularität</div>
-                  <div className="popularity-bar">
+                <div>
+                  <div className="text-sm text-gray-400 mb-1">Popularität</div>
+                  <div className="w-full bg-gray-600 rounded-full h-2">
                     <div 
-                      className="popularity-fill" 
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full" 
                       style={{ width: `${interaction.popularity_score * 100}%` }}
                     ></div>
                   </div>
-                  <div className="popularity-value">{(interaction.popularity_score * 100).toFixed(0)}%</div>
+                  <div className="text-right text-sm mt-1">{(interaction.popularity_score * 100).toFixed(0)}%</div>
                 </div>
               </div>
             ))}
@@ -627,32 +665,32 @@ const ContractRadar = () => {
       
       {/* Zeitreihen-Daten */}
       {timeSeriesData && (
-        <div className="time-series-container">
-          <h3>Aktivitätsverlauf</h3>
-          <div className="time-series-stats">
-            <div className="time-series-stat">
-              <div className="stat-value">{timeSeriesData.total_transactions}</div>
-              <div className="stat-label">Gesamttransaktionen</div>
+        <div className="max-w-7xl mx-auto bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 mb-10 border border-gray-700">
+          <h3 className="text-2xl font-bold mb-4 text-blue-400">Aktivitätsverlauf</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gray-700/50 p-4 rounded-xl text-center">
+              <div className="text-2xl font-bold">{timeSeriesData.total_transactions}</div>
+              <div className="text-gray-400">Gesamttransaktionen</div>
             </div>
-            <div className="time-series-stat">
-              <div className="stat-value">{timeSeriesData.unique_wallets}</div>
-              <div className="stat-label">Eindeutige Wallets</div>
+            <div className="bg-gray-700/50 p-4 rounded-xl text-center">
+              <div className="text-2xl font-bold">{timeSeriesData.unique_wallets}</div>
+              <div className="text-gray-400">Eindeutige Wallets</div>
             </div>
-            <div className="time-series-stat">
-              <div className="stat-value">${(timeSeriesData.volume_transferred / 1000000).toFixed(2)}M</div>
-              <div className="stat-label">Transferiertes Volumen</div>
+            <div className="bg-gray-700/50 p-4 rounded-xl text-center">
+              <div className="text-2xl font-bold">${(timeSeriesData.volume_transferred / 1000000).toFixed(2)}M</div>
+              <div className="text-gray-400">Transferiertes Volumen</div>
             </div>
-            <div className="time-series-stat">
-              <div className="stat-value">{timeSeriesData.trend_direction}</div>
-              <div className="stat-label">Trend</div>
+            <div className="bg-gray-700/50 p-4 rounded-xl text-center">
+              <div className="text-2xl font-bold">{timeSeriesData.trend_direction}</div>
+              <div className="text-gray-400">Trend</div>
             </div>
           </div>
         </div>
       )}
       
-      <div className="radar-explanation">
-        <h3>Wie funktioniert der Smart Contract Radar?</h3>
-        <p>
+      <div className="max-w-7xl mx-auto bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 mb-10 border border-gray-700">
+        <h3 className="text-2xl font-bold mb-4 text-blue-400">Wie funktioniert der Smart Contract Radar?</h3>
+        <p className="text-gray-300">
           Der Smart Contract Radar visualisiert Wallet-Interaktionen und Transaktionsmuster um einen Smart Contract. 
           Jeder Punkt repräsentiert eine Wallet, die mit dem Contract interagiert hat. Die Position im Radar zeigt 
           die Aktivitätsdichte an, während die Farbe das Risikolevel der Wallet angibt. Linien zwischen Wallets zeigen 
@@ -660,7 +698,14 @@ const ContractRadar = () => {
         </p>
       </div>
       
-      <Link to="/" className="back-link">← Zurück zur Übersicht</Link>
+      <div className="max-w-7xl mx-auto">
+        <Link to="/" className="inline-flex items-center text-blue-400 hover:text-blue-300 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+          </svg>
+          Zurück zur Übersicht
+        </Link>
+      </div>
     </div>
   );
 };
