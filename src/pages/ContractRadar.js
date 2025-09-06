@@ -1,4 +1,4 @@
-// src/pages/ContractRadar.js
+// src/components/ContractRadar.js
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { apiService } from '../services/api';
@@ -8,6 +8,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/table';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../components/ui/select';
 
 // Mock-Daten für Wallets im Radar (als Fallback)
 const MOCK_WALLETS = [
@@ -21,7 +22,17 @@ const MOCK_WALLETS = [
     lastActivity: '2023-05-20T14:22:33Z',
     position: { x: 0.7, y: 0.3 },
     connections: ['wallet2', 'wallet4'],
-    labels: ['Exchange', 'Whale']
+    labels: ['Exchange', 'Whale'],
+    balance: 1250.75,
+    change24h: 12.5,
+    chartData: [
+      { time: '00:00', value: 3500000 },
+      { time: '04:00', value: 3550000 },
+      { time: '08:00', value: 3600000 },
+      { time: '12:00', value: 3650000 },
+      { time: '16:00', value: 3700000 },
+      { time: '20:00', value: 3752250 },
+    ]
   },
   {
     id: 'wallet2',
@@ -33,7 +44,17 @@ const MOCK_WALLETS = [
     lastActivity: '2023-05-19T09:15:42Z',
     position: { x: 0.4, y: 0.6 },
     connections: ['wallet1', 'wallet3', 'wallet5'],
-    labels: ['DEX', 'Liquidity Pool']
+    labels: ['DEX', 'Liquidity Pool'],
+    balance: 875.25,
+    change24h: -3.2,
+    chartData: [
+      { time: '00:00', value: 2700000 },
+      { time: '04:00', value: 2680000 },
+      { time: '08:00', value: 2650000 },
+      { time: '12:00', value: 2630000 },
+      { time: '16:00', value: 2620000 },
+      { time: '20:00', value: 2625750 },
+    ]
   },
   {
     id: 'wallet3',
@@ -45,7 +66,17 @@ const MOCK_WALLETS = [
     lastActivity: '2023-05-18T16:30:21Z',
     position: { x: 0.2, y: 0.8 },
     connections: ['wallet2'],
-    labels: ['Retail', 'HODLer']
+    labels: ['Retail', 'HODLer'],
+    balance: 420.5,
+    change24h: 8.7,
+    chartData: [
+      { time: '00:00', value: 1200000 },
+      { time: '04:00', value: 1210000 },
+      { time: '08:00', value: 1225000 },
+      { time: '12:00', value: 1240000 },
+      { time: '16:00', value: 1250000 },
+      { time: '20:00', value: 1261500 },
+    ]
   },
   {
     id: 'wallet4',
@@ -57,7 +88,17 @@ const MOCK_WALLETS = [
     lastActivity: '2023-05-17T11:45:10Z',
     position: { x: 0.9, y: 0.5 },
     connections: ['wallet1', 'wallet5'],
-    labels: ['Team', 'Vesting']
+    labels: ['Team', 'Vesting'],
+    balance: 2100.25,
+    change24h: 5.3,
+    chartData: [
+      { time: '00:00', value: 6200000 },
+      { time: '04:00', value: 6220000 },
+      { time: '08:00', value: 6250000 },
+      { time: '12:00', value: 6270000 },
+      { time: '16:00', value: 6290000 },
+      { time: '20:00', value: 6300750 },
+    ]
   },
   {
     id: 'wallet5',
@@ -69,7 +110,17 @@ const MOCK_WALLETS = [
     lastActivity: '2023-05-16T13:20:55Z',
     position: { x: 0.6, y: 0.9 },
     connections: ['wallet2', 'wallet4'],
-    labels: ['ICO', 'Investor']
+    labels: ['ICO', 'Investor'],
+    balance: 750.5,
+    change24h: 2.1,
+    chartData: [
+      { time: '00:00', value: 1500000 },
+      { time: '04:00', value: 1510000 },
+      { time: '08:00', value: 1520000 },
+      { time: '12:00', value: 1530000 },
+      { time: '16:00', value: 1540000 },
+      { time: '20:00', value: 1545000 },
+    ]
   }
 ];
 
@@ -123,6 +174,54 @@ const MOCK_TIME_SERIES = {
   unique_wallets: 3421,
   volume_transferred: 2850000,
   trend_direction: '📈 Aufwärts'
+};
+
+// Einfaches SVG-Diagramm für die Wallet-Analyse
+const SimpleChart = ({ data }) => {
+  const maxValue = Math.max(...data.map(d => d.value));
+  const width = 300;
+  const height = 150;
+  const padding = 20;
+  
+  return (
+    <svg width={width} height={height} className="w-full">
+      {/* X-Achse */}
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#ccc" />
+      {/* Y-Achse */}
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#ccc" />
+      
+      {/* Datenpunkte und Linien */}
+      <polyline
+        fill="none"
+        stroke="#8884d8"
+        strokeWidth="2"
+        points={data.map((d, i) => {
+          const x = padding + (i / (data.length - 1)) * (width - 2 * padding);
+          const y = height - padding - ((d.value / maxValue) * (height - 2 * padding));
+          return `${x},${y}`;
+        }).join(' ')}
+      />
+      
+      {/* Datenpunkte */}
+      {data.map((d, i) => {
+        const x = padding + (i / (data.length - 1)) * (width - 2 * padding);
+        const y = height - padding - ((d.value / maxValue) * (height - 2 * padding));
+        return (
+          <circle key={i} cx={x} cy={y} r="4" fill="#8884d8" />
+        );
+      })}
+      
+      {/* Zeit-Labels */}
+      {data.map((d, i) => {
+        const x = padding + (i / (data.length - 1)) * (width - 2 * padding);
+        return (
+          <text key={i} x={x} y={height - 5} fontSize="10" textAnchor="middle" fill="#666">
+            {d.time}
+          </text>
+        );
+      })}
+    </svg>
+  );
 };
 
 // Radar-Komponente für die Visualisierung
@@ -259,11 +358,11 @@ const ContractRadar = () => {
   const [contractAddress, setContractAddress] = useState('');
   const [chain, setChain] = useState(BLOCKCHAIN_CONFIG.DEFAULT_CHAIN);
   const [selectedWallet, setSelectedWallet] = useState(null);
-  const [timePeriod, setTimePeriod] = useState('24h');
-  const [interval, setInterval] = useState('1h');
+  const [timeRange, setTimeRange] = useState('24h');
+  const [searchTerm, setSearchTerm] = useState('');
   const [wallets, setWallets] = useState([]);
   const [connections, setConnections] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [usingMockData, setUsingMockData] = useState(false);
   const [error, setError] = useState(null);
   const [contractInfo, setContractInfo] = useState(null);
@@ -322,7 +421,7 @@ const ContractRadar = () => {
     
     try {
       const data = await fetchWithRetry(() => 
-        apiService.getContractInteractions(contractAddress, chain, timePeriod)
+        apiService.getContractInteractions(contractAddress, chain, timeRange)
       );
       setContractInteractions(data);
       setUsingMockData(false);
@@ -332,7 +431,7 @@ const ContractRadar = () => {
       // Fallback zu Mock-Daten
       setContractInteractions(MOCK_INTERACTIONS);
     }
-  }, [contractAddress, chain, timePeriod]);
+  }, [contractAddress, chain, timeRange]);
   
   // Contract-Sicherheit laden
   const loadContractSecurity = useCallback(async () => {
@@ -358,7 +457,7 @@ const ContractRadar = () => {
     
     try {
       const data = await fetchWithRetry(() => 
-        apiService.getTimeSeriesData(contractAddress, chain, timePeriod, interval)
+        apiService.getTimeSeriesData(contractAddress, chain, timeRange, '1h')
       );
       setTimeSeriesData(data);
       setUsingMockData(false);
@@ -368,7 +467,7 @@ const ContractRadar = () => {
       // Fallback zu Mock-Daten
       setTimeSeriesData(MOCK_TIME_SERIES);
     }
-  }, [contractAddress, chain, timePeriod, interval]);
+  }, [contractAddress, chain, timeRange]);
   
   // Radar-Daten laden
   const loadRadarData = useCallback(async () => {
@@ -381,7 +480,7 @@ const ContractRadar = () => {
     
     try {
       const data = await fetchWithRetry(() => 
-        apiService.getRadarContractData(contractAddress, chain, timePeriod)
+        apiService.getRadarContractData(contractAddress, chain, timeRange)
       );
       
       // Wallet-Positionen extrahieren
@@ -397,7 +496,17 @@ const ContractRadar = () => {
         connections: [],
         labels: ['Wallet'],
         activityScore: wallet.activity_score,
-        riskScore: wallet.risk_score
+        riskScore: wallet.risk_score,
+        balance: wallet.activity_score * 1000,
+        change24h: (Math.random() * 20) - 10, // Zufällige Änderung für Demo
+        chartData: [
+          { time: '00:00', value: wallet.activity_score * 900000 },
+          { time: '04:00', value: wallet.activity_score * 920000 },
+          { time: '08:00', value: wallet.activity_score * 950000 },
+          { time: '12:00', value: wallet.activity_score * 970000 },
+          { time: '16:00', value: wallet.activity_score * 990000 },
+          { time: '20:00', value: wallet.activity_score * 1000000 },
+        ]
       }));
       
       // Verbindungen extrahieren
@@ -437,6 +546,9 @@ const ContractRadar = () => {
         if (progress >= 100) {
           clearInterval(walletDisplayIntervalRef.current);
           setLoading(false);
+          if (wallets.length > 0 && !selectedWallet) {
+            setSelectedWallet(wallets[0]);
+          }
         }
       }, 200);
       
@@ -467,10 +579,13 @@ const ContractRadar = () => {
         if (progress >= 100) {
           clearInterval(walletDisplayIntervalRef.current);
           setLoading(false);
+          if (!selectedWallet) {
+            setSelectedWallet(MOCK_WALLETS[0]);
+          }
         }
       }, 200);
     }
-  }, [contractAddress, chain, timePeriod]);
+  }, [contractAddress, chain, timeRange, selectedWallet]);
   
   // Wallet-Details laden
   const loadWalletDetails = useCallback(async (walletAddress) => {
@@ -478,7 +593,7 @@ const ContractRadar = () => {
     
     try {
       const data = await fetchWithRetry(() => 
-        apiService.getRadarWalletDetails(walletAddress, chain, contractAddress, timePeriod)
+        apiService.getRadarWalletDetails(walletAddress, chain, contractAddress, timeRange)
       );
       setSelectedWallet(data);
       setUsingMockData(false);
@@ -491,7 +606,7 @@ const ContractRadar = () => {
         setSelectedWallet(wallet);
       }
     }
-  }, [contractAddress, chain, timePeriod, displayedWallets]);
+  }, [contractAddress, chain, timeRange, displayedWallets]);
   
   // Alle Daten laden, wenn sich der Contract oder die Zeitperiode ändert
   useEffect(() => {
@@ -501,8 +616,20 @@ const ContractRadar = () => {
       loadContractSecurity();
       loadTimeSeriesData();
       loadRadarData();
+    } else {
+      // Wenn keine Contract-Adresse eingegeben wurde, Mock-Daten direkt laden
+      setWallets(MOCK_WALLETS);
+      setConnections([]);
+      setUsingMockData(true);
+      setDisplayedWallets(MOCK_WALLETS);
+      setSelectedWallet(MOCK_WALLETS[0]);
+      setLoading(false);
+      setContractInfo(MOCK_CONTRACT_INFO);
+      setContractInteractions(MOCK_INTERACTIONS);
+      setContractSecurity(MOCK_SECURITY);
+      setTimeSeriesData(MOCK_TIME_SERIES);
     }
-  }, [contractAddress, chain, timePeriod, interval, 
+  }, [contractAddress, chain, timeRange, 
       loadContractInfo, loadContractInteractions, loadContractSecurity, 
       loadTimeSeriesData, loadRadarData]);
   
@@ -554,6 +681,26 @@ const ContractRadar = () => {
     }
   };
   
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+  
+  const formatNumber = (value) => {
+    return new Intl.NumberFormat('en-US').format(value);
+  };
+  
+  // Gefilterte Wallets für die Tabelle
+  const filteredWallets = displayedWallets.filter(wallet => 
+    wallet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    wallet.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    wallet.labels.some(label => label.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+  
   // Tabelle für Contract-Interaktionen
   const interactionColumns = [
     { header: 'Methode', accessor: 'method_name' },
@@ -591,97 +738,298 @@ const ContractRadar = () => {
       
       <div className="max-w-7xl mx-auto mb-10">
         <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-          Smart Contract Radar
+          Wallet Radar
         </h1>
         <p className="text-gray-400">
-          Analysieren Sie Wallet-Interaktionen und Transaktionsmuster um Smart Contracts
+          Überwachen Sie wichtige Wallet-Adressen und deren Aktivitäten
         </p>
       </div>
       
-      <div className="max-w-7xl mx-auto bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 mb-10 border border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div className="lg:col-span-2">
-            <label className="block text-sm font-medium text-gray-400 mb-1">Smart Contract Adresse</label>
+      {/* Header mit Suchleiste und Filtern */}
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <div className="relative">
+            <span className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground">🔍</span>
+            <input
+              placeholder="Wallets durchsuchen..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 w-full sm:w-[300px] h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+          
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1h">1 Stunde</SelectItem>
+              <SelectItem value="24h">24 Stunden</SelectItem>
+              <SelectItem value="7d">7 Tage</SelectItem>
+              <SelectItem value="30d">30 Tage</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <div className="relative">
             <Input
               type="text"
               value={contractAddress}
               onChange={(e) => setContractAddress(e.target.value)}
-              placeholder="0x..."
-              className="w-full bg-gray-700/50 border border-gray-600"
+              placeholder="Contract Adresse"
+              className="w-full sm:w-[300px] h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Blockchain</label>
-            <select
-              value={chain}
-              onChange={(e) => setChain(e.target.value)}
-              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {BLOCKCHAIN_CONFIG.SUPPORTED_CHAINS.map((chainOption) => (
-                <option key={chainOption} value={chainOption}>
-                  {chainOption.charAt(0).toUpperCase() + chainOption.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Zeitperiode</label>
-            <select
-              value={timePeriod}
-              onChange={(e) => setTimePeriod(e.target.value)}
-              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {TIME_PERIODS.map(period => (
-                <option key={period.id} value={period.id}>
-                  {period.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Intervall</label>
-            <select
-              value={interval}
-              onChange={(e) => setInterval(e.target.value)}
-              className="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {INTERVALS.map(intervalOption => (
-                <option key={intervalOption.id} value={intervalOption.id}>
-                  {intervalOption.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        
-        <div className="flex justify-center gap-4">
           <Button
             onClick={handleAnalyzeContract}
             disabled={!contractAddress || loading}
-            className={`px-8 py-3 rounded-lg font-semibold ${!contractAddress || loading ? 'bg-gray-700 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500'}`}
+            className={`px-4 py-2 rounded-md font-semibold ${!contractAddress || loading ? 'bg-gray-700 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500'}`}
           >
-            {loading ? 'Analysiere...' : 'Radar starten'}
+            {loading ? 'Analysiere...' : 'Analysieren'}
           </Button>
-          
-          {usingMockData && (
-            <Button
-              onClick={() => {
-                setRetryCount(prev => prev + 1);
-                loadRadarData();
-              }}
-              disabled={loading}
-              className="px-8 py-3 rounded-lg font-semibold bg-yellow-600 hover:bg-yellow-500"
-            >
-              Erneut versuchen
-            </Button>
-          )}
         </div>
       </div>
       
-      {/* Rest des Codes bleibt gleich... */}
+      {/* Statistik-Karten */}
+      <div className="max-w-7xl mx-auto grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Aktive Wallets</CardTitle>
+            <span className="h-4 w-4 text-muted-foreground">📊</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{displayedWallets.length}</div>
+            <p className="text-xs text-muted-foreground">
+              +2 gegenüber letzter Woche
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gesamtwert</CardTitle>
+            <span className="h-4 w-4 text-muted-foreground">💰</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(displayedWallets.reduce((sum, wallet) => sum + wallet.totalValue, 0))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              +5.2% gegenüber gestern
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Transaktionen</CardTitle>
+            <span className="h-4 w-4 text-muted-foreground">📈</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatNumber(displayedWallets.reduce((sum, wallet) => sum + wallet.transactionCount, 0))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              +12% gegenüber gestern
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Durchschn. Wert</CardTitle>
+            <span className="h-4 w-4 text-muted-foreground">📉</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(displayedWallets.reduce((sum, wallet) => sum + wallet.totalValue, 0) / displayedWallets.length || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              -1.2% gegenüber gestern
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Hauptinhalt mit Radar und Tabelle */}
+      <div className="max-w-7xl mx-auto grid gap-6 lg:grid-cols-3 mb-10">
+        {/* Wallet-Radar */}
+        <div className="rounded-lg border bg-card text-card-foreground shadow-sm lg:col-span-2">
+          <div className="flex flex-col space-y-1.5 p-6">
+            <CardTitle className="text-2xl font-semibold leading-none tracking-tight">Wallet-Radar</CardTitle>
+            {loading && (
+              <div className="text-sm text-gray-400">
+                Scanne Wallets... {loadingProgress}%
+              </div>
+            )}
+          </div>
+          <div className="p-6 pt-0">
+            <RadarVisualization 
+              wallets={displayedWallets}
+              connections={connections}
+              selectedWallet={selectedWallet}
+              loading={loading}
+              onWalletClick={handleWalletClick}
+              getRiskColor={getRiskColor}
+              getRiskIcon={getRiskIcon}
+            />
+            
+            <div className="flex justify-center mt-6 gap-6">
+              <div className="flex items-center">
+                <div className="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
+                <span>Hohes Risiko</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 rounded-full bg-yellow-500 mr-2"></div>
+                <span>Mittleres Risiko</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 rounded-full bg-blue-400 mr-2"></div>
+                <span>Niedriges Risiko</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Wallet-Detail und Diagramm */}
+        <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+          <div className="flex flex-col space-y-1.5 p-6">
+            <CardTitle className="text-2xl font-semibold leading-none tracking-tight">Wallet-Analyse</CardTitle>
+          </div>
+          <div className="p-6 pt-0">
+            {selectedWallet ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">{selectedWallet.name}</h3>
+                  <p className="text-sm text-muted-foreground">{selectedWallet.address}</p>
+                  <div className="flex gap-1">
+                    {selectedWallet.labels.map((label) => (
+                      <Badge key={label} className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-input bg-background hover:bg-accent hover:text-accent-foreground">
+                        {label}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Balance</p>
+                    <p className="text-lg font-semibold">{formatNumber(selectedWallet.balance)} ETH</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Wert</p>
+                    <p className="text-lg font-semibold">{formatCurrency(selectedWallet.totalValue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">24h Änderung</p>
+                    <p className={`text-lg font-semibold ${selectedWallet.change24h > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {selectedWallet.change24h > 0 ? '+' : ''}{selectedWallet.change24h}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Transaktionen</p>
+                    <p className="text-lg font-semibold">{formatNumber(selectedWallet.transactionCount)}</p>
+                  </div>
+                </div>
+                
+                <div className="h-64">
+                  <SimpleChart data={selectedWallet.chartData} />
+                </div>
+                
+                <Button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full">
+                  Vollständige Analyse anzeigen
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                <div className="text-4xl mb-2">🔍</div>
+                <div className="text-center">
+                  Wählen Sie eine Wallet im Radar aus, um Details anzuzeigen
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Wallet-Tabelle */}
+      <div className="max-w-7xl mx-auto rounded-lg border bg-card text-card-foreground shadow-sm mb-10">
+        <div className="flex flex-col space-y-1.5 p-6">
+          <CardTitle className="text-2xl font-semibold leading-none tracking-tight">Wallet-Übersicht</CardTitle>
+        </div>
+        <div className="p-6 pt-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-left p-2">Wallet</TableHead>
+                  <TableHead className="text-right p-2">Balance</TableHead>
+                  <TableHead className="text-right p-2">Wert</TableHead>
+                  <TableHead className="text-right p-2">24h %</TableHead>
+                  <TableHead className="text-right p-2">Aktionen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredWallets.map((wallet) => (
+                  <TableRow 
+                    key={wallet.id}
+                    className="border-b hover:bg-muted/50 cursor-pointer"
+                    onClick={() => setSelectedWallet(wallet)}
+                  >
+                    <TableCell className="p-2">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{wallet.name}</span>
+                        <span className="text-sm text-muted-foreground truncate max-w-[150px]">
+                          {wallet.address}
+                        </span>
+                        <div className="flex gap-1 mt-1">
+                          {wallet.labels.map((label) => (
+                            <Badge key={label} className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-secondary text-secondary-foreground hover:bg-secondary/80">
+                              {label}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right p-2">
+                      {formatNumber(wallet.balance)} ETH
+                    </TableCell>
+                    <TableCell className="text-right p-2">
+                      {formatCurrency(wallet.totalValue)}
+                    </TableCell>
+                    <TableCell className="text-right p-2">
+                      <div className="flex items-center justify-end gap-1">
+                        {wallet.change24h > 0 ? (
+                          <span className="text-green-500">📈</span>
+                        ) : (
+                          <span className="text-red-500">📉</span>
+                        )}
+                        <span className={wallet.change24h > 0 ? "text-green-500" : "text-red-500"}>
+                          {wallet.change24h > 0 ? '+' : ''}{wallet.change24h}%
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right p-2">
+                      <Button 
+                        variant="outline"
+                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleWalletClick(wallet);
+                        }}
+                      >
+                        Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
       
       {/* Contract-Informationen */}
       {contractInfo && (
@@ -727,7 +1075,7 @@ const ContractRadar = () => {
                   background: `conic-gradient(${getSecurityLevelColor(contractSecurity.security_level)} 0% ${contractSecurity.overall_score * 100}%, #333 ${contractSecurity.overall_score * 100}% 100%)` 
                 }}></div>
                 <div className="absolute inset-4 bg-gray-800 rounded-full flex flex-col items-center justify-center">
-                  <div className="text-3xl font-bold">{Math.round(contractSecurity.overall_score)}</div>
+                  <div className="text-3xl font-bold">{Math.round(contractSecurity.overall_score * 100)}</div>
                   <div className="text-xs text-gray-400">Score</div>
                 </div>
               </div>
@@ -765,137 +1113,6 @@ const ContractRadar = () => {
           </div>
         </div>
       )}
-      
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-        <div className="lg:col-span-2 bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 border border-gray-700">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-2xl font-bold text-blue-400">Wallet-Radar</h3>
-            {loading && (
-              <div className="text-sm text-gray-400">
-                Scanne Wallets... {loadingProgress}%
-              </div>
-            )}
-          </div>
-          
-          <RadarVisualization 
-            wallets={displayedWallets}
-            connections={connections}
-            selectedWallet={selectedWallet}
-            loading={loading}
-            onWalletClick={handleWalletClick}
-            getRiskColor={getRiskColor}
-            getRiskIcon={getRiskIcon}
-          />
-          
-          <div className="flex justify-center mt-6 gap-6">
-            <div className="flex items-center">
-              <div className="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
-              <span>Hohes Risiko</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 rounded-full bg-yellow-500 mr-2"></div>
-              <span>Mittleres Risiko</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 rounded-full bg-blue-400 mr-2"></div>
-              <span>Niedriges Risiko</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 border border-gray-700">
-          <h3 className="text-2xl font-bold mb-4 text-blue-400">Wallet-Details</h3>
-          {selectedWallet ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="text-xl font-bold">{selectedWallet.name}</div>
-                  <div className="text-sm" style={{ color: getRiskColor(selectedWallet.riskLevel) }}>
-                    {getRiskIcon(selectedWallet.riskLevel)} {selectedWallet.riskLevel.toUpperCase()} RISIKO
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-gray-400 text-sm mb-1">Adresse</div>
-                <div className="text-sm bg-gray-700/50 p-2 rounded-lg break-all">
-                  {selectedWallet.address}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-gray-700/50 p-3 rounded-lg text-center">
-                  <div className="text-lg font-bold">{selectedWallet.transactionCount}</div>
-                  <div className="text-xs text-gray-400">Transaktionen</div>
-                </div>
-                <div className="bg-gray-700/50 p-3 rounded-lg text-center">
-                  <div className="text-lg font-bold">${(selectedWallet.totalValue / 1000000).toFixed(2)}M</div>
-                  <div className="text-xs text-gray-400">Gesamtwert</div>
-                </div>
-                <div className="bg-gray-700/50 p-3 rounded-lg text-center">
-                  <div className="text-lg font-bold">{new Date(selectedWallet.lastActivity).toLocaleDateString()}</div>
-                  <div className="text-xs text-gray-400">Letzte Aktivität</div>
-                </div>
-              </div>
-              
-              {selectedWallet.activityScore !== undefined && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-gray-700/50 p-3 rounded-lg">
-                    <div className="text-gray-400 text-sm mb-1">Aktivitäts-Score</div>
-                    <div className="text-lg font-bold">{(selectedWallet.activityScore * 100).toFixed(0)}%</div>
-                  </div>
-                  <div className="bg-gray-700/50 p-3 rounded-lg">
-                    <div className="text-gray-400 text-sm mb-1">Risiko-Score</div>
-                    <div className="text-lg font-bold">{(selectedWallet.riskScore * 100).toFixed(0)}%</div>
-                  </div>
-                </div>
-              )}
-              
-              <div>
-                <div className="text-gray-400 text-sm mb-2">Labels</div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedWallet.labels.map((label, index) => (
-                    <Badge key={index} className="bg-blue-900/50 text-blue-300">
-                      {label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <div className="text-gray-400 text-sm mb-2">Verbunden mit</div>
-                <div className="space-y-2">
-                  {selectedWallet.connections.map(connId => {
-                    const wallet = displayedWallets.find(w => w.address === connId);
-                    return wallet ? (
-                      <div 
-                        key={connId} 
-                        className="flex justify-between items-center bg-gray-700/50 p-2 rounded-lg cursor-pointer hover:bg-gray-700"
-                        onClick={() => handleWalletClick(wallet)}
-                      >
-                        <div className="font-medium">{wallet.name}</div>
-                        <Badge className={`${
-                          wallet.riskLevel === 'high' ? 'bg-red-900/50 text-red-300' : 
-                          wallet.riskLevel === 'medium' ? 'bg-yellow-900/50 text-yellow-300' : 'bg-blue-900/50 text-blue-300'
-                        }`}>
-                          {wallet.riskLevel}
-                        </Badge>
-                      </div>
-                    ) : null;
-                  })}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-              <div className="text-4xl mb-2">🔍</div>
-              <div className="text-center">
-                Wählen Sie eine Wallet im Radar aus, um Details anzuzeigen
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
       
       {/* Contract-Interaktionen */}
       {contractInteractions.length > 0 && (
@@ -950,16 +1167,6 @@ const ContractRadar = () => {
           </div>
         </div>
       )}
-      
-      <div className="max-w-7xl mx-auto bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 mb-10 border border-gray-700">
-        <h3 className="text-2xl font-bold mb-4 text-blue-400">Wie funktioniert der Smart Contract Radar?</h3>
-        <p className="text-gray-300">
-          Der Smart Contract Radar visualisiert Wallet-Interaktionen und Transaktionsmuster um einen Smart Contract. 
-          Jeder Punkt repräsentiert eine Wallet, die mit dem Contract interagiert hat. Die Position im Radar zeigt 
-          die Aktivitätsdichte an, während die Farbe das Risikolevel der Wallet angibt. Linien zwischen Wallets zeigen 
-          Transaktionsbeziehungen an.
-        </p>
-      </div>
       
       <div className="max-w-7xl mx-auto">
         <Link to="/" className="inline-flex items-center text-blue-400 hover:text-blue-300 transition-colors">
