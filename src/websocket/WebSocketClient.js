@@ -1,6 +1,5 @@
 // src/websocket/WebSocketClient.js
 import WS_URL from '../config/websocket';
-import { useCallback } from 'react';
 
 class WebSocketClient {
   constructor() {
