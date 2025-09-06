@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 import '../App.css';
-import Radar from '../components/Radar';
 
 // Mock-Daten als Fallback
 const MOCK_DATA = {
@@ -294,11 +293,6 @@ function Dashboard() {
       <div className="dashboard-header">
         <h1>On-Chain Analyse Dashboard</h1>
         <p>Professionelle Blockchain-Analyse in Echtzeit</p>
-      </div>
-      
-      {/* Wallet Radar - Neue Komponente */}
-      <div className="dashboard-card full-width">
-        <Radar />
       </div>
       
       <div className="dashboard-grid">
