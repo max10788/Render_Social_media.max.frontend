@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { apiService } from '../services/api';
 import '../App.css';
-import Radar from '../components/Radar';  // Korrigierter Import-Pfad
+import Radar from '../components/Radar';
 
 // Mock-Daten als Fallback
 const MOCK_DATA = {
@@ -177,6 +177,14 @@ function Dashboard() {
   const [usingMockData, setUsingMockData] = useState(false);
   const [apiError, setApiError] = useState(null);
   
+  // Mock-Daten für useEffect
+  const mockWallets = [
+    { id: '0x1234...5678', name: 'Whale Wallet #1', balance: 1250.75, value: 3752250, change24h: 12.5, transactions: 42 },
+    { id: '0xabcd...efgh', name: 'DEX Trader', balance: 875.25, value: 2625750, change24h: -3.2, transactions: 128 },
+    { id: '0x9876...5432', name: 'NFT Collector', balance: 420.5, value: 1261500, change24h: 8.7, transactions: 15 },
+    { id: '0x1357...2468', name: 'Liquidity Provider', balance: 2100.25, value: 6300750, change24h: 5.3, transactions: 67 }
+  ];
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -232,7 +240,7 @@ function Dashboard() {
     }, 30000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, []); // mockWallets wird nicht als Abhängigkeit benötigt, da es nur für die Berechnung verwendet wird
   
   const handleSettingsUpdate = async (newSettings) => {
     try {
