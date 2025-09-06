@@ -1,6 +1,5 @@
 // src/pages/Dashboard.js
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { apiService } from '../services/api';
 import '../App.css';
 import Radar from '../components/Radar';
@@ -177,7 +176,7 @@ function Dashboard() {
   const [usingMockData, setUsingMockData] = useState(false);
   const [apiError, setApiError] = useState(null);
   
-  // Mock-Daten für useEffect
+  // Mock-Daten für useEffect - wird außerhalb des useEffect definiert, um die Abhängigkeit zu vermeiden
   const mockWallets = [
     { id: '0x1234...5678', name: 'Whale Wallet #1', balance: 1250.75, value: 3752250, change24h: 12.5, transactions: 42 },
     { id: '0xabcd...efgh', name: 'DEX Trader', balance: 875.25, value: 2625750, change24h: -3.2, transactions: 128 },
@@ -240,7 +239,7 @@ function Dashboard() {
     }, 30000);
     
     return () => clearInterval(interval);
-  }, []); // mockWallets wird nicht als Abhängigkeit benötigt, da es nur für die Berechnung verwendet wird
+  }, []); // Leeres Abhängigkeitsarray, da der Effekt nur einmal beim Mounten ausgeführt werden soll
   
   const handleSettingsUpdate = async (newSettings) => {
     try {
