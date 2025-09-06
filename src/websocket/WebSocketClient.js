@@ -8,8 +8,12 @@ class WebSocketClient {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 3000;
     this.listeners = new Map();
+    
+    // Debug-Information hinzufügen
+    console.log('WebSocket URL:', WS_URL);
+    console.log('Current hostname:', window.location.hostname);
   }
-
+  
   connect() {
     try {
       console.log(`Attempting to connect to WebSocket: ${WS_URL}`);
@@ -58,6 +62,7 @@ class WebSocketClient {
     }
   }
   
+  // Rest der Methoden bleibt unverändert...
   disconnect() {
     if (this.socket) {
       console.log('Disconnecting WebSocket...');
