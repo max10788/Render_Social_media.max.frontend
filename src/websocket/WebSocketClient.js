@@ -1,5 +1,6 @@
 // src/websocket/WebSocketClient.js
 import WS_URL from '../config/websocket';
+import { useCallback } from 'react';
 
 class WebSocketClient {
   constructor() {
@@ -62,7 +63,6 @@ class WebSocketClient {
     }
   }
   
-  // Rest der Methoden bleibt unverändert...
   disconnect() {
     if (this.socket) {
       console.log('Disconnecting WebSocket...');
@@ -120,4 +120,5 @@ class WebSocketClient {
 }
 
 // Export singleton instance
-export default new WebSocketClient();
+const webSocketClient = new WebSocketClient();
+export default webSocketClient;
