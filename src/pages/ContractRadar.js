@@ -1,5 +1,5 @@
 // src/pages/ContractRadar.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { BLOCKCHAIN_CONFIG, TIME_PERIODS, INTERVALS } from '../config/api';
@@ -84,6 +84,12 @@ const ContractRadar = () => {
   const [contractSecurity, setContractSecurity] = useState(null);
   const [timeSeriesData, setTimeSeriesData] = useState(null);
   const [radarSize, setRadarSize] = useState({ width: 600, height: 600 });
+  const [displayedWallets, setDisplayedWallets] = useState([]);
+  const [radarAngle, setRadarAngle] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  
+  const radarIntervalRef = useRef(null);
+  const walletDisplayIntervalRef = useRef(null);
   
   // Radar-Größe basierend auf Fenstergröße anpassen
   useEffect(() => {
@@ -96,6 +102,27 @@ const ContractRadar = () => {
     window.addEventListener('resize', updateRadarSize);
     return () => window.removeEventListener('resize', updateRadarSize);
   }, []);
+  
+  // Radar-Animation starten/stoppen
+  useEffect(() => {
+    if (loading) {
+      radarIntervalRef.current = setInterval(() => {
+        setRadarAngle(prev => (prev + 2) % 360);
+      }, 50);
+    } else {
+      if (radarIntervalRef.current) {
+        clearInterval(radarIntervalRef.current);
+        radarIntervalRef.current = null;
+      }
+      setRadarAngle(0);
+    }
+    
+    return () => {
+      if (radarIntervalRef.current) {
+        clearInterval(radarIntervalRef.current);
+      }
+    };
+  }, [loading]);
   
   // Contract-Informationen laden
   const loadContractInfo = useCallback(async () => {
@@ -163,6 +190,8 @@ const ContractRadar = () => {
     
     setLoading(true);
     setError(null);
+    setDisplayedWallets([]);
+    setLoadingProgress(0);
     
     try {
       const data = await apiService.getRadarContractData(contractAddress, chain, timePeriod);
@@ -205,6 +234,24 @@ const ContractRadar = () => {
       setWallets(wallets);
       setConnections(walletConnections);
       setUsingMockData(false);
+      
+      // Wallets schrittweise anzeigen
+      let progress = 0;
+      const totalWallets = wallets.length;
+      
+      walletDisplayIntervalRef.current = setInterval(() => {
+        progress += 10;
+        setLoadingProgress(progress);
+        
+        const walletsToShow = Math.floor((progress / 100) * totalWallets);
+        setDisplayedWallets(wallets.slice(0, walletsToShow));
+        
+        if (progress >= 100) {
+          clearInterval(walletDisplayIntervalRef.current);
+          setLoading(false);
+        }
+      }, 200);
+      
     } catch (err) {
       console.error('Failed to load radar data:', err);
       setError(err.message);
@@ -213,8 +260,23 @@ const ContractRadar = () => {
       setWallets(MOCK_WALLETS);
       setConnections([]);
       setUsingMockData(true);
-    } finally {
-      setLoading(false);
+      
+      // Mock-Daten schrittweise anzeigen
+      let progress = 0;
+      const totalWallets = MOCK_WALLETS.length;
+      
+      walletDisplayIntervalRef.current = setInterval(() => {
+        progress += 10;
+        setLoadingProgress(progress);
+        
+        const walletsToShow = Math.floor((progress / 100) * totalWallets);
+        setDisplayedWallets(MOCK_WALLETS.slice(0, walletsToShow));
+        
+        if (progress >= 100) {
+          clearInterval(walletDisplayIntervalRef.current);
+          setLoading(false);
+        }
+      }, 200);
     }
   }, [contractAddress, chain, timePeriod]);
   
@@ -459,7 +521,15 @@ const ContractRadar = () => {
       
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
         <div className="lg:col-span-2 bg-gray-800/30 backdrop-blur-lg rounded-2xl p-6 border border-gray-700">
-          <h3 className="text-2xl font-bold mb-4 text-blue-400">Wallet-Radar</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-2xl font-bold text-blue-400">Wallet-Radar</h3>
+            {loading && (
+              <div className="text-sm text-gray-400">
+                Scanne Wallets... {loadingProgress}%
+              </div>
+            )}
+          </div>
+          
           <div className="flex justify-center">
             <div className="relative" style={{ width: radarSize.width, height: radarSize.height }}>
               {/* Radar-Kreise */}
@@ -476,11 +546,33 @@ const ContractRadar = () => {
                 ))}
               </div>
               
+              {/* Radar-Linien */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {[0, 45, 90, 135].map(angle => (
+                  <div 
+                    key={angle}
+                    className="absolute w-1/2 h-px bg-gray-600"
+                    style={{ transform: `rotate(${angle}deg)` }}
+                  ></div>
+                ))}
+              </div>
+              
+              {/* Radar-Zeiger (während des Ladens) */}
+              {loading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div 
+                    className="absolute w-1/2 h-1 bg-gradient-to-r from-transparent to-blue-500 origin-left"
+                    style={{ transform: `rotate(${radarAngle}deg)` }}
+                  ></div>
+                  <div className="absolute w-4 h-4 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50"></div>
+                </div>
+              )}
+              
               {/* Verbindungslinien zwischen Wallets */}
               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
                 {connections.map((conn, index) => {
-                  const fromWallet = wallets.find(w => w.address === conn.from);
-                  const toWallet = wallets.find(w => w.address === conn.to);
+                  const fromWallet = displayedWallets.find(w => w.address === conn.from);
+                  const toWallet = displayedWallets.find(w => w.address === conn.to);
                   
                   if (!fromWallet || !toWallet) return null;
                   
@@ -500,7 +592,7 @@ const ContractRadar = () => {
               </svg>
               
               {/* Wallet-Punkte */}
-              {wallets.map(wallet => (
+              {displayedWallets.map(wallet => (
                 <div
                   key={wallet.id}
                   className={`absolute transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-125 ${selectedWallet?.id === wallet.id ? 'ring-4 ring-white scale-125' : ''}`}
@@ -597,7 +689,7 @@ const ContractRadar = () => {
                 <div className="text-gray-400 text-sm mb-2">Verbunden mit</div>
                 <div className="space-y-2">
                   {selectedWallet.connections.map(connId => {
-                    const wallet = wallets.find(w => w.address === connId);
+                    const wallet = displayedWallets.find(w => w.address === connId);
                     return wallet ? (
                       <div 
                         key={connId} 
