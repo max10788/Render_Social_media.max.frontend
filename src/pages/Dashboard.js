@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { API_CONFIG, INTERVALS } from '../config/api'; // Nur benötigte Importe
+import { INTERVALS } from '../config/api';
 import DashboardService from '../services/dashboard';
 import StatsCard from '../components/ui/StatsCard';
 import ActivityChart from '../components/ui/ActivityChart';
