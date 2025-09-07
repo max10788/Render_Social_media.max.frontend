@@ -6,13 +6,6 @@ import App from './App';
 import { initSocket } from './socket';
 import reportWebVitals from './reportWebVitals';
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-
 // Konfigurationsobjekt für Umgebungsvariablen
 const config = {
   apiUrl: process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend.onrender.com',
@@ -60,19 +53,17 @@ const socket = initSocket();
 socket.on('connected', () => {
   console.log('🔌 WebSocket connected successfully');
 });
-
 socket.on('disconnected', () => {
   console.log('🔌 WebSocket disconnected');
 });
-
 socket.on('error', (error) => {
   console.error('🔌 WebSocket error:', error);
 });
-
 socket.on('message', (data) => {
   console.log('🔌 WebSocket message received:', data);
 });
 
+// React-App rendern
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
@@ -86,4 +77,5 @@ window.addEventListener('beforeunload', () => {
     socket.disconnect();
   }
 });
+
 reportWebVitals();
