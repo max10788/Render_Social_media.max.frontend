@@ -1,5 +1,4 @@
 // src/types/api.ts
-// Grundlegende Blockchain-Typen
 export interface WalletTransaction {
   id: string;
   timestamp: number;
