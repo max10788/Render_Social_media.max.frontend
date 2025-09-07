@@ -17,15 +17,6 @@ const Navigation = () => {
         </div>
         
         <ul className="nav-menu">
-          <li className={`nav-item ${isActive('/')}`}>
-            <Link to="/">Dashboard</Link>
-          </li>
-          <li className={`nav-item ${isActive('/tokens')}`}>
-            <Link to="/tokens">Token Discovery</Link>
-          </li>
-          <li className={`nav-item ${isActive('/wallets')}`}>
-            <Link to="/wallets">Wallet Analysis</Link>
-          </li>
           <li className={`nav-item ${isActive('/contracts')}`}>
             <Link to="/contracts">Contract Radar</Link>
           </li>
