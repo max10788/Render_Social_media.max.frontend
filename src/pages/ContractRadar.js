@@ -1,4 +1,5 @@
 // src/components/ContractRadar.js
+// src/components/ContractRadar.js
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { apiService } from '../services/api';
@@ -8,7 +9,6 @@ import { Button } from '../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/table';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../components/ui/select';
 
 // Mock-Daten für Wallets im Radar (als Fallback)
 const MOCK_WALLETS = [
@@ -375,6 +375,64 @@ const ContractRadar = () => {
   
   const walletDisplayIntervalRef = useRef(null);
   
+  // Schutz vor Ethereum-Objekt-Fehler
+  useEffect(() => {
+    try {
+      // Versuchen, das Ethereum-Objekt zu schützen
+      if (window.ethereum) {
+        const descriptor = Object.getOwnPropertyDescriptor(window, 'ethereum');
+        if (descriptor && !descriptor.configurable) {
+          console.warn('Ethereum object is not configurable, skipping protection');
+          return;
+        }
+        
+        try {
+          Object.defineProperty(window, 'ethereum', {
+            value: window.ethereum,
+            configurable: true,
+            enumerable: true,
+            writable: true
+          });
+        } catch (e) {
+          console.warn('Could not redefine ethereum object:', e);
+        }
+      }
+    } catch (error) {
+      console.error('Error protecting ethereum object:', error);
+    }
+  }, []);
+  
+  // Deaktiviere WebSocket-Verbindungen für diese Komponente
+  useEffect(() => {
+    const originalWebSocket = window.WebSocket;
+    
+    // Überschreibe WebSocket nur für diese Komponente
+    window.WebSocket = function(url) {
+      if (url.includes('localhost:8000') || url.includes('ws://')) {
+        // Gib ein Mock-WebSocket-Objekt zurück
+        return {
+          send: () => {},
+          close: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          readyState: 3,
+          CONNECTING: 0,
+          OPEN: 1,
+          CLOSING: 2,
+          CLOSED: 3
+        };
+      }
+      
+      // Für andere URLs, verwende das originale WebSocket
+      return new originalWebSocket(url);
+    };
+    
+    return () => {
+      // Stelle das originale WebSocket wieder her
+      window.WebSocket = originalWebSocket;
+    };
+  }, []);
+  
   // Hilfsfunktion für API-Aufrufe mit Retry-Logik
   const fetchWithRetry = async (fetchFunction, maxRetries = 3) => {
     for (let i = 0; i < maxRetries; i++) {
@@ -471,7 +529,20 @@ const ContractRadar = () => {
   
   // Radar-Daten laden
   const loadRadarData = useCallback(async () => {
-    if (!contractAddress) return;
+    if (!contractAddress) {
+      // Wenn keine Contract-Adresse eingegeben wurde, Mock-Daten direkt laden
+      setWallets(MOCK_WALLETS);
+      setConnections([]);
+      setUsingMockData(true);
+      setDisplayedWallets(MOCK_WALLETS);
+      setSelectedWallet(MOCK_WALLETS[0]);
+      setLoading(false);
+      setContractInfo(MOCK_CONTRACT_INFO);
+      setContractInteractions(MOCK_INTERACTIONS);
+      setContractSecurity(MOCK_SECURITY);
+      setTimeSeriesData(MOCK_TIME_SERIES);
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -758,17 +829,16 @@ const ContractRadar = () => {
             />
           </div>
           
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1h">1 Stunde</SelectItem>
-              <SelectItem value="24h">24 Stunden</SelectItem>
-              <SelectItem value="7d">7 Tage</SelectItem>
-              <SelectItem value="30d">30 Tage</SelectItem>
-            </SelectContent>
-          </Select>
+          <select 
+            value={timeRange} 
+            onChange={(e) => setTimeRange(e.target.value)}
+            className="w-[150px] h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="1h">1 Stunde</option>
+            <option value="24h">24 Stunden</option>
+            <option value="7d">7 Tage</option>
+            <option value="30d">30 Tage</option>
+          </select>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
