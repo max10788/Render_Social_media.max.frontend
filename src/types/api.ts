@@ -21,14 +21,14 @@ export interface TrackingResult {
 }
 
 export interface TokenData {
-  address: string;
-  name: string;
   symbol: string;
-  chain: string;
-  market_cap?: number;
-  volume_24h?: number;
-  price?: number;
-  listing_date?: string;
+  name: string;
+  address: string;
+  priceUsd: number;
+  priceChange24h: number;
+  volume24h: number;
+  marketCap: number;
+  lastTransactions: WalletTransaction[];
 }
 
 export interface DiscoveryParams {
