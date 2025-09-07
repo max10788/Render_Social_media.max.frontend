@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import '../styles/Radar.css';
+import '../components/ui/Radar.css'; // Korrigierter Pfad
 
 const Radar = ({ data, onContractSelect }) => {
   const svgRef = useRef(null);
