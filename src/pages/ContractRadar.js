@@ -1,21 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../components/ui/table';
-
-// Fix für Leaflet-Icons in React
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-  iconUrl: require('leaflet/dist/images/marker-icon.png'),
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
-});
 
 // Mock-Daten für Verträge
 const mockContracts = [
@@ -105,6 +94,12 @@ const mockContracts = [
   },
 ];
 
+// Dynamischer Import für Leaflet-Komponenten
+const MapContainer = React.lazy(() => import('react-leaflet').then(mod => ({ default: mod.MapContainer })));
+const TileLayer = React.lazy(() => import('react-leaflet').then(mod => ({ default: mod.TileLayer })));
+const Marker = React.lazy(() => import('react-leaflet').then(mod => ({ default: mod.Marker })));
+const Popup = React.lazy(() => import('react-leaflet').then(mod => ({ default: mod.Popup })));
+
 const ContractRadar = () => {
   const [contracts, setContracts] = useState([]);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -113,6 +108,7 @@ const ContractRadar = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const [center, setCenter] = useState([52.5200, 13.4050]); // Berlin als Zentrum
   const [zoom, setZoom] = useState(6);
 
@@ -123,6 +119,22 @@ const ContractRadar = () => {
       setSelectedContract(mockContracts[0]);
       setIsLoading(false);
     }, 1000);
+  }, []);
+
+  useEffect(() => {
+    // Prüfen, ob Leaflet-Komponenten geladen werden können
+    const checkMapLoaded = async () => {
+      try {
+        await import('leaflet');
+        await import('react-leaflet');
+        setMapLoaded(true);
+      } catch (error) {
+        console.error('Leaflet konnte nicht geladen werden:', error);
+        setMapLoaded(false);
+      }
+    };
+    
+    checkMapLoaded();
   }, []);
 
   const filteredContracts = contracts.filter(contract => {
@@ -211,6 +223,63 @@ const ContractRadar = () => {
     active: 'bg-green-500',
     paused: 'bg-yellow-500',
     terminated: 'bg-red-500',
+  };
+
+  // Platzhalter-Karte, falls Leaflet nicht geladen werden kann
+  const MapPlaceholder = () => (
+    <div className="bg-gray-100 rounded-lg flex items-center justify-center h-full">
+      <div className="text-center p-4">
+        <div className="text-gray-500 mb-2">Karte konnte nicht geladen werden</div>
+        <div className="text-sm text-gray-400">
+          Bitte installieren Sie leaflet und react-leaflet:
+          <div className="mt-1 bg-gray-800 text-gray-200 p-2 rounded text-xs">
+            npm install leaflet react-leaflet
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Lazy Map-Komponente mit Fehlerbehandlung
+  const LazyMap = ({ contracts, center, zoom }) => {
+    if (!mapLoaded) {
+      return <MapPlaceholder />;
+    }
+
+    return (
+      <React.Suspense fallback={<div className="bg-gray-100 rounded-lg flex items-center justify-center h-full">Lade Karte...</div>}>
+        <MapContainer 
+          center={center} 
+          zoom={zoom} 
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          {contracts.map(contract => (
+            <Marker 
+              key={contract.id} 
+              position={[contract.location.lat, contract.location.lng]}
+            >
+              <Popup>
+                <div className="p-2">
+                  <h3 className="font-bold">{contract.name}</h3>
+                  <p className="text-sm">Typ: {contract.type}</p>
+                  <p className="text-sm">Wert: {formatCurrency(contract.value)}</p>
+                  <p className="text-sm">Status: 
+                    <span className={`ml-1 px-2 py-1 rounded text-white ${statusColors[contract.status]}`}>
+                      {contract.status}
+                    </span>
+                  </p>
+                  <p className="text-sm mt-2">ID: {contract.id}</p>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </React.Suspense>
+    );
   };
 
   if (isLoading) {
@@ -385,36 +454,7 @@ const ContractRadar = () => {
             </CardHeader>
             <CardContent>
               <div style={{ height: '500px', width: '100%' }}>
-                <MapContainer 
-                  center={center} 
-                  zoom={zoom} 
-                  style={{ height: '100%', width: '100%' }}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  />
-                  {filteredContracts.map(contract => (
-                    <Marker 
-                      key={contract.id} 
-                      position={[contract.location.lat, contract.location.lng]}
-                    >
-                      <Popup>
-                        <div className="p-2">
-                          <h3 className="font-bold">{contract.name}</h3>
-                          <p className="text-sm">Typ: {contract.type}</p>
-                          <p className="text-sm">Wert: {formatCurrency(contract.value)}</p>
-                          <p className="text-sm">Status: 
-                            <span className={`ml-1 px-2 py-1 rounded text-white ${statusColors[contract.status]}`}>
-                              {contract.status}
-                            </span>
-                          </p>
-                          <p className="text-sm mt-2">ID: {contract.id}</p>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  ))}
-                </MapContainer>
+                <LazyMap contracts={filteredContracts} center={center} zoom={zoom} />
               </div>
             </CardContent>
           </Card>
