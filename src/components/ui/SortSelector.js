@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import '../styles/SortSelector.css';
+import './SortSelector.css'; // Korrigierter Pfad (relativer Pfad)
 
 const SortSelector = ({ sortOption, onSortChange }) => {
   const [localSortOption, setLocalSortOption] = useState(sortOption);
