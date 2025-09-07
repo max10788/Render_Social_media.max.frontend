@@ -1,30 +1,39 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import './Navigation.css';
 
 const Navigation = () => {
-  const location = useLocation();
-  
-  const isActive = (path) => {
-    return location.pathname === path ? 'active' : '';
-  };
-  
   return (
     <nav className="navigation">
-      <div className="nav-container">
-        <div className="nav-logo">
-          <Link to="/">CryptoTracker</Link>
-        </div>
-        
-        <ul className="nav-menu">
-          <li className={`nav-item ${isActive('/contracts')}`}>
-            <Link to="/contracts">Contract Radar</Link>
-          </li>
-        </ul>
-        
-        <div className="nav-user">
-          {/* User profile or login button would go here */}
-        </div>
+      <div className="nav-brand">
+        <a href="/">
+          <span className="brand-icon">📡</span>
+          <span className="brand-text">Crypto Radar</span>
+        </a>
+      </div>
+      <ul className="nav-links">
+        <li>
+          <a href="/" className="nav-link">
+            <span className="nav-icon">🏠</span>
+            <span className="nav-text">Home</span>
+          </a>
+        </li>
+        <li>
+          <a href="/radar" className="nav-link">
+            <span className="nav-icon">📊</span>
+            <span className="nav-text">Radar</span>
+          </a>
+        </li>
+        <li>
+          <a href="/dashboard" className="nav-link">
+            <span className="nav-icon">📈</span>
+            <span className="nav-text">Dashboard</span>
+          </a>
+        </li>
+      </ul>
+      <div className="nav-toggle">
+        <span className="nav-toggle-bar"></span>
+        <span className="nav-toggle-bar"></span>
+        <span className="nav-toggle-bar"></span>
       </div>
     </nav>
   );
