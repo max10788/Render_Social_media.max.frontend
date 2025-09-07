@@ -1,4 +1,6 @@
-import { WalletTransaction, TokenData } from '../types/api';
+// Entferne diese Zeilen - sie werden nicht verwendet
+// import { WalletTransaction, TokenData } from '../types/api';
+// import { useEffect } from 'react';
 
 // Mock Wallet-Kategorien
 export const WALLET_CATEGORIES = {
