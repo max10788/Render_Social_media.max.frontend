@@ -1,6 +1,30 @@
 // src/types/api.ts
 
 // Grundlegende Blockchain-Typen
+
+export interface WalletTransaction {
+  id: string;
+  timestamp: number;
+  tokenSymbol: string;
+  tokenAddress: string;
+  amount: number;
+  priceUsd: number;
+  type: 'buy' | 'sell';
+  walletAddress: string;
+  walletCategory: 'whale' | 'smart_money' | 'retail' | 'bot';
+  transactionHash: string;
+}
+
+export interface RadarDataPoint {
+  id: string;
+  token: TokenData;
+  transactions: WalletTransaction[];
+  timeRange: {
+    start: number;
+    end: number;
+  };
+}
+
 export interface Transaction {
   hash: string;
   amount: number;
