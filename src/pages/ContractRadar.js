@@ -6,8 +6,7 @@ import SortSelector from '../components/ui/SortSelector';
 import ContractDetails from '../components/ui/ContractDetails';
 import useCryptoTracker from '../hooks/useCryptoTracker';
 import useContractRadar from '../hooks/useContractRadar';
-import WebSocketClient from '../websocket/WebSocketClient';
-import websocketConfig from '../config/websocket';
+import { getSocket } from '../socket'; // Importiere die Socket-Funktion
 import { API_CONFIG as apiConfig } from '../config/api';
 import '../components/ui/ContractRadar.css';
 
@@ -32,37 +31,38 @@ const ContractRadar = () => {
 
   // Initialize WebSocket connection
   useEffect(() => {
-    const wsClient = new WebSocketClient(websocketConfig.url);
+    const socket = getSocket();
     
-    wsClient.onOpen(() => {
+    socket.on('connect', () => {
       setConnectionStatus('connected');
       console.log('WebSocket connected');
     });
     
-    wsClient.onClose(() => {
+    socket.on('disconnect', () => {
       setConnectionStatus('disconnected');
       console.log('WebSocket disconnected');
     });
     
-    wsClient.onError((error) => {
+    socket.on('connect_error', (error) => {
       setConnectionStatus('error');
       console.error('WebSocket error:', error);
     });
     
-    wsClient.onMessage((data) => {
-      if (data.type === 'contract_activity') {
-        // Update contracts with new activity
-        fetchContracts();
-      }
+    socket.on('contract_activity', (data) => {
+      // Update contracts with new activity
+      fetchContracts();
     });
     
     // Subscribe to contract updates
-    wsClient.subscribe('contract_updates');
+    socket.emit('subscribe', 'contract_updates');
     
     // Cleanup on unmount
     return () => {
-      wsClient.unsubscribe('contract_updates');
-      wsClient.close();
+      socket.emit('unsubscribe', 'contract_updates');
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
+      socket.off('contract_activity');
     };
   }, [fetchContracts]);
 
