@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import '../styles/FilterControls.css';
+import './FilterControls.css'; // Korrigierter Pfad (relativer Pfad)
 
 const FilterControls = ({ filters, onFilterChange }) => {
   const [localFilters, setLocalFilters] = useState(filters);
