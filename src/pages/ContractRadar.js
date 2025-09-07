@@ -7,9 +7,9 @@ import ContractDetails from '../components/ui/ContractDetails';
 import useCryptoTracker from '../hooks/useCryptoTracker';
 import useContractRadar from '../hooks/useContractRadar';
 import WebSocketClient from '../websocket/WebSocketClient';
-import { websocketConfig } from '../config/websocket';
-import { apiConfig } from '../config/api';
-import '../styles/ContractRadar.css';
+import websocketConfig from '../config/websocket'; // Geändert zu Default-Import
+import { apiConfig } from '../config/api'; // Geändert zu benanntem Import
+import '../components/ui/ContractRadar.css'; // Korrigierter Pfad
 
 const ContractRadar = () => {
   const [selectedContract, setSelectedContract] = useState(null);
