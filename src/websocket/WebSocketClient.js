@@ -1,6 +1,3 @@
-// src/websocket/WebSocketClient.js
-import WS_URL from '../config/websocket';
-
 class WebSocketClient {
   constructor(url) {
     this.url = url;
