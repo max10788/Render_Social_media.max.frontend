@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
-import '../styles/ContractDetails.css';
+import './ContractDetails.css'; // Korrigierter Pfad (relativer Pfad)
 
 const ContractDetails = ({ contract, apiConfig }) => {
   const formattedTimestamp = useMemo(() => {
