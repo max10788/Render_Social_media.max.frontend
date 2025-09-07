@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import socket from './socket';
+import { initSocket } from './socket'; // Nur die Funktion importieren
 
 // Konfigurationsobjekt für Umgebungsvariablen
 const config = {
@@ -46,19 +46,19 @@ if (window.ethereum) {
 window.appConfig = config;
 
 // Initialize WebSocket connection
-const socket = initSocket();
+const socketInstance = initSocket(); // Variable umbenannt, um Konflikt zu vermeiden
 
 // Log socket connection status
-socket.on('connected', () => {
+socketInstance.on('connected', () => {
   console.log('🔌 WebSocket connected successfully');
 });
-socket.on('disconnected', () => {
+socketInstance.on('disconnected', () => {
   console.log('🔌 WebSocket disconnected');
 });
-socket.on('error', (error) => {
+socketInstance.on('error', (error) => {
   console.error('🔌 WebSocket error:', error);
 });
-socket.on('message', (data) => {
+socketInstance.on('message', (data) => {
   console.log('🔌 WebSocket message received:', data);
 });
 
@@ -69,10 +69,11 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
-  if (socket) {
-    socket.disconnect();
+  if (socketInstance) {
+    socketInstance.disconnect();
   }
 });
 
