@@ -1,7 +1,7 @@
 import { WalletTransaction, TokenData } from '../types/api';
 
 // Mock Wallet-Kategorien
-const WALLET_CATEGORIES = {
+export const WALLET_CATEGORIES = {
   whale: { label: 'Whale', color: '#f59e0b' },
   smart_money: { label: 'Smart Money', color: '#10b981' },
   retail: { label: 'Retail', color: '#6366f1' },
