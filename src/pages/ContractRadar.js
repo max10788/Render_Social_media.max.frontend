@@ -8,7 +8,7 @@ import useCryptoTracker from '../hooks/useCryptoTracker';
 import useContractRadar from '../hooks/useContractRadar';
 import WebSocketClient from '../websocket/WebSocketClient';
 import websocketConfig from '../config/websocket';
-import { API_CONFIG as apiConfig } from '../config/api'; // Angepasster Import
+import { API_CONFIG as apiConfig } from '../config/api';
 import '../components/ui/ContractRadar.css';
 
 const ContractRadar = () => {
@@ -25,7 +25,6 @@ const ContractRadar = () => {
   
   const { contracts, loading, error, fetchContracts } = useCryptoTracker();
   const { 
-    filteredContracts, 
     radarData, 
     updateFilters, 
     updateSort 
