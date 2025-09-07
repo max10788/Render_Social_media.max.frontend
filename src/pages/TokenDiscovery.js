@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ERROR_CODES, INTERVALS } from '../config/api'; // Nur benötigte Importe
 import TokenDiscoveryService from '../services/tokenDiscovery';
 import TokenCard from '../components/ui/TokenCard';
 import FilterControls from '../components/ui/FilterControls';
