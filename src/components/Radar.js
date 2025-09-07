@@ -1,394 +1,267 @@
-// src/components/Radar.js
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
+import '../styles/Radar.css';
 
-const Radar = () => {
-  const [wallets, setWallets] = useState([]);
-  const [selectedWallet, setSelectedWallet] = useState(null);
-  const [timeRange, setTimeRange] = useState('24h');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Mock-Daten für Wallets
-  const mockWallets = [
-    {
-      id: '0x1234...5678',
-      name: 'Whale Wallet #1',
-      balance: 1250.75,
-      value: 3752250,
-      change24h: 12.5,
-      transactions: 42,
-      status: 'active',
-      tags: ['whale', 'defi'],
-      chartData: [
-        { time: '00:00', value: 3500000 },
-        { time: '04:00', value: 3550000 },
-        { time: '08:00', value: 3600000 },
-        { time: '12:00', value: 3650000 },
-        { time: '16:00', value: 3700000 },
-        { time: '20:00', value: 3752250 },
-      ]
-    },
-    {
-      id: '0xabcd...efgh',
-      name: 'DEX Trader',
-      balance: 875.25,
-      value: 2625750,
-      change24h: -3.2,
-      transactions: 128,
-      status: 'active',
-      tags: ['trader', 'dex'],
-      chartData: [
-        { time: '00:00', value: 2700000 },
-        { time: '04:00', value: 2680000 },
-        { time: '08:00', value: 2650000 },
-        { time: '12:00', value: 2630000 },
-        { time: '16:00', value: 2620000 },
-        { time: '20:00', value: 2625750 },
-      ]
-    },
-    {
-      id: '0x9876...5432',
-      name: 'NFT Collector',
-      balance: 420.5,
-      value: 1261500,
-      change24h: 8.7,
-      transactions: 15,
-      status: 'active',
-      tags: ['nft', 'collector'],
-      chartData: [
-        { time: '00:00', value: 1200000 },
-        { time: '04:00', value: 1210000 },
-        { time: '08:00', value: 1225000 },
-        { time: '12:00', value: 1240000 },
-        { time: '16:00', value: 1250000 },
-        { time: '20:00', value: 1261500 },
-      ]
-    },
-    {
-      id: '0x1357...2468',
-      name: 'Liquidity Provider',
-      balance: 2100.25,
-      value: 6300750,
-      change24h: 5.3,
-      transactions: 67,
-      status: 'active',
-      tags: ['liquidity', 'yield'],
-      chartData: [
-        { time: '00:00', value: 6200000 },
-        { time: '04:00', value: 6220000 },
-        { time: '08:00', value: 6250000 },
-        { time: '12:00', value: 6270000 },
-        { time: '16:00', value: 6290000 },
-        { time: '20:00', value: 6300750 },
-      ]
-    },
-  ];
-
+const Radar = ({ data, onContractSelect }) => {
+  const svgRef = useRef(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [hoveredContract, setHoveredContract] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  
+  // Responsive sizing
   useEffect(() => {
-    // Simuliere API-Aufruf
-    setTimeout(() => {
-      setWallets(mockWallets);
-      setSelectedWallet(mockWallets[0]);
-      setIsLoading(false);
-    }, 1000);
+    const updateDimensions = () => {
+      if (svgRef.current && svgRef.current.parentElement) {
+        const { width, height } = svgRef.current.parentElement.getBoundingClientRect();
+        setDimensions({ width, height });
+      }
+    };
+    
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    
+    return () => {
+      window.removeEventListener('resize', updateDimensions);
+    };
   }, []);
-
-  const filteredWallets = wallets.filter(wallet => 
-    wallet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    wallet.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    wallet.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
+  
+  // Radar configuration
+  const radarConfig = useMemo(() => {
+    const centerX = dimensions.width / 2;
+    const centerY = dimensions.height / 2;
+    const maxRadius = Math.min(dimensions.width, dimensions.height) * 0.4;
+    
+    return {
+      centerX,
+      centerY,
+      maxRadius,
+      gridLevels: 5,
+      axisCount: 8
+    };
+  }, [dimensions]);
+  
+  // Calculate position for a contract
+  const calculatePosition = (contract) => {
+    const { centerX, centerY, maxRadius } = radarConfig;
+    
+    // Distance from center based on activity age (newer is closer)
+    const ageFactor = Math.min(1, contract.age / 24); // Normalize to 24h max
+    const distance = maxRadius * ageFactor;
+    
+    // Angle based on transaction value or hash
+    const angle = (contract.valueHash || 0) * Math.PI * 2;
+    
+    const x = centerX + Math.cos(angle) * distance;
+    const y = centerY + Math.sin(angle) * distance;
+    
+    return { x, y };
   };
-
-  const formatNumber = (value) => {
-    return new Intl.NumberFormat('en-US').format(value);
+  
+  // Calculate size based on transaction value
+  const calculateSize = (value) => {
+    const minSize = 5;
+    const maxSize = 20;
+    
+    // Normalize value (logarithmic scale for better distribution)
+    const normalizedValue = Math.log1p(value) / Math.log1p(1000000); // Assuming 1M as max
+    
+    return minSize + normalizedValue * (maxSize - minSize);
   };
-
-  // Einfaches SVG-Diagramm für die Wallet-Analyse
-  const SimpleChart = ({ data }) => {
-    const maxValue = Math.max(...data.map(d => d.value));
-    const width = 300;
-    const height = 150;
-    const padding = 20;
+  
+  // Get color based on contract type
+  const getColorByType = (type) => {
+    const colors = {
+      'new': '#4CAF50',      // Green
+      'large': '#FF5722',    // Red
+      'frequent': '#2196F3', // Blue
+      'risky': '#FFC107',    // Yellow
+      'default': '#9E9E9E'   // Gray
+    };
+    
+    return colors[type] || colors.default;
+  };
+  
+  // Handle mouse events
+  const handleMouseMove = (e, contract) => {
+    setHoveredContract(contract);
+    setTooltipPosition({ x: e.clientX, y: e.clientY });
+  };
+  
+  const handleMouseLeave = () => {
+    setHoveredContract(null);
+  };
+  
+  // Render grid circles
+  const renderGrid = () => {
+    const { centerX, centerY, maxRadius, gridLevels } = radarConfig;
+    
+    return Array.from({ length: gridLevels }).map((_, i) => {
+      const radius = (maxRadius / gridLevels) * (i + 1);
+      return (
+        <circle
+          key={`grid-${i}`}
+          cx={centerX}
+          cy={centerY}
+          r={radius}
+          className="radar-grid-circle"
+          stroke="#e0e0e0"
+          strokeWidth="1"
+          fill="none"
+        />
+      );
+    });
+  };
+  
+  // Render axis lines
+  const renderAxes = () => {
+    const { centerX, centerY, maxRadius, axisCount } = radarConfig;
+    
+    return Array.from({ length: axisCount }).map((_, i) => {
+      const angle = (i / axisCount) * Math.PI * 2;
+      const endX = centerX + Math.cos(angle) * maxRadius;
+      const endY = centerY + Math.sin(angle) * maxRadius;
+      
+      return (
+        <line
+          key={`axis-${i}`}
+          x1={centerX}
+          y1={centerY}
+          x2={endX}
+          y2={endY}
+          className="radar-axis"
+          stroke="#e0e0e0"
+          strokeWidth="1"
+        />
+      );
+    });
+  };
+  
+  // Render axis labels
+  const renderLabels = () => {
+    const { centerX, centerY, maxRadius, axisCount } = radarConfig;
+    const labels = ['Neu', 'Hochwertig', 'Aktiv', 'Risikoreich', 'Stabil', 'Wachsend', 'Beliebt', 'Sicher'];
+    
+    return Array.from({ length: axisCount }).map((_, i) => {
+      const angle = (i / axisCount) * Math.PI * 2;
+      const labelRadius = maxRadius * 1.1;
+      const x = centerX + Math.cos(angle) * labelRadius;
+      const y = centerY + Math.sin(angle) * labelRadius;
+      
+      return (
+        <text
+          key={`label-${i}`}
+          x={x}
+          y={y}
+          className="radar-label"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fill="#666"
+          fontSize="12"
+        >
+          {labels[i]}
+        </text>
+      );
+    });
+  };
+  
+  // Render data points
+  const renderDataPoints = () => {
+    return data.map((contract, index) => {
+      const position = calculatePosition(contract);
+      const size = calculateSize(contract.value);
+      const color = getColorByType(contract.type);
+      
+      return (
+        <g key={`contract-${contract.id || index}`}>
+          <circle
+            cx={position.x}
+            cy={position.y}
+            r={size}
+            className="radar-point"
+            fill={color}
+            stroke="#fff"
+            strokeWidth="2"
+            onClick={() => onContractSelect(contract)}
+            onMouseMove={(e) => handleMouseMove(e, contract)}
+            onMouseLeave={handleMouseLeave}
+            style={{ 
+              cursor: 'pointer',
+              transition: 'r 0.3s, opacity 0.3s',
+              opacity: contract.isNew ? 0 : 1,
+              animation: contract.isNew ? 'pulse 1s forwards' : 'none'
+            }}
+          />
+          {contract.isNew && (
+            <circle
+              cx={position.x}
+              cy={position.y}
+              r={size + 5}
+              className="radar-point-pulse"
+              fill="none"
+              stroke={color}
+              strokeWidth="2"
+              style={{ animation: 'pulse-ring 1.5s infinite' }}
+            />
+          )}
+        </g>
+      );
+    });
+  };
+  
+  // Render tooltip
+  const renderTooltip = () => {
+    if (!hoveredContract) return null;
     
     return (
-      <svg width={width} height={height} className="w-full">
-        {/* X-Achse */}
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#ccc" />
-        {/* Y-Achse */}
-        <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#ccc" />
-        
-        {/* Datenpunkte und Linien */}
-        <polyline
-          fill="none"
-          stroke="#8884d8"
-          strokeWidth="2"
-          points={data.map((d, i) => {
-            const x = padding + (i / (data.length - 1)) * (width - 2 * padding);
-            const y = height - padding - ((d.value / maxValue) * (height - 2 * padding));
-            return `${x},${y}`;
-          }).join(' ')}
-        />
-        
-        {/* Datenpunkte */}
-        {data.map((d, i) => {
-          const x = padding + (i / (data.length - 1)) * (width - 2 * padding);
-          const y = height - padding - ((d.value / maxValue) * (height - 2 * padding));
-          return (
-            <circle key={i} cx={x} cy={y} r="4" fill="#8884d8" />
-          );
-        })}
-        
-        {/* Zeit-Labels */}
-        {data.map((d, i) => {
-          const x = padding + (i / (data.length - 1)) * (width - 2 * padding);
-          return (
-            <text key={i} x={x} y={height - 5} fontSize="10" textAnchor="middle" fill="#666">
-              {d.time}
-            </text>
-          );
-        })}
-      </svg>
+      <div 
+        className="radar-tooltip"
+        style={{ 
+          left: `${tooltipPosition.x + 10}px`, 
+          top: `${tooltipPosition.y + 10}px` 
+        }}
+      >
+        <div className="tooltip-header">{hoveredContract.name || 'Unbekannter Contract'}</div>
+        <div className="tooltip-content">
+          <div>Wert: {hoveredContract.valueFormatted || 'N/A'}</div>
+          <div>Typ: {hoveredContract.type || 'Unbekannt'}</div>
+          <div>Aktivität: {hoveredContract.timestampFormatted || 'N/A'}</div>
+        </div>
+      </div>
     );
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="space-y-6">
-      {/* Header mit Suchleiste und Filtern */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Wallet Radar</h1>
-          <p className="text-muted-foreground">
-            Überwachen Sie wichtige Wallet-Adressen und deren Aktivitäten
-          </p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          <div className="relative">
-            <span className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground">🔍</span>
-            <input
-              placeholder="Wallets durchsuchen..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 w-full sm:w-[300px] h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
-          
-          <select 
-            value={timeRange} 
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="w-[150px] h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <option value="1h">1 Stunde</option>
-            <option value="24h">24 Stunden</option>
-            <option value="7d">7 Tage</option>
-            <option value="30d">30 Tage</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Statistik-Karten */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="text-sm font-medium">Aktive Wallets</h3>
-            <span className="h-4 w-4 text-muted-foreground">📊</span>
-          </div>
-          <div className="text-2xl font-bold">{wallets.length}</div>
-          <p className="text-xs text-muted-foreground">
-            +2 gegenüber letzter Woche
-          </p>
-        </div>
-        
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="text-sm font-medium">Gesamtwert</h3>
-            <span className="h-4 w-4 text-muted-foreground">💰</span>
-          </div>
-          <div className="text-2xl font-bold">
-            {formatCurrency(wallets.reduce((sum, wallet) => sum + wallet.value, 0))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            +5.2% gegenüber gestern
-          </p>
-        </div>
-        
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="text-sm font-medium">Transaktionen</h3>
-            <span className="h-4 w-4 text-muted-foreground">📈</span>
-          </div>
-          <div className="text-2xl font-bold">
-            {formatNumber(wallets.reduce((sum, wallet) => sum + wallet.transactions, 0))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            +12% gegenüber gestern
-          </p>
-        </div>
-        
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="text-sm font-medium">Durchschn. Wert</h3>
-            <span className="h-4 w-4 text-muted-foreground">📉</span>
-          </div>
-          <div className="text-2xl font-bold">
-            {formatCurrency(wallets.reduce((sum, wallet) => sum + wallet.value, 0) / wallets.length)}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            -1.2% gegenüber gestern
-          </p>
-        </div>
-      </div>
-
-      {/* Hauptinhalt mit Tabelle und Diagramm */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Wallet-Tabelle */}
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm lg:col-span-2">
-          <div className="flex flex-col space-y-1.5 p-6">
-            <h3 className="text-2xl font-semibold leading-none tracking-tight">Wallet-Übersicht</h3>
-          </div>
-          <div className="p-6 pt-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Wallet</th>
-                    <th className="text-right p-2">Balance</th>
-                    <th className="text-right p-2">Wert</th>
-                    <th className="text-right p-2">24h %</th>
-                    <th className="text-right p-2">Aktionen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredWallets.map((wallet) => (
-                    <tr 
-                      key={wallet.id}
-                      className="border-b hover:bg-muted/50 cursor-pointer"
-                      onClick={() => setSelectedWallet(wallet)}
-                    >
-                      <td className="p-2">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{wallet.name}</span>
-                          <span className="text-sm text-muted-foreground truncate max-w-[150px]">
-                            {wallet.id}
-                          </span>
-                          <div className="flex gap-1 mt-1">
-                            {wallet.tags.map((tag) => (
-                              <span key={tag} className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-secondary text-secondary-foreground hover:bg-secondary/80">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="text-right p-2">
-                        {formatNumber(wallet.balance)} ETH
-                      </td>
-                      <td className="text-right p-2">
-                        {formatCurrency(wallet.value)}
-                      </td>
-                      <td className="text-right p-2">
-                        <div className="flex items-center justify-end gap-1">
-                          {wallet.change24h > 0 ? (
-                            <span className="text-green-500">📈</span>
-                          ) : (
-                            <span className="text-red-500">📉</span>
-                          )}
-                          <span className={wallet.change24h > 0 ? "text-green-500" : "text-red-500"}>
-                            {wallet.change24h > 0 ? '+' : ''}{wallet.change24h}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="text-right p-2">
-                        <button 
-                          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Aktion für Wallet-Details
-                          }}
-                        >
-                          Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Wallet-Detail und Diagramm */}
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-          <div className="flex flex-col space-y-1.5 p-6">
-            <h3 className="text-2xl font-semibold leading-none tracking-tight">Wallet-Analyse</h3>
-          </div>
-          <div className="p-6 pt-0">
-            {selectedWallet && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">{selectedWallet.name}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedWallet.id}</p>
-                  <div className="flex gap-1">
-                    {selectedWallet.tags.map((tag) => (
-                      <span key={tag} className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-input bg-background hover:bg-accent hover:text-accent-foreground">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Balance</p>
-                    <p className="text-lg font-semibold">{formatNumber(selectedWallet.balance)} ETH</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Wert</p>
-                    <p className="text-lg font-semibold">{formatCurrency(selectedWallet.value)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">24h Änderung</p>
-                    <p className={`text-lg font-semibold ${selectedWallet.change24h > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {selectedWallet.change24h > 0 ? '+' : ''}{selectedWallet.change24h}%
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Transaktionen</p>
-                    <p className="text-lg font-semibold">{formatNumber(selectedWallet.transactions)}</p>
-                  </div>
-                </div>
-                
-                <div className="h-64">
-                  <SimpleChart data={selectedWallet.chartData} />
-                </div>
-                
-                <button className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full">
-                  Vollständige Analyse anzeigen
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="radar-container">
+      <svg 
+        ref={svgRef} 
+        width="100%" 
+        height="100%" 
+        viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
+      >
+        {renderGrid()}
+        {renderAxes()}
+        {renderLabels()}
+        {renderDataPoints()}
+      </svg>
+      {renderTooltip()}
     </div>
   );
 };
 
-export default Radar;
+Radar.propTypes = {
+  data: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+    value: PropTypes.number,
+    valueFormatted: PropTypes.string,
+    type: PropTypes.string,
+    age: PropTypes.number,
+    valueHash: PropTypes.number,
+    timestamp: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    timestampFormatted: PropTypes.string,
+    isNew: PropTypes.bool
+  })).isRequired,
+  onContractSelect: PropTypes.func.isRequired
+};
+
+export default React.memo(Radar);
