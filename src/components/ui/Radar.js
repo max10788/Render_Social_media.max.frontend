@@ -11,6 +11,7 @@ const Radar = () => {
   const [selectedToken, setSelectedToken] = useState(null);
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [tooltip, setTooltip] = useState(null); // Für Tooltips
   const radarRef = useRef(null);
 
   const handleTokenSelect = (token) => {
@@ -26,29 +27,75 @@ const Radar = () => {
     return transactions.filter(tx => tx.walletCategory === selectedCategory);
   };
 
+  // Tooltip anzeigen/verstecken
+  const showTooltip = (event, tokenSymbol) => {
+    setTooltip({
+      content: tokenSymbol,
+      x: event.clientX,
+      y: event.clientY
+    });
+  };
+
+  const hideTooltip = () => {
+    setTooltip(null);
+  };
+
+  // Funktion zur Bestimmung der Token-Farbe
+  const getTokenColor = (symbol) => {
+    const colors = {
+      'PEPE': '#fcd34d',
+      'SHIB': '#ef4444',
+      'DOGE': '#3b82f6'
+    };
+    return colors[symbol] || '#818cf8'; // Standardfarbe
+  };
+
+  // Dynamische SVG-Größe basierend auf der Anzahl der Punkte
+  const getSvgDimensions = () => {
+    const totalPoints = radarData.reduce((sum, tokenData) => 
+      sum + filterTransactions(tokenData.transactions).length, 0);
+    
+    const baseSize = 100;
+    const maxSize = 150;
+    const sizeIncrement = Math.min(totalPoints / 10, 2); // Maximal verdoppeln
+    return Math.min(baseSize + sizeIncrement * 25, maxSize);
+  };
+
+  const svgSize = getSvgDimensions();
+  const center = svgSize / 2;
+
   // Verbesserte Positionsberechnung zur Vermeidung von Überlappungen
   const calculatePosition = (transaction, index, total, tokenIndex) => {
     // Verteilung auf mehrere Ringe basierend auf dem Token
     const ringCount = 3; // Anzahl der Ringe
     const ringIndex = tokenIndex % ringCount; // Welcher Ring (0, 1, 2)
     
-    // Basis-Radius für jeden Ring (30%, 50%, 70% des maximalen Radius)
-    const baseRadius = 25 + (ringIndex * 15);
+    // Basis-Radius für jeden Ring (angepasst an die SVG-Größe)
+    const baseRadius = (center * 0.3) + (ringIndex * (center * 0.15));
     
     // Winkelberechnung mit mehr Abstand zwischen den Punkten
     const angleStep = (2 * Math.PI) / Math.max(total / ringCount, 1);
     const angle = (index % Math.max(total / ringCount, 1)) * angleStep;
     
-    // Zeitfaktor für die Position innerhalb des Rings (neuere Transaktionen weiter außen)
+    // Zeitfaktor für die Position innerhalb des Rings
     const timeFactor = (transaction.timestamp - radarData[0]?.timeRange.start) / 
                       (radarData[0]?.timeRange.end - radarData[0]?.timeRange.start);
-    const radiusOffset = timeFactor * 10; // Bis zu 10% zusätzlicher Radius
+    const radiusOffset = timeFactor * (center * 0.1); // Angepasst an die SVG-Größe
     
     const distance = baseRadius + radiusOffset;
     
+    // Berechne Position mit etwas mehr Abstand für die Labels
+    const pointX = center + Math.cos(angle) * distance;
+    const pointY = center + Math.sin(angle) * distance;
+    
+    // Berechne Label-Position mit Offset, um Überlappungen zu reduzieren
+    const labelDistance = distance + (svgSize * 0.05); // Mehr Abstand für Labels
+    const labelX = center + Math.cos(angle) * labelDistance;
+    const labelY = center + Math.sin(angle) * labelDistance;
+    
     return {
-      x: 50 + Math.cos(angle) * distance,
-      y: 50 + Math.sin(angle) * distance
+      point: { x: pointX, y: pointY },
+      label: { x: labelX, y: labelY }
     };
   };
 
@@ -98,28 +145,31 @@ const Radar = () => {
         </div>
         
         <div className="radar-display" ref={radarRef}>
-          <svg viewBox="0 0 100 100" className="radar-svg">
-            {/* Radar Grid - mehr Ringe für bessere Übersicht */}
-            {[15, 30, 45, 60, 75, 90].map(radius => (
-              <circle key={radius} cx="50" cy="50" r={radius} className="radar-circle" />
-            ))}
+          <svg viewBox={`0 0 ${svgSize} ${svgSize}`} className="radar-svg" preserveAspectRatio="xMidYMid meet">
+            {/* Radar Grid - angepasst an die dynamische Größe */}
+            {[...Array(6)].map((_, i) => {
+              const radius = (svgSize / 6) * (i + 1);
+              return (
+                <circle key={radius} cx={center} cy={center} r={radius} className="radar-circle" />
+              );
+            })}
             
-            {/* Radar Lines - mehr Linien für bessere Orientierung */}
+            {/* Radar Lines - angepasst an die dynamische Größe */}
             {[0, 30, 60, 90, 120, 150].map(angle => (
-              <line key={angle} x1="50" y1="50" 
-                  x2={50 + 50 * Math.cos(angle * Math.PI / 180)} 
-                  y2={50 + 50 * Math.sin(angle * Math.PI / 180)} 
+              <line key={angle} x1={center} y1={center} 
+                  x2={center + (center - 10) * Math.cos(angle * Math.PI / 180)} 
+                  y2={center + (center - 10) * Math.sin(angle * Math.PI / 180)} 
                   className="radar-line" />
             ))}
             
-            {/* Sweep Animation */}
-            <line x1="50" y1="50" x2="50" y2="0" 
-                  className="radar-sweep" transform="rotate(0 50 50)">
+            {/* Sweep Animation - angepasst an die dynamische Größe */}
+            <line x1={center} y1={center} x2={center} y2="10" 
+                  className="radar-sweep" transform={`rotate(0 ${center} ${center})`}>
               <animateTransform attributeName="transform" 
                                 attributeType="XML" 
                                 type="rotate" 
-                                from="0 50 50" 
-                                to="360 50 50" 
+                                from={`0 ${center} ${center}`} 
+                                to={`360 ${center} ${center}`} 
                                 dur="4s" 
                                 repeatCount="indefinite" />
             </line>
@@ -129,33 +179,82 @@ const Radar = () => {
               filterTransactions(tokenData.transactions).map((tx, index) => {
                 const position = calculatePosition(tx, index, tokenData.transactions.length, tokenIndex);
                 const category = WALLET_CATEGORIES[tx.walletCategory];
+                const tokenColor = getTokenColor(tx.tokenSymbol);
                 
                 return (
                   <g key={tx.id} 
                      className={`radar-point ${tx.type} ${tx.walletCategory}`}
                      onClick={() => handleTokenSelect(tokenData.token)}>
                     <circle 
-                      cx={position.x} 
-                      cy={position.y} 
-                      r="2" /* Vergrößerte Standardgröße */
-                      style={{ fill: category.color }}
+                      cx={position.point.x} 
+                      cy={position.point.y} 
+                      r="2.5"
+                      style={{ fill: tokenColor }}
+                      onMouseEnter={(e) => showTooltip(e, tx.tokenSymbol)}
+                      onMouseLeave={hideTooltip}
                     />
-                    {/* Verbesserte Textbeschriftung mit besserer Positionierung */}
-                    <text 
-                      x={position.x + 3} /* Mehr Abstand zum Punkt */
-                      y={position.y - 3} /* Höher positioniert */
-                      fontSize="3" /* Vergrößerte Schrift */
-                      fill="white"
-                      fontWeight="bold"
-                      textAnchor="start"
-                    >
-                      {tx.tokenSymbol}
-                    </text>
+                    {/* Labels nur anzeigen, wenn genügend Platz vorhanden ist */}
+                    {index % 2 === 0 && (
+                      <text 
+                        x={position.label.x} 
+                        y={position.label.y} 
+                        fontSize="3.5" 
+                        fill="white"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {tx.tokenSymbol}
+                      </text>
+                    )}
                   </g>
                 );
               })
             )}
           </svg>
+          
+          {/* Tooltip */}
+          {tooltip && (
+            <div 
+              className="radar-tooltip"
+              style={{ 
+                left: `${tooltip.x}px`, 
+                top: `${tooltip.y}px`,
+                position: 'fixed',
+                backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                pointerEvents: 'none',
+                zIndex: 1000,
+                transform: 'translate(-50%, -100%)'
+              }}
+            >
+              {tooltip.content}
+            </div>
+          )}
+        </div>
+        
+        {/* Token-Legende */}
+        <div className="token-legend">
+          <h4>Token-Legende</h4>
+          <div className="legend-items">
+            {Array.from(new Set(radarData.flatMap(data => 
+              data.transactions.map(tx => tx.tokenSymbol)
+            ))).map(symbol => (
+              <div key={symbol} className="legend-item">
+                <div 
+                  className="legend-color" 
+                  style={{ 
+                    background: getTokenColor(symbol) 
+                  }}
+                ></div>
+                <span>{symbol}</span>
+              </div>
+            ))}
+          </div>
         </div>
         
         {/* Token Detail Panel */}
