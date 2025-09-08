@@ -65,14 +65,15 @@ const Radar = () => {
       sum + filterTransactions(tokenData.transactions).length, 0);
     
     // Reduzierte Basisgröße für eine kompaktere Darstellung
-    const baseSize = 80; // War vorher 100
-    const maxSize = 120; // War vorher 150
+    const baseSize = 80;
+    const maxSize = 120;
     const sizeIncrement = Math.min(totalPoints / 10, 2);
     return Math.min(baseSize + sizeIncrement * 25, maxSize);
   };
 
   const svgSize = getSvgDimensions();
   const center = svgSize / 2;
+  const maxRadius = center * 0.9; // Maximaler Radius für den Scan-Strahl
 
   // Verbesserte Positionsberechnung mit größerem Abstand zwischen Ringen
   const calculatePosition = (transaction, index, total, tokenIndex) => {
@@ -219,6 +220,20 @@ const Radar = () => {
         
         <div className="radar-display" ref={radarRef}>
           <svg viewBox={`0 0 ${svgSize} ${svgSize}`} className="radar-svg" preserveAspectRatio="xMidYMid meet">
+            {/* Glow-Filter für den Schweif-Effekt */}
+            <defs>
+              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+              
+              {/* Verlauf für den Scan-Strahl */}
+              <linearGradient id="scanGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#00bfff" stopOpacity="0.1" />
+                <stop offset="100%" stopColor="#00bfff" stopOpacity="1" />
+              </linearGradient>
+            </defs>
+            
             {/* Radar Grid - mit größeren Abständen zwischen den Ringen */}
             {[...Array(5)].map((_, i) => {
               const radius = (svgSize / 5) * (i + 1);
@@ -235,9 +250,12 @@ const Radar = () => {
                   className="radar-line" />
             ))}
             
-            {/* Sweep Animation - angepasst an die dynamische Größe */}
-            <line x1={center} y1={center} x2={center} y2="10" 
-                  className="radar-sweep" transform={`rotate(0 ${center} ${center})`}>
+            {/* Sweep Animation mit Schweif-Effekt - angepasst an die dynamische Größe */}
+            {/* Haupt-Scan-Strahl - verlängert bis zum äußeren Rand */}
+            <line x1={center} y1={center} x2={center + maxRadius} y2={center} 
+                  className="radar-sweep-main" 
+                  transform={`rotate(0 ${center} ${center})`}
+                  filter="url(#glow)">
               <animateTransform attributeName="transform" 
                                 attributeType="XML" 
                                 type="rotate" 
@@ -246,6 +264,31 @@ const Radar = () => {
                                 dur="4s" 
                                 repeatCount="indefinite" />
             </line>
+            
+            {/* Schweif-Effekt - mehrere Linien mit abnehmender Opazität */}
+            {[...Array(5)].map((_, i) => {
+              const opacity = 0.3 - (i * 0.05);
+              const offset = i * 2; // Abstand zwischen den Linien
+              return (
+                <line 
+                  key={`trail-${i}`}
+                  x1={center} 
+                  y1={center} 
+                  x2={center + maxRadius - offset} 
+                  y2={center} 
+                  className="radar-sweep-trail" 
+                  style={{ opacity }}
+                  transform={`rotate(0 ${center} ${center})`}>
+                  <animateTransform attributeName="transform" 
+                                    attributeType="XML" 
+                                    type="rotate" 
+                                    from={`-${offset} ${center} ${center}`} 
+                                    to={`360 -${offset} ${center} ${center}`} 
+                                    dur="4s" 
+                                    repeatCount="indefinite" />
+                </line>
+              );
+            })}
             
             {/* Cluster-Punkte */}
             {clusters.map((cluster, clusterIndex) => {
