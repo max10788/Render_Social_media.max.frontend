@@ -216,10 +216,6 @@ body {
     font-size: 2rem;
   }
   
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-  
   .page-header p {
     max-width: 100%;
   }
@@ -235,6 +231,6 @@ body {
 /* Für sehr große Bildschirme */
 @media (min-width: 1600px) {
   .main-content {
-    max-width: 1600px;
+    max-width: 1800px;
   }
 }
