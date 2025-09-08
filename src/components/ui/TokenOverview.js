@@ -130,3 +130,53 @@ const TokenOverview = () => {
       
       {selectedToken && (
         <div className="token-detail-overlay">
+          {/* Hier fehlte der Inhalt des Overlays */}
+          <div className="token-detail-content">
+            <div className="token-detail-header">
+              <h3>{selectedToken.name} ({selectedToken.symbol})</h3>
+              <button onClick={() => setSelectedToken(null)}>×</button>
+            </div>
+            
+            <div className="token-detail-body">
+              <div className="detail-section">
+                <h4>Token-Informationen</h4>
+                <div className="detail-row">
+                  <span>Adresse:</span>
+                  <span>{selectedToken.address}</span>
+                </div>
+                <div className="detail-row">
+                  <span>Kette:</span>
+                  <span>{selectedToken.chain}</span>
+                </div>
+                <div className="detail-row">
+                  <span>Marktkapitalisierung:</span>
+                  <span>{formatNumber(selectedToken.market_cap)}</span>
+                </div>
+                <div className="detail-row">
+                  <span>24h Volumen:</span>
+                  <span>{formatNumber(selectedToken.volume_24h)}</span>
+                </div>
+              </div>
+              
+              <div className="detail-section">
+                <h4>Risikoanalyse</h4>
+                <div className="detail-row">
+                  <span>Token-Score:</span>
+                  <span>{selectedToken.token_score.toFixed(1)}/100</span>
+                </div>
+                <div className="detail-row">
+                  <span>Risiko-Level:</span>
+                  <span style={{ color: getRiskInfo(selectedToken.token_score).color }}>
+                    {getRiskInfo(selectedToken.token_score).level.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TokenOverview;
