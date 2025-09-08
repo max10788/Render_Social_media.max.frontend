@@ -9,7 +9,9 @@ const ContractRadar = () => {
         <p>Real-time tracking of small-cap token transactions by wallet category</p>
       </div>
       
-      <Radar />
+      <div className="radar-wrapper" style={{ width: '100%', marginBottom: '2rem' }}>
+        <Radar />
+      </div>
       
       <div className="radar-info">
         <h3>How it works</h3>
