@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './Radar.css';
 import { useCryptoTracker } from '../../hooks/useCryptoTracker';
 import { useWalletAnalyses } from '../../hooks/useWalletAnalyses';
@@ -14,7 +14,9 @@ const Radar = () => {
   const [tooltip, setTooltip] = useState(null);
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [scanAngle, setScanAngle] = useState(0);
   const radarRef = useRef(null);
+  const animationRef = useRef(null);
 
   const handleTokenSelect = (token) => {
     setSelectedToken(token);
@@ -73,7 +75,32 @@ const Radar = () => {
 
   const svgSize = getSvgDimensions();
   const center = svgSize / 2;
-  const maxRadius = center * 0.9; // Maximaler Radius für den Scan-Strahl
+  const maxRadius = center * 0.9; // Maximaler Radius für den Scan-Strahl (90% des möglichen Radius)
+
+  // Animation für den Scan-Strahl
+  useEffect(() => {
+    const animateScan = () => {
+      setScanAngle(prev => (prev + 0.5) % 360);
+      animationRef.current = requestAnimationFrame(animateScan);
+    };
+    
+    animationRef.current = requestAnimationFrame(animateScan);
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+
+  // Berechne die Endpunkte des Scan-Strahls basierend auf dem aktuellen Winkel
+  const calculateScanEndPoint = (angle, radius) => {
+    const rad = angle * (Math.PI / 180);
+    return {
+      x: center + radius * Math.cos(rad),
+      y: center + radius * Math.sin(rad)
+    };
+  };
 
   // Verbesserte Positionsberechnung mit größerem Abstand zwischen Ringen
   const calculatePosition = (transaction, index, total, tokenIndex) => {
@@ -182,6 +209,9 @@ const Radar = () => {
   // Nicht geclusterte Punkte
   const nonClusteredPoints = allTransactions.filter(tx => !tx.clustered);
 
+  // Berechne Endpunkt für den Haupt-Scan-Strahl
+  const mainScanEndPoint = calculateScanEndPoint(scanAngle, maxRadius);
+
   return (
     <>
       <div className="radar-container">
@@ -243,50 +273,43 @@ const Radar = () => {
             })}
             
             {/* Radar Lines - angepasst an die dynamische Größe */}
-            {[0, 45, 90, 135].map(angle => (
-              <line key={angle} x1={center} y1={center} 
-                  x2={center + (center - 10) * Math.cos(angle * Math.PI / 180)} 
-                  y2={center + (center - 10) * Math.sin(angle * Math.PI / 180)} 
-                  className="radar-line" />
-            ))}
+            {[0, 45, 90, 135].map(angle => {
+              const endPoint = calculateScanEndPoint(angle, center * 0.9);
+              return (
+                <line key={angle} x1={center} y1={center} 
+                    x2={endPoint.x} y2={endPoint.y} 
+                    className="radar-line" />
+              );
+            })}
             
             {/* Sweep Animation mit Schweif-Effekt - angepasst an die dynamische Größe */}
             {/* Haupt-Scan-Strahl - verlängert bis zum äußeren Rand */}
-            <line x1={center} y1={center} x2={center + maxRadius} y2={center} 
-                  className="radar-sweep-main" 
-                  transform={`rotate(0 ${center} ${center})`}
-                  filter="url(#glow)">
-              <animateTransform attributeName="transform" 
-                                attributeType="XML" 
-                                type="rotate" 
-                                from={`0 ${center} ${center}`} 
-                                to={`360 ${center} ${center}`} 
-                                dur="4s" 
-                                repeatCount="indefinite" />
-            </line>
+            <line 
+              x1={center} 
+              y1={center} 
+              x2={mainScanEndPoint.x} 
+              y2={mainScanEndPoint.y} 
+              className="radar-sweep-main" 
+              filter="url(#glow)"
+            />
             
             {/* Schweif-Effekt - mehrere Linien mit abnehmender Opazität */}
             {[...Array(5)].map((_, i) => {
               const opacity = 0.3 - (i * 0.05);
-              const offset = i * 2; // Abstand zwischen den Linien
+              const trailAngle = scanAngle - (i * 2); // Winkelversatz für den Schweif
+              const trailRadius = maxRadius * (1 - (i * 0.05)); // Leicht kürzer für jeden Schweif-Strahl
+              const trailEndPoint = calculateScanEndPoint(trailAngle, trailRadius);
+              
               return (
                 <line 
                   key={`trail-${i}`}
                   x1={center} 
                   y1={center} 
-                  x2={center + maxRadius - offset} 
-                  y2={center} 
+                  x2={trailEndPoint.x} 
+                  y2={trailEndPoint.y} 
                   className="radar-sweep-trail" 
                   style={{ opacity }}
-                  transform={`rotate(0 ${center} ${center})`}>
-                  <animateTransform attributeName="transform" 
-                                    attributeType="XML" 
-                                    type="rotate" 
-                                    from={`-${offset} ${center} ${center}`} 
-                                    to={`360 -${offset} ${center} ${center}`} 
-                                    dur="4s" 
-                                    repeatCount="indefinite" />
-                </line>
+                />
               );
             })}
             
