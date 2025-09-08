@@ -1,4 +1,3 @@
-// src/types/api.ts
 // Grundlegende Blockchain-Typen
 export interface WalletTransaction {
   id: string;
@@ -34,7 +33,128 @@ export interface RadarDataPoint {
   };
 }
 
-// Wallet-Analyse für das Frontend
+// Address Modell
+export interface Address {
+  address: string;
+  chain: string;
+  address_type: 'EOA' | 'CONTRACT';
+  is_contract: boolean;
+  label?: string;
+  risk_score: number;
+  first_seen: string;
+  last_activity: string;
+  transaction_count: number;
+  metadata?: Record<string, any>;
+}
+
+// Cluster Modell
+export interface Cluster {
+  id: number;
+  name: string;
+  description: string;
+  cluster_type: 'CEX' | 'DEX' | 'WHALE' | 'TEAM' | 'OTHER';
+  chain: string;
+  address_count: number;
+  total_balance_usd: number;
+  risk_score: number;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+  metadata?: Record<string, any>;
+}
+
+// CustomAnalysis Modell
+export interface CustomAnalysis {
+  id: number;
+  token_address: string;
+  chain: string;
+  token_name: string;
+  token_symbol: string;
+  market_cap: number;
+  volume_24h: number;
+  liquidity: number;
+  holders_count: number;
+  total_score: number;
+  metrics?: Record<string, any>;
+  risk_flags: string[];
+  analysis_date: string;
+  analysis_status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  user_id: string;
+  session_id: string;
+}
+
+// ScanJob Modell
+export interface ScanJob {
+  id: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  progress: number;
+  start_time: string;
+  end_time?: string;
+  error_message?: string;
+  tokens_found: number;
+  tokens_analyzed: number;
+  high_risk_tokens: number;
+  chain: string;
+  scan_type: 'discovery' | 'analysis' | 'monitoring';
+}
+
+// ScanResult Modell
+export interface ScanResult {
+  id: number;
+  scan_id: string;
+  scan_type: 'token_scan' | 'wallet_scan' | 'cluster_scan';
+  token_address?: string;
+  chain: string;
+  score: number;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  findings?: Record<string, any>;
+  risk_flags: string[];
+  created_at: string;
+  processing_time_ms: number;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+}
+
+// Token Modell
+export interface Token {
+  id: number;
+  address: string;
+  name: string;
+  symbol: string;
+  chain: string;
+  market_cap: number;
+  volume_24h: number;
+  liquidity: number;
+  holders_count: number;
+  contract_verified: boolean;
+  creation_date: string;
+  last_analyzed: string;
+  token_score: number;
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, any>;
+}
+
+// Transaction Modell
+export interface Transaction {
+  id: number;
+  tx_hash: string;
+  chain: string;
+  block_number: number;
+  from_address: string;
+  to_address: string;
+  value: number;
+  gas_used: number;
+  gas_price: number;
+  fee: number;
+  token_address?: string;
+  token_amount?: number;
+  timestamp: string;
+  status: 'success' | 'failed' | 'pending';
+  method?: string;
+  metadata?: Record<string, any>;
+}
+
+// WalletAnalysis Modell
 export interface WalletAnalysis {
   wallet_address: string;
   chain: string;
@@ -62,41 +182,6 @@ export interface WalletDetail extends WalletAnalysis {
   unique_counterparties: number;
 }
 
-export interface Transaction {
-  hash: string;
-  amount: number;
-  fee: number;
-  to_address: string;
-  from_address: string;
-  timestamp: number;
-}
-
-export interface TrackingResult {
-  transactions: Transaction[];
-  source_currency: string;
-  target_currency: string;
-  start_transaction: string;
-  transactions_count: number;
-  tracking_timestamp: number;
-  exchange_rate?: number;
-}
-
-export interface DiscoveryParams {
-  chain: string;
-  maxMarketCap?: number;
-  minVolume?: number;
-  hoursAgo?: number;
-  limit?: number;
-}
-
-// System-Konfiguration
-export interface SystemConfig {
-  minScore: number;
-  maxAnalysesPerHour: number;
-  cacheTTL: number;
-  supportedChains: string[];
-}
-
 // Analytics-Daten
 export interface AnalyticsData {
   analytics: {
@@ -119,28 +204,6 @@ export interface UserSettings {
   };
   status: 'success' | 'error';
   message?: string;
-}
-
-// Asset-Informationen
-export interface AssetInfo {
-  id: string;
-  name: string;
-  symbol: string;
-  exchanges: string[];
-}
-
-// Exchange-Informationen
-export interface ExchangeInfo {
-  id: string;
-  name: string;
-  trading_pairs: number;
-}
-
-// Blockchain-Informationen
-export interface BlockchainInfo {
-  id: string;
-  name: string;
-  block_time: number;
 }
 
 // API-Fehler
