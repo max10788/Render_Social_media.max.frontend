@@ -64,13 +64,14 @@ const Radar = () => {
     const totalPoints = radarData.reduce((sum, tokenData) => 
       sum + filterTransactions(tokenData.transactions).length, 0);
     
-    const baseSize = 100;
-    const maxSize = 150;
+    // Reduzierte Basisgröße für eine kompaktere Darstellung
+    const baseSize = 80; // War vorher 100
+    const maxSize = 120; // War vorher 150
     const sizeIncrement = Math.min(totalPoints / 10, 2);
     return Math.min(baseSize + sizeIncrement * 25, maxSize);
   };
 
-  const svgSize = getSvgDimensions() * zoomLevel;
+  const svgSize = getSvgDimensions();
   const center = svgSize / 2;
 
   // Verbesserte Positionsberechnung mit größerem Abstand zwischen Ringen
@@ -179,9 +180,6 @@ const Radar = () => {
   
   // Nicht geclusterte Punkte
   const nonClusteredPoints = allTransactions.filter(tx => !tx.clustered);
-
-  if (loading) return <div className="radar-loading">Loading radar data...</div>;
-  if (error) return <div className="radar-error">Error: {error}</div>;
 
   return (
     <>
