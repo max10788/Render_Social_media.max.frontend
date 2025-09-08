@@ -77,12 +77,19 @@
   border: 1px solid rgba(100, 116, 139, 0.2);
   border-radius: 12px;
   overflow: visible;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .radar-svg {
   width: 100%;
   height: 100%;
+  max-width: 500px; /* Reduzierte maximale Breite */
+  max-height: 500px; /* Reduzierte maximale Höhe */
   filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.3));
   overflow: visible;
+  transform: scale(0.8); /* Verkleinert das Radar auf 80% */
+  transform-origin: center center;
 }
 .radar-circle {
   fill: none;
@@ -428,6 +435,10 @@
     max-width: 100%;
   }
   
+  .radar-svg {
+    transform: scale(0.7); /* Zusätzliche Skalierung für mobile Geräte */
+  }
+  
   .token-stats {
     grid-template-columns: 1fr;
     gap: 8px;
@@ -470,5 +481,9 @@
   .radar-display {
     height: 800px;
     max-width: 900px;
+  }
+  
+  .radar-svg {
+    transform: scale(0.9); /* Etwas größere Skalierung für sehr große Bildschirme */
   }
 }
