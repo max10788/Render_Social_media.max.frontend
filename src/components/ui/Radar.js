@@ -75,7 +75,9 @@ const Radar = () => {
 
   const svgSize = getSvgDimensions();
   const center = svgSize / 2;
-  const maxRadius = center * 0.9; // Maximaler Radius für den Scan-Strahl (90% des möglichen Radius)
+  
+  // Radius des äußeren Rings - der Scan-Strahl soll genau bis hier reichen
+  const outerRadius = center * 0.95; // 95% des maximal möglichen Radius
 
   // Animation für den Scan-Strahl
   useEffect(() => {
@@ -209,8 +211,8 @@ const Radar = () => {
   // Nicht geclusterte Punkte
   const nonClusteredPoints = allTransactions.filter(tx => !tx.clustered);
 
-  // Berechne Endpunkt für den Haupt-Scan-Strahl
-  const mainScanEndPoint = calculateScanEndPoint(scanAngle, maxRadius);
+  // Berechne Endpunkt für den Haupt-Scan-Strahl - jetzt bis zum äußeren Rand
+  const mainScanEndPoint = calculateScanEndPoint(scanAngle, outerRadius);
 
   return (
     <>
@@ -274,7 +276,7 @@ const Radar = () => {
             
             {/* Radar Lines - angepasst an die dynamische Größe */}
             {[0, 45, 90, 135].map(angle => {
-              const endPoint = calculateScanEndPoint(angle, center * 0.9);
+              const endPoint = calculateScanEndPoint(angle, outerRadius);
               return (
                 <line key={angle} x1={center} y1={center} 
                     x2={endPoint.x} y2={endPoint.y} 
@@ -297,8 +299,8 @@ const Radar = () => {
             {[...Array(5)].map((_, i) => {
               const opacity = 0.3 - (i * 0.05);
               const trailAngle = scanAngle - (i * 2); // Winkelversatz für den Schweif
-              const trailRadius = maxRadius * (1 - (i * 0.05)); // Leicht kürzer für jeden Schweif-Strahl
-              const trailEndPoint = calculateScanEndPoint(trailAngle, trailRadius);
+              // Der Schweif soll ebenfalls bis zum äußeren Rand reichen
+              const trailEndPoint = calculateScanEndPoint(trailAngle, outerRadius);
               
               return (
                 <line 
