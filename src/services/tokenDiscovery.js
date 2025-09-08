@@ -1,10 +1,19 @@
-// Entferne diese Zeilen - sie werden nicht verwendet
-// import { WalletTransaction, TokenData } from '../types/api';
-// import { useEffect } from 'react';
+import { WalletTransaction, TokenData, WalletAnalysis } from '../types/api';
 
 // Mock Wallet-Kategorien
 export const WALLET_CATEGORIES = {
   whale: { label: 'Whale', color: '#f59e0b' },
+  smart_money: { label: 'Smart Money', color: '#10b981' },
+  retail: { label: 'Retail', color: '#6366f1' },
+  bot: { label: 'Bot', color: '#ef4444' }
+};
+
+// Wallet-Typen für die Klassifizierung
+export const WALLET_TYPES = {
+  EOA: { label: 'EOA', color: '#818cf8' },
+  CONTRACT: { label: 'Contract', color: '#a78bfa' },
+  CEX_WALLET: { label: 'CEX Wallet', color: '#f472b6' },
+  whale_wallet: { label: 'Whale Wallet', color: '#f59e0b' },
   smart_money: { label: 'Smart Money', color: '#10b981' },
   retail: { label: 'Retail', color: '#6366f1' },
   bot: { label: 'Bot', color: '#ef4444' }
@@ -40,6 +49,63 @@ const mockTokens = [
     marketCap: 12500000000
   }
 ];
+
+// Mock-Wallet-Analysen
+const generateMockWalletAnalyses = (count = 10) => {
+  const analyses = [];
+  const walletTypes = Object.keys(WALLET_TYPES);
+  const chains = ['ethereum', 'binance-smart-chain', 'polygon', 'avalanche'];
+  const riskFlags = ['whale', 'infrequent_tx', 'high_value', 'new_wallet', 'suspicious_pattern'];
+  
+  for (let i = 0; i < count; i++) {
+    const walletType = walletTypes[Math.floor(Math.random() * walletTypes.length)];
+    const chain = chains[Math.floor(Math.random() * chains.length)];
+    const token = mockTokens[Math.floor(Math.random() * mockTokens.length)];
+    
+    // Zufällige Risiko-Flags auswählen
+    const selectedRiskFlags = [];
+    const numFlags = Math.floor(Math.random() * 3) + 1;
+    for (let j = 0; j < numFlags; j++) {
+      const flag = riskFlags[Math.floor(Math.random() * riskFlags.length)];
+      if (!selectedRiskFlags.includes(flag)) {
+        selectedRiskFlags.push(flag);
+      }
+    }
+    
+    // Zufällige Daten generieren
+    const balance = Math.random() * 1000000;
+    const percentageOfSupply = Math.random() * 10;
+    const transactionCount = Math.floor(Math.random() * 1000) + 10;
+    const riskScore = Math.floor(Math.random() * 100);
+    const confidenceScore = Math.random() * 0.5 + 0.5; // Zwischen 0.5 und 1.0
+    
+    // Zufällige Zeitstempel generieren
+    const now = new Date();
+    const firstTx = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000); // Innerhalb des letzten Jahres
+    const lastTx = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000); // Innerhalb der letzten 30 Tage
+    const createdAt = new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000); // Innerhalb der letzten 7 Tage
+    const updatedAt = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000); // Innerhalb der letzten 24 Stunden
+    
+    analyses.push({
+      wallet_address: `0x${Math.random().toString(16).substr(2, 40)}`,
+      chain,
+      wallet_type: walletType,
+      confidence_score: confidenceScore,
+      token_address: token.address,
+      balance,
+      percentage_of_supply: percentageOfSupply,
+      transaction_count: transactionCount,
+      first_transaction: firstTx.toISOString(),
+      last_transaction: lastTx.toISOString(),
+      risk_score: riskScore,
+      risk_flags: selectedRiskFlags,
+      created_at: createdAt.toISOString(),
+      updated_at: updatedAt.toISOString()
+    });
+  }
+  
+  return analyses;
+};
 
 // Mock-Transaktionen generieren
 const generateMockTransactions = (token, count = 20) => {
@@ -80,6 +146,11 @@ export const getMockRadarData = () => {
   }));
 };
 
+// Mock-Wallet-Analysen
+export const getMockWalletAnalyses = () => {
+  return generateMockWalletAnalyses();
+};
+
 // API-Ansatz (später mit echtem Backend)
 export const fetchRadarData = async () => {
   try {
@@ -92,6 +163,22 @@ export const fetchRadarData = async () => {
     });
   } catch (error) {
     console.error('Error fetching radar data:', error);
+    return [];
+  }
+};
+
+// API-Ansatz für Wallet-Analysen
+export const fetchWalletAnalyses = async () => {
+  try {
+    // Später: const response = await api.get('/wallet/analyses');
+    // return response.data;
+    
+    // Für jetzt: Mock-Daten zurückgeben
+    return new Promise(resolve => {
+      setTimeout(() => resolve(getMockWalletAnalyses()), 500);
+    });
+  } catch (error) {
+    console.error('Error fetching wallet analyses:', error);
     return [];
   }
 };
