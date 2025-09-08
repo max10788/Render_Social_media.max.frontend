@@ -1,4 +1,5 @@
 // src/types/api.ts
+// Grundlegende Blockchain-Typen
 export interface WalletTransaction {
   id: string;
   timestamp: number;
@@ -33,6 +34,34 @@ export interface RadarDataPoint {
   };
 }
 
+// Wallet-Analyse für das Frontend
+export interface WalletAnalysis {
+  wallet_address: string;
+  chain: string;
+  wallet_type: 'EOA' | 'CONTRACT' | 'CEX_WALLET' | 'whale_wallet' | 'smart_money' | 'retail' | 'bot';
+  confidence_score: number;
+  token_address?: string;
+  balance?: number;
+  percentage_of_supply?: number;
+  transaction_count: number;
+  first_transaction: string;
+  last_transaction: string;
+  risk_score: number;
+  risk_flags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+// Erweiterte Wallet-Informationen für die Detailansicht
+export interface WalletDetail extends WalletAnalysis {
+  labels: string[];
+  associated_entities: string[];
+  compliance_flags: string[];
+  total_value: number;
+  average_transaction_value: number;
+  unique_counterparties: number;
+}
+
 export interface Transaction {
   hash: string;
   amount: number;
@@ -58,20 +87,6 @@ export interface DiscoveryParams {
   minVolume?: number;
   hoursAgo?: number;
   limit?: number;
-}
-
-export interface WalletAnalysis {
-  address: string;
-  risk_score: number;
-  entity_type: string;
-  labels: string[];
-  confidence: number;
-  transaction_count: number;
-  total_value: number;
-  first_activity: string;
-  last_activity: string;
-  associated_entities: string[];
-  compliance_flags: string[];
 }
 
 // System-Konfiguration
