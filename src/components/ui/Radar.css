@@ -104,7 +104,7 @@
 /* Haupt-Scan-Strahl - verlängert bis zum äußeren Rand */
 .radar-sweep-main {
   stroke: #00bfff;
-  stroke-width: 2;
+  stroke-width: 2.5;
   stroke-linecap: round;
   opacity: 0.9;
 }
