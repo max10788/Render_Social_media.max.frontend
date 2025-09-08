@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import './Radar.css';
 import { useCryptoTracker } from '../../hooks/useCryptoTracker';
 import { useWalletAnalyses } from '../../hooks/useWalletAnalyses';
