@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; // useEffect entfernt
 import './TokenOverview.css';
 import { useTokens } from '../../hooks/useTokens';
 import { RISK_LEVELS } from '../../services/tokenDiscovery';
