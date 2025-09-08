@@ -35,7 +35,7 @@ body {
 }
 .main-content {
   padding: 2rem;
-  max-width: 1400px; /* Erhöhte maximale Breite */
+  max-width: 1600px; /* Erhöhte maximale Breite */
   margin: 0 auto;
   min-height: calc(100vh - 100px); /* Mindesthöhe für den Hauptinhalt */
 }
