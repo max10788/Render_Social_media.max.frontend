@@ -1,4 +1,3 @@
-// Zu:
 import { 
   WalletTransaction, 
   TokenData, 
@@ -10,7 +9,7 @@ import {
   ScanResult, 
   Token, 
   Transaction 
-} from '../types/api.ts';
+} from '../types/api';
 
 // Mock Wallet-Kategorien
 export const WALLET_CATEGORIES = {
