@@ -1,16 +1,3 @@
-import { 
-  WalletTransaction, 
-  TokenData, 
-  WalletAnalysis, 
-  Address, 
-  Cluster, 
-  CustomAnalysis, 
-  ScanJob, 
-  ScanResult, 
-  Token, 
-  Transaction 
-} from '../types/api';
-
 // Mock Wallet-Kategorien
 export const WALLET_CATEGORIES = {
   whale: { label: 'Whale', color: '#f59e0b' },
@@ -37,6 +24,14 @@ export const CLUSTER_TYPES = {
   WHALE: { label: 'Whale Cluster', color: '#f59e0b' },
   TEAM: { label: 'Team/Developer', color: '#34d399' },
   OTHER: { label: 'Other', color: '#a78bfa' }
+};
+
+// Risiko-Level
+export const RISK_LEVELS = {
+  low: { label: 'Low', color: '#10b981' },
+  medium: { label: 'Medium', color: '#f59e0b' },
+  high: { label: 'High', color: '#ef4444' },
+  critical: { label: 'Critical', color: '#dc2626' }
 };
 
 // Mock-Token-Daten
@@ -113,14 +108,12 @@ const generateMockAddresses = (count = 10) => {
     const label = Math.random() > 0.5 ? labels[Math.floor(Math.random() * labels.length)] : undefined;
     const isContract = addressType === 'CONTRACT';
     
-    // Zufällige Daten generieren
     const riskScore = Math.floor(Math.random() * 100);
     const transactionCount = Math.floor(Math.random() * 1000) + 10;
     
-    // Zufällige Zeitstempel generieren
     const now = new Date();
-    const firstSeen = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000); // Innerhalb des letzten Jahres
-    const lastActivity = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000); // Innerhalb der letzten 30 Tage
+    const firstSeen = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
+    const lastActivity = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000);
     
     addresses.push({
       address: `0x${Math.random().toString(16).substr(2, 40)}`,
@@ -152,12 +145,10 @@ const generateMockClusters = (count = 5) => {
     const chain = chains[Math.floor(Math.random() * chains.length)];
     const clusterTypeInfo = CLUSTER_TYPES[clusterType];
     
-    // Zufällige Daten generieren
     const addressCount = Math.floor(Math.random() * 500) + 10;
     const totalBalance = Math.random() * 10000000;
     const riskScore = Math.floor(Math.random() * 100);
     
-    // Zufällige Zeitstempel generieren
     const now = new Date();
     const createdAt = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
     const updatedAt = new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000);
@@ -195,7 +186,6 @@ const generateMockCustomAnalyses = (count = 8) => {
     const chain = chains[Math.floor(Math.random() * chains.length)];
     const status = statuses[Math.floor(Math.random() * statuses.length)];
     
-    // Zufällige Risiko-Flags auswählen
     const selectedRiskFlags = [];
     const numFlags = Math.floor(Math.random() * 3);
     for (let j = 0; j < numFlags; j++) {
@@ -205,14 +195,12 @@ const generateMockCustomAnalyses = (count = 8) => {
       }
     }
     
-    // Zufällige Daten generieren
     const marketCap = Math.random() * 100000000;
     const volume24h = Math.random() * 10000000;
     const liquidity = Math.random() * 5000000;
     const holdersCount = Math.floor(Math.random() * 100000) + 100;
     const totalScore = Math.random() * 100;
     
-    // Zufällige Zeitstempel generieren
     const now = new Date();
     const analysisDate = new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000);
     
@@ -258,13 +246,11 @@ const generateMockScanJobs = (count = 6) => {
     const chain = chains[Math.floor(Math.random() * chains.length)];
     const scanType = scanTypes[Math.floor(Math.random() * scanTypes.length)];
     
-    // Zufällige Daten generieren
     const progress = status === 'completed' ? 1.0 : Math.random();
     const tokensFound = Math.floor(Math.random() * 100) + 10;
     const tokensAnalyzed = status === 'completed' ? tokensFound : Math.floor(tokensFound * progress);
     const highRiskTokens = Math.floor(tokensAnalyzed * 0.1);
     
-    // Zufällige Zeitstempel generieren
     const now = new Date();
     const startTime = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
     const endTime = status === 'completed' ? new Date(startTime.getTime() + Math.random() * 60 * 60 * 1000) : undefined;
@@ -303,7 +289,6 @@ const generateMockScanResults = (count = 10) => {
     const scanType = scanTypes[Math.floor(Math.random() * scanTypes.length)];
     const riskLevel = riskLevels[Math.floor(Math.random() * riskLevels.length)];
     
-    // Zufällige Risiko-Flags auswählen
     const selectedRiskFlags = [];
     const numFlags = Math.floor(Math.random() * 3);
     for (let j = 0; j < numFlags; j++) {
@@ -313,22 +298,20 @@ const generateMockScanResults = (count = 10) => {
       }
     }
     
-    // Zufällige Daten generieren
     const score = Math.random() * 100;
     const processingTime = Math.floor(Math.random() * 5000) + 500;
     
-    // Zufällige Zeitstempel generieren
     const now = new Date();
     const createdAt = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
     
     scanResults.push({
       id: i + 1,
       scan_id: `scan${Math.floor(Math.random() * 6) + 1}`,
-      scanType: scanType,  // KORRIGIERT: scan_type → scanType
+      scanType: scanType,
       token_address: token.address,
       chain,
       score,
-      riskLevel: riskLevel,  // KORRIGIERT: risk_level → riskLevel
+      riskLevel: riskLevel,
       findings: {
         details: `Scan ${i + 1} findings for ${token.name}`,
         anomalies: Math.random() > 0.5,
@@ -357,14 +340,12 @@ const generateMockTransactions = (count = 20) => {
     const status = statuses[Math.floor(Math.random() * statuses.length)];
     const method = methods[Math.floor(Math.random() * methods.length)];
     
-    // Zufällige Daten generieren
     const value = Math.random() * 10;
     const gasUsed = Math.floor(Math.random() * 500000) + 21000;
-    const gasPrice = Math.random() * 100;  // KORRIGIERT: gas_price → gasPrice
+    const gasPrice = Math.random() * 100;
     const fee = (gasUsed * gasPrice) / 1000000000;
     const tokenAmount = Math.random() * 10000;
     
-    // Zufällige Zeitstempel generieren
     const timestamp = new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000);
     
     transactions.push({
@@ -376,7 +357,7 @@ const generateMockTransactions = (count = 20) => {
       to_address: `0x${Math.random().toString(16).substr(2, 40)}`,
       value,
       gas_used: gasUsed,
-      gas_price: gasPrice,  // KORRIGIERT: gas_price → gasPrice
+      gas_price: gasPrice,
       fee,
       token_address: token.address,
       token_amount: tokenAmount,
@@ -404,7 +385,6 @@ const generateMockWalletAnalyses = (count = 10) => {
     const chain = chains[Math.floor(Math.random() * chains.length)];
     const token = mockTokens[Math.floor(Math.random() * mockTokens.length)];
     
-    // Zufällige Risiko-Flags auswählen
     const selectedRiskFlags = [];
     const numFlags = Math.floor(Math.random() * 3) + 1;
     for (let j = 0; j < numFlags; j++) {
@@ -414,19 +394,17 @@ const generateMockWalletAnalyses = (count = 10) => {
       }
     }
     
-    // Zufällige Daten generieren
     const balance = Math.random() * 1000000;
     const percentageOfSupply = Math.random() * 10;
     const transactionCount = Math.floor(Math.random() * 1000) + 10;
     const riskScore = Math.floor(Math.random() * 100);
-    const confidenceScore = Math.random() * 0.5 + 0.5; // Zwischen 0.5 und 1.0
+    const confidenceScore = Math.random() * 0.5 + 0.5;
     
-    // Zufällige Zeitstempel generieren
     const now = new Date();
-    const firstTx = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000); // Innerhalb des letzten Jahres
-    const lastTx = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000); // Innerhalb der letzten 30 Tage
-    const createdAt = new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000); // Innerhalb der letzten 7 Tage
-    const updatedAt = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000); // Innerhalb der letzten 24 Stunden
+    const firstTx = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
+    const lastTx = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+    const createdAt = new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000);
+    const updatedAt = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
     
     analyses.push({
       wallet_address: `0x${Math.random().toString(16).substr(2, 40)}`,
@@ -485,10 +463,6 @@ export const getMockWalletAnalyses = () => generateMockWalletAnalyses();
 // API-Ansatz (später mit echtem Backend)
 export const fetchRadarData = async () => {
   try {
-    // Später: const response = await api.get('/radar/small-caps');
-    // return response.data;
-    
-    // Für jetzt: Mock-Daten zurückgeben
     return new Promise(resolve => {
       setTimeout(() => resolve(getMockRadarData()), 500);
     });
