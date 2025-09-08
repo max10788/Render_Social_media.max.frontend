@@ -39,14 +39,6 @@ export const CLUSTER_TYPES = {
   OTHER: { label: 'Other', color: '#a78bfa' }
 };
 
-// Risiko-Level
-export const RISK_LEVELS = {
-  low: { label: 'Low', color: '#10b981' },
-  medium: { label: 'Medium', color: '#f59e0b' },
-  high: { label: 'High', color: '#ef4444' },
-  critical: { label: 'Critical', color: '#dc2626' }
-};
-
 // Mock-Token-Daten
 const mockTokens = [
   {
@@ -332,11 +324,11 @@ const generateMockScanResults = (count = 10) => {
     scanResults.push({
       id: i + 1,
       scan_id: `scan${Math.floor(Math.random() * 6) + 1}`,
-      scan_type,
+      scanType: scanType,  // KORRIGIERT: scan_type → scanType
       token_address: token.address,
       chain,
       score,
-      risk_level,
+      riskLevel: riskLevel,  // KORRIGIERT: risk_level → riskLevel
       findings: {
         details: `Scan ${i + 1} findings for ${token.name}`,
         anomalies: Math.random() > 0.5,
@@ -368,7 +360,7 @@ const generateMockTransactions = (count = 20) => {
     // Zufällige Daten generieren
     const value = Math.random() * 10;
     const gasUsed = Math.floor(Math.random() * 500000) + 21000;
-    const gasPrice = Math.random() * 100;
+    const gasPrice = Math.random() * 100;  // KORRIGIERT: gas_price → gasPrice
     const fee = (gasUsed * gasPrice) / 1000000000;
     const tokenAmount = Math.random() * 10000;
     
@@ -384,7 +376,7 @@ const generateMockTransactions = (count = 20) => {
       to_address: `0x${Math.random().toString(16).substr(2, 40)}`,
       value,
       gas_used: gasUsed,
-      gas_price,
+      gas_price: gasPrice,  // KORRIGIERT: gas_price → gasPrice
       fee,
       token_address: token.address,
       token_amount: tokenAmount,
