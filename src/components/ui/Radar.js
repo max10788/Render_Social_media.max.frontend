@@ -26,11 +26,25 @@ const Radar = () => {
     return transactions.filter(tx => tx.walletCategory === selectedCategory);
   };
 
-  const calculatePosition = (transaction, index, total) => {
-    const angle = (index / total) * Math.PI * 2;
+  // Verbesserte Positionsberechnung zur Vermeidung von Überlappungen
+  const calculatePosition = (transaction, index, total, tokenIndex) => {
+    // Verteilung auf mehrere Ringe basierend auf dem Token
+    const ringCount = 3; // Anzahl der Ringe
+    const ringIndex = tokenIndex % ringCount; // Welcher Ring (0, 1, 2)
+    
+    // Basis-Radius für jeden Ring (30%, 50%, 70% des maximalen Radius)
+    const baseRadius = 25 + (ringIndex * 15);
+    
+    // Winkelberechnung mit mehr Abstand zwischen den Punkten
+    const angleStep = (2 * Math.PI) / Math.max(total / ringCount, 1);
+    const angle = (index % Math.max(total / ringCount, 1)) * angleStep;
+    
+    // Zeitfaktor für die Position innerhalb des Rings (neuere Transaktionen weiter außen)
     const timeFactor = (transaction.timestamp - radarData[0]?.timeRange.start) / 
                       (radarData[0]?.timeRange.end - radarData[0]?.timeRange.start);
-    const distance = 30 + timeFactor * 60; // 30-90% radius
+    const radiusOffset = timeFactor * 10; // Bis zu 10% zusätzlicher Radius
+    
+    const distance = baseRadius + radiusOffset;
     
     return {
       x: 50 + Math.cos(angle) * distance,
@@ -85,13 +99,13 @@ const Radar = () => {
         
         <div className="radar-display" ref={radarRef}>
           <svg viewBox="0 0 100 100" className="radar-svg">
-            {/* Radar Grid */}
-            {[20, 40, 60, 80].map(radius => (
+            {/* Radar Grid - mehr Ringe für bessere Übersicht */}
+            {[15, 30, 45, 60, 75, 90].map(radius => (
               <circle key={radius} cx="50" cy="50" r={radius} className="radar-circle" />
             ))}
             
-            {/* Radar Lines */}
-            {[0, 45, 90, 135].map(angle => (
+            {/* Radar Lines - mehr Linien für bessere Orientierung */}
+            {[0, 30, 60, 90, 120, 150].map(angle => (
               <line key={angle} x1="50" y1="50" 
                   x2={50 + 50 * Math.cos(angle * Math.PI / 180)} 
                   y2={50 + 50 * Math.sin(angle * Math.PI / 180)} 
@@ -110,10 +124,10 @@ const Radar = () => {
                                 repeatCount="indefinite" />
             </line>
             
-            {/* Transaction Points */}
-            {radarData.flatMap(tokenData => 
+            {/* Transaction Points - verbesserte Positionierung */}
+            {radarData.map((tokenData, tokenIndex) => 
               filterTransactions(tokenData.transactions).map((tx, index) => {
-                const position = calculatePosition(tx, index, tokenData.transactions.length);
+                const position = calculatePosition(tx, index, tokenData.transactions.length, tokenIndex);
                 const category = WALLET_CATEGORIES[tx.walletCategory];
                 
                 return (
@@ -123,14 +137,17 @@ const Radar = () => {
                     <circle 
                       cx={position.x} 
                       cy={position.y} 
-                      r="1.5" 
+                      r="2" /* Vergrößerte Standardgröße */
                       style={{ fill: category.color }}
                     />
+                    {/* Verbesserte Textbeschriftung mit besserer Positionierung */}
                     <text 
-                      x={position.x + 2} 
-                      y={position.y - 2} 
-                      fontSize="2" 
+                      x={position.x + 3} /* Mehr Abstand zum Punkt */
+                      y={position.y - 3} /* Höher positioniert */
+                      fontSize="3" /* Vergrößerte Schrift */
                       fill="white"
+                      fontWeight="bold"
+                      textAnchor="start"
                     >
                       {tx.tokenSymbol}
                     </text>
