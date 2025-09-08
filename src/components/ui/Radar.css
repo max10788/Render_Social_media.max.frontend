@@ -6,9 +6,8 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   position: relative;
   overflow: hidden;
-  min-height: 800px; /* Mindesthöhe erhöht */
+  min-height: 800px;
 }
-
 .radar-header {
   display: flex;
   justify-content: space-between;
@@ -17,7 +16,6 @@
   flex-wrap: wrap;
   gap: 16px;
 }
-
 .radar-header h2 {
   font-size: 1.5rem;
   font-weight: 700;
@@ -25,12 +23,10 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-
 .radar-controls {
   display: flex;
   gap: 12px;
 }
-
 .time-range-select, .category-select {
   background: rgba(30, 41, 59, 0.8);
   border: 1px solid rgba(100, 116, 139, 0.3);
@@ -39,59 +35,54 @@
   border-radius: 8px;
   font-size: 0.9rem;
 }
-
 .radar-display {
   width: 100%;
-  height: 700px; /* Deutlich erhöhte Höhe für den Radar-Bereich */
-  max-width: 800px; /* Erhöhte maximale Breite */
+  height: 700px;
+  max-width: 800px;
   margin: 0 auto;
   position: relative;
   border: 1px solid rgba(100, 116, 139, 0.2);
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible; /* Wichtig für nicht abgeschnittene Labels */
 }
-
 .radar-svg {
   width: 100%;
   height: 100%;
   filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.3));
+  overflow: visible; /* Ermöglicht das Anzeigen von Elementen außerhalb der viewBox */
 }
-
 .radar-circle {
   fill: none;
   stroke: rgba(100, 116, 139, 0.3);
   stroke-width: 0.3;
 }
-
 .radar-line {
   stroke: rgba(100, 116, 139, 0.3);
   stroke-width: 0.3;
 }
-
 .radar-sweep {
   stroke: #38bdf8;
   stroke-width: 0.5;
   filter: drop-shadow(0 0 3px #38bdf8);
 }
-
 .radar-point {
   cursor: pointer;
   transition: all 0.2s ease;
 }
-
 .radar-point:hover circle {
-  r: 3; /* Vergrößerte Hover-Größe */
+  r: 3;
   filter: drop-shadow(0 0 5px currentColor);
 }
-
 .radar-point.buy circle {
   filter: drop-shadow(0 0 2px #4ade80);
 }
-
 .radar-point.sell circle {
   filter: drop-shadow(0 0 2px #f87171);
 }
-
+.radar-point text {
+  user-select: none;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+}
 .token-detail {
   background: rgba(30, 41, 59, 0.8);
   backdrop-filter: blur(10px);
@@ -100,19 +91,16 @@
   margin-top: 20px;
   border: 1px solid rgba(100, 116, 139, 0.3);
 }
-
 .token-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
-
 .token-header h3 {
   font-size: 1.2rem;
   font-weight: 600;
 }
-
 .token-header button {
   background: none;
   border: none;
@@ -121,47 +109,38 @@
   cursor: pointer;
   transition: color 0.2s;
 }
-
 .token-header button:hover {
   color: #e2e8f0;
 }
-
 .token-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
-
 .stat {
   display: flex;
   flex-direction: column;
 }
-
 .stat span:first-child {
   font-size: 0.8rem;
   color: #94a3b8;
   margin-bottom: 4px;
 }
-
 .stat span:last-child {
   font-weight: 600;
 }
-
 .positive {
   color: #4ade80;
 }
-
 .negative {
   color: #f87171;
 }
-
 .recent-transactions h4 {
   font-size: 1rem;
   margin-bottom: 12px;
   color: #cbd5e1;
 }
-
 .transaction-list {
   display: flex;
   flex-direction: column;
@@ -169,7 +148,6 @@
   max-height: 300px;
   overflow-y: auto;
 }
-
 .transaction-item {
   display: grid;
   grid-template-columns: 80px 1fr 100px 80px;
@@ -179,36 +157,29 @@
   border-radius: 6px;
   font-size: 0.85rem;
 }
-
 .tx-type {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-
 .tx-indicator {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
-
 .tx-indicator.buy {
   background: #4ade80;
 }
-
 .tx-indicator.sell {
   background: #f87171;
 }
-
 .tx-amount {
   font-weight: 600;
 }
-
 .tx-time {
   color: #94a3b8;
   font-size: 0.8rem;
 }
-
 .radar-legend {
   display: flex;
   flex-wrap: wrap;
@@ -216,7 +187,6 @@
   gap: 16px;
   margin-top: 20px;
 }
-
 .legend-item {
   display: flex;
   align-items: center;
@@ -224,21 +194,17 @@
   font-size: 0.9rem;
   color: #94a3b8;
 }
-
 .legend-color {
   width: 12px;
   height: 12px;
   border-radius: 50%;
 }
-
 .legend-color.buy {
   background: #4ade80;
 }
-
 .legend-color.sell {
   background: #f87171;
 }
-
 .radar-loading, .radar-error {
   padding: 40px;
   text-align: center;
@@ -249,11 +215,26 @@
   align-items: center;
   justify-content: center;
 }
-
 .radar-error {
   color: #f87171;
 }
-
+/* Token-Legende */
+.token-legend {
+  margin-top: 20px;
+  padding: 10px;
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 8px;
+}
+.token-legend h4 {
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+  color: #cbd5e1;
+}
+.legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 /* Wallet Analysen Sektion */
 .wallet-analyses-container {
   margin-top: 3rem;
@@ -262,7 +243,6 @@
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
-
 .section-title {
   color: #e2e8f0;
   font-size: 1.8rem;
@@ -272,20 +252,17 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-
 .wallet-loading {
   padding: 40px;
   text-align: center;
   font-size: 1.1rem;
   color: #94a3b8;
 }
-
 .wallet-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
 }
-
 .wallet-card {
   background: rgba(30, 41, 59, 0.8);
   border-radius: 12px;
@@ -296,13 +273,11 @@
   display: flex;
   flex-direction: column;
 }
-
 .wallet-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   border-color: rgba(56, 189, 248, 0.5);
 }
-
 .wallet-header {
   display: flex;
   justify-content: space-between;
@@ -311,7 +286,6 @@
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(100, 116, 139, 0.2);
 }
-
 .wallet-address {
   font-family: monospace;
   color: #e2e8f0;
@@ -320,12 +294,10 @@
   padding: 4px 8px;
   border-radius: 4px;
 }
-
 .wallet-type {
   font-weight: 600;
   font-size: 0.9rem;
 }
-
 .wallet-body {
   flex: 1;
   display: flex;
@@ -333,32 +305,26 @@
   gap: 10px;
   margin-bottom: 15px;
 }
-
 .wallet-stat {
   display: flex;
   justify-content: space-between;
 }
-
 .stat-label {
   color: #94a3b8;
   font-size: 0.9rem;
 }
-
 .stat-value {
   color: #e2e8f0;
   font-weight: 500;
 }
-
 .wallet-risk {
   margin-top: auto;
 }
-
 .risk-label {
   color: #94a3b8;
   font-size: 0.9rem;
   margin-bottom: 5px;
 }
-
 .risk-bar {
   height: 8px;
   background: rgba(100, 116, 139, 0.3);
@@ -366,30 +332,25 @@
   overflow: hidden;
   margin-bottom: 5px;
 }
-
 .risk-fill {
   height: 100%;
   border-radius: 4px;
   transition: width 1s ease;
 }
-
 .risk-value {
   color: #e2e8f0;
   font-size: 0.9rem;
   text-align: right;
 }
-
 .wallet-footer {
   padding-top: 10px;
   border-top: 1px solid rgba(100, 116, 139, 0.2);
 }
-
 .risk-flags {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
 }
-
 .risk-flag {
   background: rgba(239, 68, 68, 0.2);
   color: #f87171;
@@ -398,13 +359,11 @@
   font-size: 0.8rem;
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
-
 .risk-flag.more {
   background: rgba(100, 116, 139, 0.2);
   color: #94a3b8;
   border-color: rgba(100, 116, 139, 0.3);
 }
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .radar-container {
@@ -418,7 +377,7 @@
   }
   
   .radar-display {
-    height: 500px; /* Angepasste Höhe für mobile Geräte */
+    height: 500px;
     max-width: 100%;
   }
   
@@ -445,7 +404,6 @@
     padding: 1rem;
   }
 }
-
 @media (max-width: 1024px) {
   .wallet-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -456,7 +414,6 @@
     max-width: 700px;
   }
 }
-
 /* Für sehr große Bildschirme */
 @media (min-width: 1600px) {
   .radar-display {
