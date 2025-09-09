@@ -6,7 +6,7 @@ import { WALLET_CATEGORIES, WALLET_TYPES } from '../../services/tokenDiscovery';
 import WalletDetail from './WalletDetail';
 
 const Radar = () => {
-  const { radarData, loading, error, timeRange, setTimeRange } = useCryptoTracker();
+  const { radarData, wallets, loading, error, timeRange, setTimeRange } = useCryptoTracker();
   const { walletAnalyses, loading: walletsLoading } = useWalletAnalyses();
   const [selectedToken, setSelectedToken] = useState(null);
   const [selectedWallet, setSelectedWallet] = useState(null);
@@ -31,8 +31,24 @@ const Radar = () => {
     return transactions.filter(tx => tx.walletCategory === selectedCategory);
   };
 
-  // Tooltip anzeigen/verstecken
-  const showTooltip = (event, transaction) => {
+  // Tooltip anzeigen/verstecken für Wallets
+  const showWalletTooltip = (event, wallet) => {
+    setTooltip({
+      content: wallet.walletAddress,
+      details: {
+        tokenType: wallet.tokenType,
+        activityType: wallet.activityType,
+        volume: wallet.volume,
+        timestamp: new Date(wallet.timestamp).toLocaleString()
+      },
+      x: event.clientX,
+      y: event.clientY
+    });
+    setHoveredPoint(wallet.walletAddress);
+  };
+
+  // Tooltip anzeigen/verstecken für Transaktionen
+  const showTransactionTooltip = (event, transaction) => {
     setTooltip({
       content: transaction.tokenSymbol,
       details: {
@@ -59,6 +75,16 @@ const Radar = () => {
       'DOGE': '#3b82f6'
     };
     return colors[symbol] || '#818cf8';
+  };
+
+  // Funktion zur Bestimmung der Aktivitätsgröße
+  const getActivitySize = (activityType) => {
+    const sizes = {
+      'Buy': 4,
+      'Sell': 3,
+      'Transfer': 2
+    };
+    return sizes[activityType] || 2;
   };
 
   // Dynamische SVG-Größe basierend auf der Anzahl der Punkte
@@ -101,6 +127,26 @@ const Radar = () => {
     return {
       x: center + radius * Math.cos(rad),
       y: center + radius * Math.sin(rad)
+    };
+  };
+
+  // Berechne die Position für Wallets basierend auf Zeitstempel und Volumen
+  const calculateWalletPosition = (wallet) => {
+    // Zeitstempel bestimmt den Winkel (ältere Interaktionen links, neuere rechts)
+    const now = Date.now();
+    const timeDiff = now - wallet.timestamp.getTime();
+    const maxTimeDiff = 24 * 60 * 60 * 1000; // 24 Stunden
+    const timeRatio = Math.min(timeDiff / maxTimeDiff, 1);
+    const angle = (1 - timeRatio) * 2 * Math.PI; // 0 bis 2π
+    
+    // Volumen bestimmt den Abstand vom Zentrum
+    const maxVolume = Math.max(...wallets.map(w => w.volume));
+    const volumeRatio = wallet.volume / maxVolume;
+    const radius = center * 0.2 + volumeRatio * (outerRadius - center * 0.2);
+    
+    return {
+      x: center + radius * Math.cos(angle),
+      y: center + radius * Math.sin(angle)
     };
   };
 
@@ -210,7 +256,7 @@ const Radar = () => {
   
   // Nicht geclusterte Punkte
   const nonClusteredPoints = allTransactions.filter(tx => !tx.clustered);
-
+  
   // Berechne Endpunkt für den Haupt-Scan-Strahl - jetzt bis zum äußeren Rand
   const mainScanEndPoint = calculateScanEndPoint(scanAngle, outerRadius);
 
@@ -315,6 +361,45 @@ const Radar = () => {
               );
             })}
             
+            {/* Wallet-Punkte */}
+            {wallets.map(wallet => {
+              const position = calculateWalletPosition(wallet);
+              const tokenColor = getTokenColor(wallet.tokenType);
+              const activitySize = getActivitySize(wallet.activityType);
+              const isHovered = hoveredPoint === wallet.walletAddress;
+              
+              return (
+                <g key={wallet.walletAddress} 
+                   className={`wallet-point ${wallet.activityType.toLowerCase()}`}
+                   onMouseEnter={(e) => showWalletTooltip(e, wallet)}
+                   onMouseLeave={hideTooltip}>
+                  <circle 
+                    cx={position.x} 
+                    cy={position.y} 
+                    r={isHovered ? activitySize + 1 : activitySize}
+                    style={{ 
+                      fill: tokenColor,
+                      filter: isHovered ? 'drop-shadow(0 0 5px currentColor)' : 'none'
+                    }}
+                  />
+                  {/* Nur bei Hover das Label anzeigen */}
+                  {isHovered && (
+                    <text 
+                      x={position.x + 5} 
+                      y={position.y - 5} 
+                      fontSize="3" 
+                      fill="white"
+                      fontWeight="bold"
+                      textAnchor="start"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {wallet.tokenType}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+            
             {/* Cluster-Punkte */}
             {clusters.map((cluster, clusterIndex) => {
               // Mittelpunkt des Clusters berechnen
@@ -339,7 +424,7 @@ const Radar = () => {
                      const dominantTx = cluster.find(tx => tx.tokenSymbol === dominantToken);
                      if (dominantTx) handleTokenSelect(dominantTx.token);
                    }}
-                   onMouseEnter={(e) => showTooltip(e, {
+                   onMouseEnter={(e) => showTransactionTooltip(e, {
                      tokenSymbol: `${cluster.length} Punkte`,
                      type: 'Cluster',
                      amount: cluster.length,
@@ -380,7 +465,7 @@ const Radar = () => {
                 <g key={tx.id} 
                    className={`radar-point ${tx.type} ${tx.walletCategory} ${isHovered ? 'hovered' : ''}`}
                    onClick={() => handleTokenSelect(tx.token)}
-                   onMouseEnter={(e) => showTooltip(e, tx)}
+                   onMouseEnter={(e) => showTransactionTooltip(e, tx)}
                    onMouseLeave={hideTooltip}>
                   <circle 
                     cx={tx.position.point.x} 
@@ -431,11 +516,26 @@ const Radar = () => {
                 border: '1px solid rgba(100, 116, 139, 0.3)'
               }}
             >
-              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{tooltip.content}</div>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                {formatAddress(tooltip.content)}
+              </div>
               {tooltip.details && (
                 <div style={{ fontSize: '11px', opacity: 0.9 }}>
-                  <div>Typ: {tooltip.details.type}</div>
-                  <div>Menge: {tooltip.details.amount}</div>
+                  {tooltip.details.tokenType && (
+                    <div>Token: {tooltip.details.tokenType}</div>
+                  )}
+                  {tooltip.details.activityType && (
+                    <div>Aktivität: {tooltip.details.activityType}</div>
+                  )}
+                  {tooltip.details.volume && (
+                    <div>Volumen: {tooltip.details.volume.toLocaleString()}</div>
+                  )}
+                  {tooltip.details.type && (
+                    <div>Typ: {tooltip.details.type}</div>
+                  )}
+                  {tooltip.details.amount && (
+                    <div>Menge: {tooltip.details.amount}</div>
+                  )}
                   <div>Zeit: {tooltip.details.time}</div>
                 </div>
               )}
@@ -446,39 +546,40 @@ const Radar = () => {
         {/* Kombinierte Legende */}
         <div className="combined-legend">
           <div className="legend-section">
-            <h4>Token-Legende</h4>
+            <h4>Token-Typen</h4>
             <div className="legend-items">
-              {Array.from(new Set(radarData.flatMap(data => 
-                data.transactions.map(tx => tx.tokenSymbol)
-              ))).map(symbol => (
-                <div key={symbol} className="legend-item">
+              {Array.from(new Set([
+                ...wallets.map(w => w.tokenType),
+                ...radarData.flatMap(data => data.transactions.map(tx => tx.tokenSymbol))
+              ])).map(tokenType => (
+                <div key={tokenType} className="legend-item">
                   <div 
                     className="legend-color" 
                     style={{ 
-                      background: getTokenColor(symbol) 
+                      background: getTokenColor(tokenType) 
                     }}
                   ></div>
-                  <span>{symbol}</span>
+                  <span>{tokenType}</span>
                 </div>
               ))}
             </div>
           </div>
           
           <div className="legend-section">
-            <h4>Aktivitäts-Legende</h4>
+            <h4>Aktivitäten</h4>
             <div className="legend-items">
-              <div className="legend-item">
-                <div className="legend-color buy"></div>
-                <span>Kauf</span>
-              </div>
-              <div className="legend-item">
-                <div className="legend-color sell"></div>
-                <span>Verkauf</span>
-              </div>
-              {Object.entries(WALLET_CATEGORIES).map(([key, cat]) => (
-                <div key={key} className="legend-item">
-                  <div className="legend-color" style={{ background: cat.color }}></div>
-                  <span>{cat.label}</span>
+              {['Buy', 'Sell', 'Transfer'].map(activityType => (
+                <div key={activityType} className="legend-item">
+                  <div 
+                    className="legend-color" 
+                    style={{ 
+                      background: getTokenColor('PEPE'),
+                      width: `${getActivitySize(activityType) * 2}px`,
+                      height: `${getActivitySize(activityType) * 2}px`,
+                      borderRadius: '50%'
+                    }}
+                  ></div>
+                  <span>{activityType}</span>
                 </div>
               ))}
             </div>
