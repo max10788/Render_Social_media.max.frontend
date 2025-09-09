@@ -8,6 +8,18 @@ import WalletDetail from './WalletDetail';
 const Radar = () => {
   const { radarData, wallets, loading, error, timeRange, setTimeRange } = useCryptoTracker();
   const { walletAnalyses, loading: walletsLoading } = useWalletAnalyses();
+  
+  // Zustände für den Smart Contract
+  const [showContractDetails, setShowContractDetails] = useState(false);
+  const [contractData, setContractData] = useState({
+    address: "0x1234...5678",
+    tokenName: "PEPE",
+    chain: "Solana",
+    creationDate: "2025-01-01",
+    interactions: "1.234",
+    volume: "50.000.000"
+  });
+  
   const [selectedToken, setSelectedToken] = useState(null);
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -15,22 +27,28 @@ const Radar = () => {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [scanAngle, setScanAngle] = useState(0);
+  
   const radarRef = useRef(null);
   const animationRef = useRef(null);
-
+  
   const handleTokenSelect = (token) => {
     setSelectedToken(token);
   };
-
+  
   const handleWalletSelect = (wallet) => {
     setSelectedWallet(wallet);
   };
-
+  
+  // Funktion zum Anzeigen/Verstecken der Contract-Details
+  const toggleContractDetails = () => {
+    setShowContractDetails(!showContractDetails);
+  };
+  
   const filterTransactions = (transactions) => {
     if (selectedCategory === 'all') return transactions;
     return transactions.filter(tx => tx.walletCategory === selectedCategory);
   };
-
+  
   // Tooltip anzeigen/verstecken für Wallets
   const showWalletTooltip = (event, wallet) => {
     setTooltip({
@@ -46,7 +64,7 @@ const Radar = () => {
     });
     setHoveredPoint(wallet.walletAddress);
   };
-
+  
   // Tooltip anzeigen/verstecken für Transaktionen
   const showTransactionTooltip = (event, transaction) => {
     setTooltip({
@@ -61,12 +79,12 @@ const Radar = () => {
     });
     setHoveredPoint(transaction.id);
   };
-
+  
   const hideTooltip = () => {
     setTooltip(null);
     setHoveredPoint(null);
   };
-
+  
   // Funktion zur Bestimmung der Token-Farbe
   const getTokenColor = (symbol) => {
     const colors = {
@@ -76,7 +94,7 @@ const Radar = () => {
     };
     return colors[symbol] || '#818cf8';
   };
-
+  
   // Funktion zur Bestimmung der Aktivitätsgröße
   const getActivitySize = (activityType) => {
     const sizes = {
@@ -86,7 +104,7 @@ const Radar = () => {
     };
     return sizes[activityType] || 2;
   };
-
+  
   // Dynamische SVG-Größe basierend auf der Anzahl der Punkte
   const getSvgDimensions = () => {
     const totalPoints = radarData.reduce((sum, tokenData) => 
@@ -98,13 +116,13 @@ const Radar = () => {
     const sizeIncrement = Math.min(totalPoints / 10, 2);
     return Math.min(baseSize + sizeIncrement * 25, maxSize);
   };
-
+  
   const svgSize = getSvgDimensions();
   const center = svgSize / 2;
   
   // Radius des äußeren Rings - der Scan-Strahl soll genau bis hier reichen
   const outerRadius = center * 0.95; // 95% des maximal möglichen Radius
-
+  
   // Animation für den Scan-Strahl
   useEffect(() => {
     const animateScan = () => {
@@ -120,7 +138,7 @@ const Radar = () => {
       }
     };
   }, []);
-
+  
   // Berechne die Endpunkte des Scan-Strahls basierend auf dem aktuellen Winkel
   const calculateScanEndPoint = (angle, radius) => {
     const rad = angle * (Math.PI / 180);
@@ -129,7 +147,7 @@ const Radar = () => {
       y: center + radius * Math.sin(rad)
     };
   };
-
+  
   // Berechne die Startzeit basierend auf dem gewählten Zeitintervall
   const getStartTime = () => {
     const now = new Date();
@@ -149,7 +167,7 @@ const Radar = () => {
     }
     return new Date(now.getTime() - durationInMs);
   };
-
+  
   // Berechne die Position für Wallets basierend auf Zeitstempel und Volumen
   const calculateWalletPosition = (wallet, startTime, currentTime, maxVolume) => {
     // Zeitstempel bestimmt den Winkel (ältere Interaktionen links, neuere rechts)
@@ -172,7 +190,7 @@ const Radar = () => {
       y: center + radius * Math.sin(angle)
     };
   };
-
+  
   // Verbesserte Positionsberechnung mit größerem Abstand zwischen Ringen
   const calculatePosition = (transaction, index, total, tokenIndex) => {
     // Verteilung auf mehrere Ringe basierend auf dem Token
@@ -207,7 +225,7 @@ const Radar = () => {
       label: { x: labelX, y: labelY }
     };
   };
-
+  
   // Cluster-Erkennung für Punkte, die zu nah beieinander liegen
   const detectClusters = (transactions) => {
     const clusters = [];
@@ -240,7 +258,7 @@ const Radar = () => {
     
     return clusters;
   };
-
+  
   // Zoom-Funktion
   const handleZoom = (direction) => {
     setZoomLevel(prev => {
@@ -248,38 +266,38 @@ const Radar = () => {
       return Math.max(0.8, Math.min(2.5, newZoom)); // Begrenzung des Zooms
     });
   };
-
+  
   // Formatieren von Adressen (gekürzt darstellen)
   const formatAddress = (address) => {
     if (!address) return '';
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
-
+  
   // Risiko-Score-Farbe bestimmen
   const getRiskColor = (score) => {
     if (score < 30) return '#10b981';
     if (score < 70) return '#f59e0b';
     return '#ef4444';
   };
-
+  
   if (loading) return <div className="radar-loading">Loading radar data...</div>;
   if (error) return <div className="radar-error">Error: {error}</div>;
-
+  
   // Berechne die Startzeit und aktuelle Zeit basierend auf dem gewählten Zeitintervall
   const startTime = getStartTime();
   const currentTime = new Date();
-
+  
   // Filtere die Wallets, die im gewählten Zeitintervall liegen
   const filteredWallets = wallets.filter(wallet => {
     const walletTime = new Date(wallet.timestamp);
     return walletTime >= startTime && walletTime <= currentTime;
   });
-
+  
   // Berechne das maximale Volumen für die gefilterten Wallets
   const maxVolume = filteredWallets.length > 0 
     ? Math.max(...filteredWallets.map(w => w.volume))
     : 1;
-
+  
   // Alle Transaktionen mit Positionen sammeln
   const allTransactions = radarData.flatMap((tokenData, tokenIndex) =>
     filterTransactions(tokenData.transactions).map(tx => ({
@@ -288,7 +306,7 @@ const Radar = () => {
       position: calculatePosition(tx, tx.id, tokenData.transactions.length, tokenIndex)
     }))
   );
-
+  
   // Cluster erkennen
   const clusters = detectClusters([...allTransactions]);
   
@@ -297,10 +315,10 @@ const Radar = () => {
   
   // Berechne Endpunkt für den Haupt-Scan-Strahl - jetzt bis zum äußeren Rand
   const mainScanEndPoint = calculateScanEndPoint(scanAngle, outerRadius);
-
+  
   // Anzahl der radialen Linien (12 Linien = alle 30°)
   const numRadialLines = 12;
-
+  
   return (
     <>
       <div className="radar-container">
@@ -386,6 +404,29 @@ const Radar = () => {
                 />
               );
             })}
+            
+            {/* Zentraler Smart Contract-Punkt */}
+            <g onClick={toggleContractDetails} className="central-contract-point" cursor="pointer">
+              <circle 
+                cx={center} 
+                cy={center} 
+                r={8} 
+                fill="#00ff00" 
+                stroke="#fff" 
+                strokeWidth="2"
+                className="central-contract-circle"
+              />
+              <circle 
+                cx={center} 
+                cy={center} 
+                r={12} 
+                fill="none" 
+                stroke="#00ff00" 
+                strokeWidth="1"
+                strokeOpacity="0.5"
+                className="central-contract-pulse"
+              />
+            </g>
             
             {/* Sweep Animation mit Schweif-Effekt - angepasst an die dynamische Größe */}
             {/* Haupt-Scan-Strahl - verlängert bis zum äußeren Rand */}
@@ -552,6 +593,44 @@ const Radar = () => {
               );
             })}
           </svg>
+          
+          {/* Smart Contract Detail-Fenster */}
+          {showContractDetails && (
+            <div className="contract-detail-modal">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h3>Smart Contract Details</h3>
+                  <button className="close-button" onClick={toggleContractDetails}>×</button>
+                </div>
+                <div className="modal-body">
+                  <div className="detail-row">
+                    <span className="detail-label">Adresse:</span>
+                    <span className="detail-value">{contractData.address}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Token-Name:</span>
+                    <span className="detail-value">{contractData.tokenName}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Chain:</span>
+                    <span className="detail-value">{contractData.chain}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Erstellungsdatum:</span>
+                    <span className="detail-value">{contractData.creationDate}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Interaktionen:</span>
+                    <span className="detail-value">{contractData.interactions}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Volumen:</span>
+                    <span className="detail-value">{contractData.volume}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Tooltip */}
           {tooltip && (
