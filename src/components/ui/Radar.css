@@ -496,3 +496,35 @@
     transform: scale(0.9); /* Etwas größere Skalierung für sehr große Bildschirme */
   }
 }
+
+/* Füge diese Stile am Ende der Datei hinzu */
+
+.wallet-point {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wallet-point.buy circle {
+  filter: drop-shadow(0 0 2px #4ade80);
+}
+
+.wallet-point.sell circle {
+  filter: drop-shadow(0 0 2px #f87171);
+}
+
+.wallet-point.transfer circle {
+  filter: drop-shadow(0 0 2px #a78bfa);
+}
+
+.wallet-point:hover circle {
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
+/* Aktualisierte Legende für Wallet-Aktivitäten */
+.legend-items .legend-item .legend-color {
+  transition: all 0.2s ease;
+}
+
+.legend-items .legend-item:hover .legend-color {
+  transform: scale(1.2);
+}
