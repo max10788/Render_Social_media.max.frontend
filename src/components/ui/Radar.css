@@ -528,3 +528,10 @@
 .legend-items .legend-item:hover .legend-color {
   transform: scale(1.2);
 }
+
+/* Radiale Linien (Speichen) */
+.radar-line {
+  stroke: rgba(100, 116, 139, 0.4);
+  stroke-width: 0.5;
+  stroke-dasharray: 4, 4;
+}
