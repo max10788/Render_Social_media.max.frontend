@@ -95,6 +95,115 @@ const mockTokens = [
   }
 ];
 
+// Mock-Wallet-Daten für Smart Contract Interaktionen
+const mockWallets = [
+  {
+    walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f8756',
+    tokenType: 'PEPE',
+    activityType: 'Buy',
+    volume: 12500,
+    timestamp: new Date(Date.now() - 3600000) // 1 Stunde alt
+  },
+  {
+    walletAddress: '0x9b8e8f7d3c4a5b6c7d8e9f0a1b2c3d4e5f6a7b8',
+    tokenType: 'SHIB',
+    activityType: 'Sell',
+    volume: 8500,
+    timestamp: new Date(Date.now() - 7200000) // 2 Stunden alt
+  },
+  {
+    walletAddress: '0x1a2b3c4d5e6f7890abcdef1234567890abcdef12',
+    tokenType: 'DOGE',
+    activityType: 'Transfer',
+    volume: 25000,
+    timestamp: new Date(Date.now() - 1800000) // 30 Minuten alt
+  },
+  {
+    walletAddress: '0x3c4d5e6f7890abcdef1234567890abcdef12345678',
+    tokenType: 'PEPE',
+    activityType: 'Buy',
+    volume: 18500,
+    timestamp: new Date(Date.now() - 5400000) // 1.5 Stunden alt
+  },
+  {
+    walletAddress: '0x4e5f67890abcdef1234567890abcdef1234567890a',
+    tokenType: 'SHIB',
+    activityType: 'Transfer',
+    volume: 12000,
+    timestamp: new Date(Date.now() - 900000) // 15 Minuten alt
+  },
+  {
+    walletAddress: '0x5f67890abcdef1234567890abcdef1234567890ab',
+    tokenType: 'DOGE',
+    activityType: 'Sell',
+    volume: 32000,
+    timestamp: new Date(Date.now() - 2700000) // 45 Minuten alt
+  },
+  {
+    walletAddress: '0x67890abcdef1234567890abcdef1234567890abcd',
+    tokenType: 'PEPE',
+    activityType: 'Transfer',
+    volume: 9500,
+    timestamp: new Date(Date.now() - 3600000) // 1 Stunde alt
+  },
+  {
+    walletAddress: '0x7890abcdef1234567890abcdef1234567890abcde',
+    tokenType: 'SHIB',
+    activityType: 'Buy',
+    volume: 21500,
+    timestamp: new Date(Date.now() - 6300000) // 1.75 Stunden alt
+  },
+  {
+    walletAddress: '0x890abcdef1234567890abcdef1234567890abcdef',
+    tokenType: 'DOGE',
+    activityType: 'Buy',
+    volume: 42000,
+    timestamp: new Date(Date.now() - 450000) // 7.5 Minuten alt
+  },
+  {
+    walletAddress: '0x90abcdef1234567890abcdef1234567890abcdef1',
+    tokenType: 'PEPE',
+    activityType: 'Sell',
+    volume: 15500,
+    timestamp: new Date(Date.now() - 8100000) // 2.25 Stunden alt
+  },
+  {
+    walletAddress: '0xabcdef1234567890abcdef1234567890abcdef12',
+    tokenType: 'SHIB',
+    activityType: 'Transfer',
+    volume: 7500,
+    timestamp: new Date(Date.now() - 1350000) // 22.5 Minuten alt
+  },
+  {
+    walletAddress: '0xbcdef1234567890abcdef1234567890abcdef123',
+    tokenType: 'DOGE',
+    activityType: 'Transfer',
+    volume: 18000,
+    timestamp: new Date(Date.now() - 2250000) // 37.5 Minuten alt
+  },
+  {
+    walletAddress: '0xcdef1234567890abcdef1234567890abcdef1234',
+    tokenType: 'PEPE',
+    activityType: 'Buy',
+    volume: 27500,
+    timestamp: new Date(Date.now() - 3150000) // 52.5 Minuten alt
+  },
+  {
+    walletAddress: '0xdef1234567890abcdef1234567890abcdef12345',
+    tokenType: 'SHIB',
+    activityType: 'Sell',
+    volume: 13500,
+    timestamp: new Date(Date.now() - 4050000) // 1.125 Stunden alt
+  },
+  {
+    walletAddress: '0xef1234567890abcdef1234567890abcdef123456',
+    tokenType: 'DOGE',
+    activityType: 'Buy',
+    volume: 35000,
+    timestamp: new Date(Date.now() - 4950000) // 1.375 Stunden alt
+  }
+];
+
 // Mock-Adressen
 const generateMockAddresses = (count = 10) => {
   const addresses = [];
@@ -460,6 +569,9 @@ export const getMockTokens = () => mockTokens;
 export const getMockTransactions = () => generateMockTransactions();
 export const getMockWalletAnalyses = () => generateMockWalletAnalyses();
 
+// Neue Export-Funktion für Mock-Wallets
+export const getMockWallets = () => mockWallets;
+
 // API-Ansatz (später mit echtem Backend)
 export const fetchRadarData = async () => {
   try {
@@ -557,6 +669,18 @@ export const fetchWalletAnalyses = async () => {
     });
   } catch (error) {
     console.error('Error fetching wallet analyses:', error);
+    return [];
+  }
+};
+
+// Neue API-Funktion für Wallets
+export const fetchWallets = async () => {
+  try {
+    return new Promise(resolve => {
+      setTimeout(() => resolve(getMockWallets()), 500);
+    });
+  } catch (error) {
+    console.error('Error fetching wallets:', error);
     return [];
   }
 };
