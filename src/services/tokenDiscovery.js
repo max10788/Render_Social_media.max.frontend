@@ -34,13 +34,20 @@ export const RISK_LEVELS = {
   critical: { label: 'Critical', color: '#dc2626' }
 };
 
+// Token-Adressen für die Mock-Wallets
+const TOKEN_ADDRESSES = {
+  'PEPE': '0x6982508145454ce325ddbe47a25d4ec3d2311933',
+  'SHIB': '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce',
+  'DOGE': '0xba2ae424d960c26247dd6c32edc70b295c744c43'
+};
+
 // Mock-Token-Daten
 const mockTokens = [
   {
     id: 1,
     symbol: 'PEPE',
     name: 'Pepe',
-    address: '0x6982508145454ce325ddbe47a25d4ec3d2311933',
+    address: TOKEN_ADDRESSES.PEPE,
     chain: 'ethereum',
     priceUsd: 0.00001234,
     priceChange24h: 12.5,
@@ -59,7 +66,7 @@ const mockTokens = [
     id: 2,
     symbol: 'SHIB',
     name: 'Shiba Inu',
-    address: '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce',
+    address: TOKEN_ADDRESSES.SHIB,
     chain: 'ethereum',
     priceUsd: 0.00000876,
     priceChange24h: -3.2,
@@ -78,7 +85,7 @@ const mockTokens = [
     id: 3,
     symbol: 'DOGE',
     name: 'Dogecoin',
-    address: '0xba2ae424d960c26247dd6c32edc70b295c744c43',
+    address: TOKEN_ADDRESSES.DOGE,
     chain: 'ethereum',
     priceUsd: 0.0876,
     priceChange24h: 5.7,
@@ -203,6 +210,98 @@ const mockWallets = [
     timestamp: new Date(Date.now() - 4950000) // 1.375 Stunden alt
   }
 ];
+
+// Funktion zur Generierung von Wallet-Analysen basierend auf den Mock-Wallets
+export const getMockWalletAnalysesFromWallets = () => {
+  const walletTypes = Object.keys(WALLET_TYPES);
+  const chains = ['ethereum', 'binance-smart-chain', 'polygon', 'avalanche'];
+  const riskFlagsMap = {
+    'Buy': ['high_volume', 'frequent_trading'],
+    'Sell': ['profit_taking', 'distribution'],
+    'Transfer': ['wallet_movement', 'consolidation']
+  };
+  
+  // Berechne das Gesamtvolumen aller Wallets
+  const totalVolume = mockWallets.reduce((sum, wallet) => sum + wallet.volume, 0);
+  
+  return mockWallets.map(wallet => {
+    // Wähle einen zufälligen Wallet-Typ basierend auf der Aktivität
+    let walletType;
+    if (wallet.activityType === 'Buy' && wallet.volume > 20000) {
+      walletType = 'whale_wallet';
+    } else if (wallet.activityType === 'Sell' && wallet.volume > 15000) {
+      walletType = 'smart_money';
+    } else {
+      walletType = walletTypes[Math.floor(Math.random() * walletTypes.length)];
+    }
+    
+    // Berechne Confidence-Score basierend auf Volumen und Aktivität
+    const confidenceScore = Math.min(0.5 + (wallet.volume / 50000), 0.95);
+    
+    // Berechne Prozentsatz des Volumens im Verhältnis zum Gesamtvolumen
+    const percentageOfSupply = (wallet.volume / totalVolume) * 100;
+    
+    // Berechne Transaktionsanzahl basierend auf Volumen
+    const transactionCount = Math.max(10, Math.floor(wallet.volume / 1000));
+    
+    // Berechne Risiko-Score basierend auf verschiedenen Faktoren
+    let riskScore = 30; // Basis-Risiko
+    
+    // Höheres Risiko für Sell-Aktivitäten
+    if (wallet.activityType === 'Sell') {
+      riskScore += 20;
+    }
+    
+    // Höheres Risiko für sehr hohe Volumina
+    if (wallet.volume > 30000) {
+      riskScore += 25;
+    } else if (wallet.volume > 15000) {
+      riskScore += 15;
+    }
+    
+    // Risiko basierend auf Wallet-Typ
+    if (walletType === 'bot') {
+      riskScore += 30;
+    } else if (walletType === 'retail') {
+      riskScore += 5;
+    }
+    
+    // Sicherstellen, dass der Risiko-Score zwischen 0 und 100 liegt
+    riskScore = Math.min(riskScore, 100);
+    
+    // Wähle Risk-Flags basierend auf Aktivität und Volumen
+    const riskFlags = [...(riskFlagsMap[wallet.activityType] || [])];
+    
+    // Zusätzliche Flags basierend auf Volumen
+    if (wallet.volume > 25000) {
+      riskFlags.push('high_value');
+    }
+    
+    if (wallet.volume < 10000) {
+      riskFlags.push('low_activity');
+    }
+    
+    // Aktuelle Zeit für created_at und updated_at
+    const now = new Date();
+    
+    return {
+      wallet_address: wallet.walletAddress,
+      chain: 'ethereum', // Alle Wallets sind auf Ethereum für dieses Beispiel
+      wallet_type: walletType,
+      confidence_score: confidenceScore,
+      token_address: TOKEN_ADDRESSES[wallet.tokenType],
+      balance: wallet.volume,
+      percentage_of_supply: percentageOfSupply,
+      transaction_count: transactionCount,
+      first_transaction: wallet.timestamp.toISOString(),
+      last_transaction: wallet.timestamp.toISOString(),
+      risk_score: riskScore,
+      risk_flags: riskFlags,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString()
+    };
+  });
+};
 
 // Mock-Adressen
 const generateMockAddresses = (count = 10) => {
@@ -482,60 +581,6 @@ const generateMockTransactions = (count = 20) => {
   return transactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 };
 
-// Mock-Wallet-Analysen
-const generateMockWalletAnalyses = (count = 10) => {
-  const analyses = [];
-  const walletTypes = Object.keys(WALLET_TYPES);
-  const chains = ['ethereum', 'binance-smart-chain', 'polygon', 'avalanche'];
-  const riskFlags = ['whale', 'infrequent_tx', 'high_value', 'new_wallet', 'suspicious_pattern'];
-  
-  for (let i = 0; i < count; i++) {
-    const walletType = walletTypes[Math.floor(Math.random() * walletTypes.length)];
-    const chain = chains[Math.floor(Math.random() * chains.length)];
-    const token = mockTokens[Math.floor(Math.random() * mockTokens.length)];
-    
-    const selectedRiskFlags = [];
-    const numFlags = Math.floor(Math.random() * 3) + 1;
-    for (let j = 0; j < numFlags; j++) {
-      const flag = riskFlags[Math.floor(Math.random() * riskFlags.length)];
-      if (!selectedRiskFlags.includes(flag)) {
-        selectedRiskFlags.push(flag);
-      }
-    }
-    
-    const balance = Math.random() * 1000000;
-    const percentageOfSupply = Math.random() * 10;
-    const transactionCount = Math.floor(Math.random() * 1000) + 10;
-    const riskScore = Math.floor(Math.random() * 100);
-    const confidenceScore = Math.random() * 0.5 + 0.5;
-    
-    const now = new Date();
-    const firstTx = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
-    const lastTx = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000);
-    const createdAt = new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000);
-    const updatedAt = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
-    
-    analyses.push({
-      wallet_address: `0x${Math.random().toString(16).substr(2, 40)}`,
-      chain,
-      wallet_type: walletType,
-      confidence_score: confidenceScore,
-      token_address: token.address,
-      balance,
-      percentage_of_supply: percentageOfSupply,
-      transaction_count: transactionCount,
-      first_transaction: firstTx.toISOString(),
-      last_transaction: lastTx.toISOString(),
-      risk_score: riskScore,
-      risk_flags: selectedRiskFlags,
-      created_at: createdAt.toISOString(),
-      updated_at: updatedAt.toISOString()
-    });
-  }
-  
-  return analyses;
-};
-
 // Mock-Daten mit Token und Transaktionen
 export const getMockRadarData = () => {
   return mockTokens.map(token => ({
@@ -567,9 +612,6 @@ export const getMockScanJobs = () => generateMockScanJobs();
 export const getMockScanResults = () => generateMockScanResults();
 export const getMockTokens = () => mockTokens;
 export const getMockTransactions = () => generateMockTransactions();
-export const getMockWalletAnalyses = () => generateMockWalletAnalyses();
-
-// Neue Export-Funktion für Mock-Wallets
 export const getMockWallets = () => mockWallets;
 
 // API-Ansatz (später mit echtem Backend)
@@ -662,10 +704,11 @@ export const fetchTransactions = async () => {
   }
 };
 
+// Aktualisierte fetchWalletAnalyses-Funktion, die die Mock-Wallets verwendet
 export const fetchWalletAnalyses = async () => {
   try {
     return new Promise(resolve => {
-      setTimeout(() => resolve(getMockWalletAnalyses()), 500);
+      setTimeout(() => resolve(getMockWalletAnalysesFromWallets()), 500);
     });
   } catch (error) {
     console.error('Error fetching wallet analyses:', error);
@@ -673,7 +716,6 @@ export const fetchWalletAnalyses = async () => {
   }
 };
 
-// Neue API-Funktion für Wallets
 export const fetchWallets = async () => {
   try {
     return new Promise(resolve => {
