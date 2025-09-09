@@ -18,11 +18,11 @@ export const useWalletAnalyses = () => {
         setLoading(false);
       }
     };
-
+    
     loadData();
     
-    // Auto-Refresh alle 60 Sekunden
-    const interval = setInterval(loadData, 60000);
+    // Auto-Refresh alle 30 Sekunden
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, []);
 
