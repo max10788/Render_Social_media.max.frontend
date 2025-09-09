@@ -298,6 +298,9 @@ const Radar = () => {
   // Berechne Endpunkt für den Haupt-Scan-Strahl - jetzt bis zum äußeren Rand
   const mainScanEndPoint = calculateScanEndPoint(scanAngle, outerRadius);
 
+  // Anzahl der radialen Linien (12 Linien = alle 30°)
+  const numRadialLines = 12;
+
   return (
     <>
       <div className="radar-container">
@@ -365,6 +368,22 @@ const Radar = () => {
                 <line key={angle} x1={center} y1={center} 
                     x2={endPoint.x} y2={endPoint.y} 
                     className="radar-line" />
+              );
+            })}
+            
+            {/* Radiale Linien (Speichen) - alle 30° */}
+            {[...Array(numRadialLines)].map((_, i) => {
+              const angle = (i / numRadialLines) * 360;
+              const endPoint = calculateScanEndPoint(angle, outerRadius);
+              return (
+                <line 
+                  key={`radial-${i}`}
+                  x1={center} 
+                  y1={center} 
+                  x2={endPoint.x} 
+                  y2={endPoint.y} 
+                  className="radial-line"
+                />
               );
             })}
             
