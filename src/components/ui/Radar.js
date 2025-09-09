@@ -130,18 +130,41 @@ const Radar = () => {
     };
   };
 
+  // Berechne die Startzeit basierend auf dem gewählten Zeitintervall
+  const getStartTime = () => {
+    const now = new Date();
+    let durationInMs;
+    switch (timeRange) {
+      case '1h':
+        durationInMs = 60 * 60 * 1000; // 1 Stunde in ms
+        break;
+      case '6h':
+        durationInMs = 6 * 60 * 60 * 1000; // 6 Stunden in ms
+        break;
+      case '24h':
+        durationInMs = 24 * 60 * 60 * 1000; // 24 Stunden in ms
+        break;
+      default:
+        durationInMs = 60 * 60 * 1000; // Standard: 1 Stunde
+    }
+    return new Date(now.getTime() - durationInMs);
+  };
+
   // Berechne die Position für Wallets basierend auf Zeitstempel und Volumen
-  const calculateWalletPosition = (wallet) => {
+  const calculateWalletPosition = (wallet, startTime, currentTime, maxVolume) => {
     // Zeitstempel bestimmt den Winkel (ältere Interaktionen links, neuere rechts)
-    const now = Date.now();
-    const timeDiff = now - wallet.timestamp.getTime();
-    const maxTimeDiff = 24 * 60 * 60 * 1000; // 24 Stunden
-    const timeRatio = Math.min(timeDiff / maxTimeDiff, 1);
-    const angle = (1 - timeRatio) * 2 * Math.PI; // 0 bis 2π
+    const walletTime = new Date(wallet.timestamp);
+    const timeDiff = walletTime.getTime() - startTime.getTime();
+    const totalDuration = currentTime.getTime() - startTime.getTime();
+    
+    // Berechne die Position des Wallets im Zeitintervall (0 bis 1)
+    const timeRatio = Math.min(Math.max(timeDiff / totalDuration, 0), 1);
+    
+    // Wandle den Anteil in einen Winkel um (0 bis 2π)
+    const angle = timeRatio * 2 * Math.PI;
     
     // Volumen bestimmt den Abstand vom Zentrum
-    const maxVolume = Math.max(...wallets.map(w => w.volume));
-    const volumeRatio = wallet.volume / maxVolume;
+    const volumeRatio = maxVolume > 0 ? wallet.volume / maxVolume : 0;
     const radius = center * 0.2 + volumeRatio * (outerRadius - center * 0.2);
     
     return {
@@ -241,6 +264,21 @@ const Radar = () => {
 
   if (loading) return <div className="radar-loading">Loading radar data...</div>;
   if (error) return <div className="radar-error">Error: {error}</div>;
+
+  // Berechne die Startzeit und aktuelle Zeit basierend auf dem gewählten Zeitintervall
+  const startTime = getStartTime();
+  const currentTime = new Date();
+
+  // Filtere die Wallets, die im gewählten Zeitintervall liegen
+  const filteredWallets = wallets.filter(wallet => {
+    const walletTime = new Date(wallet.timestamp);
+    return walletTime >= startTime && walletTime <= currentTime;
+  });
+
+  // Berechne das maximale Volumen für die gefilterten Wallets
+  const maxVolume = filteredWallets.length > 0 
+    ? Math.max(...filteredWallets.map(w => w.volume))
+    : 1;
 
   // Alle Transaktionen mit Positionen sammeln
   const allTransactions = radarData.flatMap((tokenData, tokenIndex) =>
@@ -362,8 +400,8 @@ const Radar = () => {
             })}
             
             {/* Wallet-Punkte */}
-            {wallets.map(wallet => {
-              const position = calculateWalletPosition(wallet);
+            {filteredWallets.map(wallet => {
+              const position = calculateWalletPosition(wallet, startTime, currentTime, maxVolume);
               const tokenColor = getTokenColor(wallet.tokenType);
               const activitySize = getActivitySize(wallet.activityType);
               const isHovered = hoveredPoint === wallet.walletAddress;
