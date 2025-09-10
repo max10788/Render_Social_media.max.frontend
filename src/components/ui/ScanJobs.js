@@ -1,27 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import './ScanJobDetail.css';
 
 const ScanJobDetail = ({ job, onClose }) => {
-  // Frühe Rückgabe mit Schutz vor undefined/null
+  // Automatisch schließen, wenn job undefined ist
+  useEffect(() => {
+    if (!job && onClose) {
+      onClose();
+    }
+  }, [job, onClose]);
+
   if (!job) {
-    return (
-      <div className="scan-job-detail-overlay">
-        <div className="scan-job-detail-container">
-          <div className="scan-job-detail-header">
-            <h2>Scan Job Details</h2>
-            <button className="close-button" onClick={onClose}>×</button>
-          </div>
-          <div className="scan-job-detail-content">
-            <div className="error-container">
-              <div className="error-message-large">Keine Job-Daten verfügbar</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return null; // Nichts rendern, wenn job undefined ist
   }
 
-  // Status-Farbe bestimmen mit optional chaining
+  // Status-Farbe bestimmen
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'completed': return '#10b981';
@@ -33,7 +25,7 @@ const ScanJobDetail = ({ job, onClose }) => {
     }
   };
 
-  // Formatieren von Zeitstempeln mit Fehlerbehandlung
+  // Formatieren von Zeitstempeln
   const formatDateTime = (dateString) => {
     if (!dateString) return 'N/A';
     try {
