@@ -209,6 +209,14 @@
   color: #f87171;
 }
 
+.no-tokens {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 20px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
 /* Token Detail Modal */
 .token-detail-overlay {
   position: fixed;
@@ -243,7 +251,7 @@
   border-bottom: 1px solid rgba(100, 116, 139, 0.3);
 }
 
-.token-detail-header h2 {
+.token-detail-header h3 {
   margin: 0;
   color: #e2e8f0;
   font-size: 1.5rem;
@@ -256,10 +264,18 @@
   font-size: 1.5rem;
   cursor: pointer;
   transition: color 0.2s;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
 }
 
 .close-button:hover {
   color: #e2e8f0;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .token-detail-content {
@@ -270,7 +286,7 @@
   margin-bottom: 25px;
 }
 
-.token-detail-section h3 {
+.token-detail-section h4 {
   color: #38bdf8;
   margin-bottom: 15px;
   font-size: 1.2rem;
