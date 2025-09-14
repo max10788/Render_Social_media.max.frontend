@@ -1,1 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap');
 
+:root {
+  --primary-color: #00d4ff;
+  --secondary-color: #0066ff;
+  --accent-color: #ff6b6b;
+  --success-color: #00ff99;
+  --warning-color: #ffaa00;
+  --danger-color: #ff4d4d;
+  --dark-bg: #0a0e27;
+  --card-bg: rgba(10, 14, 39, 0.7);
+  --border-color: rgba(0, 212, 255, 0.3);
+  --text-primary: #e0e6ed;
+  --text-secondary: #a0b0c0;
+  --font-orbitron: 'Orbitron', sans-serif;
+  --font-roboto: 'Roboto', sans-serif;
+}
+
+/* Alle Stile von Login.css werden hier übernommen */
+
+.terms-agreement {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  font-size: 0.85rem;
+}
+
+.terms-agreement input {
+  margin-right: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.terms-agreement label {
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
