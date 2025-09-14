@@ -32,38 +32,87 @@ export default function Login() {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-form">
-        <h2>Login to your account</h2>
-        {error && <div className="error-message">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-header">
+          <div className="auth-logo">
+            <span className="auth-icon">📡</span>
+            <span className="auth-title">Crypto Radar</span>
           </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        <div className="register-link">
-          Don't have an account? <Link to="/register">Sign up</Link>
+          <h2>Access Terminal</h2>
+          <p>Enter your credentials to access the system</p>
         </div>
+        
+        <div className="auth-body">
+          {error && <div className="error-message">{error}</div>}
+          
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="form-group">
+              <label htmlFor="email">Email Address</label>
+              <div className="input-wrapper">
+                <span className="input-icon">📧</span>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="your@email.com"
+                />
+              </div>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="password">Access Code</label>
+              <div className="input-wrapper">
+                <span className="input-icon">🔐</span>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+            
+            <div className="form-options">
+              <div className="remember-me">
+                <input type="checkbox" id="remember" />
+                <label htmlFor="remember">Remember me</label>
+              </div>
+              <Link to="/forgot-password" className="forgot-password">
+                Forgot access code?
+              </Link>
+            </div>
+            
+            <button 
+              type="submit" 
+              className={`auth-button ${loading ? 'loading' : ''}`}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner"></span>
+                  <span>Authenticating...</span>
+                </>
+              ) : (
+                'Access System'
+              )}
+            </button>
+          </form>
+        </div>
+        
+        <div className="auth-footer">
+          <p>Don't have an account? <Link to="/register">Request Access</Link></p>
+        </div>
+      </div>
+      
+      <div className="auth-decoration">
+        <div className="decoration-circle circle-1"></div>
+        <div className="decoration-circle circle-2"></div>
+        <div className="decoration-circle circle-3"></div>
       </div>
     </div>
   );
