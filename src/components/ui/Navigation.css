@@ -50,11 +50,17 @@
 .brand-icon {
   font-size: 1.5rem;
   margin-right: var(--space-sm);
-  color: var(--color-accent);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-quaternary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .brand-text {
-  color: var(--color-text-primary);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 50%, var(--color-tertiary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   font-weight: var(--font-weight-bold);
 }
 
