@@ -6,16 +6,17 @@
 /* CSS Custom Properties - Design Tokens */
 :root {
   /* === COLOR PALETTE === */
-  /* Background Colors - Clean & Minimal */
-  --color-bg-primary: #F8F9FA;
-  --color-bg-secondary: #FFFFFF;
-  --color-bg-tertiary: #F1F3F4;
+  /* Background Colors - Darker, More Colorful */
+  --color-bg-primary: #0F0F23;      /* Very dark navy - main background */
+  --color-bg-secondary: #1A1A2E;    /* Dark navy - cards & containers */
+  --color-bg-tertiary: #16213E;     /* Blue-tinted dark - hover states */
+  --color-bg-quaternary: #0E1628;   /* Darker variant */
   
-  /* Text Colors - Professional Hierarchy */
-  --color-text-primary: #1A1A1A;
-  --color-text-secondary: #666666;
-  --color-text-tertiary: #999999;
-  --color-text-muted: #CCCCCC;
+  /* Text Colors - High contrast on dark */
+  --color-text-primary: #FFFFFF;    /* Pure white for main text */
+  --color-text-secondary: #B4B4C8;  /* Light gray-blue for secondary */
+  --color-text-tertiary: #8B8BA7;   /* Medium gray-blue for muted */
+  --color-text-muted: #6B6B85;      /* Darker gray-blue */
   
   /* Brand/Accent Colors - Custom Blue-Teal Palette */
   --color-primary: #7E58F5;      /* Purple-Blue */
@@ -28,21 +29,27 @@
   /* Main accent color (primary) */
   --color-accent: var(--color-primary);
   --color-accent-hover: var(--color-secondary);
-  --color-accent-light: rgba(126, 88, 245, 0.1);
+  --color-accent-light: rgba(126, 88, 245, 0.15);
+  --color-accent-dark: rgba(126, 88, 245, 0.8);
   
-  /* Status Colors - Standardized for Crypto */
-  --color-success: #10B981;      /* Green for gains */
-  --color-success-light: #ECFDF5;
-  --color-danger: #EF4444;       /* Red for losses */
-  --color-danger-light: #FEF2F2;
-  --color-warning: #F59E0B;      /* Orange for warnings */
-  --color-warning-light: #FFFBEB;
+  /* Status Colors - Adjusted for dark theme */
+  --color-success: #00D084;      /* Brighter green for gains */
+  --color-success-light: rgba(0, 208, 132, 0.15);
+  --color-success-dark: rgba(0, 208, 132, 0.8);
+  --color-danger: #FF6B6B;       /* Softer red for losses */
+  --color-danger-light: rgba(255, 107, 107, 0.15);
+  --color-danger-dark: rgba(255, 107, 107, 0.8);
+  --color-warning: #FFD93D;      /* Bright yellow for warnings */
+  --color-warning-light: rgba(255, 217, 61, 0.15);
+  --color-warning-dark: rgba(255, 217, 61, 0.8);
   
-  /* Border & Divider Colors */
-  --color-border: #E5E7EB;
-  --color-border-light: #F3F4F6;
-  --color-shadow: rgba(0, 0, 0, 0.04);
-  --color-shadow-hover: rgba(0, 0, 0, 0.08);
+  /* Border & Divider Colors - Darker theme */
+  --color-border: #2A2A3E;       /* Dark blue-gray borders */
+  --color-border-light: #1F1F35;  /* Very subtle borders */
+  --color-border-accent: rgba(126, 88, 245, 0.3); /* Accent-colored borders */
+  --color-shadow: rgba(0, 0, 0, 0.4);  /* Stronger shadows */
+  --color-shadow-hover: rgba(0, 0, 0, 0.6);
+  --color-shadow-colored: rgba(126, 88, 245, 0.2); /* Colored shadow */
   
   /* === TYPOGRAPHY SYSTEM === */
   /* Professional Sans-Serif Fonts */
@@ -85,10 +92,12 @@
   --radius-md: 0.5rem;   /* 8px */
   --radius-lg: 0.75rem;  /* 12px */
   
-  /* === SHADOWS === */
-  --shadow-sm: 0 1px 2px 0 var(--color-shadow);
-  --shadow-md: 0 4px 6px -1px var(--color-shadow), 0 2px 4px -1px var(--color-shadow);
-  --shadow-lg: 0 10px 15px -3px var(--color-shadow), 0 4px 6px -2px var(--color-shadow);
+  /* === SHADOWS - Enhanced for dark theme === */
+  --shadow-sm: 0 2px 4px 0 var(--color-shadow);
+  --shadow-md: 0 4px 8px -1px var(--color-shadow), 0 2px 4px -1px var(--color-shadow);
+  --shadow-lg: 0 12px 24px -3px var(--color-shadow), 0 4px 8px -2px var(--color-shadow);
+  --shadow-colored: 0 4px 12px rgba(126, 88, 245, 0.3);
+  --shadow-glow: 0 0 20px rgba(126, 88, 245, 0.15);
   
   /* === TRANSITIONS === */
   --transition-fast: 0.15s ease-in-out;
@@ -247,17 +256,36 @@ button, .btn {
 
 /* === CARD SYSTEM === */
 .card {
-  background-color: var(--color-bg-secondary);
+  background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
   transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-tertiary));
+  opacity: 0;
+  transition: opacity var(--transition-normal);
 }
 
 .card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg), var(--shadow-colored);
+  transform: translateY(-2px);
+  border-color: var(--color-border-accent);
+}
+
+.card:hover::before {
+  opacity: 1;
 }
 
 .card-header {
