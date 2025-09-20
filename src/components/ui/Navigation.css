@@ -10,18 +10,20 @@
   align-items: center;
   height: 60px; /* Fixed height as specified */
   padding: 0 var(--space-xl);
-  background-color: var(--color-bg-secondary);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm);
+  background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%);
+  border-bottom: 1px solid var(--color-border-accent);
+  box-shadow: var(--shadow-md);
   position: sticky;
   top: 0;
   z-index: 1000;
   transition: all var(--transition-normal);
+  backdrop-filter: blur(10px);
 }
 
-/* Subtle shadow on scroll */
+/* Enhanced shadow on scroll */
 .navigation.scrolled {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  border-bottom-color: var(--color-primary);
 }
 
 /* === BRAND/LOGO SECTION === */
@@ -97,9 +99,10 @@
 
 .nav-link:hover {
   color: var(--color-text-primary);
-  background-color: var(--color-bg-tertiary);
+  background: linear-gradient(135deg, var(--color-accent-light) 0%, rgba(88, 101, 245, 0.1) 100%);
   text-decoration: none;
   transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .nav-link:focus-visible {
@@ -109,9 +112,10 @@
 
 /* Active nav link */
 .nav-link.active {
-  color: var(--color-accent);
-  background-color: var(--color-accent-light);
-  border-color: var(--color-accent);
+  color: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-accent-light) 0%, rgba(88, 151, 245, 0.15) 100%);
+  border-color: var(--color-border-accent);
+  box-shadow: var(--shadow-sm);
 }
 
 /* === NAV ICONS === */
