@@ -1,173 +1,116 @@
-/* src/components/ui/Navigation.css */
+/* =========================
+   NAVIGATION - PROFESSIONAL BANKING STYLE
+   Minimalist & Clean Design
+   ========================= */
+
+/* === MAIN NAVIGATION === */
 .navigation {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 30px;
-  background: rgba(10, 14, 39, 0.8);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+  height: 60px; /* Fixed height as specified */
+  padding: 0 var(--space-xl);
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
   position: sticky;
   top: 0;
   z-index: 1000;
+  transition: all var(--transition-normal);
 }
 
+/* Subtle shadow on scroll */
+.navigation.scrolled {
+  box-shadow: var(--shadow-md);
+}
+
+/* === BRAND/LOGO SECTION === */
 .nav-brand {
   display: flex;
   align-items: center;
+  min-width: 200px; /* Reserve space for logo */
 }
 
 .nav-brand a {
   display: flex;
   align-items: center;
   text-decoration: none;
-  color: var(--primary-color);
-  font-family: var(--font-orbitron);
-  font-size: 1.5rem;
-  font-weight: 700;
-  transition: all 0.3s ease;
+  color: var(--color-text-primary);
+  font-family: var(--font-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-bold);
+  transition: all var(--transition-fast);
 }
 
 .nav-brand a:hover {
-  transform: scale(1.05);
+  color: var(--color-accent);
+  transform: scale(1.02);
 }
 
 .brand-icon {
-  font-size: 1.8rem;
-  margin-right: 10px;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
+  font-size: 1.5rem;
+  margin-right: var(--space-sm);
+  color: var(--color-accent);
 }
 
 .brand-text {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-bold);
 }
 
+/* === MAIN NAVIGATION LINKS === */
 .nav-links {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: var(--space-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links li {
+  margin: 0;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  padding: 10px 15px;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--color-text-secondary);
   text-decoration: none;
-  color: var(--text-primary);
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.nav-link::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 102, 255, 0.1));
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
-  z-index: -1;
-}
-
-.nav-link:hover::before {
-  transform: translateX(0);
+  border-radius: var(--radius-md);
+  font-family: var(--font-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  background-color: transparent;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
-  color: var(--primary-color);
-  transform: translateY(-2px);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-tertiary);
+  text-decoration: none;
+  transform: translateY(-1px);
 }
 
+.nav-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Active nav link */
+.nav-link.active {
+  color: var(--color-accent);
+  background-color: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+/* === NAV ICONS === */
 .nav-icon {
-  font-size: 1.2rem;
-  margin-right: 8px;
-}
-
-.nav-text {
-  font-family: var(--font-orbitron);
-  font-weight: 500;
-}
-
-.nav-toggle {
-  display: none;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 30px;
-  height: 21px;
-  cursor: pointer;
-}
-
-.nav-toggle-bar {
-  height: 3px;
-  width: 100%;
-  background-color: var(--primary-color);
-  border-radius: 3px;
-  transition: all 0.3s ease;
-}
-
-.nav-toggle-bar.open:nth-child(1) {
-  transform: rotate(45deg) translate(5px, 5px);
-}
-
-.nav-toggle-bar.open:nth-child(2) {
-  opacity: 0;
-}
-
-.nav-toggle-bar.open:nth-child(3) {
-  transform: rotate(-45deg) translate(7px, -6px);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .navigation {
-    padding: 15px 20px;
-  }
-  
-  .nav-toggle {
-    display: flex;
-  }
-  
-  .nav-links {
-    position: absolute;
-    top: 70px;
-    left: 0;
-    width: 100%;
-    background: rgba(10, 14, 39, 0.95);
-    backdrop-filter: blur(10px);
-    flex-direction: column;
-    padding: 20px;
-    gap: 5px;
-    transform: translateY(-150%);
-    transition: transform 0.3s ease;
-    border-bottom: 1px solid rgba(0, 212, 255, 0.3);
-  }
-  
-  .nav-links.open {
-    transform: translateY(0);
-  }
-  
-  .nav-link {
-    padding: 15px;
-    border-radius: 8px;
-  }
-  
-  .nav-icon {
-    font-size: 1.4rem;
-    margin-right: 12px;
-  }
-  
-  .nav-text {
-    font-size: 1.1rem;
-  }
-}
+  font-size: 1rem;
+  margin-right: var(--space-xs);
+  display: flex;
+  align-items:
