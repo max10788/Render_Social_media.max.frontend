@@ -60,9 +60,20 @@ const Navigation = () => {
     <nav className={`navigation ${isScrolled ? 'scrolled' : ''}`}>
       {/* Brand/Logo Section */}
       <div className="nav-brand">
-        <Link to="/" aria-label="Crypto Analysis - Home">
-          <span className="brand-icon" role="img" aria-label="Analytics">📊</span>
-          <span className="brand-text">Crypto Analysis</span>
+        <Link to="/" aria-label="BlockIntel - Home">
+          <img 
+            src="/logo-blockintel.png" 
+            alt="BlockIntel" 
+            className="brand-logo"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+          <div className="brand-fallback" style={{ display: 'none' }}>
+            <span className="brand-icon" role="img" aria-label="BlockIntel">🏠</span>
+            <span className="brand-text">BlockIntel</span>
+          </div>
         </Link>
       </div>
 
