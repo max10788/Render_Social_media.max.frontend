@@ -24,7 +24,7 @@ const Navigation = () => {
     setIsMenuOpen(false);
   }, [location]);
 
-  // Close mobile menu when clicking outside
+  // Close mobile menu when clicking outside or on overlay
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isMenuOpen && !event.target.closest('.navigation')) {
@@ -32,8 +32,25 @@ const Navigation = () => {
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    const handleEscapeKey = (event) => {
+      if (event.key === 'Escape' && isMenuOpen) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('click', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = 'hidden'; // Prevent body scroll when menu is open
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = 'unset';
+    };
   }, [isMenuOpen]);
 
   const toggleMenu = () => {
@@ -57,34 +74,56 @@ const Navigation = () => {
   };
 
   return (
-    <nav className={`navigation ${isScrolled ? 'scrolled' : ''}`}>
-      {/* Brand/Logo Section */}
-      <div className="nav-brand">
-        <Link to="/" aria-label="BlockIntel - Home">
-          <img 
-            src="/logo-blockintel.png" 
-            alt="BlockIntel" 
-            className="brand-logo"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
-            }}
-          />
-          <div className="brand-fallback" style={{ display: 'none' }}>
-            <span className="brand-icon" role="img" aria-label="BlockIntel">🏠</span>
-            <span className="brand-text">BlockIntel</span>
-          </div>
-        </Link>
-      </div>
+    <>
+      <nav className={`navigation ${isScrolled ? 'scrolled' : ''}`}>
+        {/* Brand/Logo Section */}
+        <div className="nav-brand">
+          <Link to="/" aria-label="BlockIntel - Home">
+            <img 
+              src="/logo-blockintel.png" 
+              alt="BlockIntel" 
+              className="brand-logo"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <div className="brand-fallback" style={{ display: 'none' }}>
+              <span className="brand-icon" role="img" aria-label="BlockIntel">🏠</span>
+              <span className="brand-text">BlockIntel</span>
+            </div>
+          </Link>
+        </div>
 
-      {/* Main Navigation Links */}
-      <ul className={`nav-links ${isMenuOpen ? 'open' : ''}`} role="menubar">
+        {/* Hamburger Menu Button */}
+        <button 
+          className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
+          onClick={toggleMenu}
+          aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={isMenuOpen}
+          aria-controls="nav-links"
+        >
+          <span className="nav-toggle-bar"></span>
+          <span className="nav-toggle-bar"></span>
+          <span className="nav-toggle-bar"></span>
+        </button>
+      </nav>
+
+      {/* Overlay for mobile */}
+      <div 
+        className={`nav-overlay ${isMenuOpen ? 'open' : ''}`}
+        onClick={() => setIsMenuOpen(false)}
+      />
+
+      {/* Slide-out Menu */}
+      <ul className={`nav-links ${isMenuOpen ? 'open' : ''}`} role="menubar" id="nav-links">
         <li role="none">
           <Link 
             to="/" 
             className={`nav-link ${isActiveRoute('/') ? 'active' : ''}`}
             role="menuitem"
             aria-current={isActiveRoute('/') ? 'page' : undefined}
+            onClick={() => setIsMenuOpen(false)}
           >
             <span className="nav-icon" role="img" aria-label="Home">🏠</span>
             <span className="nav-text">Dashboard</span>
@@ -99,6 +138,7 @@ const Navigation = () => {
                 className={`nav-link ${isActiveRoute('/radar') ? 'active' : ''}`}
                 role="menuitem"
                 aria-current={isActiveRoute('/radar') ? 'page' : undefined}
+                onClick={() => setIsMenuOpen(false)}
               >
                 <span className="nav-icon" role="img" aria-label="Radar">📡</span>
                 <span className="nav-text">Contract Radar</span>
@@ -111,6 +151,7 @@ const Navigation = () => {
                 className={`nav-link ${isActiveRoute('/tokens') ? 'active' : ''}`}
                 role="menuitem"
                 aria-current={isActiveRoute('/tokens') ? 'page' : undefined}
+                onClick={() => setIsMenuOpen(false)}
               >
                 <span className="nav-icon" role="img" aria-label="Tokens">💎</span>
                 <span className="nav-text">Token Overview</span>
@@ -123,6 +164,7 @@ const Navigation = () => {
                 className={`nav-link ${isActiveRoute('/wallets') ? 'active' : ''}`}
                 role="menuitem"
                 aria-current={isActiveRoute('/wallets') ? 'page' : undefined}
+                onClick={() => setIsMenuOpen(false)}
               >
                 <span className="nav-icon" role="img" aria-label="Wallets">👛</span>
                 <span className="nav-text">Wallet Analysis</span>
@@ -135,22 +177,11 @@ const Navigation = () => {
                 className={`nav-link ${isActiveRoute('/account') ? 'active' : ''}`}
                 role="menuitem"
                 aria-current={isActiveRoute('/account') ? 'page' : undefined}
+                onClick={() => setIsMenuOpen(false)}
               >
                 <span className="nav-icon" role="img" aria-label="Account">👤</span>
-                <span className="nav-text">Account</span>
+                <span className="nav-text">Account Settings</span>
               </Link>
-            </li>
-
-            <li role="none">
-              <button 
-                onClick={handleLogout} 
-                className="nav-link logout-btn"
-                role="menuitem"
-                aria-label="Logout from account"
-              >
-                <span className="nav-icon" role="img" aria-label="Logout">🚪</span>
-                <span className="nav-text">Logout</span>
-              </button>
             </li>
           </>
         ) : (
@@ -161,6 +192,7 @@ const Navigation = () => {
                 className={`nav-link ${isActiveRoute('/login') ? 'active' : ''}`}
                 role="menuitem"
                 aria-current={isActiveRoute('/login') ? 'page' : undefined}
+                onClick={() => setIsMenuOpen(false)}
               >
                 <span className="nav-icon" role="img" aria-label="Login">🔑</span>
                 <span className="nav-text">Login</span>
@@ -173,6 +205,7 @@ const Navigation = () => {
                 className={`nav-link ${isActiveRoute('/register') ? 'active' : ''}`}
                 role="menuitem"
                 aria-current={isActiveRoute('/register') ? 'page' : undefined}
+                onClick={() => setIsMenuOpen(false)}
               >
                 <span className="nav-icon" role="img" aria-label="Register">📝</span>
                 <span className="nav-text">Register</span>
@@ -180,30 +213,30 @@ const Navigation = () => {
             </li>
           </>
         )}
-      </ul>
 
-      {/* User Area (Desktop) */}
-      <div className="nav-user-area">
+        {/* User Area at bottom of menu */}
         {currentUser && (
-          <span className="nav-user-info">
-            Welcome, {currentUser.email?.split('@')[0] || 'User'}
-          </span>
+          <div className="nav-user-area">
+            <div className="nav-user-info">
+              Welcome, {currentUser.email?.split('@')[0] || 'User'}
+            </div>
+            
+            <button 
+              onClick={() => {
+                handleLogout();
+                setIsMenuOpen(false);
+              }}
+              className="nav-link logout-btn"
+              role="menuitem"
+              aria-label="Logout from account"
+            >
+              <span className="nav-icon" role="img" aria-label="Logout">🚪</span>
+              <span className="nav-text">Logout</span>
+            </button>
+          </div>
         )}
-      </div>
-
-      {/* Mobile Menu Toggle */}
-      <button 
-        className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
-        onClick={toggleMenu}
-        aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-        aria-expanded={isMenuOpen}
-        aria-controls="nav-links"
-      >
-        <span className="nav-toggle-bar"></span>
-        <span className="nav-toggle-bar"></span>
-        <span className="nav-toggle-bar"></span>
-      </button>
-    </nav>
+      </ul>
+    </>
   );
 };
 
