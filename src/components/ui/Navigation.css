@@ -39,14 +39,34 @@
   text-decoration: none;
   color: var(--color-text-primary);
   font-family: var(--font-primary);
-  font-size: var(--text-lg);
-  font-weight: var(--font-weight-bold);
   transition: all var(--transition-fast);
 }
 
 .nav-brand a:hover {
-  color: var(--color-accent);
   transform: scale(1.02);
+}
+
+/* Logo Styles */
+.brand-logo {
+  height: 40px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+  transition: all var(--transition-fast);
+  filter: brightness(1);
+}
+
+.brand-logo:hover {
+  filter: brightness(1.1) drop-shadow(0 0 8px rgba(126, 88, 245, 0.3));
+}
+
+/* Fallback für wenn Logo nicht lädt */
+.brand-fallback {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-bold);
 }
 
 .brand-icon {
@@ -200,6 +220,11 @@
   
   .nav-toggle {
     display: flex;
+  }
+  
+  .brand-logo {
+    height: 32px; /* Smaller logo on mobile */
+    max-width: 120px;
   }
   
   .nav-links {
