@@ -4,13 +4,13 @@
    ========================= */
 
 :root {
-  --nav-width: 320px;
+  --nav-width: 400px;
   --nav-width-mobile: 100vw;
-  --nav-header-height: 80px;
-  --nav-border-radius: 12px;
-  --nav-animation-speed: 0.3s;
-  --nav-shadow-main: 0 10px 40px rgba(0, 0, 0, 0.1);
-  --nav-shadow-hover: 0 5px 20px rgba(88, 151, 245, 0.15);
+  --nav-header-height: 90px;
+  --nav-border-radius: 16px;
+  --nav-animation-speed: 0.4s;
+  --nav-shadow-main: 0 15px 50px rgba(0, 0, 0, 0.15);
+  --nav-shadow-hover: 0 8px 30px rgba(88, 151, 245, 0.2);
 }
 
 /* === HAUPTNAVIGATION === */
@@ -19,7 +19,7 @@
   justify-content: space-between;
   align-items: center;
   height: var(--nav-header-height);
-  padding: 0 var(--space-xl);
+  padding: 0 var(--space-2xl);
   background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%);
   border-bottom: 1px solid var(--color-border-accent);
   box-shadow: var(--nav-shadow-main);
@@ -27,7 +27,7 @@
   top: 0;
   z-index: 1000;
   transition: all var(--nav-animation-speed) ease;
-  backdrop-filter: blur(15px);
+  backdrop-filter: blur(20px);
 }
 
 .navigation.scrolled {
@@ -62,12 +62,12 @@
 }
 
 .brand-logo {
-  height: 65px;
+  height: 75px;
   width: auto;
-  max-width: 250px;
+  max-width: 300px;
   object-fit: contain;
   transition: all var(--nav-animation-speed) ease;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 3px 12px rgba(0, 0, 0, 0.1));
 }
 
 .brand-logo:hover {
@@ -228,10 +228,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-xl);
+  padding: var(--space-2xl);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg-tertiary);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(15px);
 }
 
 .nav-menu-title {
@@ -265,29 +265,29 @@
 /* === MENÜ INHALT === */
 .nav-menu-content {
   flex: 1;
-  padding: var(--space-lg);
+  padding: var(--space-2xl);
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-md);
 }
 
 /* === MENÜ ITEMS === */
 .nav-link {
   display: flex;
   align-items: center;
-  padding: var(--space-md) var(--space-lg);
+  padding: var(--space-lg) var(--space-xl);
   color: var(--color-text-secondary);
   text-decoration: none;
   border-radius: var(--nav-border-radius);
   font-family: var(--font-primary);
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   font-weight: var(--font-weight-medium);
   transition: all var(--nav-animation-speed) ease;
   border: 1px solid transparent;
   background-color: transparent;
   cursor: pointer;
   position: relative;
-  min-height: 56px;
+  min-height: 64px;
   overflow: hidden;
 }
 
@@ -341,14 +341,14 @@
 
 /* === ICONS === */
 .nav-icon {
-  font-size: 1.4rem;
-  margin-right: var(--space-md);
+  font-size: 1.6rem;
+  margin-right: var(--space-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
+  width: 48px;
+  height: 48px;
+  border-radius: var(--nav-border-radius);
   background: var(--color-bg-quaternary);
   border: 1px solid var(--color-border-light);
   transition: all var(--nav-animation-speed) ease;
@@ -368,7 +368,7 @@
 
 .nav-text {
   font-weight: inherit;
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   flex: 1;
 }
 
@@ -389,12 +389,12 @@
 .nav-user-info {
   display: flex;
   align-items: center;
-  padding: var(--space-md);
+  padding: var(--space-lg);
   background: var(--color-bg-tertiary);
   border-radius: var(--nav-border-radius);
   border: 1px solid var(--color-border);
-  margin-bottom: var(--space-lg);
-  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+  gap: var(--space-lg);
 }
 
 .user-avatar {
@@ -460,7 +460,7 @@
 
 /* === MENÜ FOOTER === */
 .nav-menu-footer {
-  padding: var(--space-lg) var(--space-xl);
+  padding: var(--space-xl) var(--space-2xl);
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-tertiary);
   text-align: center;
