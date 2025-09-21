@@ -27,7 +27,7 @@ const Navigation = () => {
   // Close mobile menu when clicking outside or on overlay
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (isMenuOpen && !event.target.closest('.navigation')) {
+      if (isMenuOpen && !event.target.closest('.navigation') && !event.target.closest('.nav-links')) {
         setIsMenuOpen(false);
       }
     };
@@ -41,7 +41,7 @@ const Navigation = () => {
     if (isMenuOpen) {
       document.addEventListener('click', handleClickOutside);
       document.addEventListener('keydown', handleEscapeKey);
-      document.body.style.overflow = 'hidden'; // Prevent body scroll when menu is open
+      document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -60,6 +60,7 @@ const Navigation = () => {
   const handleLogout = async () => {
     try {
       await logout();
+      setIsMenuOpen(false);
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -72,6 +73,18 @@ const Navigation = () => {
     }
     return location.pathname.startsWith(path);
   };
+
+  const menuItems = currentUser ? [
+    { path: '/', icon: '🏠', text: 'Dashboard', label: 'Dashboard' },
+    { path: '/radar', icon: '📡', text: 'Contract Radar', label: 'Contract Radar' },
+    { path: '/tokens', icon: '💎', text: 'Token Overview', label: 'Token Overview' },
+    { path: '/wallets', icon: '👛', text: 'Wallet Analysis', label: 'Wallet Analysis' },
+    { path: '/account', icon: '👤', text: 'Account Settings', label: 'Account Settings' },
+  ] : [
+    { path: '/', icon: '🏠', text: 'Dashboard', label: 'Dashboard' },
+    { path: '/login', icon: '🔑', text: 'Login', label: 'Login' },
+    { path: '/register', icon: '📝', text: 'Register', label: 'Register' },
+  ];
 
   return (
     <>
@@ -95,17 +108,25 @@ const Navigation = () => {
           </Link>
         </div>
 
-        {/* Hamburger Menu Button */}
+        {/* User Info Display (Desktop) */}
+        {currentUser && (
+          <div className="nav-user-desktop">
+            <span className="user-welcome">Willkommen, {currentUser.email?.split('@')[0] || 'User'}</span>
+          </div>
+        )}
+
+        {/* Menu Toggle Button */}
         <button 
           className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
           onClick={toggleMenu}
-          aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-label={isMenuOpen ? 'Menü schließen' : 'Menü öffnen'}
           aria-expanded={isMenuOpen}
           aria-controls="nav-links"
+          type="button"
         >
-          <span className="nav-toggle-bar"></span>
-          <span className="nav-toggle-bar"></span>
-          <span className="nav-toggle-bar"></span>
+          <span className="nav-toggle-bar" aria-hidden="true"></span>
+          <span className="nav-toggle-bar" aria-hidden="true"></span>
+          <span className="nav-toggle-bar" aria-hidden="true"></span>
         </button>
       </nav>
 
@@ -113,129 +134,82 @@ const Navigation = () => {
       <div 
         className={`nav-overlay ${isMenuOpen ? 'open' : ''}`}
         onClick={() => setIsMenuOpen(false)}
+        aria-hidden="true"
       />
 
-      {/* Slide-out Menu */}
-      <ul className={`nav-links ${isMenuOpen ? 'open' : ''}`} role="menubar" id="nav-links">
-        <li role="none">
-          <Link 
-            to="/" 
-            className={`nav-link ${isActiveRoute('/') ? 'active' : ''}`}
-            role="menuitem"
-            aria-current={isActiveRoute('/') ? 'page' : undefined}
+      {/* Slide-out Side Menu */}
+      <aside className={`nav-links ${isMenuOpen ? 'open' : ''}`} role="navigation" id="nav-links">
+        <div className="nav-menu-header">
+          <h2 className="nav-menu-title">Navigation</h2>
+          <button 
+            className="nav-close-btn"
             onClick={() => setIsMenuOpen(false)}
+            aria-label="Menü schließen"
+            type="button"
           >
-            <span className="nav-icon" role="img" aria-label="Home">🏠</span>
-            <span className="nav-text">Dashboard</span>
-          </Link>
-        </li>
+            ✕
+          </button>
+        </div>
 
-        {currentUser ? (
-          <>
-            <li role="none">
-              <Link 
-                to="/radar" 
-                className={`nav-link ${isActiveRoute('/radar') ? 'active' : ''}`}
-                role="menuitem"
-                aria-current={isActiveRoute('/radar') ? 'page' : undefined}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span className="nav-icon" role="img" aria-label="Radar">📡</span>
-                <span className="nav-text">Contract Radar</span>
-              </Link>
-            </li>
-
-            <li role="none">
-              <Link 
-                to="/tokens" 
-                className={`nav-link ${isActiveRoute('/tokens') ? 'active' : ''}`}
-                role="menuitem"
-                aria-current={isActiveRoute('/tokens') ? 'page' : undefined}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span className="nav-icon" role="img" aria-label="Tokens">💎</span>
-                <span className="nav-text">Token Overview</span>
-              </Link>
-            </li>
-
-            <li role="none">
-              <Link 
-                to="/wallets" 
-                className={`nav-link ${isActiveRoute('/wallets') ? 'active' : ''}`}
-                role="menuitem"
-                aria-current={isActiveRoute('/wallets') ? 'page' : undefined}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span className="nav-icon" role="img" aria-label="Wallets">👛</span>
-                <span className="nav-text">Wallet Analysis</span>
-              </Link>
-            </li>
-
-            <li role="none">
-              <Link 
-                to="/account" 
-                className={`nav-link ${isActiveRoute('/account') ? 'active' : ''}`}
-                role="menuitem"
-                aria-current={isActiveRoute('/account') ? 'page' : undefined}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span className="nav-icon" role="img" aria-label="Account">👤</span>
-                <span className="nav-text">Account Settings</span>
-              </Link>
-            </li>
-          </>
-        ) : (
-          <>
-            <li role="none">
-              <Link 
-                to="/login" 
-                className={`nav-link ${isActiveRoute('/login') ? 'active' : ''}`}
-                role="menuitem"
-                aria-current={isActiveRoute('/login') ? 'page' : undefined}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span className="nav-icon" role="img" aria-label="Login">🔑</span>
-                <span className="nav-text">Login</span>
-              </Link>
-            </li>
-
-            <li role="none">
-              <Link 
-                to="/register" 
-                className={`nav-link ${isActiveRoute('/register') ? 'active' : ''}`}
-                role="menuitem"
-                aria-current={isActiveRoute('/register') ? 'page' : undefined}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span className="nav-icon" role="img" aria-label="Register">📝</span>
-                <span className="nav-text">Register</span>
-              </Link>
-            </li>
-          </>
-        )}
-
-        {/* User Area at bottom of menu */}
-        {currentUser && (
-          <div className="nav-user-area">
-            <div className="nav-user-info">
-              Welcome, {currentUser.email?.split('@')[0] || 'User'}
-            </div>
-            
-            <button 
-              onClick={() => {
-                handleLogout();
-                setIsMenuOpen(false);
-              }}
-              className="nav-link logout-btn"
+        <nav className="nav-menu-content" role="menubar">
+          {menuItems.map((item, index) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`nav-link ${isActiveRoute(item.path) ? 'active' : ''}`}
               role="menuitem"
-              aria-label="Logout from account"
+              aria-current={isActiveRoute(item.path) ? 'page' : undefined}
+              onClick={() => setIsMenuOpen(false)}
+              tabIndex={isMenuOpen ? 0 : -1}
             >
-              <span className="nav-icon" role="img" aria-label="Logout">🚪</span>
-              <span className="nav-text">Logout</span>
-            </button>
-          </div>
-        )}
-      </ul>
+              <span className="nav-icon" role="img" aria-label={item.label}>
+                {item.icon}
+              </span>
+              <span className="nav-text">{item.text}</span>
+              {isActiveRoute(item.path) && (
+                <span className="nav-indicator" aria-hidden="true"></span>
+              )}
+            </Link>
+          ))}
+
+          {/* Divider */}
+          {currentUser && <div className="nav-divider" aria-hidden="true"></div>}
+
+          {/* User Area */}
+          {currentUser && (
+            <div className="nav-user-area">
+              <div className="nav-user-info">
+                <div className="user-avatar" aria-hidden="true">
+                  {currentUser.email?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div className="user-details">
+                  <div className="user-name">
+                    {currentUser.email?.split('@')[0] || 'Benutzer'}
+                  </div>
+                  <div className="user-email">{currentUser.email}</div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={handleLogout}
+                className="nav-link logout-btn"
+                role="menuitem"
+                aria-label="Abmelden"
+                tabIndex={isMenuOpen ? 0 : -1}
+                type="button"
+              >
+                <span className="nav-icon" role="img" aria-label="Abmelden">🚪</span>
+                <span className="nav-text">Abmelden</span>
+              </button>
+            </div>
+          )}
+        </nav>
+
+        {/* Footer */}
+        <div className="nav-menu-footer">
+          <div className="nav-version">BlockIntel v1.0</div>
+        </div>
+      </aside>
     </>
   );
 };
