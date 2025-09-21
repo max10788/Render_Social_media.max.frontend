@@ -52,13 +52,13 @@
   min-height: calc(100vh - 120px);
 }
 
-/* === HERO SECTION === */
+/* === HERO SECTION - OPTIMIZED === */
 .hero {
   background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 50%, var(--color-bg-quaternary) 100%);
   border: 1px solid var(--color-border-accent);
   border-radius: var(--radius-lg);
-  padding: var(--space-2xl) var(--space-lg);
-  text-align: center;
+  padding: var(--space-2xl) var(--space-xl);
+  text-align: left; /* Changed to left alignment */
   margin-bottom: var(--space-2xl);
   box-shadow: var(--shadow-lg), var(--shadow-glow);
   position: relative;
@@ -74,6 +74,67 @@
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(126, 88, 245, 0.1), transparent);
   animation: shimmer 3s infinite;
+}
+
+.hero-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-lg); /* Increased spacing */
+  color: var(--color-text-primary);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-tertiary), var(--color-quinary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2xl); /* Increased spacing */
+  max-width: 800px;
+  line-height: var(--line-height-relaxed);
+}
+
+/* Navigation Tabs/Buttons in Hero */
+.hero-nav-tabs {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-top: var(--space-lg);
+}
+
+.hero-nav-tab {
+  padding: var(--space-md) var(--space-xl);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all var(--transition-normal);
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.hero-nav-tab:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-colored);
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-tertiary) 100%);
+}
+
+.hero-nav-tab.active {
+  background: linear-gradient(135deg, var(--color-tertiary) 0%, var(--color-quaternary) 100%);
+  border-color: var(--color-border-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.hero-nav-tab-icon {
+  font-size: var(--text-base);
 }
 
 @keyframes shimmer {
