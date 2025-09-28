@@ -11,18 +11,44 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  // Test account credentials
+  const TEST_USER = {
+    email: 'test@example.com',
+    password: 'test123'
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
       setError('');
       setLoading(true);
+
+      // Check for test account
+      if (email === TEST_USER.email && password === TEST_USER.password) {
+        // Simulate loading
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Store test user data in localStorage
+        localStorage.setItem('token', 'test-token');
+        localStorage.setItem('user', JSON.stringify({
+          id: 'test-user',
+          name: 'Test User',
+          email: TEST_USER.email,
+          plan: 'Test Account'
+        }));
+
+        navigate('/dashboard');
+        return;
+      }
+
+      // Normal login process
       const result = await login(email, password);
       
       if (result.success) {
         navigate('/dashboard');
       } else {
-        setError(result.message);
+        setError(result.message || 'Login failed');
       }
     } catch (err) {
       setError('Failed to log in');
@@ -41,6 +67,23 @@ export default function Login() {
           </div>
           <h2>Access Terminal</h2>
           <p>Enter your credentials to access the system</p>
+          {/* Add test account info */}
+          <div style={{ 
+            marginTop: '10px', 
+            padding: '8px', 
+            backgroundColor: 'rgba(0, 212, 255, 0.1)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            fontSize: '0.9rem'
+          }}>
+            <p style={{ color: 'var(--primary-color)', marginBottom: '5px' }}>
+              Test Account:
+            </p>
+            <p style={{ color: 'var(--text-secondary)', margin: '0' }}>
+              Email: test@example.com<br/>
+              Password: test123
+            </p>
+          </div>
         </div>
         
         <div className="auth-body">
