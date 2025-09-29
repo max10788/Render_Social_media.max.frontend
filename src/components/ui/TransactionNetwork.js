@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
+import './TransactionNetwork.css';
 
 const TransactionNetwork = () => {
   const svgRef = useRef();
@@ -360,81 +361,83 @@ const TransactionNetwork = () => {
   };
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-lg">
+    <div className="transaction-network">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+      <div className="transaction-network-header">
+        <h2 className="transaction-network-title">
           Smart Contract Transaktionsnetzwerk
         </h2>
-        <p className="text-gray-600">
+        <p className="transaction-network-subtitle">
           Interaktive Visualisierung klassifizierter Wallet-Verbindungen
         </p>
       </div>
 
-      <div className="flex">
+      <div className="transaction-network-content">
         {/* Legende */}
-        <div className="w-64 p-4 border-r border-gray-200">
-          <h3 className="font-semibold text-gray-800 mb-4">Wallet-Klassifikationen</h3>
-          <div className="space-y-3">
-            {Object.entries(walletClasses).map(([type, info]) => (
-              <div key={type} className="flex items-center space-x-3">
-                <div 
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: info.color }}
-                />
-                <div>
-                  <div className="text-sm font-medium text-gray-800">{info.label}</div>
-                  <div className="text-xs text-gray-600">{info.description}</div>
+        <div className="transaction-network-legend">
+          <div className="legend-section">
+            <h3 className="legend-title">Wallet-Klassifikationen</h3>
+            <div className="legend-items">
+              {Object.entries(walletClasses).map(([type, info]) => (
+                <div key={type} className="legend-item">
+                  <div 
+                    className="legend-color"
+                    style={{ backgroundColor: info.color }}
+                  />
+                  <div className="legend-info">
+                    <div className="legend-label">{info.label}</div>
+                    <div className="legend-description">{info.description}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          <div className="mt-6">
-            <h4 className="font-semibold text-gray-800 mb-2">Risiko-Indikatoren</h4>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="text-sm text-gray-600">Niedrig</span>
+          <div className="legend-section">
+            <h4 className="legend-title">Risiko-Indikatoren</h4>
+            <div className="risk-indicators">
+              <div className="risk-item">
+                <div className="risk-dot low"></div>
+                <span className="risk-label">Niedrig</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <span className="text-sm text-gray-600">Mittel</span>
+              <div className="risk-item">
+                <div className="risk-dot medium"></div>
+                <span className="risk-label">Mittel</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <span className="text-sm text-gray-600">Hoch</span>
+              <div className="risk-item">
+                <div className="risk-dot high"></div>
+                <span className="risk-label">Hoch</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-6 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800">
+          <div className="legend-tip">
+            <p className="legend-tip-text">
               <strong>Tipp:</strong> Klicken Sie auf eine Wallet im Netzwerk, um detaillierte Transaktionsinformationen anzuzeigen.
             </p>
           </div>
         </div>
 
         {/* Hauptvisualisierung */}
-        <div className="flex-1 p-4">
-          <svg ref={svgRef} className="border border-gray-200 rounded-lg"></svg>
+        <div className="transaction-network-viz">
+          <svg ref={svgRef} className="network-svg"></svg>
         </div>
       </div>
 
       {/* Wallet-Detail Modal */}
       {showDetails && selectedWallet && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex justify-between items-start">
+        <div className="wallet-detail-overlay">
+          <div className="wallet-detail-modal">
+            <div className="modal-header">
+              <div className="modal-header-content">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  <h3 className="modal-title">
                     Wallet-Details: {selectedWallet.label}
                   </h3>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
-                    <span>Adresse: {selectedWallet.address}</span>
+                  <div className="modal-subtitle">
+                    <span className="modal-address">Adresse: {selectedWallet.address}</span>
                     <span 
-                      className="px-2 py-1 rounded-full text-white text-xs"
+                      className="modal-classification"
                       style={{ backgroundColor: walletClasses[selectedWallet.type].color }}
                     >
                       {walletClasses[selectedWallet.type].label}
@@ -443,49 +446,50 @@ const TransactionNetwork = () => {
                 </div>
                 <button
                   onClick={() => setShowDetails(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="modal-close-btn"
+                  aria-label="Modal schließen"
                 >
                   ✕
                 </button>
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="modal-body">
               {/* Statistiken */}
-              <div className="grid grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
+              <div className="stats-grid">
+                <div className="stat-card blue">
+                  <div className="stat-value blue">
                     ${formatNumber(selectedWallet.volume)}
                   </div>
-                  <div className="text-sm text-blue-600">Gesamtvolumen</div>
+                  <div className="stat-label blue">Gesamtvolumen</div>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
+                <div className="stat-card green">
+                  <div className="stat-value green">
                     {formatNumber(selectedWallet.transactions)}
                   </div>
-                  <div className="text-sm text-green-600">Transaktionen</div>
+                  <div className="stat-label green">Transaktionen</div>
                 </div>
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
+                <div className="stat-card purple">
+                  <div className="stat-value purple">
                     ${(selectedWallet.volume / selectedWallet.transactions).toFixed(0)}
                   </div>
-                  <div className="text-sm text-purple-600">Ø pro Tx</div>
+                  <div className="stat-label purple">Ø pro Tx</div>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className={`text-2xl font-bold ${getRiskLabel(selectedWallet.risk_score).color}`}>
+                <div className="stat-card gray">
+                  <div className={`stat-value ${getRiskLabel(selectedWallet.risk_score).color.replace('text-', '').replace('-600', '')}`}>
                     {getRiskLabel(selectedWallet.risk_score).label}
                   </div>
-                  <div className="text-sm text-gray-600">Risiko-Score</div>
+                  <div className="stat-label gray">Risiko-Score</div>
                 </div>
               </div>
 
               {/* Klassifikationsbegründung */}
-              <div className="mb-6">
-                <h4 className="font-semibold text-gray-800 mb-3">
+              <div className="classification-section">
+                <h4 className="section-title">
                   Klassifikationsbegründung
                 </h4>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700">
+                <div className="classification-explanation">
+                  <p className="classification-text">
                     {walletClasses[selectedWallet.type].description}
                     {selectedWallet.type === 'mixer' && 
                       ' - Hohe Anonymitätsfunktionen und verdächtige Transaktionsmuster erkannt.'}
@@ -500,24 +504,51 @@ const TransactionNetwork = () => {
               </div>
 
               {/* Beispiel-Transaktionen */}
-              <div>
-                <h4 className="font-semibold text-gray-800 mb-3">
+              <div className="transactions-section">
+                <h4 className="section-title">
                   Aktuelle Transaktionen (Beispiele)
                 </h4>
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse border border-gray-200">
+                  <table className="transactions-table">
                     <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border border-gray-200 p-2 text-left">Hash</th>
-                        <th className="border border-gray-200 p-2 text-left">Typ</th>
-                        <th className="border border-gray-200 p-2 text-left">Betrag</th>
-                        <th className="border border-gray-200 p-2 text-left">Zeitstempel</th>
-                        <th className="border border-gray-200 p-2 text-left">Risiko</th>
+                      <tr>
+                        <th>Hash</th>
+                        <th>Typ</th>
+                        <th>Betrag</th>
+                        <th>Zeitstempel</th>
+                        <th>Risiko</th>
                       </tr>
                     </thead>
                     <tbody>
                       {getWalletTransactions(selectedWallet.id).map((tx, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
+                        <tr key={index}>
+                          <td className="tx-hash">
+                            {tx.hash}
+                          </td>
+                          <td>{tx.type}</td>
+                          <td className="tx-amount">
+                            {tx.amount}
+                          </td>
+                          <td className="tx-timestamp">
+                            {tx.timestamp}
+                          </td>
+                          <td>
+                            <span className={`risk-badge ${tx.risk}`}>
+                              {tx.risk === 'critical' ? 'Kritisch' :
+                               tx.risk === 'high' ? 'Hoch' :
+                               tx.risk === 'medium' ? 'Mittel' : 'Niedrig'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}">
                           <td className="border border-gray-200 p-2 font-mono text-sm">
                             {tx.hash}
                           </td>
