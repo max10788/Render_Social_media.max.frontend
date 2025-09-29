@@ -79,7 +79,7 @@ const Navigation = () => {
     { path: '/radar', icon: '📡', text: 'Contract Radar', label: 'Contract Radar' },
     { path: '/tokens', icon: '💎', text: 'Token Overview', label: 'Token Overview' },
     { path: '/wallets', icon: '👛', text: 'Wallet Analysis', label: 'Wallet Analysis' },
-    { path: '/network', icon: '🔗', text: 'Transaction Network', label: 'Transaction Network' }, // Neue Seite
+    { path: '/network', icon: '🕸️', text: 'Transaction Network', label: 'Transaction Network' }, // ← NEU
     { path: '/account', icon: '👤', text: 'Account Settings', label: 'Account Settings' },
   ] : [
     { path: '/', icon: '🏠', text: 'Dashboard', label: 'Dashboard' },
