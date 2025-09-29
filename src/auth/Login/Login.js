@@ -14,7 +14,16 @@ export default function Login() {
   // Test account credentials
   const TEST_USER = {
     email: 'test@example.com',
-    password: 'test123'
+    password: 'test123',
+    userData: {
+      id: 'test-user',
+      name: 'Test User',
+      email: 'test@example.com',
+      plan: 'Test Account',
+      createdAt: '2025-01-01T00:00:00Z',
+      lastLogin: new Date().toISOString(),
+      scanCount: 0
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -24,27 +33,19 @@ export default function Login() {
       setError('');
       setLoading(true);
 
-      // Check for test account
+      // Frontend-only test account
       if (email === TEST_USER.email && password === TEST_USER.password) {
         // Simulate loading
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Store test user data in localStorage
+        await new Promise(resolve => setTimeout(resolve, 600));
+        // Save as if authenticated
         localStorage.setItem('token', 'test-token');
-        localStorage.setItem('user', JSON.stringify({
-          id: 'test-user',
-          name: 'Test User',
-          email: TEST_USER.email,
-          plan: 'Test Account'
-        }));
-
+        localStorage.setItem('user', JSON.stringify(TEST_USER.userData));
         navigate('/dashboard');
         return;
       }
 
-      // Normal login process
+      // Normal login with backend
       const result = await login(email, password);
-      
       if (result.success) {
         navigate('/dashboard');
       } else {
@@ -67,22 +68,13 @@ export default function Login() {
           </div>
           <h2>Access Terminal</h2>
           <p>Enter your credentials to access the system</p>
-          {/* Add test account info */}
-          <div style={{ 
-            marginTop: '10px', 
-            padding: '8px', 
-            backgroundColor: 'rgba(0, 212, 255, 0.1)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '8px',
-            fontSize: '0.9rem'
-          }}>
-            <p style={{ color: 'var(--primary-color)', marginBottom: '5px' }}>
-              Test Account:
-            </p>
-            <p style={{ color: 'var(--text-secondary)', margin: '0' }}>
-              Email: test@example.com<br/>
-              Password: test123
-            </p>
+          {/* Test Account Info */}
+          <div style={{marginTop: '10px', padding: '8px', backgroundColor: 'rgba(0, 212, 255, 0.1)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.9rem'}}>
+            <span style={{ color: 'var(--primary-color)', marginBottom: '2px' }}><b>Testzugang:</b></span>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              E-Mail: <b>test@example.com</b><br />
+              Passwort: <b>test123</b>
+            </div>
           </div>
         </div>
         
