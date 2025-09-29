@@ -30,6 +30,11 @@ function App() {
                     <ContractRadar />
                   </ProtectedRoute>
                 } 
+              <Route path="/network" element={
+                <ProtectedRoute>
+                  <TransactionNetworkPage />
+                </ProtectedRoute>
+              }
               />
               <Route 
                 path="/account" 
