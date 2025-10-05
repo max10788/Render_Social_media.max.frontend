@@ -548,38 +548,6 @@ const TransactionNetwork = () => {
             </div>
           </div>
         </div>
-      )}">
-                          <td className="border border-gray-200 p-2 font-mono text-sm">
-                            {tx.hash}
-                          </td>
-                          <td className="border border-gray-200 p-2">{tx.type}</td>
-                          <td className="border border-gray-200 p-2 font-semibold">
-                            {tx.amount}
-                          </td>
-                          <td className="border border-gray-200 p-2 text-sm text-gray-600">
-                            {tx.timestamp}
-                          </td>
-                          <td className="border border-gray-200 p-2">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              tx.risk === 'critical' ? 'bg-red-100 text-red-800' :
-                              tx.risk === 'high' ? 'bg-red-100 text-red-700' :
-                              tx.risk === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-green-100 text-green-700'
-                            }`}>
-                              {tx.risk === 'critical' ? 'Kritisch' :
-                               tx.risk === 'high' ? 'Hoch' :
-                               tx.risk === 'medium' ? 'Mittel' : 'Niedrig'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
