@@ -548,6 +548,57 @@
   transform: none;
 }
 
+/* === INFO BOX FÜR NICHT ANGEMELDETE === */
+.nav-info-box {
+  margin-top: auto;
+  padding: var(--space-xl);
+  background: linear-gradient(135deg, 
+    rgba(88, 151, 245, 0.15) 0%, 
+    rgba(126, 88, 245, 0.1) 100%);
+  border: 1px solid rgba(88, 151, 245, 0.3);
+  border-radius: var(--nav-border-radius);
+  backdrop-filter: blur(10px);
+  box-shadow: 
+    0 4px 15px rgba(88, 151, 245, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-info-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.05), 
+    transparent);
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    left: -100%;
+  }
+  50% {
+    left: 100%;
+  }
+}
+
+.nav-info-text {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+  text-align: center;
+  line-height: 1.5;
+  position: relative;
+  z-index: 1;
+}
+
 /* === MENÜ FOOTER === */
 .nav-menu-footer {
   padding: var(--space-xl) var(--space-2xl);
@@ -664,6 +715,14 @@
   .nav-toggle-bar {
     width: 22px;
   }
+  
+  .nav-info-box {
+    padding: var(--space-lg);
+  }
+  
+  .nav-info-text {
+    font-size: var(--text-xs);
+  }
 }
 
 @media (max-width: 480px) {
@@ -679,6 +738,17 @@
     height: 45px;
     max-width: 150px;
   }
+  
+  .nav-link {
+    padding: var(--space-md) var(--space-lg);
+    min-height: 56px;
+  }
+  
+  .nav-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.3rem;
+  }
 }
 
 /* === TABLET ANPASSUNGEN === */
@@ -688,7 +758,7 @@
   }
   
   .nav-links {
-    width: 280px;
+    width: 320px;
   }
 }
 
@@ -698,11 +768,13 @@
   .nav-brand a,
   .nav-toggle-bar,
   .nav-links,
-  .nav-overlay {
+  .nav-overlay,
+  .nav-info-box::before {
     transition: none;
+    animation: none;
   }
   
-  .nav-link.active .nav-indicator {
+  .nav-link.active::after {
     animation: none;
   }
 }
@@ -719,6 +791,10 @@
   .nav-link:hover,
   .nav-link:focus {
     border-color: var(--color-text-primary);
+  }
+  
+  .nav-info-box {
+    border: 2px solid var(--color-primary);
   }
 }
 
@@ -756,4 +832,143 @@
 
 .nav-links::-webkit-scrollbar-thumb:hover {
   background: var(--color-border-accent);
+}
+
+/* === LOADING STATES === */
+.nav-link.loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.nav-link.loading::after {
+  content: '';
+  position: absolute;
+  right: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: translateY(-50%) rotate(360deg);
+  }
+}
+
+/* === HOVER EFFECTS FÜR TOUCH DEVICES === */
+@media (hover: none) {
+  .nav-link:hover {
+    transform: none;
+  }
+  
+  .nav-link:active {
+    transform: scale(0.98);
+  }
+  
+  .nav-toggle:hover {
+    transform: none;
+  }
+  
+  .nav-toggle:active {
+    transform: scale(0.95);
+  }
+}
+
+/* === PRINT STYLES === */
+@media print {
+  .navigation,
+  .nav-toggle,
+  .nav-overlay,
+  .nav-links {
+    display: none;
+  }
+}
+
+/* === DARK MODE OPTIMIERUNGEN === */
+@media (prefers-color-scheme: dark) {
+  .navigation {
+    background: linear-gradient(135deg, 
+      rgba(15, 23, 42, 0.98) 0%, 
+      rgba(30, 41, 59, 0.95) 100%);
+  }
+  
+  .nav-links {
+    background: linear-gradient(135deg, 
+      rgba(15, 23, 42, 0.98) 0%, 
+      rgba(30, 41, 59, 0.98) 30%,
+      rgba(15, 23, 42, 0.98) 100%);
+  }
+}
+
+/* === HIGH PERFORMANCE MODE === */
+@media (prefers-reduced-transparency) {
+  .navigation,
+  .nav-links,
+  .nav-toggle,
+  .nav-link,
+  .nav-info-box {
+    backdrop-filter: none;
+  }
+  
+  .navigation {
+    background: var(--color-bg-secondary);
+  }
+  
+  .nav-links {
+    background: var(--color-bg-secondary);
+  }
+}
+
+/* === CUSTOM SCROLLBAR STYLING (ENHANCED) === */
+.nav-links::-webkit-scrollbar {
+  width: 8px;
+}
+
+.nav-links::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.nav-links::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, 
+    rgba(88, 151, 245, 0.6) 0%, 
+    rgba(126, 88, 245, 0.6) 100%);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-links::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, 
+    rgba(88, 151, 245, 0.8) 0%, 
+    rgba(126, 88, 245, 0.8) 100%);
+}
+
+/* === NAVIGATION INDICATOR (ADDITIONAL) === */
+.nav-indicator {
+  display: none;
+}
+
+/* === ZUSÄTZLICHE UTILITY CLASSES === */
+.nav-link.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.nav-link.highlighted {
+  animation: highlightPulse 2s ease-in-out infinite;
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(88, 151, 245, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(88, 151, 245, 0.2);
+  }
 }
