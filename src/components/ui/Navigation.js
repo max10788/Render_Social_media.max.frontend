@@ -94,117 +94,182 @@ const Navigation = () => {
     { path: '/register', icon: '📝', text: 'Register', label: 'Register' },
   ] : [];
 
-  // Alle Menüpunkte kombinieren
-  const menuItems = [...mainPages, ...accountPages, ...authPages];
-
   return (
     <>
-      {/* Hamburger Button */}
-      <button 
-        className={`nav-toggle ${isOpen ? 'open' : ''}`}
-        onClick={toggleMenu}
-        aria-label="Toggle navigation"
-      >
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
+      <nav className={`navigation ${isScrolled ? 'scrolled' : ''}`}>
+        {/* Brand/Logo Section */}
+        <div className="nav-brand">
+          <Link to="/" aria-label="BlockIntel - Home">
+            <img 
+              src="/logo-blockintel.png" 
+              alt="BlockIntel" 
+              className="brand-logo"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <div className="brand-fallback" style={{ display: 'none' }}>
+              <span className="brand-icon" role="img" aria-label="BlockIntel">🏠</span>
+              <span className="brand-text">BlockIntel</span>
+            </div>
+          </Link>
+        </div>
 
-      {/* Overlay */}
-      {isOpen && <div className="nav-overlay" onClick={closeMenu}></div>}
+        {/* User Info Display (Desktop) */}
+        {currentUser && (
+          <div className="nav-user-desktop">
+            <span className="user-welcome">Willkommen, {currentUser.email?.split('@')[0] || 'User'}</span>
+          </div>
+        )}
 
-      {/* Navigation Panel */}
-      <nav className={`navigation ${isOpen ? 'open' : ''}`}>
-        <div className="nav-header">
-          <h2>Navigation</h2>
-          <button className="nav-close" onClick={closeMenu}>
+        {/* Menu Toggle Button */}
+        <button 
+          className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
+          onClick={toggleMenu}
+          aria-label={isMenuOpen ? 'Menü schließen' : 'Menü öffnen'}
+          aria-expanded={isMenuOpen}
+          aria-controls="nav-links"
+          type="button"
+        >
+          <span className="nav-toggle-bar" aria-hidden="true"></span>
+          <span className="nav-toggle-bar" aria-hidden="true"></span>
+          <span className="nav-toggle-bar" aria-hidden="true"></span>
+        </button>
+      </nav>
+
+      {/* Overlay for mobile */}
+      <div 
+        className={`nav-overlay ${isMenuOpen ? 'open' : ''}`}
+        onClick={() => setIsMenuOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* Slide-out Side Menu */}
+      <aside className={`nav-links ${isMenuOpen ? 'open' : ''}`} role="navigation" id="nav-links">
+        <div className="nav-menu-header">
+          <h2 className="nav-menu-title">Navigation</h2>
+          <button 
+            className="nav-close-btn"
+            onClick={() => setIsMenuOpen(false)}
+            aria-label="Menü schließen"
+            type="button"
+          >
             ✕
           </button>
         </div>
 
-        <div className="nav-content">
-          {/* Haupt-Navigation */}
-          <div className="nav-section">
-            <h3>Seiten</h3>
-            <ul className="nav-list">
-              {allPages.map((item) => (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-                    onClick={closeMenu}
-                  >
-                    <span className="nav-icon">{item.icon}</span>
-                    <span className="nav-label">{item.label}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Auth Sektion */}
-          <div className="nav-section auth-section">
-            <h3>{user ? 'Account' : 'Anmeldung'}</h3>
-            <ul className="nav-list">
-              {authPages.map((item) => (
-                <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-                    onClick={closeMenu}
-                  >
-                    <span className="nav-icon">{item.icon}</span>
-                    <span className="nav-label">{item.label}</span>
-                  </Link>
-                </li>
-              ))}
-              
-              {/* Logout Button nur wenn angemeldet */}
-              {user && (
-                <li>
-                  <button
-                    className="nav-item logout-btn"
-                    onClick={() => {
-                      logout();
-                      closeMenu();
-                    }}
-                  >
-                    <span className="nav-icon">🚪</span>
-                    <span className="nav-label">Logout</span>
-                  </button>
-                </li>
+        <nav className="nav-menu-content" role="menubar">
+          {/* Haupt-Seiten (immer sichtbar) */}
+          {mainPages.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`nav-link ${isActiveRoute(item.path) ? 'active' : ''}`}
+              role="menuitem"
+              aria-current={isActiveRoute(item.path) ? 'page' : undefined}
+              onClick={() => setIsMenuOpen(false)}
+              tabIndex={isMenuOpen ? 0 : -1}
+            >
+              <span className="nav-icon" role="img" aria-label={item.label}>
+                {item.icon}
+              </span>
+              <span className="nav-text">{item.text}</span>
+              {isActiveRoute(item.path) && (
+                <span className="nav-indicator" aria-hidden="true"></span>
               )}
-            </ul>
-          </div>
+            </Link>
+          ))}
 
-          {/* User Info wenn angemeldet */}
-          {user && (
-            <div className="nav-section user-info">
-              <div className="user-badge">
-                <span className="user-avatar">{user.email?.[0]?.toUpperCase() || '?'}</span>
+          {/* Trennlinie */}
+          <div className="nav-divider" aria-hidden="true"></div>
+
+          {/* Account-Seiten (nur wenn angemeldet) */}
+          {accountPages.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`nav-link ${isActiveRoute(item.path) ? 'active' : ''}`}
+              role="menuitem"
+              aria-current={isActiveRoute(item.path) ? 'page' : undefined}
+              onClick={() => setIsMenuOpen(false)}
+              tabIndex={isMenuOpen ? 0 : -1}
+            >
+              <span className="nav-icon" role="img" aria-label={item.label}>
+                {item.icon}
+              </span>
+              <span className="nav-text">{item.text}</span>
+              {isActiveRoute(item.path) && (
+                <span className="nav-indicator" aria-hidden="true"></span>
+              )}
+            </Link>
+          ))}
+
+          {/* Auth-Seiten (nur wenn nicht angemeldet) */}
+          {authPages.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`nav-link ${isActiveRoute(item.path) ? 'active' : ''}`}
+              role="menuitem"
+              aria-current={isActiveRoute(item.path) ? 'page' : undefined}
+              onClick={() => setIsMenuOpen(false)}
+              tabIndex={isMenuOpen ? 0 : -1}
+            >
+              <span className="nav-icon" role="img" aria-label={item.label}>
+                {item.icon}
+              </span>
+              <span className="nav-text">{item.text}</span>
+              {isActiveRoute(item.path) && (
+                <span className="nav-indicator" aria-hidden="true"></span>
+              )}
+            </Link>
+          ))}
+
+          {/* User Area (wenn angemeldet) */}
+          {currentUser && (
+            <div className="nav-user-area">
+              <div className="nav-user-info">
+                <div className="user-avatar" aria-hidden="true">
+                  {currentUser.email?.charAt(0).toUpperCase() || 'U'}
+                </div>
                 <div className="user-details">
-                  <p className="user-email">{user.email}</p>
-                  <p className="user-status">Angemeldet</p>
+                  <div className="user-name">
+                    {currentUser.email?.split('@')[0] || 'Benutzer'}
+                  </div>
+                  <div className="user-email">{currentUser.email}</div>
                 </div>
               </div>
+              
+              <button 
+                onClick={handleLogout}
+                className="nav-link logout-btn"
+                role="menuitem"
+                aria-label="Abmelden"
+                tabIndex={isMenuOpen ? 0 : -1}
+                type="button"
+              >
+                <span className="nav-icon" role="img" aria-label="Abmelden">🚪</span>
+                <span className="nav-text">Abmelden</span>
+              </button>
             </div>
           )}
 
-          {/* Info wenn nicht angemeldet */}
-          {!user && (
-            <div className="nav-section info-section">
-              <div className="info-box">
-                <p>📌 Einige Funktionen erfordern eine Anmeldung</p>
-              </div>
+          {/* Info für nicht angemeldete Benutzer */}
+          {!currentUser && (
+            <div className="nav-info-box">
+              <p className="nav-info-text">
+                💡 Melde dich an, um alle Funktionen zu nutzen
+              </p>
             </div>
           )}
-        </div>
+        </nav>
 
         {/* Footer */}
-        <div className="nav-footer">
-          <p>BlockIntel v1.0</p>
+        <div className="nav-menu-footer">
+          <div className="nav-version">BlockIntel v1.0</div>
         </div>
-      </nav>
+      </aside>
     </>
   );
 };
