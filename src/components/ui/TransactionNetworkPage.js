@@ -1,5 +1,5 @@
 import React from 'react';
-import TransactionNetwork from '../components/ui/TransactionNetwork';
+import TransactionNetwork from './TransactionNetwork';
 import './TransactionNetworkPage.css';
 
 const TransactionNetworkPage = () => {
@@ -12,11 +12,9 @@ const TransactionNetworkPage = () => {
             Visualisieren und analysieren Sie Smart Contract Transaktionen mit Wallet-Klassifikation und Risikobewertung
           </p>
         </div>
-
         <div className="page-content">
           <TransactionNetwork />
         </div>
-
         <div className="page-info">
           <div className="info-section">
             <h2 className="info-title">Über diese Visualisierung</h2>
@@ -33,7 +31,6 @@ const TransactionNetworkPage = () => {
               <li><strong>Regular Users:</strong> Normale Nutzer-Wallets mit typischem Verhalten</li>
             </ul>
           </div>
-
           <div className="info-section">
             <h2 className="info-title">Wie verwenden Sie diese Funktion?</h2>
             <ol className="info-list">
@@ -45,7 +42,6 @@ const TransactionNetworkPage = () => {
               <li>Ziehen Sie Nodes, um das Netzwerk neu anzuordnen</li>
             </ol>
           </div>
-
           <div className="info-section warning">
             <h2 className="info-title">⚠️ Wichtiger Hinweis</h2>
             <p className="info-text">
