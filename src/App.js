@@ -10,7 +10,6 @@ import ProtectedRoute from './auth/ProtectedRoute';
 import './App.css';
 import TransactionNetworkPage from './pages/TransactionNetworkPage';
 
-
 function App() {
   return (
     <AuthProvider>
@@ -30,11 +29,14 @@ function App() {
                     <ContractRadar />
                   </ProtectedRoute>
                 } 
-              <Route path="/network" element={
-                <ProtectedRoute>
-                  <TransactionNetworkPage />
-                </ProtectedRoute>
-              }
+              />
+              <Route 
+                path="/network" 
+                element={
+                  <ProtectedRoute>
+                    <TransactionNetworkPage />
+                  </ProtectedRoute>
+                } 
               />
               <Route 
                 path="/account" 
