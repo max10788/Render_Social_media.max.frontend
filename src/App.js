@@ -8,7 +8,7 @@ import Register from './auth/Register/Register';
 import Account from './auth/Account/Account';
 import ProtectedRoute from './auth/ProtectedRoute';
 import './App.css';
-import TransactionNetworkPage from './pages/TransactionNetworkPage';
+import TransactionNetworkPage from './components/ui/TransactionNetworkPage';
 
 function App() {
   return (
