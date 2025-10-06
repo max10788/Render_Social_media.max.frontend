@@ -5,8 +5,9 @@ import WalletDetail from './WalletDetail';
 import { WALLET_TYPES } from '../../services/tokenDiscovery';
 
 const WalletAnalyses = () => {
-  const { walletAnalyses, loading, error } = useWalletAnalyses();
+  const { walletAnalyses, loading, error, refreshAnalyses } = useWalletAnalyses();
   const [selectedWallet, setSelectedWallet] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   // Formatieren von Adressen (gekürzt darstellen)
   const formatAddress = (address) => {
@@ -21,26 +22,139 @@ const WalletAnalyses = () => {
     return '#ef4444'; // Rot
   };
 
-  if (loading) return <div className="wallet-loading">Loading wallet analyses...</div>;
-  if (error) return <div className="wallet-error">Error: {error}</div>;
+  // Wallet vom Backend analysieren
+  const analyzeWalletFromBackend = async (address, blockchain, transactions) => {
+    setAnalyzing(true);
+    try {
+      const response = await fetch('/api/v1/wallet/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          wallet_address: address,
+          blockchain: blockchain,
+          transactions: transactions,
+          stage: 2 // Mittlere Analysetiefe
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Aktualisiere lokale Daten mit Backend-Ergebnis
+        console.log('Backend Analysis:', result.data);
+        // Hier könntest du die Analyse-Ergebnisse zurückgeben oder speichern
+        return result.data;
+      } else {
+        console.error('Analysis failed:', result.error);
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('Error analyzing wallet:', error);
+      throw error;
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // Wallet Details mit Backend-Analyse öffnen
+  const handleWalletClick = async (wallet) => {
+    try {
+      // Optional: Hole zusätzliche Analyse-Daten vom Backend
+      if (wallet.transactions && wallet.transactions.length > 0) {
+        const backendAnalysis = await analyzeWalletFromBackend(
+          wallet.wallet_address,
+          wallet.chain,
+          wallet.transactions
+        );
+        
+        // Erweitere Wallet-Daten mit Backend-Analyse
+        setSelectedWallet({
+          ...wallet,
+          backendAnalysis
+        });
+      } else {
+        setSelectedWallet(wallet);
+      }
+    } catch (error) {
+      // Auch bei Fehler Wallet anzeigen (ohne Backend-Daten)
+      setSelectedWallet(wallet);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="wallet-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading wallet analyses...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="wallet-error">
+        <div className="error-icon">⚠️</div>
+        <p>Error: {error}</p>
+        <button 
+          className="retry-button"
+          onClick={refreshAnalyses}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!walletAnalyses || walletAnalyses.length === 0) {
+    return (
+      <div className="wallet-analyses-container">
+        <h2 className="section-title">Wallet-Analysen</h2>
+        <div className="no-wallets">
+          <p>Keine Wallet-Analysen verfügbar</p>
+          <button 
+            className="refresh-button"
+            onClick={refreshAnalyses}
+          >
+            Aktualisieren
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="wallet-analyses-container">
-        <h2 className="section-title">Wallet-Analysen</h2>
+        <div className="section-header">
+          <h2 className="section-title">Wallet-Analysen</h2>
+          <button 
+            className="refresh-button"
+            onClick={refreshAnalyses}
+            disabled={analyzing}
+          >
+            {analyzing ? 'Analyzing...' : '🔄 Refresh'}
+          </button>
+        </div>
         
         <div className="wallet-grid">
           {walletAnalyses.map(wallet => {
-            const walletTypeInfo = WALLET_TYPES[wallet.wallet_type] || { label: wallet.wallet_type, color: '#818cf8' };
+            const walletTypeInfo = WALLET_TYPES[wallet.wallet_type] || { 
+              label: wallet.wallet_type, 
+              color: '#818cf8' 
+            };
             
             return (
               <div 
                 key={wallet.wallet_address} 
                 className="wallet-card"
-                onClick={() => setSelectedWallet(wallet)}
+                onClick={() => handleWalletClick(wallet)}
               >
                 <div className="wallet-header">
-                  <div className="wallet-address">{formatAddress(wallet.wallet_address)}</div>
+                  <div className="wallet-address">
+                    {formatAddress(wallet.wallet_address)}
+                  </div>
                   <div 
                     className="wallet-type"
                     style={{ color: walletTypeInfo.color }}
@@ -115,7 +229,12 @@ const WalletAnalyses = () => {
       {selectedWallet && (
         <WalletDetail 
           wallet={selectedWallet} 
-          onClose={() => setSelectedWallet(null)} 
+          onClose={() => setSelectedWallet(null)}
+          onReanalyze={() => analyzeWalletFromBackend(
+            selectedWallet.wallet_address,
+            selectedWallet.chain,
+            selectedWallet.transactions
+          )}
         />
       )}
     </>
