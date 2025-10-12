@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './TokenOverview.css';
-import { useTokens } from '../../hooks/useTokens';
-import { RISK_LEVELS } from '../../services/tokenDiscovery';
+import { useTokens } from '../hooks/useTokens';
+import { RISK_LEVELS } from '../services/tokenDiscovery';
 
 const TokenOverview = () => {
   const { tokens, loading, error } = useTokens();
