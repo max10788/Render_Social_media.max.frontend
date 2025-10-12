@@ -3,12 +3,13 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import Navigation from './components/ui/Navigation';
 import ContractRadar from './pages/ContractRadar';
+import WalletAnalyses from './components/ui/WalletAnalyses';
+import TransactionNetworkPage from './components/ui/TransactionNetworkPage';
 import Login from './auth/Login/Login';
 import Register from './auth/Register/Register';
 import Account from './auth/Account/Account';
 import ProtectedRoute from './auth/ProtectedRoute';
 import './App.css';
-import TransactionNetworkPage from './components/ui/TransactionNetworkPage';
 
 function App() {
   return (
@@ -18,10 +19,13 @@ function App() {
           <Navigation />
           <main className="main-content">
             <Routes>
+              {/* Public Routes */}
               <Route path="/" element={<ContractRadar />} />
               <Route path="/radar" element={<ContractRadar />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              
+              {/* Protected Routes */}
               <Route 
                 path="/dashboard" 
                 element={
@@ -30,6 +34,17 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              
+              {/* ✅ NEU: WalletAnalyses Route */}
+              <Route 
+                path="/wallet-analyses" 
+                element={
+                  <ProtectedRoute>
+                    <WalletAnalyses />
+                  </ProtectedRoute>
+                } 
+              />
+              
               <Route 
                 path="/network" 
                 element={
@@ -38,6 +53,7 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              
               <Route 
                 path="/account" 
                 element={
