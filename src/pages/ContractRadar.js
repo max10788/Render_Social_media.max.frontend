@@ -7,7 +7,7 @@ import './ContractRadar.css';
 
 const ContractRadar = () => {
   const [activeTab, setActiveTab] = useState('radar');
-
+  
   return (
     <div className="contract-radar-page">
       <div className="page-header">
@@ -15,32 +15,7 @@ const ContractRadar = () => {
         <p>Real-time tracking of small-cap token transactions by wallet category</p>
       </div>
       
-      <div className="tab-navigation">
-        <button 
-          className={`tab-button ${activeTab === 'radar' ? 'active' : ''}`}
-          onClick={() => setActiveTab('radar')}
-        >
-          Radar
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'tokens' ? 'active' : ''}`}
-          onClick={() => setActiveTab('tokens')}
-        >
-          Token-Übersicht
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'wallets' ? 'active' : ''}`}
-          onClick={() => setActiveTab('wallets')}
-        >
-          Wallet-Analysen
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'scans' ? 'active' : ''}`}
-          onClick={() => setActiveTab('scans')}
-        >
-          Scan-Jobs
-        </button>
-      </div>
+      {/* Tab-Navigation entfernt */}
       
       <div className="tab-content">
         {activeTab === 'radar' && <Radar />}
