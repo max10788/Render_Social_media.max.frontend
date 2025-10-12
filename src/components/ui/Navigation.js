@@ -6,18 +6,7 @@ import './Navigation.css';
 const Navigation = () => {
   const { currentUser, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
-
-  // Handle scroll effect for navigation shadow
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -27,7 +16,7 @@ const Navigation = () => {
   // Close mobile menu when clicking outside or on overlay
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (isMenuOpen && !event.target.closest('.navigation') && !event.target.closest('.nav-links')) {
+      if (isMenuOpen && !event.target.closest('.nav-links') && !event.target.closest('.nav-toggle')) {
         setIsMenuOpen(false);
       }
     };
@@ -96,48 +85,6 @@ const Navigation = () => {
 
   return (
     <>
-      <nav className={`navigation ${isScrolled ? 'scrolled' : ''}`}>
-        {/* Brand/Logo Section */}
-        <div className="nav-brand">
-          <Link to="/" aria-label="BlockIntel - Home">
-            <img 
-              src="/logo-blockintel.png" 
-              alt="BlockIntel" 
-              className="brand-logo"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-            <div className="brand-fallback" style={{ display: 'none' }}>
-              <span className="brand-icon" role="img" aria-label="BlockIntel">🏠</span>
-              <span className="brand-text">BlockIntel</span>
-            </div>
-          </Link>
-        </div>
-
-        {/* User Info Display (Desktop) */}
-        {currentUser && (
-          <div className="nav-user-desktop">
-            <span className="user-welcome">Willkommen, {currentUser.email?.split('@')[0] || 'User'}</span>
-          </div>
-        )}
-
-        {/* Menu Toggle Button */}
-        <button 
-          className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
-          onClick={toggleMenu}
-          aria-label={isMenuOpen ? 'Menü schließen' : 'Menü öffnen'}
-          aria-expanded={isMenuOpen}
-          aria-controls="nav-links"
-          type="button"
-        >
-          <span className="nav-toggle-bar" aria-hidden="true"></span>
-          <span className="nav-toggle-bar" aria-hidden="true"></span>
-          <span className="nav-toggle-bar" aria-hidden="true"></span>
-        </button>
-      </nav>
-
       {/* Overlay for mobile */}
       <div 
         className={`nav-overlay ${isMenuOpen ? 'open' : ''}`}
@@ -145,17 +92,39 @@ const Navigation = () => {
         aria-hidden="true"
       />
 
-      {/* Slide-out Side Menu */}
+      {/* Slide-out Side Menu (Hauptnavigation) */}
       <aside className={`nav-links ${isMenuOpen ? 'open' : ''}`} role="navigation" id="nav-links">
+        {/* Mobiles Menu Header mit Toggle */}
         <div className="nav-menu-header">
-          <h2 className="nav-menu-title">Navigation</h2>
+          <div className="nav-brand">
+            <Link to="/" aria-label="BlockIntel - Home" onClick={() => setIsMenuOpen(false)}>
+              <img 
+                src="/logo-blockintel.png" 
+                alt="BlockIntel" 
+                className="brand-logo"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              <div className="brand-fallback" style={{ display: 'none' }}>
+                <span className="brand-icon" role="img" aria-label="BlockIntel">🏠</span>
+                <span className="brand-text">BlockIntel</span>
+              </div>
+            </Link>
+          </div>
+          
           <button 
-            className="nav-close-btn"
-            onClick={() => setIsMenuOpen(false)}
-            aria-label="Menü schließen"
+            className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
+            onClick={toggleMenu}
+            aria-label={isMenuOpen ? 'Menü schließen' : 'Menü öffnen'}
+            aria-expanded={isMenuOpen}
+            aria-controls="nav-links"
             type="button"
           >
-            ✕
+            <span className="nav-toggle-bar" aria-hidden="true"></span>
+            <span className="nav-toggle-bar" aria-hidden="true"></span>
+            <span className="nav-toggle-bar" aria-hidden="true"></span>
           </button>
         </div>
 
