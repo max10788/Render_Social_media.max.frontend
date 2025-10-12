@@ -7,23 +7,14 @@ import './ContractRadar.css';
 
 const ContractRadar = () => {
   const [activeTab, setActiveTab] = useState('radar');
-  
+
   return (
     <div className="contract-radar-page">
       <div className="page-header">
         <h1>Smart Contract Radar</h1>
         <p>Real-time tracking of small-cap token transactions by wallet category</p>
       </div>
-      
-      {/* Tab-Navigation entfernt */}
-      
-      <div className="tab-content">
-        {activeTab === 'radar' && <Radar />}
-        {activeTab === 'tokens' && <TokenOverview />}
-        {activeTab === 'wallets' && <WalletAnalyses />}
-        {activeTab === 'scans' && <ScanJobs />}
-      </div>
-      
+
       <div className="radar-info">
         <h3>How it works</h3>
         <p>This radar tracks transactions for small-cap tokens in real-time, categorizing wallets as:</p>
