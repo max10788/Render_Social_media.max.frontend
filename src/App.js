@@ -3,7 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import Navigation from './components/ui/Navigation';
 import ContractRadar from './pages/ContractRadar';
-import WalletAnalyses from './components/ui/WalletAnalyses';
+import TokenOverview from './pages/TokenOverview';
+import WalletAnalyses from './pages/WalletAnalyses';
+import ScanJobs from './pages/ScanJobs';
 import TransactionNetworkPage from './components/ui/TransactionNetworkPage';
 import Login from './auth/Login/Login';
 import Register from './auth/Register/Register';
@@ -22,6 +24,9 @@ function App() {
               {/* Public Routes */}
               <Route path="/" element={<ContractRadar />} />
               <Route path="/radar" element={<ContractRadar />} />
+              <Route path="/tokens" element={<TokenOverview />} />
+              <Route path="/wallets" element={<WalletAnalyses />} />
+              <Route path="/scans" element={<ScanJobs />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
@@ -31,16 +36,6 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ContractRadar />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              {/* ✅ NEU: WalletAnalyses Route */}
-              <Route 
-                path="/wallet-analyses" 
-                element={
-                  <ProtectedRoute>
-                    <WalletAnalyses />
                   </ProtectedRoute>
                 } 
               />
