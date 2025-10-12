@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './WalletAnalyses.css';
 import { useWalletAnalyses } from '../hooks/useWalletAnalyses';
-import WalletDetail from './WalletDetail';
-import { WALLET_TYPES } from '../../services/tokenDiscovery';
+import WalletDetail from '../components/ui/WalletDetail';
+import { WALLET_TYPES } from '../services/tokenDiscovery';
 
 const WalletAnalyses = () => {
   const { walletAnalyses, loading, error, refreshAnalyses } = useWalletAnalyses();
@@ -517,7 +517,6 @@ const WalletAnalyses = () => {
         </div>
       </div>
       
-      {/* Wallet Detail Modal */}
       {selectedWallet && (
         <WalletDetail 
           wallet={selectedWallet} 
@@ -530,7 +529,6 @@ const WalletAnalyses = () => {
         />
       )}
       
-      {/* CSS Animation for Spinner */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
