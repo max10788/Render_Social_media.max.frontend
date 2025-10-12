@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Radar from '../components/ui/Radar';
-import TokenOverview from '../components/ui/TokenOverview';
-import WalletAnalyses from '../components/ui/WalletAnalyses';
-import ScanJobs from '../components/ui/ScanJobs';
+import TokenOverview from './TokenOverview';
+import WalletAnalyses from './WalletAnalyses';
+import ScanJobs from './ScanJobs';
 import './ContractRadar.css';
 
 const ContractRadar = () => {
@@ -14,8 +14,6 @@ const ContractRadar = () => {
         <h1>Smart Contract Radar</h1>
         <p>Real-time tracking of small-cap token transactions by wallet category</p>
       </div>
-      
-      {/* Tab-Navigation entfernt */}
       
       <div className="tab-content">
         {activeTab === 'radar' && <Radar />}
