@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './ScanJobs.css';
-import { useScanJobs } from 'src/hooks/useScanJobs';
+import { useScanJobs } from '../hooks/useScanJobs';
 import ScanJobDetail from 'src/components/ui/ScanJobDetail';
 
 const ScanJobs = () => {
