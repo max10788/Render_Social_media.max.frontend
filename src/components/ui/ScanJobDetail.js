@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import ScanJobDetail from '../components/ui/ScanJobDetail.js';
+import './ScanJobDetail.css';
 
 const ScanJobDetail = ({ job, onClose }) => {
   // Automatisch schließen, wenn job undefined ist
