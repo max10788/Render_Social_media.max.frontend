@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ScanJobs.css';
 import { useScanJobs } from '../hooks/useScanJobs';
-import ScanJobDetail from 'src/components/ui/ScanJobDetail';
+import ScanJobDetail from '../components/ui/ScanJobDetail';
 
 const ScanJobs = () => {
   const { scanJobs, loading, error, fetchScanJobs } = useScanJobs();
