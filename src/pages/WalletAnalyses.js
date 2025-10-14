@@ -1,4 +1,3 @@
-// src/pages/WalletAnalyses.js
 import React, { useState, useEffect } from 'react';
 import './WalletAnalyses.css';
 import { useWalletAnalysis } from '../hooks/useWalletAnalyses.js';
@@ -18,7 +17,7 @@ const BLOCKCHAIN_OPTIONS = [
 ];
 
 const WalletAnalyses = () => {
-  const { walletAnalyses, loading: hookLoading, error: hookError, refreshAnalyses } = useWalletAnalysis();
+  // FIXED: Benutze nur einen useWalletAnalysis Call!
   const {
     loading: analysisLoading,
     error: analysisError,
@@ -36,7 +35,7 @@ const WalletAnalyses = () => {
   });
   const [validationError, setValidationError] = useState('');
   const [serviceHealthy, setServiceHealthy] = useState(null);
-  const [recentAnalyses, setRecentAnalyses] = useState([]);
+  const [recentAnalyses, setRecentAnalyses] = useState([]); // FIXED: Immer ein Array!
 
   // Health-Check beim Mount
   useEffect(() => {
@@ -105,6 +104,13 @@ const WalletAnalyses = () => {
           timestamp: new Date().toISOString(),
           stage: formData.stage,
           classifications: result.data.classifications,
+          risk_score: result.data.analysis.risk_score || 0, // FIXED: Sicherstellen
+          risk_flags: result.data.analysis.risk_flags || [], // FIXED: Immer Array!
+          balance: result.data.analysis.balance || 0,
+          first_transaction: result.data.analysis.first_transaction || new Date().toISOString(),
+          last_transaction: result.data.analysis.last_transaction || new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
 
         setRecentAnalyses(prev => [newAnalysis, ...prev.slice(0, 9)]);
@@ -120,6 +126,7 @@ const WalletAnalyses = () => {
       }
     } catch (error) {
       console.error('Analyse fehlgeschlagen:', error);
+      setValidationError('Analyse fehlgeschlagen. Bitte versuche es später erneut.');
     }
   };
 
@@ -350,7 +357,7 @@ const WalletAnalyses = () => {
                     </div>
                   </div>
 
-                  {wallet.risk_flags && wallet.risk_flags.length > 0 && (
+                  {wallet.risk_flags && Array.isArray(wallet.risk_flags) && wallet.risk_flags.length > 0 && (
                     <div className="wallet-footer">
                       <div className="risk-flags">
                         {wallet.risk_flags.slice(0, 2).map((flag, idx) => (
