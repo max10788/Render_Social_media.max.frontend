@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Radar.css';
 import { useCryptoTracker } from '../../hooks/useCryptoTracker';
-import { useWalletAnalyses } from '../../hooks/useWalletAnalyses';
+import { useWalletAnalysis } from '../../hooks/useWalletAnalyses';
 import { WALLET_CATEGORIES, WALLET_TYPES } from '../../services/tokenDiscovery';
 import WalletDetail from './WalletDetail';
 
