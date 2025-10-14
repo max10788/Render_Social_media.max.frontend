@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Radar.css';
 import { useCryptoTracker } from '../../hooks/useCryptoTracker';
-import { useWalletAnalysis } from '../../hooks/useWalletAnalyses';
+import { useWalletAnalysis } from '../../hooks/useWalletAnalysis'; // Angepasster Import
 import { WALLET_CATEGORIES, WALLET_TYPES } from '../../services/tokenDiscovery';
 import WalletDetail from './WalletDetail';
 
 const Radar = () => {
   const { radarData, wallets, loading, error, timeRange, setTimeRange } = useCryptoTracker();
-  const { walletAnalyses, loading: walletsLoading } = useWalletAnalyses();
+  const { walletAnalyses, loading: walletsLoading } = useWalletAnalysis(); // Angepasste Hook-Verwendung
   
   // Zustände für den Smart Contract
   const [showContractDetails, setShowContractDetails] = useState(false);
