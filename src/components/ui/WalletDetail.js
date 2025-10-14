@@ -46,6 +46,9 @@ const WalletDetail = ({ wallet, onClose }) => {
   // Wallet-Typ-Informationen abrufen
   const walletTypeInfo = WALLET_TYPES[wallet.wallet_type] || { label: wallet.wallet_type, color: '#818cf8' };
 
+  // ✅ DEFENSIV: Sicherstellen, dass risk_flags ein Array ist
+  const riskFlags = Array.isArray(wallet.risk_flags) ? wallet.risk_flags : [];
+
   return (
     <div className="wallet-detail-overlay">
       <div className="wallet-detail-container">
@@ -148,11 +151,15 @@ const WalletDetail = ({ wallet, onClose }) => {
             <div className="risk-flags">
               <h4>Risiko-Merkmale:</h4>
               <div className="risk-flags-list">
-                {wallet.risk_flags.map((flag, index) => (
-                  <span key={index} className="risk-flag">
-                    {flag}
-                  </span>
-                ))}
+                {riskFlags.length > 0 ? (
+                  riskFlags.map((flag, index) => (
+                    <span key={index} className="risk-flag">
+                      {flag}
+                    </span>
+                  ))
+                ) : (
+                  <span className="risk-flag">Keine Risiko-Merkmale erkannt</span>
+                )}
               </div>
             </div>
           </div>
