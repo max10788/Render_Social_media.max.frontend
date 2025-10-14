@@ -1,7 +1,7 @@
 // src/pages/WalletAnalyses.js
 import React, { useState, useEffect } from 'react';
 import './WalletAnalyses.css';
-import { useWalletAnalysis } from '../hooks/useWalletAnalysis';
+import { useWalletAnalysis } from '../hooks/useWalletAnalyses.js';
 import WalletDetail from '../components/ui/WalletDetail';
 import { WALLET_TYPES } from '../services/tokenDiscovery';
 import {
