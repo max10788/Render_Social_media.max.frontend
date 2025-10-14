@@ -18,7 +18,7 @@ const BLOCKCHAIN_OPTIONS = [
 ];
 
 const WalletAnalyses = () => {
-  const { walletAnalyses, loading: hookLoading, error: hookError, refreshAnalyses } = useWalletAnalyses();
+  const { walletAnalyses, loading: hookLoading, error: hookError, refreshAnalyses } = useWalletAnalysis();
   const {
     loading: analysisLoading,
     error: analysisError,
@@ -51,13 +51,12 @@ const WalletAnalyses = () => {
   useEffect(() => {
     console.log('=== WALLET ANALYSES DEBUG ===');
     console.log('✅ Component mounted');
-    console.log('📊 Wallet Analyses:', walletAnalyses);
     console.log('📊 Recent Analyses:', recentAnalyses);
-    console.log('⏳ Loading:', hookLoading || analysisLoading);
-    console.log('❌ Error:', hookError || analysisError);
+    console.log('⏳ Loading:', analysisLoading);
+    console.log('❌ Error:', analysisError);
     console.log('🏥 Service Healthy:', serviceHealthy);
     console.log('============================');
-  }, [walletAnalyses, recentAnalyses, hookLoading, analysisLoading, hookError, analysisError, serviceHealthy]);
+  }, [recentAnalyses, analysisLoading, analysisError, serviceHealthy]);
 
   // Validierung bei Eingabe
   useEffect(() => {
@@ -118,11 +117,6 @@ const WalletAnalyses = () => {
           fetch_limit: 100,
         });
         setShowAnalyzeForm(false);
-        
-        // Refresh hook data wenn verfügbar
-        if (refreshAnalyses) {
-          refreshAnalyses();
-        }
       }
     } catch (error) {
       console.error('Analyse fehlgeschlagen:', error);
@@ -148,17 +142,11 @@ const WalletAnalyses = () => {
     return 'risk-score-high';
   };
 
-  // Kombiniere Hook-Daten und Recent Analyses
-  const allWallets = [...(recentAnalyses || []), ...(walletAnalyses || [])];
-  const uniqueWallets = allWallets.filter((wallet, index, self) =>
-    index === self.findIndex((w) => w.wallet_address === wallet.wallet_address)
-  );
-
-  const isLoading = hookLoading || analysisLoading;
-  const hasError = hookError || analysisError;
+  const isLoading = analysisLoading;
+  const hasError = analysisError;
 
   // Loading State
-  if (isLoading && uniqueWallets.length === 0) {
+  if (isLoading && recentAnalyses.length === 0) {
     return (
       <div className="wallet-analyses-container">
         <div className="wallet-loading">
@@ -170,13 +158,13 @@ const WalletAnalyses = () => {
   }
 
   // Error State
-  if (hasError && uniqueWallets.length === 0) {
+  if (hasError && recentAnalyses.length === 0) {
     return (
       <div className="wallet-analyses-container">
         <div className="wallet-error">
           <div className="error-icon">⚠️</div>
           <p>Fehler beim Laden: {hasError}</p>
-          <button onClick={refreshAnalyses} className="btn-refresh">
+          <button onClick={() => window.location.reload()} className="btn-refresh">
             Erneut versuchen
           </button>
         </div>
@@ -201,13 +189,6 @@ const WalletAnalyses = () => {
               disabled={isLoading}
             >
               {showAnalyzeForm ? '✕ Schließen' : '+ Neue Analyse'}
-            </button>
-            <button
-              onClick={refreshAnalyses}
-              disabled={isLoading}
-              className="btn-refresh"
-            >
-              {isLoading ? '⏳' : '🔄'} Aktualisieren
             </button>
           </div>
         </div>
@@ -287,7 +268,7 @@ const WalletAnalyses = () => {
         )}
 
         {/* Empty State */}
-        {uniqueWallets.length === 0 ? (
+        {recentAnalyses.length === 0 ? (
           <div className="no-wallets">
             <p>Keine Wallet-Analysen verfügbar</p>
             <button onClick={() => setShowAnalyzeForm(true)} className="btn-primary">
@@ -297,7 +278,7 @@ const WalletAnalyses = () => {
         ) : (
           /* Wallet Grid */
           <div className="wallet-grid">
-            {uniqueWallets.map((wallet, index) => {
+            {recentAnalyses.map((wallet, index) => {
               const walletTypeInfo = WALLET_TYPES[wallet.wallet_type] || {
                 label: wallet.wallet_type || 'Unknown',
                 color: '#818cf8',
