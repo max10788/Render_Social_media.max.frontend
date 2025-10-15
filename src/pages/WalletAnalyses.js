@@ -10,14 +10,54 @@ import {
   isValidWalletAddress,
 } from '../services/walletAnalysisService';
 
+// Blockchain Icons als SVG Components
+const EthereumIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '100%', height: '100%' }}>
+    <path d="M11.944 17.97L4.58 13.62 11.943 24l7.37-10.38-7.372 4.35h.003zM12.056 0L4.69 12.223l7.365 4.354 7.365-4.35L12.056 0z"/>
+  </svg>
+);
+
+const SolanaIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '100%', height: '100%' }}>
+    <path d="M5.12 17.47a.72.72 0 01.51-.21h16.26c.39 0 .58.47.3.75l-3.45 3.45a.72.72 0 01-.51.21H2.97c-.39 0-.58-.47-.3-.75l3.45-3.45z"/>
+    <path d="M5.12 2.53a.72.72 0 01.51-.21h16.26c.39 0 .58.47.3.75l-3.45 3.45a.72.72 0 01-.51.21H2.97c-.39 0-.58-.47-.3-.75l3.45-3.45z"/>
+    <path d="M18.77 9.79a.72.72 0 00-.51-.21H2c-.39 0-.58.47-.3.75l3.45 3.45c.14.14.33.21.51.21h16.26c.39 0 .58-.47.3-.75l-3.45-3.45z"/>
+  </svg>
+);
+
+const SuiIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: '100%', height: '100%' }}>
+    <path d="M15.5 12c0-1.933-1.567-3.5-3.5-3.5S8.5 10.067 8.5 12s1.567 3.5 3.5 3.5 3.5-1.567 3.5-3.5z"/>
+    <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"/>
+    <path d="M12 5.5c-.828 0-1.5.672-1.5 1.5s.672 1.5 1.5 1.5 1.5-.672 1.5-1.5-.672-1.5-1.5-1.5zm0 10c-.828 0-1.5.672-1.5 1.5s.672 1.5 1.5 1.5 1.5-.672 1.5-1.5-.672-1.5-1.5-1.5z"/>
+  </svg>
+);
+
 const BLOCKCHAIN_OPTIONS = [
-  { value: 'ethereum', label: 'Ethereum', icon: 'Ξ' },
-  { value: 'solana', label: 'Solana', icon: '◎' },
-  { value: 'sui', label: 'Sui', icon: '~' },
+  { 
+    value: 'ethereum', 
+    label: 'Ethereum', 
+    icon: EthereumIcon,
+    color: '#627EEA',
+    gradient: 'linear-gradient(135deg, #627EEA 0%, #4E5FBF 100%)'
+  },
+  { 
+    value: 'solana', 
+    label: 'Solana', 
+    icon: SolanaIcon,
+    color: '#14F195',
+    gradient: 'linear-gradient(135deg, #14F195 0%, #9945FF 100%)'
+  },
+  { 
+    value: 'sui', 
+    label: 'Sui', 
+    icon: SuiIcon,
+    color: '#6FBCF0',
+    gradient: 'linear-gradient(135deg, #6FBCF0 0%, #4DA2D5 100%)'
+  },
 ];
 
 const WalletAnalyses = () => {
-  // FIXED: Benutze nur einen useWalletAnalysis Call!
   const {
     loading: analysisLoading,
     error: analysisError,
@@ -35,7 +75,7 @@ const WalletAnalyses = () => {
   });
   const [validationError, setValidationError] = useState('');
   const [serviceHealthy, setServiceHealthy] = useState(null);
-  const [recentAnalyses, setRecentAnalyses] = useState([]); // FIXED: Immer ein Array!
+  const [recentAnalyses, setRecentAnalyses] = useState([]);
 
   // Health-Check beim Mount
   useEffect(() => {
@@ -94,7 +134,6 @@ const WalletAnalyses = () => {
       });
 
       if (result.success) {
-        // Füge zur Recent Analyses hinzu
         const newAnalysis = {
           wallet_address: formData.wallet_address.trim(),
           chain: formData.blockchain,
@@ -104,8 +143,8 @@ const WalletAnalyses = () => {
           timestamp: new Date().toISOString(),
           stage: formData.stage,
           classifications: result.data.classifications,
-          risk_score: result.data.analysis.risk_score || 0, // FIXED: Sicherstellen
-          risk_flags: result.data.analysis.risk_flags || [], // FIXED: Immer Array!
+          risk_score: result.data.analysis.risk_score || 0,
+          risk_flags: result.data.analysis.risk_flags || [],
           balance: result.data.analysis.balance || 0,
           first_transaction: result.data.analysis.first_transaction || new Date().toISOString(),
           last_transaction: result.data.analysis.last_transaction || new Date().toISOString(),
@@ -115,7 +154,6 @@ const WalletAnalyses = () => {
 
         setRecentAnalyses(prev => [newAnalysis, ...prev.slice(0, 9)]);
         
-        // Formular zurücksetzen
         setFormData({
           wallet_address: '',
           blockchain: 'ethereum',
@@ -134,6 +172,11 @@ const WalletAnalyses = () => {
   const handleWalletClick = (wallet) => {
     console.log('🔍 Wallet clicked:', wallet);
     setSelectedWallet(wallet);
+  };
+
+  // Blockchain Config Helper
+  const getBlockchainConfig = (chain) => {
+    return BLOCKCHAIN_OPTIONS.find(opt => opt.value === chain) || BLOCKCHAIN_OPTIONS[0];
   };
 
   // Risiko-Score-Farbe
@@ -183,7 +226,17 @@ const WalletAnalyses = () => {
     <>
       <div className="wallet-analyses-container">
         <div className="section-header">
-          <h2 className="section-title">Wallet-Analysen</h2>
+          <div className="header-left">
+            <div className="title-wrapper">
+              <div className="wallet-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                </svg>
+              </div>
+              <h2 className="section-title">Wallet-Analysen</h2>
+            </div>
+            <p className="section-subtitle">Analysiere Blockchain-Wallets über Ethereum, Solana und Sui</p>
+          </div>
           <div className="header-actions">
             {serviceHealthy !== null && (
               <div className={`health-badge ${serviceHealthy ? 'healthy' : 'unhealthy'}`}>
@@ -229,7 +282,7 @@ const WalletAnalyses = () => {
                   >
                     {BLOCKCHAIN_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
-                        {opt.icon} {opt.label}
+                        {opt.label}
                       </option>
                     ))}
                   </select>
@@ -277,6 +330,11 @@ const WalletAnalyses = () => {
         {/* Empty State */}
         {recentAnalyses.length === 0 ? (
           <div className="no-wallets">
+            <div className="empty-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="64" height="64">
+                <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+              </svg>
+            </div>
             <p>Keine Wallet-Analysen verfügbar</p>
             <button onClick={() => setShowAnalyzeForm(true)} className="btn-primary">
               + Erste Wallet analysieren
@@ -290,6 +348,8 @@ const WalletAnalyses = () => {
                 label: wallet.wallet_type || 'Unknown',
                 color: '#818cf8',
               };
+              const blockchainConfig = getBlockchainConfig(wallet.chain);
+              const BlockchainIconComponent = blockchainConfig.icon;
 
               return (
                 <div
@@ -297,9 +357,16 @@ const WalletAnalyses = () => {
                   className="wallet-card"
                   onClick={() => handleWalletClick(wallet)}
                 >
+                  {/* Card Header */}
                   <div className="wallet-header">
-                    <div className="wallet-address">
-                      {maskWalletAddress(wallet.wallet_address)}
+                    <div className="blockchain-badge">
+                      <div 
+                        className="blockchain-icon"
+                        style={{ background: blockchainConfig.gradient }}
+                      >
+                        <BlockchainIconComponent />
+                      </div>
+                      <span className="blockchain-name">{blockchainConfig.label}</span>
                     </div>
                     <div
                       className="wallet-type"
@@ -313,12 +380,12 @@ const WalletAnalyses = () => {
                     </div>
                   </div>
 
-                  <div className="wallet-body">
-                    <div className="wallet-stat">
-                      <span className="stat-label">Blockchain:</span>
-                      <span className="stat-value">{wallet.chain?.toUpperCase() || 'N/A'}</span>
-                    </div>
+                  {/* Wallet Address */}
+                  <div className="wallet-address">
+                    {maskWalletAddress(wallet.wallet_address)}
+                  </div>
 
+                  <div className="wallet-body">
                     <div className="wallet-stat">
                       <span className="stat-label">Konfidenz:</span>
                       <span className="stat-value">
@@ -423,6 +490,29 @@ const WalletAnalyses = () => {
           gap: 1rem;
         }
 
+        .header-left {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .title-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .wallet-icon {
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(124, 58, 237, 0.1);
+          border-radius: 8px;
+          color: #7c3aed;
+        }
+
         .header-actions {
           display: flex;
           gap: 0.75rem;
@@ -448,7 +538,8 @@ const WalletAnalyses = () => {
 
         .btn-analyze,
         .btn-refresh,
-        .btn-submit {
+        .btn-submit,
+        .btn-primary {
           background: var(--color-primary, #7c3aed);
           color: white;
           border: none;
@@ -460,9 +551,16 @@ const WalletAnalyses = () => {
           transition: all 0.3s ease;
         }
 
+        .btn-primary {
+          padding: 1rem 2rem;
+          font-size: 1.1rem;
+          margin-top: 1rem;
+        }
+
         .btn-analyze:hover:not(:disabled),
         .btn-refresh:hover:not(:disabled),
-        .btn-submit:hover:not(:disabled) {
+        .btn-submit:hover:not(:disabled),
+        .btn-primary:hover:not(:disabled) {
           background: var(--color-primary-dark, #6d28d9);
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
@@ -470,7 +568,8 @@ const WalletAnalyses = () => {
 
         .btn-analyze:disabled,
         .btn-refresh:disabled,
-        .btn-submit:disabled {
+        .btn-submit:disabled,
+        .btn-primary:disabled {
           opacity: 0.5;
           cursor: not-allowed;
         }
@@ -521,16 +620,171 @@ const WalletAnalyses = () => {
           font-size: 0.75rem;
         }
 
-        .btn-primary {
-          background: var(--color-primary, #7c3aed);
-          color: white;
-          border: none;
-          padding: 1rem 2rem;
-          border-radius: 6px;
+        .no-wallets {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 4rem 2rem;
+          text-align: center;
+          background: var(--color-bg-tertiary, #16213e);
+          border-radius: 8px;
+          border: 1px solid var(--color-border, #2a2a3e);
+        }
+
+        .empty-icon {
+          margin-bottom: 1.5rem;
+          opacity: 0.5;
+        }
+
+        .wallet-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          gap: 1.5rem;
+        }
+
+        .wallet-card {
+          background: var(--color-bg-tertiary, #16213e);
+          border: 1px solid var(--color-border, #2a2a3e);
+          border-radius: 8px;
+          padding: 1.5rem;
           cursor: pointer;
-          font-size: 1.1rem;
+          transition: all 0.3s ease;
+        }
+
+        .wallet-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+          border-color: var(--color-primary, #7c3aed);
+        }
+
+        .wallet-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+
+        .blockchain-badge {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .blockchain-icon {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+        }
+
+        .blockchain-name {
+          font-size: 0.875rem;
           font-weight: 600;
+        }
+
+        .wallet-type {
+          padding: 0.25rem 0.75rem;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .wallet-address {
+          font-family: monospace;
+          font-size: 0.875rem;
+          margin-bottom: 1rem;
+          color: var(--color-text-secondary, #9ca3af);
+        }
+
+        .wallet-body {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .wallet-stat {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.875rem;
+        }
+
+        .stat-label {
+          color: var(--color-text-secondary, #9ca3af);
+        }
+
+        .stat-value {
+          font-weight: 600;
+        }
+
+        .wallet-risk {
+          margin-top: 0.5rem;
+        }
+
+        .risk-label {
+          font-size: 0.75rem;
+          color: var(--color-text-secondary, #9ca3af);
+          margin-bottom: 0.25rem;
+        }
+
+        .risk-bar {
+          height: 8px;
+          background: var(--color-bg-quaternary, #0f1419);
+          border-radius: 4px;
+          overflow: hidden;
+          margin-bottom: 0.25rem;
+        }
+
+        .risk-fill {
+          height: 100%;
+          border-radius: 4px;
+          transition: width 0.5s ease;
+        }
+
+        .risk-score-low {
+          background: #10b981;
+        }
+
+        .risk-score-medium {
+          background: #f59e0b;
+        }
+
+        .risk-score-high {
+          background: #ef4444;
+        }
+
+        .risk-value {
+          font-size: 0.75rem;
+          text-align: right;
+        }
+
+        .wallet-footer {
           margin-top: 1rem;
+          padding-top: 1rem;
+          border-top: 1px solid var(--color-border, #2a2a3e);
+        }
+
+        .risk-flags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+
+        .risk-flag {
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.75rem;
+        }
+
+        .risk-flag.more {
+          background: rgba(107, 114, 128, 0.1);
+          color: #9ca3af;
         }
 
         @media (max-width: 1024px) {
@@ -558,6 +812,10 @@ const WalletAnalyses = () => {
           }
 
           .form-row {
+            grid-template-columns: 1fr;
+          }
+
+          .wallet-grid {
             grid-template-columns: 1fr;
           }
         }
