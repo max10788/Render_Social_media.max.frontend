@@ -133,6 +133,52 @@ class WalletApiService {
       throw error;
     }
   }
+  /**
+   * Holt Wallet-Metadaten (Balance, First/Last Transaction)
+   * @param {string} walletAddress - Die Wallet-Adresse
+   * @param {string} blockchain - Die Blockchain
+   * @param {Array} transactions - Optional: Transaktions-Array
+   * @param {number} fetchLimit - Optional: Fetch-Limit
+   * @returns {Promise<Object>} Wallet-Metadaten
+   */
+  async getWalletMetadata({ 
+    walletAddress, 
+    blockchain, 
+    transactions = null,
+    fetchLimit = 100
+  }) {
+    try {
+      const body = {
+        wallet_address: walletAddress,
+        blockchain: blockchain,
+        fetch_limit: fetchLimit
+      };
+  
+      // Nur Transaktionen mitschicken wenn vorhanden
+      if (transactions && transactions.length > 0) {
+        body.transactions = transactions;
+      }
+  
+      const response = await fetch(`${API_BASE_URL}/wallet/metadata`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body)
+      });
+  
+      const result = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to get wallet metadata');
+      }
+  
+      return result;
+    } catch (error) {
+      console.error('Error getting wallet metadata:', error);
+      throw error;
+    }
+  }
 
   /**
    * Health-Check des Wallet-Services
