@@ -159,6 +159,31 @@ export const checkWalletServiceHealth = async () => {
 };
 
 /**
+ * Holt Wallet-Metadaten (Balance, First/Last Transaction)
+ * @param {Object} params - Parameter
+ * @param {string} params.wallet_address - Wallet-Adresse
+ * @param {string} params.blockchain - Blockchain (ethereum, solana, sui)
+ * @returns {Promise<Object>} Metadata-Ergebnis
+ */
+export const getWalletMetadata = async ({
+  wallet_address,
+  blockchain,
+}) => {
+  try {
+    const response = await walletApi.get('/metadata', {
+      params: {
+        wallet_address,
+        blockchain,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Wallet-Metadaten Abruf fehlgeschlagen:', error);
+    throw formatError(error);
+  }
+};
+
+/**
  * Formatiert Fehler für einheitliche Darstellung
  * @param {Error} error - Axios-Fehler
  * @returns {Object} Formatierter Fehler
@@ -263,6 +288,7 @@ export default {
   getTopMatches,
   batchAnalyzeWallets,
   checkWalletServiceHealth,
+  getWalletMetadata,
   isValidWalletAddress,
   maskWalletAddress,
   formatConfidence,
