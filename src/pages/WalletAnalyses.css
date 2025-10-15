@@ -738,3 +738,219 @@
     display: none;
   }
 }
+
+/* =========================
+   TWO-COLUMN LAYOUT - NEUE STYLES
+   Füge diese am Ende deiner WalletAnalyses.css hinzu
+   ========================= */
+
+/* ========== TWO-COLUMN GRID ========== */
+.wallet-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xl);
+  margin-top: var(--space-xl);
+}
+
+.wallet-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* ========== COLUMN HEADER ========== */
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  background: linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%);
+  border: 1px solid var(--color-border-accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.column-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-quaternary), var(--color-quinary));
+}
+
+.column-title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-bold);
+  margin: 0;
+  color: var(--color-text-primary);
+  background: linear-gradient(135deg, var(--color-quaternary), var(--color-quinary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.column-count {
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--color-primary);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  border: 1px solid var(--color-primary);
+  min-width: 32px;
+  text-align: center;
+}
+
+/* ========== SINGLE-COLUMN WALLET GRID ========== */
+.wallet-column .wallet-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* ========== STAT MODIFIERS ========== */
+.stat-mono {
+  font-family: var(--font-secondary);
+  font-size: var(--text-xs);
+  letter-spacing: -0.5px;
+}
+
+.stat-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+  display: block;
+}
+
+/* ========== BUTTON VARIATIONS ========== */
+.btn-primary-small {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: white;
+  border: none;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  margin-top: var(--space-sm);
+  transition: all var(--transition-normal);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.btn-primary-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4);
+}
+
+/* ========== EMPTY STATE SUBTITLE ========== */
+.empty-subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-xs);
+  font-style: italic;
+}
+
+/* ========== COLUMN-SPECIFIC NO-WALLETS ========== */
+.wallet-column .no-wallets {
+  min-height: 300px;
+  padding: var(--space-xl);
+}
+
+/* ========== RESPONSIVE FOR TWO-COLUMN ========== */
+@media (max-width: 1400px) {
+  .wallet-columns {
+    grid-template-columns: 1fr;
+    gap: var(--space-lg);
+  }
+  
+  .column-header {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .wallet-columns {
+    gap: var(--space-md);
+  }
+  
+  .column-header {
+    padding: var(--space-sm) var(--space-md);
+  }
+  
+  .column-title {
+    font-size: var(--text-md);
+  }
+  
+  .column-count {
+    font-size: var(--text-xs);
+    padding: 2px var(--space-sm);
+    min-width: 24px;
+  }
+  
+  .wallet-column .no-wallets {
+    min-height: 250px;
+    padding: var(--space-lg);
+  }
+  
+  .stat-ellipsis {
+    max-width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .column-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-xs);
+  }
+  
+  .column-count {
+    align-self: flex-end;
+  }
+}
+
+/* ========== PRINT STYLES FOR TWO-COLUMN ========== */
+@media print {
+  .wallet-columns {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+    page-break-inside: avoid;
+  }
+  
+  .column-header::before {
+    display: none;
+  }
+  
+  .btn-primary-small {
+    display: none;
+  }
+}
+
+/* ========== ACCESSIBILITY FOR TWO-COLUMN ========== */
+.column-header:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary-small {
+    transition: none;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .column-header {
+    border: 2px solid var(--color-text-primary);
+  }
+  
+  .column-count {
+    border: 2px solid var(--color-primary);
+  }
+}
