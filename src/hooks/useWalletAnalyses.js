@@ -1,10 +1,10 @@
-// src/hooks/useWalletAnalysis.js
 import { useState, useCallback } from 'react';
 import {
   analyzeWallet,
   getTopMatches,
   batchAnalyzeWallets,
   checkWalletServiceHealth,
+  getWalletMetadata, // NEU
 } from '../services/walletAnalysisService';
 
 /**
@@ -18,6 +18,7 @@ export const useWalletAnalysis = () => {
   const [topMatches, setTopMatches] = useState(null);
   const [batchResults, setBatchResults] = useState(null);
   const [healthStatus, setHealthStatus] = useState(null);
+  const [metadataResult, setMetadataResult] = useState(null); // NEU
 
   /**
    * Analysiert eine einzelne Wallet
@@ -119,6 +120,34 @@ export const useWalletAnalysis = () => {
   }, []);
 
   /**
+   * Holt Wallet-Metadaten (Balance, First/Last Transaction)
+   */
+  const fetchMetadata = useCallback(async (params) => {
+    setLoading(true);
+    setError(null);
+    setMetadataResult(null);
+
+    try {
+      const result = await getWalletMetadata(params);
+      
+      if (result.success) {
+        setMetadataResult(result.data);
+        return { success: true, data: result.data };
+      } else {
+        const errorMsg = result.error || 'Metadata-Abruf fehlgeschlagen';
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+    } catch (err) {
+      const errorMsg = err.error || 'Unerwarteter Fehler';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
    * Setzt alle States zurück
    */
   const reset = useCallback(() => {
@@ -127,6 +156,7 @@ export const useWalletAnalysis = () => {
     setAnalysisResult(null);
     setTopMatches(null);
     setBatchResults(null);
+    setMetadataResult(null); // NEU
   }, []);
 
   return {
@@ -137,12 +167,14 @@ export const useWalletAnalysis = () => {
     topMatches,
     batchResults,
     healthStatus,
+    metadataResult, // NEU
 
     // Funktionen
     analyze,
     fetchTopMatches,
     analyzeBatch,
     checkHealth,
+    fetchMetadata, // NEU
     reset,
   };
 };
