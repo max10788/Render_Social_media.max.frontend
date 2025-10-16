@@ -1,9 +1,9 @@
 /* =========================
-   CONTRACT RADAR PAGE - ELEGANTES DESIGN
+   CONTRACT RADAR PAGE - OPTIMIERTES 50/50 LAYOUT
    ========================= */
 
 .contract-radar-page {
-  max-width: 1600px;
+  max-width: 1800px;
   margin: 0 auto;
   padding: 2rem;
   color: #e2e8f0;
@@ -32,7 +32,7 @@
 }
 
 /* =========================
-   KOMBINierter RADAR-KASTEN
+   KOMBINierter RADAR-KASTEN - 50/50 AUFTEILUNG
    ========================= */
 
 .radar-container-box {
@@ -43,21 +43,22 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   margin-bottom: 3rem;
-  min-height: 700px;
+  min-height: 800px;
 }
 
-/* Linke Seite: Formular */
+/* Linke Seite: Formular - 50% */
 .radar-form-panel {
-  flex: 0 0 35%;
-  padding: 2rem;
+  flex: 1;
+  padding: 2.5rem;
   border-right: 1px solid rgba(100, 116, 139, 0.3);
   display: flex;
   flex-direction: column;
   background: rgba(15, 23, 42, 0.5);
+  overflow-y: auto;
 }
 
 .form-header {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
 
 .form-header h2 {
@@ -80,10 +81,32 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 2rem;
+}
+
+/* Eingabesektionen mit Überschriften */
+.input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.input-section h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #38bdf8;
+  margin: 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.input-row {
+  display: flex;
   gap: 1.5rem;
 }
 
 .input-group {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -334,7 +357,7 @@
   word-break: break-all;
 }
 
-/* Rechte Seite: Radar-Anzeige */
+/* Rechte Seite: Radar-Anzeige - 50% */
 .radar-display-panel {
   flex: 1;
   display: flex;
@@ -380,13 +403,94 @@
   gap: 0.25rem;
 }
 
-.radar-content {
+.radar-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.radar-main-content {
   flex: 1;
   padding: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+
+/* Zusätzliche Informationen unter dem Radar */
+.radar-additional-info {
+  display: flex;
+  border-top: 1px solid rgba(100, 116, 139, 0.3);
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.info-section {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.info-section:first-child {
+  border-right: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.info-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0 0 1rem 0;
+}
+
+.category-list,
+.activity-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.category-item,
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #cbd5e1;
+}
+
+.category-indicator,
+.activity-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.category-indicator.whales {
+  background-color: #ef4444;
+}
+
+.category-indicator.smart-money {
+  background-color: #10b981;
+}
+
+.category-indicator.retail {
+  background-color: #3b82f6;
+}
+
+.category-indicator.bots {
+  background-color: #8b5cf6;
+}
+
+.activity-indicator.buy {
+  background-color: #10b981;
+}
+
+.activity-indicator.sell {
+  background-color: #ef4444;
+}
+
+.activity-indicator.transfer {
+  background-color: #3b82f6;
 }
 
 /* Info-Bereich */
@@ -428,9 +532,10 @@
 }
 
 /* Responsive Design */
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .radar-container-box {
     flex-direction: column;
+    min-height: auto;
   }
   
   .radar-form-panel {
@@ -440,7 +545,7 @@
   }
   
   .radar-display-panel {
-    min-height: 500px;
+    min-height: 600px;
   }
 }
 
@@ -461,6 +566,11 @@
     font-size: 1.5rem;
   }
   
+  .input-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
   .action-buttons {
     flex-direction: column;
   }
@@ -478,8 +588,17 @@
     font-size: 1.5rem;
   }
   
-  .radar-content {
+  .radar-main-content {
     padding: 1rem;
+  }
+  
+  .radar-additional-info {
+    flex-direction: column;
+  }
+  
+  .info-section:first-child {
+    border-right: none;
+    border-bottom: 1px solid rgba(100, 116, 139, 0.3);
   }
 }
 
