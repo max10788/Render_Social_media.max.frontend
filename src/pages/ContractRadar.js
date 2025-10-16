@@ -78,9 +78,9 @@ const ContractRadar = () => {
         <p>Real-time tracking of small-cap token transactions by wallet category</p>
       </div>
 
-      {/* Kombinierter Kasten für Formular und Radar */}
+      {/* Kombinierter Kasten für Formular und Radar - 50/50 Aufteilung */}
       <div className="radar-container-box">
-        {/* Linke Seite: Eingabeformular */}
+        {/* Linke Seite: Eingabeformular - 50% */}
         <div className="radar-form-panel">
           <div className="form-header">
             <h2>📡 Radar Konfiguration</h2>
@@ -89,70 +89,74 @@ const ContractRadar = () => {
           
           <div className="form-content">
             {/* Contract Address Input */}
-            <div className="input-group">
-              <label htmlFor="contract-address">
-                <span className="label-icon">📄</span>
-                Contract-Adresse
-              </label>
-              <input
-                id="contract-address"
-                type="text"
-                className="contract-input"
-                placeholder="0x..."
-                value={contractAddress}
-                onChange={(e) => setContractAddress(e.target.value)}
-                disabled={isAnalyzing}
-              />
+            <div className="input-section">
+              <h3>Smart Contract Details</h3>
+              <div className="input-group">
+                <label htmlFor="contract-address">
+                  <span className="label-icon">📄</span>
+                  Contract-Adresse
+                </label>
+                <input
+                  id="contract-address"
+                  type="text"
+                  className="contract-input"
+                  placeholder="0x..."
+                  value={contractAddress}
+                  onChange={(e) => setContractAddress(e.target.value)}
+                  disabled={isAnalyzing}
+                />
+              </div>
             </div>
 
-            {/* Blockchain Selection */}
-            <div className="input-group">
-              <label htmlFor="blockchain-select">
-                <span className="label-icon">⛓️</span>
-                Blockchain
-              </label>
-              <select
-                id="blockchain-select"
-                className="select-input"
-                value={selectedBlockchain}
-                onChange={(e) => setSelectedBlockchain(e.target.value)}
-                disabled={isAnalyzing}
-              >
-                {blockchains.map(chain => (
-                  <option key={chain.value} value={chain.value}>
-                    {chain.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Blockchain und Timeframe Selection */}
+            <div className="input-section">
+              <h3>Analyse-Einstellungen</h3>
+              <div className="input-row">
+                <div className="input-group">
+                  <label htmlFor="blockchain-select">
+                    <span className="label-icon">⛓️</span>
+                    Blockchain
+                  </label>
+                  <select
+                    id="blockchain-select"
+                    className="select-input"
+                    value={selectedBlockchain}
+                    onChange={(e) => setSelectedBlockchain(e.target.value)}
+                    disabled={isAnalyzing}
+                  >
+                    {blockchains.map(chain => (
+                      <option key={chain.value} value={chain.value}>
+                        {chain.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Timeframe Selection */}
-            <div className="input-group">
-              <label htmlFor="timeframe-select">
-                <span className="label-icon">⏰</span>
-                Zeitraum
-              </label>
-              <select
-                id="timeframe-select"
-                className="select-input"
-                value={selectedTimeframe}
-                onChange={(e) => setSelectedTimeframe(e.target.value)}
-                disabled={isAnalyzing}
-              >
-                {timeframes.map(tf => (
-                  <option key={tf.value} value={tf.value}>
-                    {tf.label}
-                  </option>
-                ))}
-              </select>
+                <div className="input-group">
+                  <label htmlFor="timeframe-select">
+                    <span className="label-icon">⏰</span>
+                    Zeitraum
+                  </label>
+                  <select
+                    id="timeframe-select"
+                    className="select-input"
+                    value={selectedTimeframe}
+                    onChange={(e) => setSelectedTimeframe(e.target.value)}
+                    disabled={isAnalyzing}
+                  >
+                    {timeframes.map(tf => (
+                      <option key={tf.value} value={tf.value}>
+                        {tf.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Stage Selection */}
-            <div className="input-group">
-              <label>
-                <span className="label-icon">🎯</span>
-                Analyse-Tiefe
-              </label>
+            <div className="input-section">
+              <h3>Analyse-Tiefe</h3>
               <div className="stage-selector">
                 {stages.map(stage => (
                   <div
@@ -229,7 +233,7 @@ const ContractRadar = () => {
           </div>
         </div>
 
-        {/* Rechte Seite: Radar-Anzeige */}
+        {/* Rechte Seite: Radar-Anzeige - 50% */}
         <div className="radar-display-panel">
           <div className="radar-header">
             <h2>Live Radar</h2>
@@ -241,8 +245,54 @@ const ContractRadar = () => {
               )}
             </div>
           </div>
-          <div className="radar-content">
-            <Radar config={radarConfig} />
+          
+          <div className="radar-content-wrapper">
+            <div className="radar-main-content">
+              <Radar config={radarConfig} />
+            </div>
+            
+            {/* Zusätzliche Informationen unter dem Radar */}
+            <div className="radar-additional-info">
+              <div className="info-section">
+                <h3>Wallet-Kategorien</h3>
+                <div className="category-list">
+                  <div className="category-item">
+                    <div className="category-indicator whales"></div>
+                    <span>Whales</span>
+                  </div>
+                  <div className="category-item">
+                    <div className="category-indicator smart-money"></div>
+                    <span>Smart Money</span>
+                  </div>
+                  <div className="category-item">
+                    <div className="category-indicator retail"></div>
+                    <span>Retail</span>
+                  </div>
+                  <div className="category-item">
+                    <div className="category-indicator bots"></div>
+                    <span>Bots</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="info-section">
+                <h3>Aktivitäts-Typen</h3>
+                <div className="activity-list">
+                  <div className="activity-item">
+                    <div className="activity-indicator buy"></div>
+                    <span>Kauf</span>
+                  </div>
+                  <div className="activity-item">
+                    <div className="activity-indicator sell"></div>
+                    <span>Verkauf</span>
+                  </div>
+                  <div className="activity-item">
+                    <div className="activity-indicator transfer"></div>
+                    <span>Transfer</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
