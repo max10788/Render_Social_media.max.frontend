@@ -11,12 +11,12 @@
   color: #94a3b8;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  min-height: 600px;
+  min-height: 500px;
 }
 
 .radar-container::before {
@@ -63,6 +63,12 @@
 
 .time-range-select, .category-select {
   background: rgba(15, 23, 42, 0.8);
+
+
+
+
+
+
   border: 1px solid rgba(100, 116, 139, 0.3);
   color: #94a3b8;
   padding: 0.4rem 0.75rem;
@@ -77,6 +83,12 @@
 .time-range-select option, .category-select option {
   background: #1e293b;
   color: #94a3b8;
+
+
+
+
+
+
 }
 
 .time-range-select:focus, .category-select:focus {
@@ -112,6 +124,8 @@
   height: 24px;
   border-radius: 4px;
   cursor: pointer;
+
+
   display: flex;
   align-items: center;
   justify-content: center;
@@ -122,10 +136,13 @@
 .zoom-btn:hover {
   background: rgba(56, 189, 248, 0.1);
   color: #38bdf8;
+
+
 }
 
 .zoom-level {
   font-size: 0.75rem;
+
   color: #64748b;
   min-width: 40px;
   text-align: center;
@@ -166,22 +183,32 @@
 /* RADAR-ELEMENTE */
 .radar-circle {
   fill: none;
-  stroke: rgba(100, 116, 139, 0.3);
-  stroke-width: 0.5;
-  opacity: 0.5;
+  stroke: rgba(100, 116, 139, 0.4);
+  stroke-width: 1;
+  opacity: 0.6;
+
+
+
 }
 
 .radar-line, .radial-line {
-  stroke: rgba(100, 116, 139, 0.25);
-  stroke-width: 0.3;
+  stroke: rgba(100, 116, 139, 0.35);
+  stroke-width: 0.5;
   stroke-dasharray: 2, 4;
-  opacity: 0.3;
+  opacity: 0.5;
 }
 
 .radial-line:nth-child(4n) {
-  stroke-width: 0.5;
-  opacity: 0.5;
+  stroke-width: 0.7;
+  opacity: 0.6;
   stroke-dasharray: none;
+
+
+
+
+
+
+
 }
 
 /* SCAN-STRAHL */
@@ -215,6 +242,8 @@
 .radar-cluster circle {
   stroke: rgba(129, 140, 248, 0.5);
   stroke-width: 1;
+
+
 }
 
 .radar-cluster:hover circle {
@@ -227,20 +256,33 @@
 .central-contract-point {
   cursor: pointer;
   transition: transform 0.3s ease;
+
+
 }
 
 .central-contract-point:hover {
   transform: scale(1.15);
+
+
+
+
+
+
+
+
 }
 
 .central-contract-circle {
   filter: drop-shadow(0 0 8px #10b981);
   stroke: rgba(129, 140, 248, 0.8);
   stroke-width: 1.5;
+
 }
 
 .central-contract-pulse {
   animation: elegantPulse 3s infinite ease-in-out;
+
+
 }
 
 @keyframes elegantPulse {
@@ -330,6 +372,7 @@
 
 .detail-value {
   color: #94a3b8;
+
   font-size: 0.85rem;
   font-weight: 500;
 }
@@ -347,6 +390,7 @@
 }
 
 .legend-section {
+
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -356,9 +400,16 @@
   margin: 0;
   font-size: 0.75rem;
   color: #64748b;
+
+
   font-weight: 600;
   padding-bottom: 0.25rem;
   border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+
+
+
+
+
 }
 
 .legend-items {
@@ -423,6 +474,7 @@
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid rgba(100, 116, 139, 0.3);
+
 }
 
 .token-header h3 {
@@ -444,6 +496,12 @@
 
 .token-header button:hover {
   color: #ef4444;
+
+
+
+
+
+
 }
 
 /* STATISTICS */
@@ -465,17 +523,21 @@
 }
 
 .stat span:first-child {
+
   font-size: 0.7rem;
   color: #64748b;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+
 }
 
 .stat span:last-child {
   font-weight: 600;
   color: #94a3b8;
   font-size: 0.8rem;
+
+
 }
 
 .stat .positive {
@@ -513,12 +575,15 @@
   border: 1px solid rgba(100, 116, 139, 0.15);
   align-items: center;
   transition: all 0.3s ease;
+
+
 }
 
 .transaction-item:hover {
   border-color: rgba(56, 189, 248, 0.25);
   background: rgba(30, 41, 59, 0.6);
   transform: translateX(2px);
+
 }
 
 .tx-type {
@@ -605,12 +670,17 @@
   padding: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
+
+
+
 }
 
 .wallet-card:hover {
   border-color: rgba(56, 189, 248, 0.3);
   transform: translateY(-2px);
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+
+
 }
 
 .wallet-header {
@@ -631,15 +701,19 @@
 .wallet-type {
   font-size: 0.75rem;
   font-weight: 600;
+
+
 }
 
 .wallet-body {
+
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
 .wallet-stat {
+
   display: flex;
   justify-content: space-between;
   font-size: 0.8rem;
@@ -652,6 +726,8 @@
 .stat-value {
   color: #94a3b8;
   font-weight: 500;
+
+
 }
 
 .wallet-risk {
@@ -708,6 +784,8 @@
   background: rgba(100, 116, 139, 0.1);
   color: #64748b;
   border-color: rgba(100, 116, 139, 0.2);
+
+
 }
 
 /* LOADING UND ERROR STATES */
@@ -735,6 +813,7 @@
 .transaction-list::-webkit-scrollbar,
 .wallet-analyses-container::-webkit-scrollbar {
   width: 6px;
+
 }
 
 .transaction-list::-webkit-scrollbar-track,
@@ -747,6 +826,21 @@
 .wallet-analyses-container::-webkit-scrollbar-thumb {
   background: rgba(100, 116, 139, 0.4);
   border-radius: 3px;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 .transaction-list::-webkit-scrollbar-thumb:hover,
@@ -760,10 +854,22 @@
     padding: 1rem;
     min-height: 500px;
   }
-  
+
   .wallet-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
+
+
+
+
+
+
+
+
+
+
+
+
   }
 }
 
@@ -772,40 +878,43 @@
     padding: 0.75rem;
     min-height: 400px;
   }
-  
+
   .radar-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .radar-header h2 {
     font-size: 1.1rem;
   }
-  
+
   .radar-controls {
+
     width: 100%;
     justify-content: space-between;
   }
-  
+
   .combined-legend {
     grid-template-columns: 1fr;
   }
-  
+
   .token-stats {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   .transaction-item {
     grid-template-columns: 60px 1fr 70px;
   }
-  
+
   .tx-time {
     display: none;
+
   }
-  
+
   .wallet-grid {
     grid-template-columns: 1fr;
+
   }
 }
 
@@ -813,25 +922,29 @@
   .radar-container {
     padding: 0.5rem;
     min-height: 350px;
+
+
+
   }
-  
+
   .radar-header h2 {
     font-size: 1rem;
   }
-  
+
   .radar-controls {
     flex-direction: column;
     gap: 0.5rem;
+
   }
-  
+
   .time-range-select, .category-select {
     width: 100%;
   }
-  
+
   .radar-display {
     min-height: 300px;
   }
-  
+
   .token-stats {
     grid-template-columns: 1fr;
   }
