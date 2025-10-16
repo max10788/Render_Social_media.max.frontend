@@ -5,9 +5,12 @@ import { useWalletAnalysis } from '../../hooks/useWalletAnalyses';
 import { WALLET_CATEGORIES, WALLET_TYPES } from '../../services/tokenDiscovery';
 import WalletDetail from './WalletDetail';
 
-const Radar = () => {
-  const { radarData, wallets, loading, error, timeRange, setTimeRange } = useCryptoTracker();
-  const { analysisResult, loading: walletsLoading } = useWalletAnalysis(); // Korrigierte Destrukturierung
+const Radar = ({ config }) => {
+  // Verwende die Konfiguration aus den Props, falls vorhanden
+  const effectiveConfig = config || {};
+  
+  const { radarData, wallets, loading, error, timeRange, setTimeRange } = useCryptoTracker(effectiveConfig);
+  const { analysisResult, loading: walletsLoading } = useWalletAnalysis(effectiveConfig);
   
   // Zustände für den Smart Contract
   const [showContractDetails, setShowContractDetails] = useState(false);
