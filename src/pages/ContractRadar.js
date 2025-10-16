@@ -6,9 +6,7 @@ import ScanJobs from './ScanJobs';
 import './ContractRadar.css';
 
 const ContractRadar = () => {
-  const [activeTab, setActiveTab] = useState('radar');
-  
-  // Neue States für Benutzereingaben
+  // States für Benutzereingaben
   const [contractAddress, setContractAddress] = useState('');
   const [selectedBlockchain, setSelectedBlockchain] = useState('ethereum');
   const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
@@ -80,17 +78,21 @@ const ContractRadar = () => {
         <p>Real-time tracking of small-cap token transactions by wallet category</p>
       </div>
 
-      {/* Interaktives Eingabeformular */}
-      <div className="radar-input-panel">
-        <div className="input-section">
-          <h3>📡 Radar Konfiguration</h3>
+      {/* Kombinierter Kasten für Formular und Radar */}
+      <div className="radar-container-box">
+        {/* Linke Seite: Eingabeformular */}
+        <div className="radar-form-panel">
+          <div className="form-header">
+            <h2>📡 Radar Konfiguration</h2>
+            <p>Passe die Analyseparameter an und starte die Überwachung</p>
+          </div>
           
-          <div className="input-grid">
+          <div className="form-content">
             {/* Contract Address Input */}
-            <div className="input-group full-width">
+            <div className="input-group">
               <label htmlFor="contract-address">
                 <span className="label-icon">📄</span>
-                Contract-Adresse (TX Hash)
+                Contract-Adresse
               </label>
               <input
                 id="contract-address"
@@ -146,7 +148,7 @@ const ContractRadar = () => {
             </div>
 
             {/* Stage Selection */}
-            <div className="input-group full-width">
+            <div className="input-group">
               <label>
                 <span className="label-icon">🎯</span>
                 Analyse-Tiefe
@@ -167,100 +169,82 @@ const ContractRadar = () => {
                 ))}
               </div>
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="action-buttons">
-            <button
-              className="btn-primary"
-              onClick={handleStartAnalysis}
-              disabled={isAnalyzing || !contractAddress.trim()}
-            >
-              {isAnalyzing ? (
-                <>
-                  <span className="spinner"></span>
-                  Analysiere...
-                </>
-              ) : (
-                <>
-                  <span>🚀</span>
-                  Analyse starten
-                </>
-              )}
-            </button>
-            
-            {radarConfig && (
+            {/* Action Buttons */}
+            <div className="action-buttons">
               <button
-                className="btn-secondary"
-                onClick={handleReset}
-                disabled={isAnalyzing}
+                className="btn-primary"
+                onClick={handleStartAnalysis}
+                disabled={isAnalyzing || !contractAddress.trim()}
               >
-                <span>🔄</span>
-                Zurücksetzen
+                {isAnalyzing ? (
+                  <>
+                    <span className="spinner"></span>
+                    Analysiere...
+                  </>
+                ) : (
+                  <>
+                    <span>🚀</span>
+                    Analyse starten
+                  </>
+                )}
               </button>
-            )}
-          </div>
+              
+              {radarConfig && (
+                <button
+                  className="btn-secondary"
+                  onClick={handleReset}
+                  disabled={isAnalyzing}
+                >
+                  <span>🔄</span>
+                  Zurücksetzen
+                </button>
+              )}
+            </div>
 
-          {/* Current Configuration Display */}
-          {radarConfig && (
-            <div className="current-config">
-              <h4>📊 Aktuelle Konfiguration:</h4>
-              <div className="config-details">
-                <div className="config-item">
-                  <span className="config-label">Contract:</span>
-                  <span className="config-value">{radarConfig.contractAddress}</span>
-                </div>
-                <div className="config-item">
-                  <span className="config-label">Blockchain:</span>
-                  <span className="config-value">{blockchains.find(b => b.value === radarConfig.blockchain)?.label}</span>
-                </div>
-                <div className="config-item">
-                  <span className="config-label">Zeitraum:</span>
-                  <span className="config-value">{timeframes.find(t => t.value === radarConfig.timeframe)?.label}</span>
-                </div>
-                <div className="config-item">
-                  <span className="config-label">Stage:</span>
-                  <span className="config-value">Stage {radarConfig.stage}</span>
+            {/* Current Configuration Display */}
+            {radarConfig && (
+              <div className="current-config">
+                <h4>📊 Aktuelle Konfiguration:</h4>
+                <div className="config-details">
+                  <div className="config-item">
+                    <span className="config-label">Contract:</span>
+                    <span className="config-value">{radarConfig.contractAddress}</span>
+                  </div>
+                  <div className="config-item">
+                    <span className="config-label">Blockchain:</span>
+                    <span className="config-value">{blockchains.find(b => b.value === radarConfig.blockchain)?.label}</span>
+                  </div>
+                  <div className="config-item">
+                    <span className="config-label">Zeitraum:</span>
+                    <span className="config-value">{timeframes.find(t => t.value === radarConfig.timeframe)?.label}</span>
+                  </div>
+                  <div className="config-item">
+                    <span className="config-label">Stage:</span>
+                    <span className="config-value">Stage {radarConfig.stage}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Tab Navigation */}
-      <div className="tab-navigation">
-        <button 
-          className={`tab-button ${activeTab === 'radar' ? 'active' : ''}`}
-          onClick={() => setActiveTab('radar')}
-        >
-          📡 Radar
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'tokens' ? 'active' : ''}`}
-          onClick={() => setActiveTab('tokens')}
-        >
-          🪙 Tokens
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'wallets' ? 'active' : ''}`}
-          onClick={() => setActiveTab('wallets')}
-        >
-          👛 Wallets
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'scans' ? 'active' : ''}`}
-          onClick={() => setActiveTab('scans')}
-        >
-          🔍 Scans
-        </button>
-      </div>
-      
-      <div className="tab-content">
-        {activeTab === 'radar' && <Radar config={radarConfig} />}
-        {activeTab === 'tokens' && <TokenOverview />}
-        {activeTab === 'wallets' && <WalletAnalyses />}
-        {activeTab === 'scans' && <ScanJobs />}
+        {/* Rechte Seite: Radar-Anzeige */}
+        <div className="radar-display-panel">
+          <div className="radar-header">
+            <h2>Live Radar</h2>
+            <div className="radar-status">
+              {radarConfig ? (
+                <span className="status-active">● Aktiv</span>
+              ) : (
+                <span className="status-inactive">● Bereit</span>
+              )}
+            </div>
+          </div>
+          <div className="radar-content">
+            <Radar config={radarConfig} />
+          </div>
+        </div>
       </div>
       
       <div className="radar-info">
