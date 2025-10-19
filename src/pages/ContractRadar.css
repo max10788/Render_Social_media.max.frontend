@@ -305,15 +305,15 @@
 .radar-content-area {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 0;
   overflow: hidden;
   position: relative;
+  background: #1a2332;
 }
 
-/* RADAR DISPLAY CONTAINER - FESTE GRÖßE */
+/* RADAR DISPLAY CONTAINER - FESTE GRÖßE UND ZENTRIERT */
 .radar-display-container {
   width: 600px;
   height: 600px;
@@ -323,14 +323,13 @@
     transparent 70%
   );
   border-radius: 50%;
-  border: 1px solid rgba(100, 116, 139, 0.1);
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 
-    0 0 80px rgba(56, 189, 248, 0.1),
-    inset 0 0 80px rgba(56, 189, 248, 0.05);
+    0 0 80px rgba(56, 189, 248, 0.05),
+    inset 0 0 60px rgba(56, 189, 248, 0.03);
 }
 
 /* RADAR STATUS BADGE */
