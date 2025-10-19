@@ -496,14 +496,26 @@
 
 @media (max-width: 1200px) {
   .radar-main-layout {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
   }
   
   .radar-sidebar {
-    width: 100%;
-    max-height: 400px;
+    grid-column: 1;
+    grid-row: 1;
+    max-height: 350px;
     border-right: none;
     border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+  }
+  
+  .radar-content-area {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  
+  .radar-legend-bottom {
+    grid-column: 1;
+    grid-row: 3;
   }
   
   .radar-display-container {
@@ -518,7 +530,7 @@
   }
   
   .radar-sidebar {
-    max-height: 350px;
+    max-height: 300px;
   }
   
   .radar-display-container {
@@ -526,15 +538,15 @@
     height: 350px;
   }
   
-  .radar-controls-top {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
   .radar-legend-bottom {
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.625rem 1rem;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .legend-group {
+    width: 100%;
+    justify-content: center;
   }
 }
 
@@ -550,5 +562,9 @@
   
   .sidebar-content {
     padding: 1rem;
+  }
+  
+  .legend-items {
+    justify-content: center;
   }
 }
