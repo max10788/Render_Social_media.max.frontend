@@ -238,10 +238,12 @@ const ContractRadar = () => {
             )}
           </div>
 
-          {/* Radar Display mit fester Größe */}
+          {/* Radar Display mit fester Größe - OHNE störende Elemente */}
           <div className="radar-display-container">
             <Radar config={radarConfig} />
           </div>
+          
+          {/* KEINE zusätzlichen Boxen oder Info-Panels hier! */}
         </main>
       </div>
       
