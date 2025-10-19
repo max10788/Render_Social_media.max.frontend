@@ -28,7 +28,6 @@ const Radar = ({ config }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [tooltip, setTooltip] = useState(null);
   const [hoveredPoint, setHoveredPoint] = useState(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
   const [scanAngle, setScanAngle] = useState(0);
   
   const radarRef = useRef(null);
@@ -108,23 +107,12 @@ const Radar = ({ config }) => {
     return sizes[activityType] || 2;
   };
   
-  // Dynamische SVG-Größe basierend auf der Anzahl der Punkte
-  const getSvgDimensions = () => {
-    const totalPoints = radarData.reduce((sum, tokenData) => 
-      sum + filterTransactions(tokenData.transactions).length, 0);
-    
-    // Reduzierte Basisgröße für eine kompaktere Darstellung
-    const baseSize = 80;
-    const maxSize = 120;
-    const sizeIncrement = Math.min(totalPoints / 10, 2);
-    return Math.min(baseSize + sizeIncrement * 25, maxSize);
-  };
-  
-  const svgSize = getSvgDimensions();
+  // FESTE SVG-Größe - nicht mehr dynamisch
+  const svgSize = 500;
   const center = svgSize / 2;
   
-  // Radius des äußeren Rings - der Scan-Strahl soll genau bis hier reichen
-  const outerRadius = center * 0.95; // 95% des maximal möglichen Radius
+  // Radius des äußeren Rings
+  const outerRadius = center * 0.95;
   
   // Animation für den Scan-Strahl
   useEffect(() => {
@@ -142,7 +130,7 @@ const Radar = ({ config }) => {
     };
   }, []);
   
-  // Berechne die Endpunkte des Scan-Strahls basierend auf dem aktuellen Winkel
+  // Berechne die Endpunkte des Scan-Strahls
   const calculateScanEndPoint = (angle, radius) => {
     const rad = angle * (Math.PI / 180);
     return {
@@ -157,34 +145,29 @@ const Radar = ({ config }) => {
     let durationInMs;
     switch (timeRange) {
       case '1h':
-        durationInMs = 60 * 60 * 1000; // 1 Stunde in ms
+        durationInMs = 60 * 60 * 1000;
         break;
       case '6h':
-        durationInMs = 6 * 60 * 60 * 1000; // 6 Stunden in ms
+        durationInMs = 6 * 60 * 60 * 1000;
         break;
       case '24h':
-        durationInMs = 24 * 60 * 60 * 1000; // 24 Stunden in ms
+        durationInMs = 24 * 60 * 60 * 1000;
         break;
       default:
-        durationInMs = 60 * 60 * 1000; // Standard: 1 Stunde
+        durationInMs = 60 * 60 * 1000;
     }
     return new Date(now.getTime() - durationInMs);
   };
   
-  // Berechne die Position für Wallets basierend auf Zeitstempel und Volumen
+  // Berechne die Position für Wallets
   const calculateWalletPosition = (wallet, startTime, currentTime, maxVolume) => {
-    // Zeitstempel bestimmt den Winkel (ältere Interaktionen links, neuere rechts)
     const walletTime = new Date(wallet.timestamp);
     const timeDiff = walletTime.getTime() - startTime.getTime();
     const totalDuration = currentTime.getTime() - startTime.getTime();
     
-    // Berechne die Position des Wallets im Zeitintervall (0 bis 1)
     const timeRatio = Math.min(Math.max(timeDiff / totalDuration, 0), 1);
-    
-    // Wandle den Anteil in einen Winkel um (0 bis 2π)
     const angle = timeRatio * 2 * Math.PI;
     
-    // Volumen bestimmt den Abstand vom Zentrum
     const volumeRatio = maxVolume > 0 ? wallet.volume / maxVolume : 0;
     const radius = center * 0.2 + volumeRatio * (outerRadius - center * 0.2);
     
@@ -194,32 +177,26 @@ const Radar = ({ config }) => {
     };
   };
   
-  // Verbesserte Positionsberechnung mit größerem Abstand zwischen Ringen
+  // Verbesserte Positionsberechnung
   const calculatePosition = (transaction, index, total, tokenIndex) => {
-    // Verteilung auf mehrere Ringe basierend auf dem Token
-    const ringCount = 4; // Erhöhte Anzahl der Ringe für bessere Verteilung
+    const ringCount = 4;
     const ringIndex = tokenIndex % ringCount;
     
-    // Erhöhte Basis-Radius für jeden Ring mit mehr Abstand
-    const baseRadius = (center * 0.2) + (ringIndex * (center * 0.2)); // Größere Abstände
+    const baseRadius = (center * 0.2) + (ringIndex * (center * 0.2));
     
-    // Winkelberechnung mit mehr Abstand zwischen den Punkten
     const angleStep = (2 * Math.PI) / Math.max(total / ringCount, 1);
     const angle = (index % Math.max(total / ringCount, 1)) * angleStep;
     
-    // Zeitfaktor für die Position innerhalb des Rings
     const timeFactor = (transaction.timestamp - radarData[0]?.timeRange.start) / 
                       (radarData[0]?.timeRange.end - radarData[0]?.timeRange.start);
     const radiusOffset = timeFactor * (center * 0.1);
     
     const distance = baseRadius + radiusOffset;
     
-    // Berechne Position mit etwas mehr Abstand für die Labels
     const pointX = center + Math.cos(angle) * distance;
     const pointY = center + Math.sin(angle) * distance;
     
-    // Berechne Label-Position mit Offset, um Überlappungen zu reduzieren
-    const labelDistance = distance + (svgSize * 0.08); // Mehr Abstand für Labels
+    const labelDistance = distance + (svgSize * 0.08);
     const labelX = center + Math.cos(angle) * labelDistance;
     const labelY = center + Math.sin(angle) * labelDistance;
     
@@ -229,12 +206,11 @@ const Radar = ({ config }) => {
     };
   };
   
-  // Cluster-Erkennung für Punkte, die zu nah beieinander liegen
+  // Cluster-Erkennung
   const detectClusters = (transactions) => {
     const clusters = [];
-    const threshold = svgSize * 0.05; // Schwellenwert für Cluster-Bildung
+    const threshold = svgSize * 0.05;
     
-    // Alle Punkte durchgehen und Cluster bilden
     for (let i = 0; i < transactions.length; i++) {
       if (transactions[i].clustered) continue;
       
@@ -262,21 +238,13 @@ const Radar = ({ config }) => {
     return clusters;
   };
   
-  // Zoom-Funktion
-  const handleZoom = (direction) => {
-    setZoomLevel(prev => {
-      const newZoom = direction === 'in' ? prev * 1.2 : prev / 1.2;
-      return Math.max(0.8, Math.min(2.5, newZoom)); // Begrenzung des Zooms
-    });
-  };
-  
-  // Formatieren von Adressen (gekürzt darstellen)
+  // Formatieren von Adressen
   const formatAddress = (address) => {
     if (!address) return '';
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
   
-  // Risiko-Score-Farbe bestimmen
+  // Risiko-Score-Farbe
   const getRiskColor = (score) => {
     if (score < 30) return '#10b981';
     if (score < 70) return '#f59e0b';
@@ -286,22 +254,22 @@ const Radar = ({ config }) => {
   if (loading) return <div className="radar-loading">Loading radar data...</div>;
   if (error) return <div className="radar-error">Error: {error}</div>;
   
-  // Berechne die Startzeit und aktuelle Zeit basierend auf dem gewählten Zeitintervall
+  // Berechne die Startzeit und aktuelle Zeit
   const startTime = getStartTime();
   const currentTime = new Date();
   
-  // Filtere die Wallets, die im gewählten Zeitintervall liegen
+  // Filtere die Wallets
   const filteredWallets = wallets.filter(wallet => {
     const walletTime = new Date(wallet.timestamp);
     return walletTime >= startTime && walletTime <= currentTime;
   });
   
-  // Berechne das maximale Volumen für die gefilterten Wallets
+  // Berechne das maximale Volumen
   const maxVolume = filteredWallets.length > 0 
     ? Math.max(...filteredWallets.map(w => w.volume))
     : 1;
   
-  // Alle Transaktionen mit Positionen sammeln
+  // Alle Transaktionen mit Positionen
   const allTransactions = radarData.flatMap((tokenData, tokenIndex) =>
     filterTransactions(tokenData.transactions).map(tx => ({
       ...tx,
@@ -316,51 +284,20 @@ const Radar = ({ config }) => {
   // Nicht geclusterte Punkte
   const nonClusteredPoints = allTransactions.filter(tx => !tx.clustered);
   
-  // Berechne Endpunkt für den Haupt-Scan-Strahl - jetzt bis zum äußeren Rand
+  // Endpunkt für den Haupt-Scan-Strahl
   const mainScanEndPoint = calculateScanEndPoint(scanAngle, outerRadius);
   
-  // Anzahl der radialen Linien (12 Linien = alle 30°)
+  // Anzahl der radialen Linien
   const numRadialLines = 12;
   
   return (
     <>
       <div className="radar-container">
-        <div className="radar-header">
-          <h2>Smart Contract Radar</h2>
-          <div className="radar-controls">
-            <select 
-              value={timeRange} 
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="time-range-select"
-            >
-              <option value="1h">Last Hour</option>
-              <option value="6h">Last 6 Hours</option>
-              <option value="24h">Last 24 Hours</option>
-            </select>
-            
-            <select 
-              value={selectedCategory} 
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="category-select"
-            >
-              <option value="all">All Wallets</option>
-              {Object.entries(WALLET_CATEGORIES).map(([key, cat]) => (
-                <option key={key} value={key}>{cat.label}</option>
-              ))}
-            </select>
-            
-            {/* Zoom-Controls */}
-            <div className="zoom-controls">
-              <button onClick={() => handleZoom('out')} className="zoom-btn">-</button>
-              <span className="zoom-level">{Math.round(zoomLevel * 100)}%</span>
-              <button onClick={() => handleZoom('in')} className="zoom-btn">+</button>
-            </div>
-          </div>
-        </div>
+        {/* HEADER ENTFERNT - wird durch Sidebar ersetzt */}
         
         <div className="radar-display" ref={radarRef}>
           <svg viewBox={`0 0 ${svgSize} ${svgSize}`} className="radar-svg" preserveAspectRatio="xMidYMid meet">
-            {/* Glow-Filter für den Schweif-Effekt */}
+            {/* Glow-Filter */}
             <defs>
               <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur stdDeviation="2" result="blur" />
@@ -374,7 +311,7 @@ const Radar = ({ config }) => {
               </linearGradient>
             </defs>
             
-            {/* Radar Grid - mit größeren Abständen zwischen den Ringen */}
+            {/* Radar Ringe */}
             {[...Array(5)].map((_, i) => {
               const radius = (svgSize / 5) * (i + 1);
               return (
@@ -382,7 +319,7 @@ const Radar = ({ config }) => {
               );
             })}
             
-            {/* Radar Lines - angepasst an die dynamische Größe */}
+            {/* Radar Hauptlinien */}
             {[0, 45, 90, 135].map(angle => {
               const endPoint = calculateScanEndPoint(angle, outerRadius);
               return (
@@ -392,7 +329,7 @@ const Radar = ({ config }) => {
               );
             })}
             
-            {/* Radiale Linien (Speichen) - alle 30° */}
+            {/* Radiale Linien (Speichen) */}
             {[...Array(numRadialLines)].map((_, i) => {
               const angle = (i / numRadialLines) * 360;
               const endPoint = calculateScanEndPoint(angle, outerRadius);
@@ -414,7 +351,7 @@ const Radar = ({ config }) => {
                 cx={center} 
                 cy={center} 
                 r={8} 
-                fill="#00ff00" 
+                fill="#10b981" 
                 stroke="#fff" 
                 strokeWidth="2"
                 className="central-contract-circle"
@@ -424,15 +361,14 @@ const Radar = ({ config }) => {
                 cy={center} 
                 r={12} 
                 fill="none" 
-                stroke="#00ff00" 
+                stroke="#10b981" 
                 strokeWidth="1"
                 strokeOpacity="0.5"
                 className="central-contract-pulse"
               />
             </g>
             
-            {/* Sweep Animation mit Schweif-Effekt - angepasst an die dynamische Größe */}
-            {/* Haupt-Scan-Strahl - verlängert bis zum äußeren Rand */}
+            {/* Haupt-Scan-Strahl */}
             <line 
               x1={center} 
               y1={center} 
@@ -442,11 +378,10 @@ const Radar = ({ config }) => {
               filter="url(#glow)"
             />
             
-            {/* Schweif-Effekt - mehrere Linien mit abnehmender Opazität */}
+            {/* Schweif-Effekt */}
             {[...Array(5)].map((_, i) => {
               const opacity = 0.3 - (i * 0.05);
-              const trailAngle = scanAngle - (i * 2); // Winkelversatz für den Schweif
-              // Der Schweif soll ebenfalls bis zum äußeren Rand reichen
+              const trailAngle = scanAngle - (i * 2);
               const trailEndPoint = calculateScanEndPoint(trailAngle, outerRadius);
               
               return (
@@ -483,34 +418,18 @@ const Radar = ({ config }) => {
                       filter: isHovered ? 'drop-shadow(0 0 5px currentColor)' : 'none'
                     }}
                   />
-                  {/* Nur bei Hover das Label anzeigen */}
-                  {isHovered && (
-                    <text 
-                      x={position.x + 5} 
-                      y={position.y - 5} 
-                      fontSize="3" 
-                      fill="white"
-                      fontWeight="bold"
-                      textAnchor="start"
-                      style={{ pointerEvents: 'none' }}
-                    >
-                      {wallet.tokenType}
-                    </text>
-                  )}
+                  {/* KEIN Text mehr im Radar - nur Tooltip */}
                 </g>
               );
             })}
             
             {/* Cluster-Punkte */}
             {clusters.map((cluster, clusterIndex) => {
-              // Mittelpunkt des Clusters berechnen
               const centerX = cluster.reduce((sum, tx) => sum + tx.position.point.x, 0) / cluster.length;
               const centerY = cluster.reduce((sum, tx) => sum + tx.position.point.y, 0) / cluster.length;
               
-              // Größeren Radius für Cluster-Punkte
               const clusterRadius = 4 + Math.min(cluster.length, 5);
               
-              // Bestimme die dominante Farbe im Cluster
               const tokenCounts = {};
               cluster.forEach(tx => {
                 tokenCounts[tx.tokenSymbol] = (tokenCounts[tx.tokenSymbol] || 0) + 1;
@@ -521,12 +440,11 @@ const Radar = ({ config }) => {
                 <g key={`cluster-${clusterIndex}`} 
                    className="radar-cluster"
                    onClick={() => {
-                     // Bei Klick auf einen Cluster, das Token mit den meisten Transaktionen auswählen
                      const dominantTx = cluster.find(tx => tx.tokenSymbol === dominantToken);
                      if (dominantTx) handleTokenSelect(dominantTx.token);
                    }}
                    onMouseEnter={(e) => showTransactionTooltip(e, {
-                     tokenSymbol: `${cluster.length} Punkte`,
+                     tokenSymbol: `${cluster.length} Points`,
                      type: 'Cluster',
                      amount: cluster.length,
                      timestamp: Date.now()
@@ -577,27 +495,13 @@ const Radar = ({ config }) => {
                       filter: isHovered ? 'drop-shadow(0 0 5px currentColor)' : 'none'
                     }}
                   />
-                  {/* Nur bei Hover das Label anzeigen */}
-                  {isHovered && (
-                    <text 
-                      x={tx.position.label.x} 
-                      y={tx.position.label.y} 
-                      fontSize="3.5" 
-                      fill="white"
-                      fontWeight="bold"
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      style={{ pointerEvents: 'none' }}
-                    >
-                      {tx.tokenSymbol}
-                    </text>
-                  )}
+                  {/* KEIN Text mehr - nur Tooltips */}
                 </g>
               );
             })}
           </svg>
           
-          {/* Smart Contract Detail-Fenster */}
+          {/* Smart Contract Detail Modal */}
           {showContractDetails && (
             <div className="contract-detail-modal">
               <div className="modal-content">
@@ -607,11 +511,11 @@ const Radar = ({ config }) => {
                 </div>
                 <div className="modal-body">
                   <div className="detail-row">
-                    <span className="detail-label">Adresse:</span>
+                    <span className="detail-label">Address:</span>
                     <span className="detail-value">{contractData.address}</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Token-Name:</span>
+                    <span className="detail-label">Token Name:</span>
                     <span className="detail-value">{contractData.tokenName}</span>
                   </div>
                   <div className="detail-row">
@@ -619,16 +523,16 @@ const Radar = ({ config }) => {
                     <span className="detail-value">{contractData.chain}</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Erstellungsdatum:</span>
+                    <span className="detail-label">Created:</span>
                     <span className="detail-value">{contractData.creationDate}</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Interaktionen:</span>
+                    <span className="detail-label">Interactions:</span>
                     <span className="detail-value">{contractData.interactions}</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Volumen:</span>
-                    <span className="detail-value">{contractData.volume}</span>
+                    <span className="detail-label">Volume:</span>
+                    <span className="detail-value">${contractData.volume}</span>
                   </div>
                 </div>
               </div>
@@ -641,18 +545,7 @@ const Radar = ({ config }) => {
               className="radar-tooltip"
               style={{ 
                 left: `${tooltip.x}px`, 
-                top: `${tooltip.y}px`,
-                position: 'fixed',
-                backgroundColor: 'rgba(30, 41, 59, 0.9)',
-                color: 'white',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                pointerEvents: 'none',
-                zIndex: 1000,
-                transform: 'translate(-50%, -100%)',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                border: '1px solid rgba(100, 116, 139, 0.3)'
+                top: `${tooltip.y}px`
               }}
             >
               <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
@@ -664,68 +557,27 @@ const Radar = ({ config }) => {
                     <div>Token: {tooltip.details.tokenType}</div>
                   )}
                   {tooltip.details.activityType && (
-                    <div>Aktivität: {tooltip.details.activityType}</div>
+                    <div>Activity: {tooltip.details.activityType}</div>
                   )}
                   {tooltip.details.volume && (
-                    <div>Volumen: {tooltip.details.volume.toLocaleString()}</div>
+                    <div>Volume: {tooltip.details.volume.toLocaleString()}</div>
                   )}
                   {tooltip.details.type && (
-                    <div>Typ: {tooltip.details.type}</div>
+                    <div>Type: {tooltip.details.type}</div>
                   )}
                   {tooltip.details.amount && (
-                    <div>Menge: {tooltip.details.amount}</div>
+                    <div>Amount: {tooltip.details.amount}</div>
                   )}
-                  <div>Zeit: {tooltip.details.time}</div>
+                  <div>Time: {tooltip.details.time}</div>
                 </div>
               )}
             </div>
           )}
         </div>
         
-        {/* Kombinierte Legende */}
-        <div className="combined-legend">
-          <div className="legend-section">
-            <h4>Token-Typen</h4>
-            <div className="legend-items">
-              {Array.from(new Set([
-                ...wallets.map(w => w.tokenType),
-                ...radarData.flatMap(data => data.transactions.map(tx => tx.tokenSymbol))
-              ])).map(tokenType => (
-                <div key={tokenType} className="legend-item">
-                  <div 
-                    className="legend-color" 
-                    style={{ 
-                      background: getTokenColor(tokenType) 
-                    }}
-                  ></div>
-                  <span>{tokenType}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <div className="legend-section">
-            <h4>Aktivitäten</h4>
-            <div className="legend-items">
-              {['Buy', 'Sell', 'Transfer'].map(activityType => (
-                <div key={activityType} className="legend-item">
-                  <div 
-                    className="legend-color" 
-                    style={{ 
-                      background: getTokenColor('PEPE'),
-                      width: `${getActivitySize(activityType) * 2}px`,
-                      height: `${getActivitySize(activityType) * 2}px`,
-                      borderRadius: '50%'
-                    }}
-                  ></div>
-                  <span>{activityType}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* LEGENDE ENTFERNT - wird extern angezeigt */}
         
-        {/* Token Detail Panel */}
+        {/* Token Detail Panel - OPTIONAL */}
         {selectedToken && (
           <div className="token-detail">
             <div className="token-header">
@@ -734,27 +586,27 @@ const Radar = ({ config }) => {
             </div>
             <div className="token-stats">
               <div className="stat">
-                <span>Preis:</span>
+                <span>Price:</span>
                 <span>${selectedToken.priceUsd.toFixed(8)}</span>
               </div>
               <div className="stat">
-                <span>24h Änderung:</span>
+                <span>24h Change:</span>
                 <span className={selectedToken.priceChange24h > 0 ? 'positive' : 'negative'}>
                   {selectedToken.priceChange24h > 0 ? '+' : ''}{selectedToken.priceChange24h.toFixed(2)}%
                 </span>
               </div>
               <div className="stat">
-                <span>Volumen:</span>
+                <span>Volume:</span>
                 <span>${(selectedToken.volume24h / 1000000).toFixed(2)}M</span>
               </div>
               <div className="stat">
-                <span>Marktkapitalisierung:</span>
+                <span>Market Cap:</span>
                 <span>${(selectedToken.marketCap / 1000000000).toFixed(2)}B</span>
               </div>
             </div>
             
             <div className="recent-transactions">
-              <h4>Aktuelle Transaktionen</h4>
+              <h4>Recent Transactions</h4>
               <div className="transaction-list">
                 {radarData
                   .find(t => t.token.symbol === selectedToken.symbol)
@@ -765,7 +617,7 @@ const Radar = ({ config }) => {
                       <div key={tx.id} className="transaction-item">
                         <div className="tx-type">
                           <span className={`tx-indicator ${tx.type}`}></span>
-                          {tx.type === 'buy' ? 'Kauf' : 'Verkauf'}
+                          {tx.type === 'buy' ? 'Buy' : 'Sell'}
                         </div>
                         <div className="tx-amount">
                           {tx.amount.toFixed(2)} {tx.tokenSymbol}
@@ -785,18 +637,18 @@ const Radar = ({ config }) => {
         )}
       </div>
       
-      {/* Wallet Analysen Sektion - KORRIGIERT */}
+      {/* Wallet Analysen - EXTERN */}
       <div className="wallet-analyses-container">
-        <h2 className="section-title">Wallet-Analysen</h2>
+        <h2 className="section-title">Wallet Analysis</h2>
         
         {walletsLoading ? (
-          <div className="wallet-loading">Lade Wallet-Analysen...</div>
+          <div className="wallet-loading">Loading wallet analysis...</div>
         ) : (
           <div className="wallet-grid">
             {analysisResult && Array.isArray(analysisResult) && analysisResult.length > 0 ? (
               analysisResult.map(wallet => {
                 const walletTypeInfo = WALLET_TYPES[wallet.wallet_type] || { 
-                  label: wallet.wallet_type || 'Unbekannt', 
+                  label: wallet.wallet_type || 'Unknown', 
                   color: '#818cf8' 
                 };
                 
@@ -821,23 +673,23 @@ const Radar = ({ config }) => {
                     <div className="wallet-body">
                       <div className="wallet-stat">
                         <span className="stat-label">Blockchain:</span>
-                        <span className="stat-value">{wallet.chain || 'Unbekannt'}</span>
+                        <span className="stat-value">{wallet.chain || 'Unknown'}</span>
                       </div>
                       
                       <div className="wallet-stat">
-                        <span className="stat-label">Konfidenz:</span>
+                        <span className="stat-label">Confidence:</span>
                         <span className="stat-value">
                           {wallet.confidence_score ? `${(wallet.confidence_score * 100).toFixed(1)}%` : 'N/A'}
                         </span>
                       </div>
                       
                       <div className="wallet-stat">
-                        <span className="stat-label">Transaktionen:</span>
+                        <span className="stat-label">Transactions:</span>
                         <span className="stat-value">{wallet.transaction_count || 0}</span>
                       </div>
                       
                       <div className="wallet-risk">
-                        <div className="risk-label">Risiko-Score:</div>
+                        <div className="risk-label">Risk Score:</div>
                         <div className="risk-bar">
                           <div 
                             className="risk-fill"
@@ -869,7 +721,7 @@ const Radar = ({ config }) => {
                 );
               })
             ) : (
-              <div className="no-wallet-data">Keine Wallet-Analysen verfügbar</div>
+              <div className="no-wallet-data">No wallet analysis available</div>
             )}
           </div>
         )}
