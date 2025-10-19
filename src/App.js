@@ -21,30 +21,22 @@ function App() {
           <Navigation />
           <main className="main-content">
             <Routes>
-              {/* Public Routes */}
+              {/* Public Routes - kein Login erforderlich */}
               <Route path="/" element={<ContractRadar />} />
               <Route path="/radar" element={<ContractRadar />} />
               <Route path="/tokens" element={<TokenOverview />} />
               <Route path="/wallets" element={<WalletAnalyses />} />
               <Route path="/scans" element={<ScanJobs />} />
+              <Route path="/network" element={<TransactionNetworkPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
-              {/* Protected Routes */}
+              {/* Protected Routes - Login erforderlich */}
               <Route 
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
                     <ContractRadar />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/network" 
-                element={
-                  <ProtectedRoute>
-                    <TransactionNetworkPage />
                   </ProtectedRoute>
                 } 
               />
