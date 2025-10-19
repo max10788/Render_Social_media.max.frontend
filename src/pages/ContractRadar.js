@@ -238,55 +238,53 @@ const ContractRadar = () => {
             )}
           </div>
 
-          {/* Radar Display mit fester Größe - OHNE störende Elemente */}
+          {/* Radar Display mit fester Größe */}
           <div className="radar-display-container">
             <Radar config={radarConfig} />
           </div>
           
-          {/* KEINE zusätzlichen Boxen oder Info-Panels hier! */}
+          {/* Legende direkt unter dem Radar */}
+          <div className="radar-legend-bottom">
+            <div className="legend-group">
+              <h4>Token Types</h4>
+              <div className="legend-items">
+                <div className="legend-item">
+                  <div className="legend-color-dot" style={{ background: '#fcd34d' }}></div>
+                  <span>PEPE</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color-dot" style={{ background: '#ef4444' }}></div>
+                  <span>SHIB</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color-dot" style={{ background: '#3b82f6' }}></div>
+                  <span>DOGE</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="legend-group">
+              <h4>Activities</h4>
+              <div className="legend-items">
+                <div className="legend-item">
+                  <div className="legend-color-dot" style={{ background: '#10b981' }}></div>
+                  <span>Buy</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color-dot" style={{ background: '#ef4444' }}></div>
+                  <span>Sell</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-color-dot" style={{ background: '#f59e0b' }}></div>
+                  <span>Transfer</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </main>
       </div>
       
-      {/* Optional: Legende unter dem Layout */}
-      <div className="radar-legend-section">
-        <div className="legend-group">
-          <h4>Token Types</h4>
-          <div className="legend-items">
-            <div className="legend-item">
-              <div className="legend-color-dot" style={{ background: '#fcd34d' }}></div>
-              <span>PEPE</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color-dot" style={{ background: '#ef4444' }}></div>
-              <span>SHIB</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color-dot" style={{ background: '#3b82f6' }}></div>
-              <span>DOGE</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="legend-group">
-          <h4>Activities</h4>
-          <div className="legend-items">
-            <div className="legend-item">
-              <div className="legend-color-dot" style={{ background: '#10b981' }}></div>
-              <span>Buy</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color-dot" style={{ background: '#ef4444' }}></div>
-              <span>Sell</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color-dot" style={{ background: '#f59e0b' }}></div>
-              <span>Transfer</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Info Section */}
+      {/* Info Section - ganz unten auf der Seite */}
       <div className="radar-info">
         <h3>How it works</h3>
         <p>This radar tracks transactions for small-cap tokens in real-time, categorizing wallets by their behavior and risk profile.</p>
