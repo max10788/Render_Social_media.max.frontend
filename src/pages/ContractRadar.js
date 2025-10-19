@@ -247,6 +247,45 @@ const ContractRadar = () => {
         </main>
       </div>
       
+      {/* Optional: Legende unter dem Layout */}
+      <div className="radar-legend-section">
+        <div className="legend-group">
+          <h4>Token Types</h4>
+          <div className="legend-items">
+            <div className="legend-item">
+              <div className="legend-color-dot" style={{ background: '#fcd34d' }}></div>
+              <span>PEPE</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color-dot" style={{ background: '#ef4444' }}></div>
+              <span>SHIB</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color-dot" style={{ background: '#3b82f6' }}></div>
+              <span>DOGE</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="legend-group">
+          <h4>Activities</h4>
+          <div className="legend-items">
+            <div className="legend-item">
+              <div className="legend-color-dot" style={{ background: '#10b981' }}></div>
+              <span>Buy</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color-dot" style={{ background: '#ef4444' }}></div>
+              <span>Sell</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color-dot" style={{ background: '#f59e0b' }}></div>
+              <span>Transfer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       {/* Info Section */}
       <div className="radar-info">
         <h3>How it works</h3>
