@@ -113,11 +113,11 @@
 }
 
 .central-contract-point:hover {
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
 
 .central-contract-point:hover .central-contract-circle {
-  filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.8));
+  filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.7));
 }
 
 .central-contract-circle {
