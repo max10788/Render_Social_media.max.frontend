@@ -297,41 +297,65 @@ const Radar = ({ config }) => {
         
         <div className="radar-display" ref={radarRef}>
           <svg viewBox={`0 0 ${svgSize} ${svgSize}`} className="radar-svg" preserveAspectRatio="xMidYMid meet">
-            {/* Glow-Filter */}
+            {/* Verbesserte Filter und Gradienten */}
             <defs>
+              {/* Glow-Filter für Scan-Strahl */}
               <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feGaussianBlur stdDeviation="3" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
               
-              {/* Verlauf für den Scan-Strahl */}
-              <linearGradient id="scanGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#00bfff" stopOpacity="0.1" />
-                <stop offset="100%" stopColor="#00bfff" stopOpacity="1" />
-              </linearGradient>
+              {/* Gradient für Scan-Strahl */}
+              <radialGradient id="scanGradient">
+                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.1" />
+              </radialGradient>
+              
+              {/* Glow für zentralen Punkt */}
+              <radialGradient id="centerGlow">
+                <stop offset="0%" stopColor="#10b981" stopOpacity="1" />
+                <stop offset="50%" stopColor="#10b981" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+              </radialGradient>
             </defs>
             
-            {/* Radar Ringe */}
-            {[...Array(5)].map((_, i) => {
-              const radius = (svgSize / 5) * (i + 1);
+            {/* Radar Ringe - 4 statt 5 für weniger Clutter */}
+            {[...Array(4)].map((_, i) => {
+              const radius = ((svgSize / 2) / 4) * (i + 1);
               return (
-                <circle key={radius} cx={center} cy={center} r={radius} className="radar-circle" />
+                <circle 
+                  key={`ring-${i}`}
+                  cx={center} 
+                  cy={center} 
+                  r={radius} 
+                  className="radar-circle"
+                  style={{ 
+                    strokeOpacity: 0.15 + (i * 0.05),
+                    strokeWidth: i === 3 ? 0.8 : 0.5
+                  }}
+                />
               );
             })}
             
-            {/* Radar Hauptlinien */}
-            {[0, 45, 90, 135].map(angle => {
+            {/* Hauptachsen (Kreuz) */}
+            {[0, 90, 180, 270].map(angle => {
               const endPoint = calculateScanEndPoint(angle, outerRadius);
               return (
-                <line key={angle} x1={center} y1={center} 
-                    x2={endPoint.x} y2={endPoint.y} 
-                    className="radar-line" />
+                <line 
+                  key={`axis-${angle}`}
+                  x1={center} 
+                  y1={center} 
+                  x2={endPoint.x} 
+                  y2={endPoint.y} 
+                  className="radar-line"
+                  style={{ strokeWidth: 0.6, strokeOpacity: 0.25 }}
+                />
               );
             })}
             
-            {/* Radiale Linien (Speichen) */}
-            {[...Array(numRadialLines)].map((_, i) => {
-              const angle = (i / numRadialLines) * 360;
+            {/* Radiale Speichen - 8 statt 12 */}
+            {[...Array(8)].map((_, i) => {
+              const angle = (i / 8) * 360;
               const endPoint = calculateScanEndPoint(angle, outerRadius);
               return (
                 <line 
@@ -341,47 +365,19 @@ const Radar = ({ config }) => {
                   x2={endPoint.x} 
                   y2={endPoint.y} 
                   className="radial-line"
+                  style={{ 
+                    strokeWidth: 0.3,
+                    strokeOpacity: 0.15,
+                    strokeDasharray: '2,4'
+                  }}
                 />
               );
             })}
             
-            {/* Zentraler Smart Contract-Punkt */}
-            <g onClick={toggleContractDetails} className="central-contract-point" cursor="pointer">
-              <circle 
-                cx={center} 
-                cy={center} 
-                r={8} 
-                fill="#10b981" 
-                stroke="#fff" 
-                strokeWidth="2"
-                className="central-contract-circle"
-              />
-              <circle 
-                cx={center} 
-                cy={center} 
-                r={12} 
-                fill="none" 
-                stroke="#10b981" 
-                strokeWidth="1"
-                strokeOpacity="0.5"
-                className="central-contract-pulse"
-              />
-            </g>
-            
-            {/* Haupt-Scan-Strahl */}
-            <line 
-              x1={center} 
-              y1={center} 
-              x2={mainScanEndPoint.x} 
-              y2={mainScanEndPoint.y} 
-              className="radar-sweep-main" 
-              filter="url(#glow)"
-            />
-            
-            {/* Schweif-Effekt */}
-            {[...Array(5)].map((_, i) => {
-              const opacity = 0.3 - (i * 0.05);
-              const trailAngle = scanAngle - (i * 2);
+            {/* Schweif-Effekt - dezenter */}
+            {[...Array(6)].map((_, i) => {
+              const opacity = 0.25 - (i * 0.04);
+              const trailAngle = scanAngle - (i * 3);
               const trailEndPoint = calculateScanEndPoint(trailAngle, outerRadius);
               
               return (
@@ -392,10 +388,63 @@ const Radar = ({ config }) => {
                   x2={trailEndPoint.x} 
                   y2={trailEndPoint.y} 
                   className="radar-sweep-trail" 
-                  style={{ opacity }}
+                  style={{ 
+                    opacity,
+                    strokeWidth: 1.2 - (i * 0.15)
+                  }}
                 />
               );
             })}
+            
+            {/* Haupt-Scan-Strahl - eleganter */}
+            <line 
+              x1={center} 
+              y1={center} 
+              x2={mainScanEndPoint.x} 
+              y2={mainScanEndPoint.y} 
+              className="radar-sweep-main" 
+              filter="url(#glow)"
+              style={{ strokeWidth: 1.8 }}
+            />
+            
+            {/* Zentraler Smart Contract-Punkt - verbessert */}
+            <g onClick={toggleContractDetails} className="central-contract-point" cursor="pointer">
+              {/* Äußerer Glow */}
+              <circle 
+                cx={center} 
+                cy={center} 
+                r={20} 
+                fill="url(#centerGlow)" 
+                opacity="0.3"
+              />
+              {/* Hauptpunkt */}
+              <circle 
+                cx={center} 
+                cy={center} 
+                r={8} 
+                fill="#10b981" 
+                className="central-contract-circle"
+              />
+              {/* Innerer Ring */}
+              <circle 
+                cx={center} 
+                cy={center} 
+                r={5} 
+                fill="#065f46" 
+                opacity="0.6"
+              />
+              {/* Pulse Ring */}
+              <circle 
+                cx={center} 
+                cy={center} 
+                r={12} 
+                fill="none" 
+                stroke="#10b981" 
+                strokeWidth="1.5"
+                strokeOpacity="0.4"
+                className="central-contract-pulse"
+              />
+            </g>
             
             {/* Wallet-Punkte */}
             {filteredWallets.map(wallet => {
@@ -409,16 +458,29 @@ const Radar = ({ config }) => {
                    className={`wallet-point ${wallet.activityType.toLowerCase()}`}
                    onMouseEnter={(e) => showWalletTooltip(e, wallet)}
                    onMouseLeave={hideTooltip}>
+                  {/* Äußerer Glow bei Hover */}
+                  {isHovered && (
+                    <circle 
+                      cx={position.x} 
+                      cy={position.y} 
+                      r={activitySize + 3}
+                      fill={tokenColor}
+                      opacity="0.3"
+                    />
+                  )}
+                  {/* Hauptpunkt */}
                   <circle 
                     cx={position.x} 
                     cy={position.y} 
                     r={isHovered ? activitySize + 1 : activitySize}
+                    fill={tokenColor}
+                    stroke="rgba(255, 255, 255, 0.3)"
+                    strokeWidth={isHovered ? 1 : 0.5}
                     style={{ 
-                      fill: tokenColor,
-                      filter: isHovered ? 'drop-shadow(0 0 5px currentColor)' : 'none'
+                      filter: isHovered ? `drop-shadow(0 0 6px ${tokenColor})` : 'none',
+                      transition: 'all 0.2s ease'
                     }}
                   />
-                  {/* KEIN Text mehr im Radar - nur Tooltip */}
                 </g>
               );
             })}
@@ -428,7 +490,7 @@ const Radar = ({ config }) => {
               const centerX = cluster.reduce((sum, tx) => sum + tx.position.point.x, 0) / cluster.length;
               const centerY = cluster.reduce((sum, tx) => sum + tx.position.point.y, 0) / cluster.length;
               
-              const clusterRadius = 4 + Math.min(cluster.length, 5);
+              const clusterRadius = 5 + Math.min(cluster.length, 4);
               
               const tokenCounts = {};
               cluster.forEach(tx => {
@@ -450,19 +512,29 @@ const Radar = ({ config }) => {
                      timestamp: Date.now()
                    })}
                    onMouseLeave={hideTooltip}>
+                  {/* Cluster Hintergrund */}
+                  <circle 
+                    cx={centerX} 
+                    cy={centerY} 
+                    r={clusterRadius + 2}
+                    fill={getTokenColor(dominantToken)}
+                    opacity="0.2"
+                  />
+                  {/* Cluster Hauptkreis */}
                   <circle 
                     cx={centerX} 
                     cy={centerY} 
                     r={clusterRadius}
-                    style={{ 
-                      fill: getTokenColor(dominantToken),
-                      opacity: 0.7
-                    }}
+                    fill={getTokenColor(dominantToken)}
+                    stroke="rgba(255, 255, 255, 0.4)"
+                    strokeWidth="1"
+                    opacity="0.8"
                   />
+                  {/* Cluster Anzahl */}
                   <text 
                     x={centerX} 
                     y={centerY} 
-                    fontSize="4" 
+                    fontSize="5" 
                     fill="white"
                     fontWeight="bold"
                     textAnchor="middle"
@@ -475,7 +547,7 @@ const Radar = ({ config }) => {
               );
             })}
             
-            {/* Nicht geclusterte Punkte */}
+            {/* Einzelne Punkte */}
             {nonClusteredPoints.map(tx => {
               const tokenColor = getTokenColor(tx.tokenSymbol);
               const isHovered = hoveredPoint === tx.id;
@@ -486,16 +558,29 @@ const Radar = ({ config }) => {
                    onClick={() => handleTokenSelect(tx.token)}
                    onMouseEnter={(e) => showTransactionTooltip(e, tx)}
                    onMouseLeave={hideTooltip}>
+                  {/* Glow bei Hover */}
+                  {isHovered && (
+                    <circle 
+                      cx={tx.position.point.x} 
+                      cy={tx.position.point.y} 
+                      r={5}
+                      fill={tokenColor}
+                      opacity="0.3"
+                    />
+                  )}
+                  {/* Punkt */}
                   <circle 
                     cx={tx.position.point.x} 
                     cy={tx.position.point.y} 
                     r={isHovered ? 3.5 : 2.5}
+                    fill={tokenColor}
+                    stroke="rgba(255, 255, 255, 0.3)"
+                    strokeWidth={isHovered ? 1 : 0.5}
                     style={{ 
-                      fill: tokenColor,
-                      filter: isHovered ? 'drop-shadow(0 0 5px currentColor)' : 'none'
+                      filter: isHovered ? `drop-shadow(0 0 5px ${tokenColor})` : 'none',
+                      transition: 'all 0.2s ease'
                     }}
                   />
-                  {/* KEIN Text mehr - nur Tooltips */}
                 </g>
               );
             })}
