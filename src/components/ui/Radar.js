@@ -3,9 +3,7 @@ import './Radar.css';
 import WalletDetail from './WalletDetail';
 
 const Radar = ({ config, radarData, loading }) => {
-  // Verwende die übergebenen Props anstatt interne Hooks
   const [showContractDetails, setShowContractDetails] = useState(false);
-  const [selectedToken, setSelectedToken] = useState(null);
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [tooltip, setTooltip] = useState(null);
   const [hoveredPoint, setHoveredPoint] = useState(null);
@@ -30,7 +28,7 @@ const Radar = ({ config, radarData, loading }) => {
         type: wallet.wallet_type || wallet.type,
         riskScore: wallet.risk_score,
         confidence: wallet.confidence_score,
-        timestamp: wallet.last_activity || wallet.timestamp
+        transactions: wallet.transaction_count
       },
       x: event.clientX,
       y: event.clientY
@@ -392,9 +390,12 @@ const Radar = ({ config, radarData, loading }) => {
                   {tooltip.details.confidence !== undefined && (
                     <div>Confidence: {(tooltip.details.confidence * 100).toFixed(1)}%</div>
                   )}
-                  {tooltip.details.timestamp && (
-                    <div>Last Activity: {new Date(tooltip.details.timestamp).toLocaleString()}</div>
+                  {tooltip.details.transactions && (
+                    <div>Transactions: {tooltip.details.transactions}</div>
                   )}
+                  <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>
+                    💡 Click for details
+                  </div>
                 </div>
               )}
             </div>
@@ -402,86 +403,7 @@ const Radar = ({ config, radarData, loading }) => {
         </div>
       </div>
       
-      {/* Wallet Analysen Grid */}
-      <div className="wallet-analyses-container">
-        <h2 className="section-title">Wallet Analysis ({wallets.length})</h2>
-        
-        <div className="wallet-grid">
-          {wallets.map((wallet, index) => {
-            const walletColor = getWalletColor(wallet.wallet_type);
-            
-            return (
-              <div 
-                key={wallet.wallet_address || wallet.id || index} 
-                className="wallet-card"
-                onClick={() => handleWalletSelect(wallet)}
-              >
-                <div className="wallet-header">
-                  <div className="wallet-address">
-                    {formatAddress(wallet.wallet_address || wallet.id)}
-                  </div>
-                  <div 
-                    className="wallet-type"
-                    style={{ color: walletColor }}
-                  >
-                    {wallet.wallet_type || 'Unknown'}
-                  </div>
-                </div>
-                
-                <div className="wallet-body">
-                  <div className="wallet-stat">
-                    <span className="stat-label">Blockchain:</span>
-                    <span className="stat-value">{wallet.chain || config?.blockchain || 'Unknown'}</span>
-                  </div>
-                  
-                  <div className="wallet-stat">
-                    <span className="stat-label">Confidence:</span>
-                    <span className="stat-value">
-                      {wallet.confidence_score ? `${(wallet.confidence_score * 100).toFixed(1)}%` : 'N/A'}
-                    </span>
-                  </div>
-                  
-                  <div className="wallet-stat">
-                    <span className="stat-label">Transactions:</span>
-                    <span className="stat-value">{wallet.transaction_count || 0}</span>
-                  </div>
-                  
-                  <div className="wallet-risk">
-                    <div className="risk-label">Risk Score:</div>
-                    <div className="risk-bar">
-                      <div 
-                        className="risk-fill"
-                        style={{ 
-                          width: `${wallet.risk_score || 0}%`,
-                          backgroundColor: getRiskColor(wallet.risk_score || 0)
-                        }}
-                      ></div>
-                    </div>
-                    <div className="risk-value">{wallet.risk_score || 0}/100</div>
-                  </div>
-                </div>
-                
-                <div className="wallet-footer">
-                  <div className="risk-flags">
-                    {wallet.risk_flags && Array.isArray(wallet.risk_flags) && wallet.risk_flags.slice(0, 2).map((flag, idx) => (
-                      <span key={idx} className="risk-flag">
-                        {flag}
-                      </span>
-                    ))}
-                    {wallet.risk_flags && Array.isArray(wallet.risk_flags) && wallet.risk_flags.length > 2 && (
-                      <span className="risk-flag more">
-                        +{wallet.risk_flags.length - 2}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      
-      {/* Wallet Detail Modal */}
+      {/* Wallet Detail Modal - NUR beim Klick */}
       {selectedWallet && (
         <WalletDetail 
           wallet={selectedWallet} 
