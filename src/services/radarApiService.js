@@ -1,4 +1,4 @@
-import { API_ENDPOINTS, REQUEST_TIMEOUT } from '../config/api';
+import { API_ENDPOINTS, REQUEST_TIMEOUT, validateAddress, WALLET_TYPES } from '../config/api';
 
 /**
  * Service für Smart Contract Radar API-Anfragen
@@ -7,10 +7,15 @@ class RadarApiService {
   /**
    * Analysiert einen Custom Token
    * @param {string} tokenAddress - Die Token-Adresse
-   * @param {string} chain - Die Blockchain (ethereum, bsc, solana, sui, etc.)
+   * @param {string} chain - Die Blockchain (ethereum, bsc, solana, sui)
    * @returns {Promise} - Analyse-Ergebnis
    */
   async analyzeCustomToken(tokenAddress, chain) {
+    // Validiere Address Format
+    if (!validateAddress(tokenAddress, chain)) {
+      throw new Error(`Invalid address format for ${chain} blockchain`);
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
@@ -31,10 +36,22 @@ class RadarApiService {
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Handle specific error cases
+        if (response.status === 404) {
+          throw new Error('Token not found. Please check the address and blockchain.');
+        }
+        
         throw new Error(errorData.error_message || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+      
+      // Validate response structure
+      if (!data.success) {
+        throw new Error(data.error_message || 'Analysis failed');
+      }
+      
       return data;
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -151,12 +168,33 @@ class RadarApiService {
     const riskScore = holder.risk_score || 0;
     const type = holder.type || 'UNKNOWN';
 
-    if (type === 'WHALE') return 'Buy';
-    if (type === 'TRADER') return 'Transfer';
-    if (type === 'MIXER') return 'Sell';
+    // Map wallet types to activity types
+    const typeMapping = {
+      'WHALE': 'Buy',
+      'TRADER': 'Transfer',
+      'MIXER': 'Sell',
+      'HODLER': 'Buy',
+      'DUST_SWEEPER': 'Transfer'
+    };
+
+    if (typeMapping[type]) {
+      return typeMapping[type];
+    }
+
+    // Fallback based on risk score
     if (riskScore > 50) return 'Sell';
     if (riskScore < 30) return 'Buy';
     return 'Transfer';
+  }
+
+  /**
+   * Holt die Farbe für einen Wallet-Typ
+   * @param {string} type - Wallet Type
+   * @returns {string} - Hex Color
+   */
+  getWalletTypeColor(type) {
+    const walletType = WALLET_TYPES[type] || WALLET_TYPES.UNKNOWN;
+    return walletType.color;
   }
 
   /**
@@ -169,6 +207,31 @@ class RadarApiService {
     if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
     return num.toFixed(2);
+  }
+
+  /**
+   * Formatiert eine Wallet-Adresse (gekürzt)
+   * @param {string} address - Wallet Address
+   * @returns {string} - Gekürzte Adresse
+   */
+  formatAddress(address) {
+    if (!address || address.length < 10) return address;
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  }
+
+  /**
+   * Berechnet Risk Level aus Risk Score
+   * @param {number} score - Risk Score (0-100)
+   * @returns {Object} - { level, color, label }
+   */
+  getRiskLevel(score) {
+    if (score >= 70) {
+      return { level: 'high', color: '#ef4444', label: 'High Risk' };
+    } else if (score >= 40) {
+      return { level: 'medium', color: '#f59e0b', label: 'Medium Risk' };
+    } else {
+      return { level: 'low', color: '#10b981', label: 'Low Risk' };
+    }
   }
 }
 
