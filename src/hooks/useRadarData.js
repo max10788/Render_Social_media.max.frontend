@@ -12,16 +12,25 @@ export const useRadarData = () => {
 
   /**
    * Analysiert einen Token und lädt die Radar-Daten
+   * @param {string} tokenAddress - Die Token-Adresse
+   * @param {string} chain - Die Blockchain (ethereum, bsc, solana, sui)
+   * @param {string} walletSource - Wallet-Quelle ('top_holders' oder 'recent_traders')
+   * @param {number} recentHours - Stunden für recent_traders (1-24)
    */
-  const analyzeToken = useCallback(async (tokenAddress, chain) => {
+  const analyzeToken = useCallback(async (tokenAddress, chain, walletSource = 'top_holders', recentHours = 3) => {
     setLoading(true);
     setError(null);
     setRadarData(null);
     setRawAnalysis(null);
 
     try {
-      // API-Aufruf
-      const response = await radarApiService.analyzeCustomToken(tokenAddress, chain);
+      // API-Aufruf mit neuen Parametern
+      const response = await radarApiService.analyzeCustomToken(
+        tokenAddress, 
+        chain,
+        walletSource,
+        recentHours
+      );
 
       if (!response.success) {
         throw new Error(response.error_message || 'Analysis failed');
@@ -79,21 +88,43 @@ export const useRadarData = () => {
     }
   }, []);
 
+  /**
+   * Lädt Wallet-Quellen vom Backend
+   */
+  const [walletSources, setWalletSources] = useState(null);
+  const [walletSourcesLoading, setWalletSourcesLoading] = useState(false);
+
+  const loadWalletSources = useCallback(async () => {
+    setWalletSourcesLoading(true);
+    try {
+      const sources = await radarApiService.getWalletSources();
+      setWalletSources(sources);
+      return sources;
+    } catch (err) {
+      console.error('Error loading wallet sources:', err);
+    } finally {
+      setWalletSourcesLoading(false);
+    }
+  }, []);
+
   return {
     // Daten
     radarData,
     rawAnalysis,
     walletTypes,
+    walletSources,
     
     // Status
     loading,
     error,
     walletTypesLoading,
+    walletSourcesLoading,
     
     // Funktionen
     analyzeToken,
     reset,
     loadWalletTypes,
+    loadWalletSources,
 
     // Helper
     formatNumber: radarApiService.formatNumber.bind(radarApiService)
