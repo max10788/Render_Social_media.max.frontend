@@ -6,8 +6,8 @@ import './ContractRadar.css';
 const ContractRadar = () => {
   const [contractAddress, setContractAddress] = useState('');
   const [selectedBlockchain, setSelectedBlockchain] = useState('ethereum');
-  const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
-  const [selectedStage, setSelectedStage] = useState('1');
+  const [selectedWalletSource, setSelectedWalletSource] = useState('top_holders');
+  const [selectedRecentHours, setSelectedRecentHours] = useState(3);
 
   const { 
     radarData, 
@@ -21,26 +21,21 @@ const ContractRadar = () => {
   const blockchains = [
     { value: 'ethereum', label: 'Ethereum' },
     { value: 'bsc', label: 'Binance Smart Chain' },
-    { value: 'polygon', label: 'Polygon' },
     { value: 'solana', label: 'Solana' },
-    { value: 'arbitrum', label: 'Arbitrum' },
-    { value: 'optimism', label: 'Optimism' },
-    { value: 'avalanche', label: 'Avalanche' },
-    { value: 'base', label: 'Base' },
     { value: 'sui', label: 'Sui' }
   ];
 
-  const timeframes = [
-    { value: '1h', label: '1 Hour' },
-    { value: '6h', label: '6 Hours' },
-    { value: '14h', label: '14 Hours' },
-    { value: '24h', label: '24 Hours' }
+  const walletSources = [
+    { value: 'top_holders', label: 'Top Holders', icon: '👑' },
+    { value: 'recent_traders', label: 'Recent Traders', icon: '⚡' }
   ];
 
-  const stages = [
-    { value: '1', label: 'Basic', description: 'Quick Overview' },
-    { value: '2', label: 'Advanced', description: 'Detailed Categorization' },
-    { value: '3', label: 'Deep Analysis', description: 'Full Risk Detection' }
+  const recentHoursOptions = [
+    { value: 1, label: '1 Hour' },
+    { value: 3, label: '3 Hours' },
+    { value: 6, label: '6 Hours' },
+    { value: 12, label: '12 Hours' },
+    { value: 24, label: '24 Hours' }
   ];
 
   const handleStartAnalysis = async () => {
@@ -50,7 +45,12 @@ const ContractRadar = () => {
     }
 
     try {
-      await analyzeToken(contractAddress.trim(), selectedBlockchain);
+      await analyzeToken(
+        contractAddress.trim(), 
+        selectedBlockchain,
+        selectedWalletSource,
+        selectedRecentHours
+      );
     } catch (err) {
       console.error('Analysis failed:', err);
     }
@@ -59,8 +59,8 @@ const ContractRadar = () => {
   const handleReset = () => {
     setContractAddress('');
     setSelectedBlockchain('ethereum');
-    setSelectedTimeframe('1h');
-    setSelectedStage('1');
+    setSelectedWalletSource('top_holders');
+    setSelectedRecentHours(3);
     reset();
   };
 
@@ -77,21 +77,20 @@ const ContractRadar = () => {
 
   const getWalletColor = (walletType) => {
     const colors = {
-      'whale': '#818cf8',
-      'hodler': '#10b981',
-      'trader': '#f59e0b',
-      'mixer': '#ef4444',
-      'bot': '#8b5cf6',
-      'smart_money': '#06b6d4'
+      'WHALE': '#818cf8',
+      'HODLER': '#10b981',
+      'TRADER': '#f59e0b',
+      'MIXER': '#ef4444',
+      'DUST_SWEEPER': '#64748b',
+      'UNKNOWN': '#94a3b8'
     };
-    return colors[walletType?.toLowerCase()] || '#818cf8';
+    return colors[walletType?.toUpperCase()] || '#818cf8';
   };
 
   const wallets = radarData?.wallets || [];
   
   return (
     <div className="contract-radar-page">
-      {/* 3-Spalten Layout */}
       <div className="three-column-layout">
         {/* LINKE SPALTE - Sidebar */}
         <aside className="sidebar-column">
@@ -99,7 +98,7 @@ const ContractRadar = () => {
             <h3 className="sidebar-title">CONTRACT DETAILS</h3>
             <div className="sidebar-label">
               <span className="label-icon">📄</span>
-              Contract Address
+              Token Address
             </div>
             <input
               type="text"
@@ -132,40 +131,42 @@ const ContractRadar = () => {
             </select>
 
             <div className="sidebar-label" style={{ marginTop: '1rem' }}>
-              <span className="label-icon">⏰</span>
-              Timeframe
+              <span className="label-icon">🎯</span>
+              Wallet Source
             </div>
             <select
               className="sidebar-select"
-              value={selectedTimeframe}
-              onChange={(e) => setSelectedTimeframe(e.target.value)}
+              value={selectedWalletSource}
+              onChange={(e) => setSelectedWalletSource(e.target.value)}
               disabled={isAnalyzing}
             >
-              {timeframes.map(tf => (
-                <option key={tf.value} value={tf.value}>
-                  {tf.label}
+              {walletSources.map(source => (
+                <option key={source.value} value={source.value}>
+                  {source.icon} {source.label}
                 </option>
               ))}
             </select>
-          </div>
 
-          <div className="sidebar-section">
-            <h3 className="sidebar-title">ANALYSIS DEPTH</h3>
-            <div className="stage-options">
-              {stages.map(stage => (
-                <div
-                  key={stage.value}
-                  className={`stage-option ${selectedStage === stage.value ? 'active' : ''} ${isAnalyzing ? 'disabled' : ''}`}
-                  onClick={() => !isAnalyzing && setSelectedStage(stage.value)}
-                >
-                  <div className="stage-number">{stage.value}</div>
-                  <div className="stage-info">
-                    <div className="stage-name">{stage.label}</div>
-                    <div className="stage-desc">{stage.description}</div>
-                  </div>
+            {selectedWalletSource === 'recent_traders' && (
+              <>
+                <div className="sidebar-label" style={{ marginTop: '1rem' }}>
+                  <span className="label-icon">⏰</span>
+                  Recent Hours
                 </div>
-              ))}
-            </div>
+                <select
+                  className="sidebar-select"
+                  value={selectedRecentHours}
+                  onChange={(e) => setSelectedRecentHours(Number(e.target.value))}
+                  disabled={isAnalyzing}
+                >
+                  {recentHoursOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
 
           <div className="sidebar-actions">
@@ -229,6 +230,12 @@ const ContractRadar = () => {
                   {blockchains.find(b => b.value === selectedBlockchain)?.label}
                 </span>
               </div>
+              <div className="result-row">
+                <span>Source:</span>
+                <span className="result-value-sidebar">
+                  {walletSources.find(s => s.value === selectedWalletSource)?.label}
+                </span>
+              </div>
             </div>
           )}
         </aside>
@@ -237,11 +244,11 @@ const ContractRadar = () => {
         <main className="radar-column">
           <div className="radar-header">
             <h2>Smart Contract Radar</h2>
-            <p>Real-time transaction tracking by wallet category</p>
+            <p>Real-time wallet tracking and classification</p>
             {radarData && (
               <div className="radar-status">
                 <span className="status-dot-active"></span>
-                <span>Active</span>
+                <span>Active - {wallets.length} wallets tracked</span>
               </div>
             )}
           </div>
@@ -251,8 +258,8 @@ const ContractRadar = () => {
               config={radarData ? {
                 contractAddress: contractAddress,
                 blockchain: selectedBlockchain,
-                timeframe: selectedTimeframe,
-                stage: parseInt(selectedStage),
+                walletSource: selectedWalletSource,
+                recentHours: selectedRecentHours,
                 timestamp: Date.now()
               } : null}
               radarData={radarData}
@@ -281,23 +288,27 @@ const ContractRadar = () => {
                     <div className="legend-dot" style={{ background: '#ef4444' }}></div>
                     <span>Mixer</span>
                   </div>
+                  <div className="legend-item">
+                    <div className="legend-dot" style={{ background: '#64748b' }}></div>
+                    <span>Dust Sweeper</span>
+                  </div>
                 </div>
               </div>
               
               <div className="legend-group">
-                <h4>Activities</h4>
+                <h4>Risk Levels</h4>
                 <div className="legend-items">
                   <div className="legend-item">
                     <div className="legend-dot" style={{ background: '#10b981' }}></div>
-                    <span>Buy</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-dot" style={{ background: '#ef4444' }}></div>
-                    <span>Sell</span>
+                    <span>Low Risk (0-30)</span>
                   </div>
                   <div className="legend-item">
                     <div className="legend-dot" style={{ background: '#f59e0b' }}></div>
-                    <span>Transfer</span>
+                    <span>Medium Risk (30-70)</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-dot" style={{ background: '#ef4444' }}></div>
+                    <span>High Risk (70-100)</span>
                   </div>
                 </div>
               </div>
@@ -306,12 +317,12 @@ const ContractRadar = () => {
 
           <div className="how-it-works">
             <h3>How it works</h3>
-            <p>This radar tracks transactions for tokens in real-time, categorizing wallets by their behavior and risk profile.</p>
+            <p>This radar tracks and classifies wallets based on their behavior with the selected token.</p>
             <ul>
-              <li><strong>→ Whales:</strong> Large holders with significant market influence</li>
-              <li><strong>→ Hodlers:</strong> Long-term holders with minimal trading activity</li>
-              <li><strong>→ Traders:</strong> Active participants with frequent transactions</li>
-              <li><strong>→ Mixers:</strong> Wallets involved in privacy-focused transactions</li>
+              <li><strong>→ Top Holders:</strong> Analyzes the largest token holders (whales, long-term investors)</li>
+              <li><strong>→ Recent Traders:</strong> Analyzes wallets that recently bought or sold the token</li>
+              <li><strong>→ 3-Stage Classification:</strong> Advanced ML pipeline for accurate wallet categorization</li>
+              <li><strong>→ Risk Assessment:</strong> Real-time risk scoring based on transaction patterns</li>
             </ul>
           </div>
         </main>
@@ -355,7 +366,7 @@ const ContractRadar = () => {
                     
                     <div className="wallet-card-body">
                       <div className="wallet-stat-row">
-                        <span className="stat-label">Blockchain:</span>
+                        <span className="stat-label">Chain:</span>
                         <span className="stat-value">{wallet.chain || selectedBlockchain}</span>
                       </div>
                       
@@ -370,6 +381,13 @@ const ContractRadar = () => {
                         <span className="stat-label">Transactions:</span>
                         <span className="stat-value">{wallet.transaction_count || 0}</span>
                       </div>
+                      
+                      {wallet.stage && (
+                        <div className="wallet-stat-row">
+                          <span className="stat-label">Analysis Stage:</span>
+                          <span className="stat-value">Stage {wallet.stage}/3</span>
+                        </div>
+                      )}
                       
                       <div className="wallet-risk-display">
                         <div className="risk-label-small">Risk Score</div>
