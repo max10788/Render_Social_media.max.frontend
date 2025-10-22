@@ -113,59 +113,134 @@ export const WALLET_TYPES = {
     value: 'DUST_SWEEPER',
     label: 'Dust Sweeper',
     color: '#64748b',
-    description: 'Wallets that systematically collect small amounts'
+    description: 'Wallets that systematically collect small amounts',
+    risk_level: 'MEDIUM',
+    threshold: 0.65
   },
   HODLER: {
     value: 'HODLER',
     label: 'Hodler',
     color: '#10b981',
-    description: 'Long-term holders with minimal trading activity'
+    description: 'Long-term holders with minimal trading activity',
+    risk_level: 'LOW',
+    threshold: 0.70
   },
   MIXER: {
     value: 'MIXER',
     label: 'Mixer',
     color: '#ef4444',
-    description: 'Wallets involved in privacy-focused transactions'
+    description: 'Wallets involved in privacy-focused transactions',
+    risk_level: 'HIGH',
+    threshold: 0.60
   },
   TRADER: {
     value: 'TRADER',
     label: 'Trader',
     color: '#f59e0b',
-    description: 'Active participants with frequent transactions'
+    description: 'Active participants with frequent transactions',
+    risk_level: 'MEDIUM',
+    threshold: 0.60
   },
   WHALE: {
     value: 'WHALE',
     label: 'Whale',
     color: '#818cf8',
-    description: 'Large holders with significant market influence'
+    description: 'Large holders with significant market influence',
+    risk_level: 'MEDIUM',
+    threshold: 0.70
   },
   UNKNOWN: {
     value: 'UNKNOWN',
     label: 'Unknown',
     color: '#94a3b8',
-    description: 'Unclassified wallet type'
+    description: 'Unclassified wallet type',
+    risk_level: 'UNKNOWN',
+    threshold: 0.50
   }
 };
 
-// Wallet Source Types
+// Wallet Source Types - VOLLSTÄNDIGE KONFIGURATION
 export const WALLET_SOURCES = {
   TOP_HOLDERS: {
     value: 'top_holders',
     label: 'Top Holders',
-    description: 'Analyze wallets with largest token balances',
+    description: 'Analyzes wallets with the largest token balances',
     icon: '👑',
     typical_count: '100-200 holders',
-    classified: 50
+    classified: 50,
+    unclassified: 0,
+    use_case: 'Understanding token distribution and whale behavior',
+    requires_recent_hours: false,
+    default_recent_hours: null,
+    info: 'Best for analyzing long-term holder behavior and token concentration'
   },
   RECENT_TRADERS: {
     value: 'recent_traders',
     label: 'Recent Traders',
-    description: 'Analyze wallets that recently traded the token',
+    description: 'Analyzes wallets that recently bought or sold the token',
     icon: '⚡',
     typical_count: '200+ traders',
     classified: 50,
     unclassified: 150,
-    timeframe_hours: '1-24 hours'
+    use_case: 'Understanding recent trading activity and sentiment',
+    requires_recent_hours: true,
+    default_recent_hours: 3,
+    timeframe_hours: '1-24 hours',
+    info: 'Best for analyzing short-term trading patterns and market sentiment'
+  }
+};
+
+// Recent Hours Options - NUR für Recent Traders
+export const RECENT_HOURS_OPTIONS = [
+  { value: 1, label: '1 Hour', description: 'Very recent activity' },
+  { value: 3, label: '3 Hours', description: 'Recent activity (recommended)' },
+  { value: 6, label: '6 Hours', description: 'Short-term activity' },
+  { value: 12, label: '12 Hours', description: 'Half-day activity' },
+  { value: 24, label: '24 Hours', description: 'Full-day activity' }
+];
+
+// Analysis Configuration
+export const ANALYSIS_CONFIG = {
+  // Wallet Limits
+  MAX_WALLETS_ANALYZED: 50,
+  MAX_WALLETS_TOTAL: 200,
+  
+  // Classification Stages
+  CLASSIFICATION_STAGES: {
+    STAGE_1: {
+      name: 'Basic Analysis',
+      description: 'Raw transaction metrics and basic patterns'
+    },
+    STAGE_2: {
+      name: 'Advanced Analysis',
+      description: 'Derived metrics and calculated indicators'
+    },
+    STAGE_3: {
+      name: 'Deep Analysis',
+      description: 'Context analysis with network and external data'
+    }
+  },
+  
+  // Request Defaults
+  DEFAULT_VALUES: {
+    wallet_source: 'top_holders',
+    recent_hours: 3,
+    max_wallets: 50,
+    include_unclassified: false
+  },
+  
+  // Validation Rules
+  VALIDATION: {
+    recent_hours: {
+      min: 1,
+      max: 24,
+      default: 3
+    },
+    max_wallets: {
+      min: 1,
+      max: 50,
+      default: 50
+    }
   }
 };
 
@@ -201,16 +276,56 @@ export const isChainSupported = (chain) => {
 };
 
 /**
- * API Request Helper
- * Erstellt POST Request Body für Custom Analysis
+ * API Request Helper - VOLLSTÄNDIG
+ * Erstellt POST Request Body für Custom Analysis mit ALLEN Parametern
  */
-export const createAnalysisRequest = (tokenAddress, chain, walletSource = 'top_holders', recentHours = 3) => {
-  return {
-    token_address: tokenAddress,  // Backend erwartet token_address
-    chain: chain,
-    wallet_source: walletSource,
-    recent_hours: walletSource === 'recent_traders' ? recentHours : 3
+export const createAnalysisRequest = (
+  tokenAddress, 
+  chain, 
+  walletSource = 'top_holders', 
+  recentHours = 3,
+  maxWallets = 50,
+  includeUnclassified = false
+) => {
+  // Validierung
+  if (!tokenAddress || !tokenAddress.trim()) {
+    throw new Error('Token address is required');
+  }
+
+  if (!isChainSupported(chain)) {
+    throw new Error(`Chain ${chain} is not supported. Supported chains: ${BLOCKCHAIN_CONFIG.SUPPORTED_CHAINS.join(', ')}`);
+  }
+
+  if (!validateAddress(tokenAddress, chain)) {
+    throw new Error(`Invalid address format for chain ${chain}`);
+  }
+
+  // Base Request
+  const request = {
+    token_address: tokenAddress.trim(),
+    chain: chain.toLowerCase(),
+    wallet_source: walletSource
   };
+
+  // Conditional Parameters basierend auf wallet_source
+  if (walletSource === 'recent_traders') {
+    // Recent Traders benötigt recent_hours
+    const validatedHours = Math.max(
+      ANALYSIS_CONFIG.VALIDATION.recent_hours.min,
+      Math.min(
+        ANALYSIS_CONFIG.VALIDATION.recent_hours.max,
+        recentHours || ANALYSIS_CONFIG.DEFAULT_VALUES.recent_hours
+      )
+    );
+    request.recent_hours = validatedHours;
+  }
+
+  // Optional Parameters (können für beide Sources verwendet werden)
+  // Hinweis: Backend nutzt diese möglicherweise intern, aber nicht in der API-Doku erwähnt
+  // request.max_wallets = maxWallets;
+  // request.include_unclassified = includeUnclassified;
+
+  return request;
 };
 
 /**
@@ -218,8 +333,17 @@ export const createAnalysisRequest = (tokenAddress, chain, walletSource = 'top_h
  * Extrahiert wichtige Daten aus Backend Response
  */
 export const parseAnalysisResponse = (response) => {
-  if (!response || !response.success) {
-    throw new Error(response?.error_message || 'Invalid response structure');
+  if (!response) {
+    throw new Error('No response received');
+  }
+
+  if (!response.success) {
+    throw new Error(response.error_message || 'Analysis failed');
+  }
+
+  // Prüfe ob Token gefunden wurde
+  if (response.analysis_result?.token_info?.name === 'Unknown') {
+    throw new Error(`Token not found: ${response.token_address}`);
   }
 
   return {
@@ -229,7 +353,55 @@ export const parseAnalysisResponse = (response) => {
     walletSource: response.wallet_source,
     recentHours: response.recent_hours,
     result: response.analysis_result,
-    analyzedAt: response.analyzed_at
+    analyzedAt: response.analyzed_at,
+    
+    // Extracted Info
+    tokenInfo: response.analysis_result?.token_info,
+    wallets: response.analysis_result?.wallets,
+    summary: response.analysis_result?.summary
+  };
+};
+
+/**
+ * Wallet Source Helper
+ * Gibt Informationen über die gewählte Wallet Source zurück
+ */
+export const getWalletSourceInfo = (walletSource) => {
+  return WALLET_SOURCES[walletSource.toUpperCase().replace('_', '_')] || WALLET_SOURCES.TOP_HOLDERS;
+};
+
+/**
+ * Validation Helper
+ * Validiert alle Request-Parameter
+ */
+export const validateAnalysisRequest = (tokenAddress, chain, walletSource, recentHours) => {
+  const errors = [];
+
+  if (!tokenAddress || !tokenAddress.trim()) {
+    errors.push('Token address is required');
+  }
+
+  if (!isChainSupported(chain)) {
+    errors.push(`Chain ${chain} is not supported`);
+  }
+
+  if (tokenAddress && !validateAddress(tokenAddress, chain)) {
+    errors.push(`Invalid address format for chain ${chain}`);
+  }
+
+  if (!['top_holders', 'recent_traders'].includes(walletSource)) {
+    errors.push('Invalid wallet source. Must be "top_holders" or "recent_traders"');
+  }
+
+  if (walletSource === 'recent_traders') {
+    if (recentHours < 1 || recentHours > 24) {
+      errors.push('Recent hours must be between 1 and 24');
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
   };
 };
 
@@ -244,6 +416,8 @@ export default {
   INTERVALS,
   WALLET_TYPES,
   WALLET_SOURCES,
+  RECENT_HOURS_OPTIONS,
+  ANALYSIS_CONFIG,
   REQUEST_TIMEOUT,
   RETRY_ATTEMPTS,
   RETRY_DELAY,
@@ -252,5 +426,7 @@ export default {
   getChainLabel,
   isChainSupported,
   createAnalysisRequest,
-  parseAnalysisResponse
+  parseAnalysisResponse,
+  getWalletSourceInfo,
+  validateAnalysisRequest
 };
