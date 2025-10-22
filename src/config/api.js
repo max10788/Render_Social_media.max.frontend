@@ -15,7 +15,7 @@ export const API_CONFIG = {
     RADAR_CONTRACT_DATA: (address, chain, timePeriod) => `/api/radar/contract/${address}/data?chain=${chain}&time_period=${timePeriod}`,
     RADAR_WALLET_DETAILS: (address, chain, contractAddress, timePeriod) => `/api/radar/wallet/${address}/details?chain=${chain}&contract_address=${contractAddress}&time_period=${timePeriod}`,
     
-    // Custom Analysis Endpoints (NEW)
+    // Custom Analysis Endpoints
     ANALYZE_CUSTOM: `/api/analyze/custom`,
     ANALYZE_HEALTH: `/api/analyze/health`,
     ANALYZE_SUPPORTED_CHAINS: `/api/analyze/supported-chains`,
@@ -147,19 +147,25 @@ export const WALLET_TYPES = {
   }
 };
 
-// Wallet Source Types (NEW)
+// Wallet Source Types
 export const WALLET_SOURCES = {
   TOP_HOLDERS: {
     value: 'top_holders',
     label: 'Top Holders',
     description: 'Analyze wallets with largest token balances',
-    icon: '👑'
+    icon: '👑',
+    typical_count: '100-200 holders',
+    classified: 50
   },
   RECENT_TRADERS: {
     value: 'recent_traders',
     label: 'Recent Traders',
     description: 'Analyze wallets that recently traded the token',
-    icon: '⚡'
+    icon: '⚡',
+    typical_count: '200+ traders',
+    classified: 50,
+    unclassified: 150,
+    timeframe_hours: '1-24 hours'
   }
 };
 
@@ -168,7 +174,10 @@ export const REQUEST_TIMEOUT = 30000; // 30 seconds
 export const RETRY_ATTEMPTS = 3;
 export const RETRY_DELAY = 1000; // 1 second
 
-// Helper Functions
+/**
+ * Helper Functions
+ */
+
 export const getFullUrl = (endpoint) => {
   if (typeof endpoint === 'function') {
     return (...args) => `${API_BASE_URL}${endpoint(...args)}`;
@@ -191,6 +200,39 @@ export const isChainSupported = (chain) => {
   return BLOCKCHAIN_CONFIG.SUPPORTED_CHAINS.includes(chain);
 };
 
+/**
+ * API Request Helper
+ * Erstellt POST Request Body für Custom Analysis
+ */
+export const createAnalysisRequest = (tokenAddress, chain, walletSource = 'top_holders', recentHours = 3) => {
+  return {
+    token_address: tokenAddress,  // Backend erwartet token_address
+    chain: chain,
+    wallet_source: walletSource,
+    recent_hours: walletSource === 'recent_traders' ? recentHours : 3
+  };
+};
+
+/**
+ * Response Parser Helper
+ * Extrahiert wichtige Daten aus Backend Response
+ */
+export const parseAnalysisResponse = (response) => {
+  if (!response || !response.success) {
+    throw new Error(response?.error_message || 'Invalid response structure');
+  }
+
+  return {
+    success: response.success,
+    tokenAddress: response.token_address,
+    chain: response.chain,
+    walletSource: response.wallet_source,
+    recentHours: response.recent_hours,
+    result: response.analysis_result,
+    analyzedAt: response.analyzed_at
+  };
+};
+
 export default {
   API_CONFIG,
   API_ENDPOINTS,
@@ -208,5 +250,7 @@ export default {
   getFullUrl,
   validateAddress,
   getChainLabel,
-  isChainSupported
+  isChainSupported,
+  createAnalysisRequest,
+  parseAnalysisResponse
 };
