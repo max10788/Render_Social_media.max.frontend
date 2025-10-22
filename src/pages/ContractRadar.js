@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Radar from '../components/ui/Radar';
 import { useRadarData } from '../hooks/useRadarData';
+import DebugPanel from '../components/ui/DebugPanel';
 import './ContractRadar.css';
 
 const ContractRadar = () => {
@@ -432,6 +433,11 @@ const ContractRadar = () => {
           </div>
         </aside>
       </div>
+      
+      {/* Debug Panel - nur in Entwicklung */}
+      {process.env.NODE_ENV === 'development' && (
+        <DebugPanel rawAnalysis={rawAnalysis} radarData={radarData} />
+      )}
     </div>
   );
 };
