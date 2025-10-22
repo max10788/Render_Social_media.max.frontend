@@ -20,6 +20,7 @@ export const API_CONFIG = {
     ANALYZE_HEALTH: `/api/analyze/health`,
     ANALYZE_SUPPORTED_CHAINS: `/api/analyze/supported-chains`,
     ANALYZE_WALLET_TYPES: `/api/analyze/wallet-types`,
+    ANALYZE_WALLET_SOURCES: `/api/analyze/wallet-sources`,
     
     // Legacy Endpoints
     DATA: `/api/data`,
@@ -42,6 +43,7 @@ export const API_ENDPOINTS = {
   ANALYZE_HEALTH: `${API_BASE_URL}/api/analyze/health`,
   SUPPORTED_CHAINS: `${API_BASE_URL}/api/analyze/supported-chains`,
   WALLET_TYPES: `${API_BASE_URL}/api/analyze/wallet-types`,
+  WALLET_SOURCES: `${API_BASE_URL}/api/analyze/wallet-sources`,
 };
 
 export const ERROR_CODES = {
@@ -145,6 +147,22 @@ export const WALLET_TYPES = {
   }
 };
 
+// Wallet Source Types (NEW)
+export const WALLET_SOURCES = {
+  TOP_HOLDERS: {
+    value: 'top_holders',
+    label: 'Top Holders',
+    description: 'Analyze wallets with largest token balances',
+    icon: '👑'
+  },
+  RECENT_TRADERS: {
+    value: 'recent_traders',
+    label: 'Recent Traders',
+    description: 'Analyze wallets that recently traded the token',
+    icon: '⚡'
+  }
+};
+
 // Request Configuration
 export const REQUEST_TIMEOUT = 30000; // 30 seconds
 export const RETRY_ATTEMPTS = 3;
@@ -183,6 +201,7 @@ export default {
   TIME_PERIODS,
   INTERVALS,
   WALLET_TYPES,
+  WALLET_SOURCES,
   REQUEST_TIMEOUT,
   RETRY_ATTEMPTS,
   RETRY_DELAY,
