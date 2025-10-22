@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import Radar from '../components/ui/Radar';
 import { useRadarData } from '../hooks/useRadarData';
 import DebugPanel from '../components/ui/DebugPanel';
+import { 
+  SUPPORTED_CHAINS, 
+  WALLET_SOURCES, 
+  RECENT_HOURS_OPTIONS,
+  getWalletSourceInfo 
+} from '../config/api';
 import './ContractRadar.css';
 
 const ContractRadar = () => {
