@@ -8,27 +8,50 @@ class RadarApiService {
    * Analysiert einen Custom Token
    * @param {string} tokenAddress - Die Token-Adresse
    * @param {string} chain - Die Blockchain (ethereum, bsc, solana, sui)
+   * @param {string} walletSource - Wallet-Quelle ('top_holders' oder 'recent_traders')
+   * @param {number} recentHours - Stunden für recent_traders (1-24)
    * @returns {Promise} - Analyse-Ergebnis
    */
-  async analyzeCustomToken(tokenAddress, chain) {
+  async analyzeCustomToken(tokenAddress, chain, walletSource = 'top_holders', recentHours = 3) {
     // Validiere Address Format
     if (!validateAddress(tokenAddress, chain)) {
       throw new Error(`Invalid address format for ${chain} blockchain`);
+    }
+
+    // Validiere wallet_source
+    const validSources = ['top_holders', 'recent_traders'];
+    if (!validSources.includes(walletSource)) {
+      throw new Error(`Invalid wallet_source. Must be one of: ${validSources.join(', ')}`);
+    }
+
+    // Validiere recent_hours
+    if (walletSource === 'recent_traders') {
+      if (recentHours < 1 || recentHours > 24) {
+        throw new Error('recent_hours must be between 1 and 24');
+      }
     }
 
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
+      const requestBody = {
+        token_address: tokenAddress,
+        chain: chain,
+        wallet_source: walletSource
+      };
+
+      // Füge recent_hours nur hinzu wenn recent_traders gewählt ist
+      if (walletSource === 'recent_traders') {
+        requestBody.recent_hours = recentHours;
+      }
+
       const response = await fetch(API_ENDPOINTS.ANALYZE_CUSTOM, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          token_address: tokenAddress,
-          chain: chain
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       });
 
@@ -103,6 +126,26 @@ class RadarApiService {
   }
 
   /**
+   * Holt Informationen über Wallet-Quellen
+   * @returns {Promise} - Wallet-Quellen-Informationen
+   */
+  async getWalletSources() {
+    try {
+      const response = await fetch(API_ENDPOINTS.WALLET_SOURCES);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.sources;
+    } catch (error) {
+      console.error('Error fetching wallet sources:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Health Check für den Analysis Service
    * @returns {Promise} - Health Status
    */
@@ -133,19 +176,27 @@ class RadarApiService {
     }
 
     const result = analysisResult.analysis_result;
-    const topHolders = result.wallet_analysis?.top_holders || [];
+    const walletAnalysis = result.wallet_analysis || {};
+    
+    // Hole classified und unclassified wallets
+    const classifiedWallets = walletAnalysis.classified || [];
+    const unclassifiedWallets = walletAnalysis.unclassified || [];
+    
+    // Kombiniere alle Wallets für die Darstellung
+    const allWallets = [...classifiedWallets, ...unclassifiedWallets];
 
-    // Transformiere Top Holders zu Wallet-Punkten fürs Radar
-    const wallets = topHolders.map((holder, index) => ({
-      walletAddress: holder.address,
+    // Transformiere Wallets zu Wallet-Punkten fürs Radar
+    const wallets = allWallets.map((wallet, index) => ({
+      walletAddress: wallet.address,
       tokenType: result.token_info?.symbol || 'UNKNOWN',
-      activityType: this._determineActivityType(holder),
-      volume: holder.balance || 0,
-      percentage: holder.percentage || 0,
-      riskScore: holder.risk_score || 0,
-      type: holder.type || 'UNKNOWN',
+      activityType: this._determineActivityType(wallet),
+      volume: wallet.balance || 0,
+      percentage: wallet.percentage || 0,
+      riskScore: wallet.risk_score || 0,
+      type: wallet.type || 'UNKNOWN',
       timestamp: Date.now() - (index * 1000 * 60), // Simuliere verschiedene Zeitstempel
-      balance: holder.balance || 0
+      balance: wallet.balance || 0,
+      isClassified: index < classifiedWallets.length // Markiere ob klassifiziert
     }));
 
     // Erstelle Radar-Daten-Struktur
@@ -155,18 +206,25 @@ class RadarApiService {
       metrics: result.metrics,
       riskFlags: result.risk_flags,
       wallets: wallets,
-      walletAnalysis: result.wallet_analysis,
-      analyzedAt: analysisResult.analyzed_at
+      walletAnalysis: {
+        ...walletAnalysis,
+        classified_count: classifiedWallets.length,
+        unclassified_count: unclassifiedWallets.length,
+        total_count: allWallets.length
+      },
+      analyzedAt: analysisResult.analyzed_at,
+      walletSource: analysisResult.wallet_source,
+      recentHours: analysisResult.recent_hours
     };
   }
 
   /**
-   * Bestimmt den Aktivitätstyp basierend auf Holder-Daten
+   * Bestimmt den Aktivitätstyp basierend auf Wallet-Daten
    * @private
    */
-  _determineActivityType(holder) {
-    const riskScore = holder.risk_score || 0;
-    const type = holder.type || 'UNKNOWN';
+  _determineActivityType(wallet) {
+    const riskScore = wallet.risk_score || 0;
+    const type = wallet.type || 'UNKNOWN';
 
     // Map wallet types to activity types
     const typeMapping = {
