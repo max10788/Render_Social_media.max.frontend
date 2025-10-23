@@ -154,39 +154,13 @@ export const useRadarData = () => {
       }
     }
 
-    console.log(`✅ Transformed ${wallets.length} wallets from backend data`);
-
-    // If we still have no wallets, create some mock data for testing
+    // Wenn keine Wallets gefunden wurden, werfe einen Fehler
     if (wallets.length === 0) {
-      console.warn('⚠️ No wallets found in API response. This might indicate an issue with the API or the data structure.');
-      
-      // For debugging purposes, let's add some mock wallets
-      console.log('🔧 DEBUG: Adding mock wallets for testing');
-      wallets.push(
-        {
-          wallet_address: "0x1234567890123456789012345678901234567890",
-          chain: backendResponse.chain,
-          wallet_type: "WHALE",
-          confidence_score: 0.9,
-          transaction_count: 150,
-          risk_score: 30,
-          risk_flags: [],
-          balance: 1000000,
-          stage: 3
-        },
-        {
-          wallet_address: "0x0987654321098765432109876543210987654321",
-          chain: backendResponse.chain,
-          wallet_type: "TRADER",
-          confidence_score: 0.75,
-          transaction_count: 300,
-          risk_score: 60,
-          risk_flags: ["FREQUENT_TRADER"],
-          balance: 50000,
-          stage: 2
-        }
-      );
+      console.warn('⚠️ No wallets found in API response');
+      throw new Error('No wallets found in analysis. The token may have no holders or transactions in the selected timeframe.');
     }
+
+    console.log(`✅ Transformed ${wallets.length} wallets from backend data`);
 
     // Overall Score berechnen
     let overallScore = 50; // Default
@@ -249,9 +223,9 @@ export const useRadarData = () => {
 
       const cleanAddress = contractAddress.trim();
 
-      // ✅ KORREKTER API Request Body (token_address statt contract_address)
+      // API Request Body
       const requestBody = {
-        token_address: cleanAddress,  // ✅ Backend erwartet token_address
+        token_address: cleanAddress,
         chain: blockchain,
         wallet_source: walletSource,
         recent_hours: walletSource === 'recent_traders' ? recentHours : 3
