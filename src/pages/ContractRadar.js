@@ -15,6 +15,7 @@ const ContractRadar = () => {
   const [selectedBlockchain, setSelectedBlockchain] = useState('ethereum');
   const [selectedWalletSource, setSelectedWalletSource] = useState('top_holders');
   const [selectedRecentHours, setSelectedRecentHours] = useState(3);
+  const [selectedAnalysisDepth, setSelectedAnalysisDepth] = useState(3);
 
   const { 
     radarData, 
@@ -45,6 +46,27 @@ const ContractRadar = () => {
     { value: 24, label: '24 Hours' }
   ];
 
+  const analysisDepthOptions = [
+    { 
+      value: 1, 
+      label: 'Quick (Stage 1)', 
+      description: 'Basic transaction metrics',
+      time: '~10s' 
+    },
+    { 
+      value: 2, 
+      label: 'Standard (Stage 2)', 
+      description: 'Advanced indicators',
+      time: '~30s' 
+    },
+    { 
+      value: 3, 
+      label: 'Deep (Stage 3)', 
+      description: 'Full context analysis',
+      time: '~60s' 
+    }
+  ];
+
   const handleStartAnalysis = async () => {
     if (!contractAddress.trim()) {
       alert('Please enter a contract address!');
@@ -56,7 +78,8 @@ const ContractRadar = () => {
         contractAddress.trim(), 
         selectedBlockchain,
         selectedWalletSource,
-        selectedRecentHours
+        selectedRecentHours,
+        selectedAnalysisDepth
       );
     } catch (err) {
       console.error('Analysis failed:', err);
@@ -68,6 +91,7 @@ const ContractRadar = () => {
     setSelectedBlockchain('ethereum');
     setSelectedWalletSource('top_holders');
     setSelectedRecentHours(3);
+    setSelectedAnalysisDepth(3);
     reset();
   };
 
@@ -174,6 +198,36 @@ const ContractRadar = () => {
                 </select>
               </>
             )}
+
+            {/* ✅ NEU: Analysis Depth Selection */}
+            <div className="sidebar-label" style={{ marginTop: '1rem' }}>
+              <span className="label-icon">🔬</span>
+              Analysis Depth
+            </div>
+            <select
+              className="sidebar-select"
+              value={selectedAnalysisDepth}
+              onChange={(e) => setSelectedAnalysisDepth(Number(e.target.value))}
+              disabled={isAnalyzing}
+            >
+              {analysisDepthOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label} ({option.time})
+                </option>
+              ))}
+            </select>
+            {selectedAnalysisDepth && (
+              <div style={{ 
+                fontSize: '0.75rem', 
+                color: '#94a3b8', 
+                marginTop: '0.5rem',
+                padding: '0.5rem',
+                background: 'rgba(148, 163, 184, 0.1)',
+                borderRadius: '4px'
+              }}>
+                {analysisDepthOptions.find(o => o.value === selectedAnalysisDepth)?.description}
+              </div>
+            )}
           </div>
 
           <div className="sidebar-actions">
@@ -243,6 +297,12 @@ const ContractRadar = () => {
                   {walletSources.find(s => s.value === selectedWalletSource)?.label}
                 </span>
               </div>
+              <div className="result-row">
+                <span>Depth:</span>
+                <span className="result-value-sidebar">
+                  Stage {selectedAnalysisDepth}/3
+                </span>
+              </div>
             </div>
           )}
         </aside>
@@ -267,6 +327,7 @@ const ContractRadar = () => {
                 blockchain: selectedBlockchain,
                 walletSource: selectedWalletSource,
                 recentHours: selectedRecentHours,
+                analysisDepth: selectedAnalysisDepth,
                 timestamp: Date.now()
               } : null}
               radarData={radarData}
