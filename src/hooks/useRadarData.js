@@ -1,4 +1,4 @@
-// src/hooks/useRadarData.js
+// src/hooks/useRadarData.js - KORRIGIERTE VERSION
 import { useState, useCallback } from 'react';
 import { API_CONFIG } from '../config/api';
 
@@ -9,9 +9,36 @@ export const useRadarData = () => {
   const [error, setError] = useState(null);
 
   /**
-   * Transformiert Backend-Daten in Radar-Format
+   * ✅ Hilfsfunktion: Berechnet Risk Level aus Wallets
    */
-  const transformBackendDataToRadar = (backendResponse) => {
+  const calculateRiskLevel = (wallets) => {
+    if (!wallets || wallets.length === 0) return 'UNKNOWN';
+    
+    const avgRisk = wallets.reduce((sum, w) => sum + (w.risk_score || 0), 0) / wallets.length;
+    
+    if (avgRisk < 30) return 'LOW';
+    if (avgRisk < 70) return 'MEDIUM';
+    return 'HIGH';
+  };
+
+  /**
+   * ✅ Hilfsfunktion: Berechnet durchschnittliche Confidence
+   */
+  const calculateAverageConfidence = (wallets) => {
+    if (!wallets || wallets.length === 0) return 0;
+    
+    const classifiedWallets = wallets.filter(w => w.wallet_type !== 'UNKNOWN');
+    if (classifiedWallets.length === 0) return 0;
+    
+    const avgConfidence = classifiedWallets.reduce((sum, w) => sum + (w.confidence_score || 0), 0) / classifiedWallets.length;
+    return avgConfidence;
+  };
+
+  /**
+   * ✅ KORRIGIERT: Transformiert Backend-Daten in Radar-Format
+   * Fokus nur auf TATSÄCHLICHE Backend-Struktur
+   */
+  const transformBackendDataToRadar = (backendResponse, analysisDepth = 3) => {
     if (!backendResponse || !backendResponse.success) {
       throw new Error('Invalid backend data structure');
     }
@@ -22,10 +49,9 @@ export const useRadarData = () => {
       throw new Error('No analysis result in response');
     }
     
-    // DEBUG: Log the entire data structure to understand what we're receiving
     console.log('🔍 DEBUG: Full API response structure:', JSON.stringify(data, null, 2));
     
-    // Token Info extrahieren
+    // ✅ Token Info extrahieren
     const tokenInfo = {
       name: data.token_info?.name || 'Unknown Token',
       symbol: data.token_info?.symbol || 'N/A',
@@ -38,18 +64,20 @@ export const useRadarData = () => {
       volume24h: data.token_info?.volume_24h || 0
     };
 
-    // Wallets transformieren - alle Stages kombinieren
+    // ✅ Wallets Array
     const wallets = [];
     
-    // Hilfsfunktion zum Hinzufügen von Wallets
+    /**
+     * ✅ Hilfsfunktion: Wallet zum Array hinzufügen
+     */
     const addWallet = (address, walletData, stage) => {
       const existingIndex = wallets.findIndex(w => w.wallet_address === address);
       
       const walletObj = {
         wallet_address: address,
         chain: backendResponse.chain,
-        wallet_type: walletData.type || walletData.wallet_type || 'UNKNOWN',
-        confidence_score: walletData.confidence || walletData.confidence_score || 0,
+        wallet_type: walletData.wallet_type || walletData.type || 'UNKNOWN',
+        confidence_score: walletData.confidence_score || walletData.confidence || 0,
         transaction_count: walletData.transaction_count || walletData.transactions || 0,
         risk_score: walletData.risk_score || 0,
         risk_flags: walletData.risk_flags || [],
@@ -72,128 +100,103 @@ export const useRadarData = () => {
       }
     };
 
-    // DEBUG: Check what wallet-related properties exist in the data
-    console.log('🔍 DEBUG: Wallet-related properties in data:', Object.keys(data).filter(k => k.toLowerCase().includes('wallet')));
+    console.log('🔍 DEBUG: Available properties in data:', Object.keys(data));
     
-    // Try multiple possible wallet data structures
-    
-    // Original structure - stages
+    // ✅ KORRIGIERT: Nur noch die TATSÄCHLICHE Backend-Struktur verarbeiten
     if (data.wallets) {
-      console.log('🔍 DEBUG: Found wallets property, checking structure:', Object.keys(data.wallets));
+      console.log('🔍 DEBUG: Found wallets property with keys:', Object.keys(data.wallets));
       
-      // Stage 1 Wallets (Basic)
-      if (data.wallets.stage_1?.classified) {
-        console.log('🔍 DEBUG: Processing stage_1 classified wallets');
-        Object.entries(data.wallets.stage_1.classified).forEach(([address, walletData]) => {
-          addWallet(address, walletData, 1);
-        });
-      }
-
-      // Stage 2 Wallets (Advanced)
-      if (data.wallets.stage_2?.classified) {
-        console.log('🔍 DEBUG: Processing stage_2 classified wallets');
-        Object.entries(data.wallets.stage_2.classified).forEach(([address, walletData]) => {
-          addWallet(address, walletData, 2);
-        });
-      }
-
-      // Stage 3 Wallets (Deep)
-      if (data.wallets.stage_3?.classified) {
-        console.log('🔍 DEBUG: Processing stage_3 classified wallets');
-        Object.entries(data.wallets.stage_3.classified).forEach(([address, walletData]) => {
-          addWallet(address, walletData, 3);
-        });
-      }
-
-      // Unclassified Wallets
-      if (data.wallets.unclassified) {
-        console.log('🔍 DEBUG: Processing unclassified wallets');
-        Object.entries(data.wallets.unclassified).forEach(([address, walletData]) => {
-          addWallet(address, { ...walletData, type: 'UNKNOWN' }, 0);
-        });
-      }
-      
-      // Try direct classified structure (based on API documentation)
+      // ✅ HAUPT-STRUKTUR: classified wallets (direkt)
       if (data.wallets.classified) {
-        console.log('🔍 DEBUG: Processing direct classified wallets');
+        console.log('🔍 DEBUG: Processing classified wallets:', Object.keys(data.wallets.classified).length);
+        
         Object.entries(data.wallets.classified).forEach(([address, walletData]) => {
-          addWallet(address, walletData, 1);
+          // ✅ analysisDepth wird hier als "stage" gespeichert
+          addWallet(address, walletData, analysisDepth);
+        });
+      }
+
+      // ✅ Unclassified Wallets
+      if (data.wallets.unclassified) {
+        console.log('🔍 DEBUG: Processing unclassified wallets:', Object.keys(data.wallets.unclassified).length);
+        
+        Object.entries(data.wallets.unclassified).forEach(([address, walletData]) => {
+          addWallet(address, { ...walletData, wallet_type: 'UNKNOWN' }, 0);
         });
       }
     }
     
-    // Alternative structure - direct wallets array
-    if (Array.isArray(data.wallets) && data.wallets.length > 0) {
-      console.log('🔍 DEBUG: Found wallets as array, processing');
-      data.wallets.forEach((wallet, index) => {
-        // If wallet is an object with address property
-        if (wallet.wallet_address || wallet.address) {
-          const address = wallet.wallet_address || wallet.address;
-          addWallet(address, wallet, 1);
-        }
-        // If wallet is just a string address
-        else if (typeof wallet === 'string') {
-          addWallet(wallet, {}, 1);
-        }
-      });
-    }
-    
-    // Alternative structure - holder_data
-    if (data.holder_data) {
-      console.log('🔍 DEBUG: Found holder_data, processing');
-      if (Array.isArray(data.holder_data)) {
-        data.holder_data.forEach(holder => {
-          if (holder.address) {
-            addWallet(holder.address, holder, 1);
+    // ✅ Fallback: Wenn keine Wallets im erwarteten Format gefunden wurden
+    // Prüfe alternative Strukturen
+    if (wallets.length === 0) {
+      console.warn('⚠️ No wallets found in expected structure, trying alternatives...');
+      
+      // Alternative 1: Wallets als direktes Array
+      if (Array.isArray(data.wallets)) {
+        console.log('🔍 DEBUG: Found wallets as array');
+        data.wallets.forEach((wallet, index) => {
+          if (wallet.wallet_address || wallet.address) {
+            const address = wallet.wallet_address || wallet.address;
+            addWallet(address, wallet, analysisDepth);
           }
         });
-      } else if (typeof data.holder_data === 'object') {
-        Object.entries(data.holder_data).forEach(([address, holderData]) => {
-          addWallet(address, holderData, 1);
-        });
+      }
+      
+      // Alternative 2: holder_data
+      if (data.holder_data) {
+        console.log('🔍 DEBUG: Found holder_data');
+        if (typeof data.holder_data === 'object') {
+          Object.entries(data.holder_data).forEach(([address, holderData]) => {
+            addWallet(address, holderData, analysisDepth);
+          });
+        }
       }
     }
 
-    // Wenn keine Wallets gefunden wurden, werfe einen Fehler
+    // ✅ Wenn immer noch keine Wallets, werfe Fehler
     if (wallets.length === 0) {
-      console.warn('⚠️ No wallets found in API response');
+      console.error('❌ No wallets found in any expected structure');
+      console.error('Available data keys:', Object.keys(data));
+      if (data.wallets) {
+        console.error('Wallets structure:', Object.keys(data.wallets));
+      }
       throw new Error('No wallets found in analysis. The token may have no holders or transactions in the selected timeframe.');
     }
 
     console.log(`✅ Transformed ${wallets.length} wallets from backend data`);
 
-    // Overall Score berechnen
+    // ✅ Overall Score berechnen
     let overallScore = 50; // Default
     
-    if (data.summary) {
-      const { risk_level, confidence } = data.summary;
-      
-      // Score basierend auf Risk Level
-      if (risk_level === 'LOW') overallScore = 80;
-      else if (risk_level === 'MEDIUM') overallScore = 50;
-      else if (risk_level === 'HIGH') overallScore = 20;
-      
-      // Adjust by confidence
-      if (confidence) {
-        overallScore = Math.round(overallScore * confidence);
-      }
+    if (data.token_score !== undefined && data.token_score !== null) {
+      // Backend liefert direkt einen token_score (0-100)
+      overallScore = data.token_score;
+    } else {
+      // Fallback: Berechne aus Wallets
+      const avgRiskScore = wallets.reduce((sum, w) => sum + (w.risk_score || 0), 0) / wallets.length;
+      // Invertiere Risk Score zu Quality Score: niedrig risk = hoch score
+      overallScore = Math.round(100 - avgRiskScore);
     }
 
-    // Statistics
+    // ✅ Statistics - SELBST BERECHNET aus Wallets (Backend sendet keine summary)
     const statistics = {
-      total_holders: data.summary?.total_holders || wallets.length,
-      classified_count: data.summary?.classified_count || wallets.length,
-      risk_level: data.summary?.risk_level || 'MEDIUM',
-      confidence: data.summary?.confidence || 0.5,
+      total_holders: wallets.length,
+      classified_count: wallets.filter(w => w.wallet_type !== 'UNKNOWN').length,
+      unclassified_count: wallets.filter(w => w.wallet_type === 'UNKNOWN').length,
+      risk_level: calculateRiskLevel(wallets),
+      confidence: calculateAverageConfidence(wallets),
       wallet_types: {},
-      source: backendResponse.wallet_source
+      source: backendResponse.wallet_source,
+      analysis_depth: analysisDepth
     };
 
-    // Wallet Types Count
+    // ✅ Wallet Types Count
     wallets.forEach(wallet => {
       const type = wallet.wallet_type;
       statistics.wallet_types[type] = (statistics.wallet_types[type] || 0) + 1;
     });
+
+    console.log('✅ Statistics calculated:', statistics);
 
     return {
       tokenInfo,
@@ -202,28 +205,38 @@ export const useRadarData = () => {
       statistics,
       timestamp: Date.now(),
       walletSource: backendResponse.wallet_source,
-      recentHours: backendResponse.recent_hours
+      recentHours: backendResponse.recent_hours,
+      analysisDepth: analysisDepth,
+      riskFlags: data.risk_flags || []
     };
   };
 
   /**
-   * Analysiert einen Token
+   * ✅ KORRIGIERT: Analysiert einen Token
+   * Parameter: analysisDepth hinzugefügt
    */
-  const analyzeToken = useCallback(async (contractAddress, blockchain = 'ethereum', walletSource = 'top_holders', recentHours = 3) => {
+  const analyzeToken = useCallback(async (
+    contractAddress, 
+    blockchain = 'ethereum', 
+    walletSource = 'top_holders', 
+    recentHours = 3,
+    analysisDepth = 3  // ✅ NEU: Parameter hinzugefügt
+  ) => {
     setLoading(true);
     setError(null);
     setRadarData(null);
     setRawAnalysis(null);
 
     try {
-      // Validation
+      // ✅ Validation
       if (!contractAddress || !contractAddress.trim()) {
         throw new Error('Contract address is required');
       }
 
       const cleanAddress = contractAddress.trim();
 
-      // API Request Body
+      // ✅ API Request Body - Backend erwartet KEINE analysisDepth
+      // analysisDepth wird nur im Frontend verwendet
       const requestBody = {
         token_address: cleanAddress,
         chain: blockchain,
@@ -232,8 +245,9 @@ export const useRadarData = () => {
       };
 
       console.log('🚀 Starting analysis with:', requestBody);
+      console.log('🎯 Analysis Depth (Frontend only):', analysisDepth);
 
-      // API Call
+      // ✅ API Call
       const response = await fetch(
         `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ANALYZE_CUSTOM}`,
         {
@@ -249,7 +263,7 @@ export const useRadarData = () => {
       console.log('📥 Backend response:', responseData);
 
       if (!response.ok) {
-        // Handle specific error cases
+        // ✅ Handle specific error cases
         if (response.status === 404) {
           throw new Error(
             responseData.error_message || 
@@ -264,16 +278,16 @@ export const useRadarData = () => {
         );
       }
 
-      // Check success flag
+      // ✅ Check success flag
       if (!responseData.success) {
         throw new Error(responseData.error_message || 'Analysis failed');
       }
 
-      // Raw Analysis speichern
+      // ✅ Raw Analysis speichern
       setRawAnalysis(responseData);
 
-      // Transform zu Radar Format
-      const transformedData = transformBackendDataToRadar(responseData);
+      // ✅ Transform zu Radar Format - mit analysisDepth
+      const transformedData = transformBackendDataToRadar(responseData, analysisDepth);
       console.log('✅ Transformed radar data:', transformedData);
       console.log(`✅ Found ${transformedData.wallets.length} wallets to display`);
 
@@ -292,7 +306,7 @@ export const useRadarData = () => {
   }, []);
 
   /**
-   * Reset State
+   * ✅ Reset State
    */
   const reset = useCallback(() => {
     setRadarData(null);
