@@ -1,4 +1,4 @@
-// src/hooks/useRadarData.js - KORRIGIERTE VERSION
+// src/hooks/useRadarData.js - MIT DEBUG LOGS
 import { useState, useCallback } from 'react';
 import { API_CONFIG } from '../config/api';
 
@@ -102,6 +102,43 @@ export const useRadarData = () => {
 
     console.log('🔍 DEBUG: Available properties in data:', Object.keys(data));
     
+    // ✅ ========== KRITISCHER DEBUG BLOCK ==========
+    console.log('\n🔍 ========== WALLET_ANALYSIS DEBUG ==========');
+    console.log('  - Has wallet_analysis?', !!data.wallet_analysis);
+    
+    if (data.wallet_analysis) {
+      console.log('  - wallet_analysis keys:', Object.keys(data.wallet_analysis));
+      console.log('  - classified type:', typeof data.wallet_analysis.classified);
+      console.log('  - classified isArray?', Array.isArray(data.wallet_analysis.classified));
+      
+      if (data.wallet_analysis.classified) {
+        if (Array.isArray(data.wallet_analysis.classified)) {
+          console.log('  - classified length:', data.wallet_analysis.classified.length);
+          console.log('  - First classified entry (ARRAY):', JSON.stringify(data.wallet_analysis.classified[0], null, 2));
+        } else {
+          const keys = Object.keys(data.wallet_analysis.classified);
+          console.log('  - classified keys (OBJECT):', keys.slice(0, 3));
+          console.log('  - First classified entry (OBJECT):', JSON.stringify(data.wallet_analysis.classified[keys[0]], null, 2));
+        }
+      }
+      
+      console.log('  - unclassified type:', typeof data.wallet_analysis.unclassified);
+      console.log('  - unclassified isArray?', Array.isArray(data.wallet_analysis.unclassified));
+      
+      if (data.wallet_analysis.unclassified) {
+        if (Array.isArray(data.wallet_analysis.unclassified)) {
+          console.log('  - unclassified length:', data.wallet_analysis.unclassified.length);
+          console.log('  - First unclassified entry (ARRAY):', JSON.stringify(data.wallet_analysis.unclassified[0], null, 2));
+        } else {
+          const keys = Object.keys(data.wallet_analysis.unclassified);
+          console.log('  - unclassified keys (OBJECT):', keys.slice(0, 3));
+          console.log('  - First unclassified entry (OBJECT):', JSON.stringify(data.wallet_analysis.unclassified[keys[0]], null, 2));
+        }
+      }
+    }
+    console.log('🔍 ==========================================\n');
+    // ✅ ========== END DEBUG BLOCK ==========
+    
     // ✅ TATSÄCHLICHE Backend-Struktur: wallet_analysis mit Arrays
     if (data.wallet_analysis) {
       console.log('🔍 DEBUG: Found wallet_analysis property');
@@ -110,12 +147,14 @@ export const useRadarData = () => {
       if (Array.isArray(data.wallet_analysis.classified)) {
         console.log('🔍 DEBUG: Processing classified wallets (ARRAY):', data.wallet_analysis.classified.length);
         
-        data.wallet_analysis.classified.forEach((walletData) => {
+        data.wallet_analysis.classified.forEach((walletData, idx) => {
           const address = walletData.address || walletData.wallet_address;
+          console.log(`  [${idx}] Processing: ${address}, type: ${walletData.type}, wallet_type: ${walletData.wallet_type}`);
+          
           if (address) {
             // Map die Backend-Felder auf Frontend-Struktur
             const mappedWallet = {
-              wallet_type: walletData.type || 'UNKNOWN',
+              wallet_type: walletData.type || walletData.wallet_type || 'UNKNOWN',
               confidence_score: walletData.confidence_score || 0,
               transaction_count: walletData.transaction_count || walletData.tx_count || 0,
               risk_score: walletData.risk_score || 0,
@@ -128,8 +167,29 @@ export const useRadarData = () => {
               buy_count: walletData.buy_count || 0,
               sell_count: walletData.sell_count || 0
             };
+            
+            console.log(`  [${idx}] Mapped wallet_type: ${mappedWallet.wallet_type}`);
             addWallet(address, mappedWallet, analysisDepth);
           }
+        });
+      } else if (typeof data.wallet_analysis.classified === 'object') {
+        // ✅ FALLBACK: classified als OBJECT (alte Struktur)
+        console.log('🔍 DEBUG: Processing classified wallets (OBJECT)');
+        Object.entries(data.wallet_analysis.classified).forEach(([address, walletData]) => {
+          const mappedWallet = {
+            wallet_type: walletData.type || walletData.wallet_type || 'UNKNOWN',
+            confidence_score: walletData.confidence_score || 0,
+            transaction_count: walletData.transaction_count || walletData.tx_count || 0,
+            risk_score: walletData.risk_score || 0,
+            risk_flags: walletData.risk_flags || [],
+            balance: walletData.balance || 0,
+            first_seen: walletData.first_transaction,
+            last_seen: walletData.last_transaction,
+            total_volume: walletData.total_volume || 0,
+            buy_count: walletData.buy_count || 0,
+            sell_count: walletData.sell_count || 0
+          };
+          addWallet(address, mappedWallet, analysisDepth);
         });
       }
 
@@ -156,6 +216,25 @@ export const useRadarData = () => {
             addWallet(address, mappedWallet, 0);
           }
         });
+      } else if (typeof data.wallet_analysis.unclassified === 'object') {
+        // ✅ FALLBACK: unclassified als OBJECT
+        console.log('🔍 DEBUG: Processing unclassified wallets (OBJECT)');
+        Object.entries(data.wallet_analysis.unclassified).forEach(([address, walletData]) => {
+          const mappedWallet = {
+            wallet_type: 'UNKNOWN',
+            confidence_score: 0,
+            transaction_count: walletData.tx_count || walletData.transaction_count || 0,
+            risk_score: walletData.risk_score || 0,
+            balance: walletData.balance || 0,
+            first_seen: walletData.first_transaction,
+            last_seen: walletData.last_transaction,
+            buy_count: walletData.buy_count || 0,
+            sell_count: walletData.sell_count || 0,
+            total_bought: walletData.total_bought || 0,
+            total_sold: walletData.total_sold || 0
+          };
+          addWallet(address, mappedWallet, 0);
+        });
       }
     }
     
@@ -180,6 +259,22 @@ export const useRadarData = () => {
         }
       }
     }
+
+    // ✅ FINALE WALLET-ANALYSE
+    console.log('\n🎯 ========== FINAL WALLET ANALYSIS ==========');
+    console.log(`  Total wallets added: ${wallets.length}`);
+    const classifiedCount = wallets.filter(w => w.wallet_type !== 'UNKNOWN').length;
+    const unclassifiedCount = wallets.filter(w => w.wallet_type === 'UNKNOWN').length;
+    console.log(`  Classified: ${classifiedCount}`);
+    console.log(`  Unclassified: ${unclassifiedCount}`);
+    
+    if (classifiedCount > 0) {
+      console.log('  Sample classified wallets:');
+      wallets.filter(w => w.wallet_type !== 'UNKNOWN').slice(0, 3).forEach(w => {
+        console.log(`    - ${w.wallet_address}: ${w.wallet_type} (confidence: ${w.confidence_score})`);
+      });
+    }
+    console.log('🎯 ==========================================\n');
 
     // ✅ Wenn immer noch keine Wallets, werfe Fehler
     if (wallets.length === 0) {
