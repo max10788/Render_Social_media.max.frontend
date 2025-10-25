@@ -64,7 +64,7 @@ const WalletDetail = ({ wallet, onClose }) => {
             <div className="wallet-info-grid">
               <div className="wallet-info-item">
                 <span className="info-label">Adresse:</span>
-                <span className="info-value address">{formatAddress(wallet.wallet_address)}</span>
+                <span className="info-value address">{wallet.wallet_address}</span>
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Blockchain:</span>
@@ -94,7 +94,7 @@ const WalletDetail = ({ wallet, onClose }) => {
             <div className="wallet-info-grid">
               <div className="wallet-info-item">
                 <span className="info-label">Token-Adresse:</span>
-                <span className="info-value address">{formatAddress(wallet.token_address)}</span>
+                <span className="info-value address">{wallet.token_address}</span>
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Balance:</span>
