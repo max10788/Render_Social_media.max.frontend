@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Radar.css';
 import WalletDetail from './WalletDetail';
+import WalletDetailUnclassified from './WalletDetailUnclassified'; // ✅ NEU
 
 const Radar = ({ config, radarData, loading }) => {
   const [showContractDetails, setShowContractDetails] = useState(false);
@@ -21,13 +22,17 @@ const Radar = ({ config, radarData, loading }) => {
   };
   
   const showWalletTooltip = (event, wallet) => {
+    // ✅ Check if wallet is classified
+    const isClassified = wallet.classified !== false && wallet.wallet_type !== 'unclassified';
+    
     setTooltip({
       content: wallet.wallet_address || wallet.walletAddress,
       details: {
         type: wallet.wallet_type || wallet.type,
         riskScore: wallet.risk_score,
         confidence: wallet.confidence_score,
-        transactions: wallet.transaction_count
+        transactions: wallet.transaction_count,
+        isClassified // ✅ Add flag for tooltip styling
       },
       x: event.clientX,
       y: event.clientY
@@ -46,10 +51,13 @@ const Radar = ({ config, radarData, loading }) => {
       'hodler': '#10b981',
       'trader': '#f59e0b',
       'mixer': '#ef4444',
+      'dust_sweeper': '#8b5cf6',
       'bot': '#8b5cf6',
-      'smart_money': '#06b6d4'
+      'smart_money': '#06b6d4',
+      'unclassified': '#9ca3af', // ✅ NEU: Grau für unclassified
+      'unknown': '#6b7280'
     };
-    return colors[walletType?.toLowerCase()] || '#818cf8';
+    return colors[walletType?.toLowerCase()] || '#9ca3af';
   };
   
   const svgSize = 500;
@@ -81,8 +89,18 @@ const Radar = ({ config, radarData, loading }) => {
   
   const calculateWalletPosition = (wallet, index, total) => {
     const angle = (index / total) * 2 * Math.PI;
-    const riskScore = wallet.risk_score || 0;
-    const radius = center * 0.3 + (riskScore / 100) * (outerRadius - center * 0.3);
+    
+    // ✅ Für unclassified wallets: platziere sie weiter außen (geringeres Risiko angenommen)
+    const isClassified = wallet.classified !== false && wallet.wallet_type !== 'unclassified';
+    
+    let radius;
+    if (isClassified) {
+      const riskScore = wallet.risk_score || 0;
+      radius = center * 0.3 + (riskScore / 100) * (outerRadius - center * 0.3);
+    } else {
+      // Unclassified wallets im äußeren Ring (niedrige Priorität)
+      radius = outerRadius * 0.85;
+    }
     
     return {
       x: center + radius * Math.cos(angle),
@@ -108,7 +126,7 @@ const Radar = ({ config, radarData, loading }) => {
         <p>Analyzing contract...</p>
       </div>
     );
-  }
+  };
   
   if (!radarData || !radarData.wallets || radarData.wallets.length === 0) {
     return (
@@ -118,7 +136,14 @@ const Radar = ({ config, radarData, loading }) => {
     );
   }
   
-  const wallets = radarData.wallets || [];
+  // ✅ UPDATED: Support für classified und unclassified wallets
+  const classifiedWallets = radarData.wallets.classified || [];
+  const unclassifiedWallets = radarData.wallets.unclassified || [];
+  const allWallets = [...classifiedWallets, ...unclassifiedWallets];
+  
+  // Fallback für alte Datenstruktur
+  const wallets = allWallets.length > 0 ? allWallets : (radarData.wallets || []);
+  
   const tokenInfo = radarData.tokenInfo || {};
   const mainScanEndPoint = calculateScanEndPoint(scanAngle, outerRadius);
   
@@ -273,7 +298,12 @@ const Radar = ({ config, radarData, loading }) => {
               const position = calculateWalletPosition(wallet, index, wallets.length);
               const walletColor = getWalletColor(wallet.wallet_type);
               const isHovered = hoveredPoint === (wallet.wallet_address || wallet.walletAddress);
-              const walletSize = 3 + (wallet.confidence_score || 0) * 2;
+              const isClassified = wallet.classified !== false && wallet.wallet_type !== 'unclassified';
+              
+              // ✅ Größe basierend auf Klassifizierung
+              const walletSize = isClassified 
+                ? 3 + (wallet.confidence_score || 0) * 2 
+                : 2; // Kleinere Punkte für unclassified
               
               return (
                 <g 
@@ -302,7 +332,8 @@ const Radar = ({ config, radarData, loading }) => {
                     strokeWidth={isHovered ? 1 : 0.5}
                     style={{ 
                       filter: isHovered ? `drop-shadow(0 0 6px ${walletColor})` : 'none',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      opacity: isClassified ? 1 : 0.6 // ✅ Unclassified sind etwas transparenter
                     }}
                   />
                 </g>
@@ -337,9 +368,17 @@ const Radar = ({ config, radarData, loading }) => {
                     <span className="detail-label">Score:</span>
                     <span className="detail-value">{radarData.score || 0}/100</span>
                   </div>
+                  {/* ✅ UPDATED: Zeige classified/unclassified counts */}
                   <div className="detail-row">
                     <span className="detail-label">Wallets Analyzed:</span>
-                    <span className="detail-value">{wallets.length}</span>
+                    <span className="detail-value">
+                      {wallets.length} 
+                      {classifiedWallets.length > 0 && (
+                        <span style={{ fontSize: '12px', marginLeft: '8px', opacity: 0.7 }}>
+                          ({classifiedWallets.length} classified, {unclassifiedWallets.length} unclassified)
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -361,19 +400,34 @@ const Radar = ({ config, radarData, loading }) => {
               {tooltip.details && (
                 <div style={{ fontSize: '11px', opacity: 0.9 }}>
                   {tooltip.details.type && (
-                    <div>Type: {tooltip.details.type}</div>
+                    <div>
+                      Type: {tooltip.details.type}
+                      {/* ✅ Badge für unclassified */}
+                      {!tooltip.details.isClassified && (
+                        <span style={{ 
+                          marginLeft: '6px', 
+                          padding: '2px 6px',
+                          backgroundColor: '#6b7280',
+                          borderRadius: '4px',
+                          fontSize: '9px',
+                          color: 'white'
+                        }}>
+                          NOT CLASSIFIED
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {tooltip.details.riskScore !== undefined && (
+                  {tooltip.details.riskScore !== undefined && tooltip.details.isClassified && (
                     <div>Risk: {tooltip.details.riskScore}/100</div>
                   )}
-                  {tooltip.details.confidence !== undefined && (
+                  {tooltip.details.confidence !== undefined && tooltip.details.isClassified && (
                     <div>Confidence: {(tooltip.details.confidence * 100).toFixed(1)}%</div>
                   )}
                   {tooltip.details.transactions && (
                     <div>Transactions: {tooltip.details.transactions}</div>
                   )}
                   <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>
-                    💡 Click for details
+                    💡 Click for {tooltip.details.isClassified ? 'full' : 'basic'} details
                   </div>
                 </div>
               )}
@@ -382,12 +436,21 @@ const Radar = ({ config, radarData, loading }) => {
         </div>
       </div>
       
-      {/* Wallet Detail Modal */}
+      {/* Wallet Detail Modal - ✅ Zeige die richtige Komponente */}
       {selectedWallet && (
-        <WalletDetail 
-          wallet={selectedWallet} 
-          onClose={() => setSelectedWallet(null)} 
-        />
+        <>
+          {selectedWallet.classified !== false && selectedWallet.wallet_type !== 'unclassified' ? (
+            <WalletDetail 
+              wallet={selectedWallet} 
+              onClose={() => setSelectedWallet(null)} 
+            />
+          ) : (
+            <WalletDetailUnclassified 
+              wallet={selectedWallet} 
+              onClose={() => setSelectedWallet(null)} 
+            />
+          )}
+        </>
       )}
     </>
   );
