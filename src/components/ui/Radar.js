@@ -88,23 +88,63 @@ const Radar = ({ config, radarData, loading }) => {
   };
   
   const calculateWalletPosition = (wallet, index, total) => {
-    const angle = (index / total) * 2 * Math.PI;
+    // ✅ VERBESSERT: Bessere Verteilung der Wallets
     
-    // ✅ Check if classified
+    // Check if classified
     const isClassified = wallet.wallet_type !== 'UNKNOWN' && wallet.wallet_type !== 'unclassified';
     
+    // 1. RADIUS: Basierend auf Risk Score (innen = sicher, außen = riskant)
     let radius;
     if (isClassified) {
       const riskScore = wallet.risk_score || 0;
+      // Skalierung: 30% bis 95% des Radius
       radius = center * 0.3 + (riskScore / 100) * (outerRadius - center * 0.3);
     } else {
-      // Unclassified wallets im äußeren Ring
-      radius = outerRadius * 0.85;
+      // Unclassified wallets im äußeren Ring (80-90%)
+      // Leichte Variation für bessere Verteilung
+      const variation = (index % 10) / 100; // 0.00 bis 0.09
+      radius = outerRadius * (0.8 + variation);
     }
     
+    // 2. WINKEL: Gleichmäßige Verteilung um 360°
+    // Golden Angle für bessere Verteilung (verhindert Clustering)
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.5°
+    const angle = (index * goldenAngle) % (2 * Math.PI);
+    
+    // Alternative: Gruppierung nach Wallet-Typ
+    // Jeder Typ bekommt einen Sektor
+    const typeAngles = {
+      'WHALE': 0,
+      'HODLER': Math.PI / 3,      // 60°
+      'TRADER': (2 * Math.PI) / 3, // 120°
+      'MIXER': Math.PI,             // 180°
+      'DUST_SWEEPER': (4 * Math.PI) / 3, // 240°
+      'UNKNOWN': (5 * Math.PI) / 3       // 300°
+    };
+    
+    // Basis-Winkel für den Wallet-Typ
+    const walletType = wallet.wallet_type?.toUpperCase() || 'UNKNOWN';
+    const baseAngle = typeAngles[walletType] || 0;
+    
+    // Spread innerhalb des Sektors (±30° = π/6)
+    const sectorSpread = Math.PI / 6;
+    const walletTypeCount = wallets.filter(w => 
+      (w.wallet_type?.toUpperCase() || 'UNKNOWN') === walletType
+    ).length;
+    const walletIndexInType = wallets.filter((w, i) => 
+      i <= index && (w.wallet_type?.toUpperCase() || 'UNKNOWN') === walletType
+    ).length - 1;
+    
+    // Verteilung innerhalb des Sektors
+    const angleInSector = walletTypeCount > 1 
+      ? (walletIndexInType / (walletTypeCount - 1)) * 2 * sectorSpread - sectorSpread
+      : 0;
+    
+    const finalAngle = baseAngle + angleInSector;
+    
     return {
-      x: center + radius * Math.cos(angle),
-      y: center + radius * Math.sin(angle)
+      x: center + radius * Math.cos(finalAngle),
+      y: center + radius * Math.sin(finalAngle)
     };
   };
   
