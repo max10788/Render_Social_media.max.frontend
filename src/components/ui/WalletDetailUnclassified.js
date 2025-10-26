@@ -1,3 +1,4 @@
+// src/components/ui/WalletDetailUnclassified.jsx - FIXED VERSION ✅
 import React from 'react';
 import './WalletDetail.css'; // Verwende dasselbe CSS
 
@@ -12,6 +13,7 @@ const WalletDetailUnclassified = ({ wallet, onClose }) => {
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString('de-DE', {
       year: 'numeric',
       month: 'short',
@@ -25,6 +27,8 @@ const WalletDetailUnclassified = ({ wallet, onClose }) => {
   const timeSinceLastTransaction = (dateString) => {
     if (!dateString) return 'Unbekannt';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Unbekannt';
+    
     const now = new Date();
     const diffMs = now - date;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -36,6 +40,11 @@ const WalletDetailUnclassified = ({ wallet, onClose }) => {
     if (diffDays < 365) return `Vor ${Math.floor(diffDays / 30)} Monaten`;
     return `Vor ${Math.floor(diffDays / 365)} Jahren`;
   };
+
+  // ✅ DEFENSIV: Sicherstellen, dass numerische Werte vorhanden sind
+  const balance = wallet.balance || 0;
+  const percentageOfSupply = wallet.percentage_of_supply || 0;
+  const transactionCount = wallet.transaction_count || 0;
 
   return (
     <div className="wallet-detail-overlay">
@@ -64,7 +73,7 @@ const WalletDetailUnclassified = ({ wallet, onClose }) => {
               <div style={{ fontSize: '14px', lineHeight: '1.5' }}>
                 <strong>Hinweis:</strong> Diese Wallet wurde nicht vollständig klassifiziert. 
                 Es werden nur grundlegende Transaktionsdaten angezeigt. 
-                Für eine vollständige Analyse gehört diese Wallet nicht zu den Top 50 Holdings.
+                Für eine vollständige Analyse gehört diese Wallet nicht zu den Top 30 Holdings.
               </div>
             </div>
           </div>
@@ -79,7 +88,7 @@ const WalletDetailUnclassified = ({ wallet, onClose }) => {
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Blockchain:</span>
-                <span className="info-value">{wallet.chain}</span>
+                <span className="info-value">{wallet.chain || 'Unknown'}</span>
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Status:</span>
@@ -102,18 +111,19 @@ const WalletDetailUnclassified = ({ wallet, onClose }) => {
             <div className="wallet-info-grid">
               <div className="wallet-info-item">
                 <span className="info-label">Token-Adresse:</span>
-                <span className="info-value address">{wallet.token_address}</span>
+                <span className="info-value address">{wallet.token_address || 'N/A'}</span>
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Balance:</span>
                 <span className="info-value">
-                  {wallet.balance?.toLocaleString('de-DE', { maximumFractionDigits: 2 })} Tokens
+                  {balance.toLocaleString('de-DE', { maximumFractionDigits: 2 })} Tokens
                 </span>
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Anteil am Supply:</span>
                 <span className="info-value">
-                  {(wallet.percentage_of_supply * 100)?.toFixed(4)}%
+                  {/* ✅ FIX: Backend gibt bereits Prozent (z.B. 2.5), KEINE Multiplikation mit 100! */}
+                  {percentageOfSupply.toFixed(4)}%
                 </span>
               </div>
             </div>
@@ -126,7 +136,7 @@ const WalletDetailUnclassified = ({ wallet, onClose }) => {
               <div className="wallet-info-item">
                 <span className="info-label">Anzahl Transaktionen:</span>
                 <span className="info-value">
-                  {wallet.transaction_count?.toLocaleString('de-DE') || '0'}
+                  {transactionCount.toLocaleString('de-DE')}
                 </span>
               </div>
               <div className="wallet-info-item">
@@ -160,7 +170,10 @@ const WalletDetailUnclassified = ({ wallet, onClose }) => {
                   • <strong>Keine Wallet-Typ-Erkennung</strong>: Es wurde nicht bestimmt, ob es sich um einen Whale, Hodler, Trader, Mixer oder Dust Sweeper handelt.
                 </p>
                 <p style={{ margin: '5px 0' }}>
-                  • <strong>Grund</strong>: Diese Wallet gehört nicht zu den Top 50 Token-Holdern und wurde daher nur mit grundlegenden Statistiken erfasst.
+                  • <strong>Grund</strong>: Diese Wallet gehört nicht zu den Top 30 Token-Holdern und wurde daher nur mit grundlegenden Statistiken erfasst.
+                </p>
+                <p style={{ margin: '5px 0', marginTop: '10px', fontStyle: 'italic' }}>
+                  💡 <strong>Tipp:</strong> Wallets außerhalb der Top 30 werden aus Performance-Gründen nicht vollständig klassifiziert, um die Analyse-Zeit zu minimieren.
                 </p>
               </div>
             </div>
