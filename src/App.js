@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import Navigation from './components/ui/Navigation';
+import Dashboard from './pages/Dashboard';
 import ContractRadar from './pages/ContractRadar';
 import TokenOverview from './pages/TokenOverview';
 import WalletAnalyses from './pages/WalletAnalyses';
@@ -22,7 +23,7 @@ function App() {
           <main className="main-content">
             <Routes>
               {/* Public Routes - kein Login erforderlich */}
-              <Route path="/" element={<ContractRadar />} />
+              <Route path="/" element={<Dashboard />} />
               <Route path="/radar" element={<ContractRadar />} />
               <Route path="/tokens" element={<TokenOverview />} />
               <Route path="/wallets" element={<WalletAnalyses />} />
@@ -32,15 +33,6 @@ function App() {
               <Route path="/register" element={<Register />} />
               
               {/* Protected Routes - Login erforderlich */}
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <ContractRadar />
-                  </ProtectedRoute>
-                } 
-              />
-              
               <Route 
                 path="/account" 
                 element={
