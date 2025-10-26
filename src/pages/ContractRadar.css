@@ -227,8 +227,7 @@
   position: relative;
 }
 
-.sidebar-input:hover:not(:disabled),
-.sidebar-select:hover:not(:disabled) {
+.sidebar-input:hover:not(:disabled) {
   border-color: rgba(96, 165, 250, 0.4);
   background: rgba(15, 23, 42, 0.8);
   transform: translateY(-1px);
