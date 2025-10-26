@@ -1,4 +1,4 @@
-// src/hooks/useRadarData.js - MIT DEBUG LOGS
+// src/hooks/useRadarData.js - FIXED VERSION ✅
 import { useState, useCallback } from 'react';
 import { API_CONFIG } from '../config/api';
 
@@ -35,8 +35,7 @@ export const useRadarData = () => {
   };
 
   /**
-   * ✅ KORRIGIERT: Transformiert Backend-Daten in Radar-Format
-   * Fokus nur auf TATSÄCHLICHE Backend-Struktur
+   * ✅ KOMPLETT NEU: Robuste Transformation mit allen Backend-Formaten
    */
   const transformBackendDataToRadar = (backendResponse, analysisDepth = 3) => {
     if (!backendResponse || !backendResponse.success) {
@@ -49,7 +48,8 @@ export const useRadarData = () => {
       throw new Error('No analysis result in response');
     }
     
-    console.log('🔍 DEBUG: Full API response structure:', JSON.stringify(data, null, 2));
+    console.log('🔍 ===== TRANSFORMATION START =====');
+    console.log('Backend Response Keys:', Object.keys(data));
     
     // ✅ Token Info extrahieren
     const tokenInfo = {
@@ -61,253 +61,182 @@ export const useRadarData = () => {
       totalSupply: data.token_info?.total_supply || 0,
       price: data.token_info?.price_usd || 0,
       marketCap: data.token_info?.market_cap || 0,
-      volume24h: data.token_info?.volume_24h || 0
+      volume24h: data.token_info?.volume_24h || 0,
+      holdersCount: data.token_info?.holders_count || 0,
+      liquidity: data.token_info?.liquidity || 0
     };
 
-    // ✅ Wallets Array
+    console.log('✅ Token Info:', tokenInfo.name, tokenInfo.symbol);
+
+    // ✅ Wallets Array - HAUPTLOGIK
     const wallets = [];
     
     /**
-     * ✅ Hilfsfunktion: Wallet zum Array hinzufügen
+     * ✅ Hilfsfunktion: Wallet normalisieren und hinzufügen
      */
-    const addWallet = (address, walletData, stage) => {
+    const addWallet = (walletData, isClassified) => {
+      // Adresse extrahieren (verschiedene Feldnamen möglich)
+      const address = walletData.address || walletData.wallet_address;
+      
+      if (!address) {
+        console.warn('⚠️ Wallet ohne Adresse übersprungen:', walletData);
+        return;
+      }
+
+      // Check ob Wallet schon existiert
       const existingIndex = wallets.findIndex(w => w.wallet_address === address);
       
-      const walletObj = {
+      const normalizedWallet = {
+        // Identifikation
         wallet_address: address,
         chain: backendResponse.chain,
-        wallet_type: walletData.wallet_type || walletData.type || 'UNKNOWN',
+        token_address: backendResponse.token_address,
+        
+        // Klassifizierung
+        wallet_type: walletData.type || walletData.wallet_type || 'UNKNOWN',
         confidence_score: walletData.confidence_score || walletData.confidence || 0,
-        transaction_count: walletData.transaction_count || walletData.transactions || 0,
-        risk_score: walletData.risk_score || 0,
-        risk_flags: walletData.risk_flags || [],
+        stage: isClassified ? analysisDepth : 0,
+        
+        // Token Balance
         balance: walletData.balance || 0,
-        first_seen: walletData.first_transaction_date || walletData.first_seen,
-        last_seen: walletData.last_transaction_date || walletData.last_seen,
-        stage: stage,
-        // Zusätzliche Daten
-        total_volume: walletData.total_volume || 0,
+        percentage_of_supply: walletData.percentage_of_supply || walletData.percentage || 0,
+        
+        // Transaktionen
+        transaction_count: walletData.transaction_count || walletData.tx_count || 0,
+        first_transaction: walletData.first_transaction || walletData.first_seen,
+        last_transaction: walletData.last_transaction || walletData.last_seen,
+        
+        // Risk Assessment (nur bei klassifizierten Wallets)
+        risk_score: walletData.risk_score || 0,
+        risk_flags: Array.isArray(walletData.risk_flags) ? walletData.risk_flags : [],
+        
+        // Trading Data (falls vorhanden)
         buy_count: walletData.buy_count || 0,
         sell_count: walletData.sell_count || 0,
-        transfer_count: walletData.transfer_count || 0
+        total_bought: walletData.total_bought || 0,
+        total_sold: walletData.total_sold || 0,
+        total_volume: walletData.total_volume || 0,
+        
+        // Metadata
+        created_at: walletData.created_at || new Date().toISOString(),
+        updated_at: walletData.updated_at || new Date().toISOString()
       };
-      
+
       if (existingIndex >= 0) {
-        // Update existing with higher stage data
-        wallets[existingIndex] = { ...wallets[existingIndex], ...walletObj };
+        // Update existing wallet with new data
+        wallets[existingIndex] = { ...wallets[existingIndex], ...normalizedWallet };
       } else {
-        wallets.push(walletObj);
+        // Add new wallet
+        wallets.push(normalizedWallet);
       }
     };
 
-    console.log('🔍 DEBUG: Available properties in data:', Object.keys(data));
-    
-    // ✅ ========== KRITISCHER DEBUG BLOCK ==========
-    console.log('\n🔍 ========== WALLET_ANALYSIS DEBUG ==========');
-    console.log('  - Has wallet_analysis?', !!data.wallet_analysis);
-    
+    // ✅ HAUPTLOGIK: Wallets aus wallet_analysis extrahieren
     if (data.wallet_analysis) {
-      console.log('  - wallet_analysis keys:', Object.keys(data.wallet_analysis));
-      console.log('  - classified type:', typeof data.wallet_analysis.classified);
-      console.log('  - classified isArray?', Array.isArray(data.wallet_analysis.classified));
+      console.log('✅ Found wallet_analysis');
       
-      if (data.wallet_analysis.classified) {
-        if (Array.isArray(data.wallet_analysis.classified)) {
-          console.log('  - classified length:', data.wallet_analysis.classified.length);
-          console.log('  - First classified entry (ARRAY):', JSON.stringify(data.wallet_analysis.classified[0], null, 2));
-        } else {
-          const keys = Object.keys(data.wallet_analysis.classified);
-          console.log('  - classified keys (OBJECT):', keys.slice(0, 3));
-          console.log('  - First classified entry (OBJECT):', JSON.stringify(data.wallet_analysis.classified[keys[0]], null, 2));
-        }
+      // ========== CLASSIFIED WALLETS ==========
+      const classified = data.wallet_analysis.classified;
+      
+      if (Array.isArray(classified)) {
+        console.log(`📦 Processing ${classified.length} classified wallets (ARRAY format)`);
+        classified.forEach((wallet, idx) => {
+          if (idx < 3) console.log(`  [${idx}] Sample:`, wallet.address || wallet.wallet_address, wallet.type || wallet.wallet_type);
+          addWallet(wallet, true);
+        });
+      } else if (classified && typeof classified === 'object') {
+        const entries = Object.entries(classified);
+        console.log(`📦 Processing ${entries.length} classified wallets (OBJECT format)`);
+        entries.forEach(([address, wallet], idx) => {
+          if (idx < 3) console.log(`  [${idx}] Sample:`, address, wallet.type || wallet.wallet_type);
+          addWallet({ address, ...wallet }, true);
+        });
       }
       
-      console.log('  - unclassified type:', typeof data.wallet_analysis.unclassified);
-      console.log('  - unclassified isArray?', Array.isArray(data.wallet_analysis.unclassified));
+      // ========== UNCLASSIFIED WALLETS ==========
+      const unclassified = data.wallet_analysis.unclassified;
       
-      if (data.wallet_analysis.unclassified) {
-        if (Array.isArray(data.wallet_analysis.unclassified)) {
-          console.log('  - unclassified length:', data.wallet_analysis.unclassified.length);
-          console.log('  - First unclassified entry (ARRAY):', JSON.stringify(data.wallet_analysis.unclassified[0], null, 2));
-        } else {
-          const keys = Object.keys(data.wallet_analysis.unclassified);
-          console.log('  - unclassified keys (OBJECT):', keys.slice(0, 3));
-          console.log('  - First unclassified entry (OBJECT):', JSON.stringify(data.wallet_analysis.unclassified[keys[0]], null, 2));
-        }
+      if (Array.isArray(unclassified)) {
+        console.log(`📦 Processing ${unclassified.length} unclassified wallets (ARRAY format)`);
+        unclassified.forEach((wallet, idx) => {
+          if (idx < 3) console.log(`  [${idx}] Sample:`, wallet.address || wallet.wallet_address);
+          addWallet(wallet, false);
+        });
+      } else if (unclassified && typeof unclassified === 'object') {
+        const entries = Object.entries(unclassified);
+        console.log(`📦 Processing ${entries.length} unclassified wallets (OBJECT format)`);
+        entries.forEach(([address, wallet], idx) => {
+          if (idx < 3) console.log(`  [${idx}] Sample:`, address);
+          addWallet({ address, ...wallet }, false);
+        });
       }
     }
-    console.log('🔍 ==========================================\n');
-    // ✅ ========== END DEBUG BLOCK ==========
-    
-    // ✅ TATSÄCHLICHE Backend-Struktur: wallet_analysis mit Arrays
-    if (data.wallet_analysis) {
-      console.log('🔍 DEBUG: Found wallet_analysis property');
-      
-      // ✅ HAUPT-STRUKTUR: classified als ARRAY
-      if (Array.isArray(data.wallet_analysis.classified)) {
-        console.log('🔍 DEBUG: Processing classified wallets (ARRAY):', data.wallet_analysis.classified.length);
-        
-        data.wallet_analysis.classified.forEach((walletData, idx) => {
-          const address = walletData.address || walletData.wallet_address;
-          console.log(`  [${idx}] Processing: ${address}, type: ${walletData.type}, wallet_type: ${walletData.wallet_type}`);
-          
-          if (address) {
-            // Map die Backend-Felder auf Frontend-Struktur
-            const mappedWallet = {
-              wallet_type: walletData.type || walletData.wallet_type || 'UNKNOWN',
-              confidence_score: walletData.confidence_score || 0,
-              transaction_count: walletData.transaction_count || walletData.tx_count || 0,
-              risk_score: walletData.risk_score || 0,
-              risk_flags: walletData.risk_flags || [],
-              balance: walletData.balance || 0,
-              first_seen: walletData.first_transaction,
-              last_seen: walletData.last_transaction,
-              // Zusätzliche Daten
-              total_volume: walletData.total_volume || 0,
-              buy_count: walletData.buy_count || 0,
-              sell_count: walletData.sell_count || 0
-            };
-            
-            console.log(`  [${idx}] Mapped wallet_type: ${mappedWallet.wallet_type}`);
-            addWallet(address, mappedWallet, analysisDepth);
-          }
-        });
-      } else if (typeof data.wallet_analysis.classified === 'object') {
-        // ✅ FALLBACK: classified als OBJECT (alte Struktur)
-        console.log('🔍 DEBUG: Processing classified wallets (OBJECT)');
-        Object.entries(data.wallet_analysis.classified).forEach(([address, walletData]) => {
-          const mappedWallet = {
-            wallet_type: walletData.type || walletData.wallet_type || 'UNKNOWN',
-            confidence_score: walletData.confidence_score || 0,
-            transaction_count: walletData.transaction_count || walletData.tx_count || 0,
-            risk_score: walletData.risk_score || 0,
-            risk_flags: walletData.risk_flags || [],
-            balance: walletData.balance || 0,
-            first_seen: walletData.first_transaction,
-            last_seen: walletData.last_transaction,
-            total_volume: walletData.total_volume || 0,
-            buy_count: walletData.buy_count || 0,
-            sell_count: walletData.sell_count || 0
-          };
-          addWallet(address, mappedWallet, analysisDepth);
-        });
-      }
 
-      // ✅ Unclassified als ARRAY
-      if (Array.isArray(data.wallet_analysis.unclassified)) {
-        console.log('🔍 DEBUG: Processing unclassified wallets (ARRAY):', data.wallet_analysis.unclassified.length);
-        
-        data.wallet_analysis.unclassified.forEach((walletData) => {
-          const address = walletData.address || walletData.wallet_address;
-          if (address) {
-            const mappedWallet = {
-              wallet_type: 'UNKNOWN',
-              confidence_score: 0,
-              transaction_count: walletData.tx_count || walletData.transaction_count || 0,
-              risk_score: walletData.risk_score || 0,
-              balance: walletData.balance || 0,
-              first_seen: walletData.first_transaction,
-              last_seen: walletData.last_transaction,
-              buy_count: walletData.buy_count || 0,
-              sell_count: walletData.sell_count || 0,
-              total_bought: walletData.total_bought || 0,
-              total_sold: walletData.total_sold || 0
-            };
-            addWallet(address, mappedWallet, 0);
-          }
-        });
-      } else if (typeof data.wallet_analysis.unclassified === 'object') {
-        // ✅ FALLBACK: unclassified als OBJECT
-        console.log('🔍 DEBUG: Processing unclassified wallets (OBJECT)');
-        Object.entries(data.wallet_analysis.unclassified).forEach(([address, walletData]) => {
-          const mappedWallet = {
-            wallet_type: 'UNKNOWN',
-            confidence_score: 0,
-            transaction_count: walletData.tx_count || walletData.transaction_count || 0,
-            risk_score: walletData.risk_score || 0,
-            balance: walletData.balance || 0,
-            first_seen: walletData.first_transaction,
-            last_seen: walletData.last_transaction,
-            buy_count: walletData.buy_count || 0,
-            sell_count: walletData.sell_count || 0,
-            total_bought: walletData.total_bought || 0,
-            total_sold: walletData.total_sold || 0
-          };
-          addWallet(address, mappedWallet, 0);
-        });
-      }
-    }
-    
-    // ✅ Fallback: Alte Struktur mit "wallets" (Object-basiert)
+    // ✅ Fallback: Alte Struktur mit "wallets" (nur als Backup)
     if (wallets.length === 0 && data.wallets) {
-      console.warn('⚠️ No wallets in wallet_analysis, trying old "wallets" structure...');
+      console.warn('⚠️ Using fallback: old "wallets" structure');
       
-      if (typeof data.wallets === 'object' && !Array.isArray(data.wallets)) {
-        // Object-basierte Struktur
+      if (Array.isArray(data.wallets)) {
+        data.wallets.forEach(wallet => addWallet(wallet, false));
+      } else if (typeof data.wallets === 'object') {
         if (data.wallets.classified) {
-          console.log('🔍 DEBUG: Processing old classified structure (OBJECT)');
-          Object.entries(data.wallets.classified).forEach(([address, walletData]) => {
-            addWallet(address, walletData, analysisDepth);
-          });
+          const classified = data.wallets.classified;
+          if (Array.isArray(classified)) {
+            classified.forEach(w => addWallet(w, true));
+          } else {
+            Object.entries(classified).forEach(([addr, w]) => addWallet({ address: addr, ...w }, true));
+          }
         }
-
         if (data.wallets.unclassified) {
-          console.log('🔍 DEBUG: Processing old unclassified structure (OBJECT)');
-          Object.entries(data.wallets.unclassified).forEach(([address, walletData]) => {
-            addWallet(address, { ...walletData, wallet_type: 'UNKNOWN' }, 0);
-          });
+          const unclassified = data.wallets.unclassified;
+          if (Array.isArray(unclassified)) {
+            unclassified.forEach(w => addWallet(w, false));
+          } else {
+            Object.entries(unclassified).forEach(([addr, w]) => addWallet({ address: addr, ...w }, false));
+          }
         }
       }
     }
 
-    // ✅ FINALE WALLET-ANALYSE
-    console.log('\n🎯 ========== FINAL WALLET ANALYSIS ==========');
-    console.log(`  Total wallets added: ${wallets.length}`);
-    const classifiedCount = wallets.filter(w => w.wallet_type !== 'UNKNOWN').length;
-    const unclassifiedCount = wallets.filter(w => w.wallet_type === 'UNKNOWN').length;
-    console.log(`  Classified: ${classifiedCount}`);
-    console.log(`  Unclassified: ${unclassifiedCount}`);
-    
-    if (classifiedCount > 0) {
-      console.log('  Sample classified wallets:');
-      wallets.filter(w => w.wallet_type !== 'UNKNOWN').slice(0, 3).forEach(w => {
-        console.log(`    - ${w.wallet_address}: ${w.wallet_type} (confidence: ${w.confidence_score})`);
-      });
-    }
-    console.log('🎯 ==========================================\n');
-
-    // ✅ Wenn immer noch keine Wallets, werfe Fehler
+    // ✅ Validierung
     if (wallets.length === 0) {
-      console.error('❌ No wallets found in any expected structure');
+      console.error('❌ NO WALLETS FOUND!');
       console.error('Available data keys:', Object.keys(data));
-      if (data.wallets) {
-        console.error('Wallets structure:', Object.keys(data.wallets));
+      if (data.wallet_analysis) {
+        console.error('wallet_analysis keys:', Object.keys(data.wallet_analysis));
+        console.error('classified type:', typeof data.wallet_analysis.classified);
+        console.error('unclassified type:', typeof data.wallet_analysis.unclassified);
       }
-      throw new Error('No wallets found in analysis. The token may have no holders or transactions in the selected timeframe.');
+      throw new Error('No wallets found in analysis. The token may have no holders or transactions.');
     }
 
-    console.log(`✅ Transformed ${wallets.length} wallets from backend data`);
-
-    // ✅ Overall Score berechnen
-    let overallScore = 50; // Default
+    console.log(`✅ TOTAL WALLETS: ${wallets.length}`);
     
-    // Backend kann "score" oder "token_score" liefern
+    // Split für Statistiken
+    const classifiedWallets = wallets.filter(w => w.wallet_type !== 'UNKNOWN');
+    const unclassifiedWallets = wallets.filter(w => w.wallet_type === 'UNKNOWN');
+    
+    console.log(`   - Classified: ${classifiedWallets.length}`);
+    console.log(`   - Unclassified: ${unclassifiedWallets.length}`);
+
+    // ✅ Score berechnen
+    let overallScore = 50;
+    
     if (data.score !== undefined && data.score !== null) {
       overallScore = data.score;
     } else if (data.token_score !== undefined && data.token_score !== null) {
       overallScore = data.token_score;
     } else {
-      // Fallback: Berechne aus Wallets
+      // Fallback: Aus Risk Score berechnen
       const avgRiskScore = wallets.reduce((sum, w) => sum + (w.risk_score || 0), 0) / wallets.length;
-      // Invertiere Risk Score zu Quality Score: niedrig risk = hoch score
       overallScore = Math.round(100 - avgRiskScore);
     }
 
-    // ✅ Statistics - aus wallet_analysis oder selbst berechnet
+    // ✅ Statistics
     const statistics = {
-      total_holders: data.wallet_analysis?.total_wallets || wallets.length,
-      classified_count: data.wallet_analysis?.classified_count || wallets.filter(w => w.wallet_type !== 'UNKNOWN').length,
-      unclassified_count: data.wallet_analysis?.unclassified_count || wallets.filter(w => w.wallet_type === 'UNKNOWN').length,
+      total_holders: data.wallet_analysis?.total || wallets.length,
+      classified_count: classifiedWallets.length,
+      unclassified_count: unclassifiedWallets.length,
       risk_level: calculateRiskLevel(wallets),
       confidence: calculateAverageConfidence(wallets),
       wallet_types: {},
@@ -316,7 +245,7 @@ export const useRadarData = () => {
       analysis_depth: analysisDepth
     };
 
-    // ✅ Wallet Types Count - aus metrics oder selbst berechnen
+    // Wallet Types Count
     if (data.metrics) {
       statistics.wallet_types = {
         'WHALE': data.metrics.whales || 0,
@@ -324,7 +253,7 @@ export const useRadarData = () => {
         'TRADER': data.metrics.traders || 0,
         'MIXER': data.metrics.mixers || 0,
         'DUST_SWEEPER': data.metrics.dust_sweepers || 0,
-        'UNKNOWN': (statistics.total_holders - statistics.classified_count) || 0
+        'UNKNOWN': unclassifiedWallets.length
       };
     } else {
       // Fallback: Selbst zählen
@@ -334,11 +263,11 @@ export const useRadarData = () => {
       });
     }
 
-    console.log('✅ Statistics calculated:', statistics);
+    console.log('🔍 ===== TRANSFORMATION END =====\n');
 
     return {
       tokenInfo,
-      wallets,
+      wallets, // ✅ FLAT ARRAY mit ALLEN Wallets
       score: overallScore,
       statistics,
       timestamp: Date.now(),
@@ -350,15 +279,14 @@ export const useRadarData = () => {
   };
 
   /**
-   * ✅ KORRIGIERT: Analysiert einen Token
-   * Parameter: analysisDepth hinzugefügt
+   * ✅ Analysiert einen Token
    */
   const analyzeToken = useCallback(async (
     contractAddress, 
     blockchain = 'ethereum', 
     walletSource = 'top_holders', 
     recentHours = 3,
-    analysisDepth = 3  // ✅ NEU: Parameter hinzugefügt
+    analysisDepth = 3
   ) => {
     setLoading(true);
     setError(null);
@@ -366,15 +294,14 @@ export const useRadarData = () => {
     setRawAnalysis(null);
 
     try {
-      // ✅ Validation
+      // Validation
       if (!contractAddress || !contractAddress.trim()) {
         throw new Error('Contract address is required');
       }
 
       const cleanAddress = contractAddress.trim();
 
-      // ✅ API Request Body - Backend erwartet KEINE analysisDepth
-      // analysisDepth wird nur im Frontend verwendet
+      // API Request Body
       const requestBody = {
         token_address: cleanAddress,
         chain: blockchain,
@@ -382,10 +309,10 @@ export const useRadarData = () => {
         recent_hours: walletSource === 'recent_traders' ? recentHours : 3
       };
 
-      console.log('🚀 Starting analysis with:', requestBody);
+      console.log('🚀 API Request:', requestBody);
       console.log('🎯 Analysis Depth (Frontend only):', analysisDepth);
 
-      // ✅ API Call
+      // API Call
       const response = await fetch(
         `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ANALYZE_CUSTOM}`,
         {
@@ -398,10 +325,10 @@ export const useRadarData = () => {
       );
 
       const responseData = await response.json();
-      console.log('📥 Backend response:', responseData);
+      console.log('📥 Backend Response:', responseData);
 
       if (!response.ok) {
-        // ✅ Handle specific error cases
+        // Handle specific error cases
         if (response.status === 404) {
           throw new Error(
             responseData.error_message || 
@@ -416,15 +343,15 @@ export const useRadarData = () => {
         );
       }
 
-      // ✅ Check success flag
+      // Check success flag
       if (!responseData.success) {
         throw new Error(responseData.error_message || 'Analysis failed');
       }
 
-      // ✅ Raw Analysis speichern
+      // Raw Analysis speichern
       setRawAnalysis(responseData);
 
-      // ✅ Transform zu Radar Format - mit analysisDepth
+      // Transform zu Radar Format
       const transformedData = transformBackendDataToRadar(responseData, analysisDepth);
       console.log('✅ Transformed radar data:', transformedData);
       console.log(`✅ Found ${transformedData.wallets.length} wallets to display`);
