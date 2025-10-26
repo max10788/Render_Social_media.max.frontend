@@ -1,6 +1,7 @@
+// src/components/ui/WalletDetail.jsx - FIXED VERSION ✅
 import React from 'react';
 import './WalletDetail.css';
-import { WALLET_TYPES } from '../../services/tokenDiscovery';
+import { WALLET_TYPES } from '../../config/api';
 
 const WalletDetail = ({ wallet, onClose }) => {
   // Formatieren von Adressen (gekürzt darstellen)
@@ -11,7 +12,9 @@ const WalletDetail = ({ wallet, onClose }) => {
 
   // Formatieren von Datumsangaben
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString('de-DE', {
       year: 'numeric',
       month: 'short',
@@ -23,7 +26,10 @@ const WalletDetail = ({ wallet, onClose }) => {
 
   // Berechnung der Zeit seit der letzten Transaktion
   const timeSinceLastTransaction = (dateString) => {
+    if (!dateString) return 'Unbekannt';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Unbekannt';
+    
     const now = new Date();
     const diffMs = now - date;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -43,11 +49,22 @@ const WalletDetail = ({ wallet, onClose }) => {
     return '#ef4444'; // Rot
   };
 
-  // Wallet-Typ-Informationen abrufen
-  const walletTypeInfo = WALLET_TYPES[wallet.wallet_type] || { label: wallet.wallet_type, color: '#818cf8' };
+  // ✅ FIX: Wallet-Typ aus config/api.js holen
+  const walletTypeInfo = WALLET_TYPES[wallet.wallet_type?.toUpperCase()] || { 
+    label: wallet.wallet_type, 
+    color: '#818cf8',
+    description: 'Unknown wallet type'
+  };
 
   // ✅ DEFENSIV: Sicherstellen, dass risk_flags ein Array ist
   const riskFlags = Array.isArray(wallet.risk_flags) ? wallet.risk_flags : [];
+
+  // ✅ DEFENSIV: Sicherstellen, dass numerische Werte vorhanden sind
+  const balance = wallet.balance || 0;
+  const percentageOfSupply = wallet.percentage_of_supply || 0;
+  const transactionCount = wallet.transaction_count || 0;
+  const riskScore = wallet.risk_score || 0;
+  const confidenceScore = wallet.confidence_score || 0;
 
   return (
     <div className="wallet-detail-overlay">
@@ -68,7 +85,7 @@ const WalletDetail = ({ wallet, onClose }) => {
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Blockchain:</span>
-                <span className="info-value">{wallet.chain}</span>
+                <span className="info-value">{wallet.chain || 'Unknown'}</span>
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Wallet-Typ:</span>
@@ -82,11 +99,34 @@ const WalletDetail = ({ wallet, onClose }) => {
               <div className="wallet-info-item">
                 <span className="info-label">Konfidenz:</span>
                 <span className="info-value">
-                  {(wallet.confidence_score * 100).toFixed(1)}%
+                  {(confidenceScore * 100).toFixed(1)}%
                 </span>
               </div>
+              {wallet.stage && (
+                <div className="wallet-info-item">
+                  <span className="info-label">Analyse-Stufe:</span>
+                  <span className="info-value">
+                    Stage {wallet.stage}/3
+                  </span>
+                </div>
+              )}
             </div>
           </div>
+          
+          {/* Wallet-Typ-Beschreibung */}
+          {walletTypeInfo.description && (
+            <div className="wallet-section" style={{ 
+              background: '#f9fafb', 
+              padding: '15px', 
+              borderRadius: '8px',
+              border: '1px solid #e5e7eb'
+            }}>
+              <div style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
+                <strong>Was ist ein {walletTypeInfo.label}?</strong><br/>
+                {walletTypeInfo.description}
+              </div>
+            </div>
+          )}
           
           {/* Token-bezogene Daten */}
           <div className="wallet-section">
@@ -94,18 +134,19 @@ const WalletDetail = ({ wallet, onClose }) => {
             <div className="wallet-info-grid">
               <div className="wallet-info-item">
                 <span className="info-label">Token-Adresse:</span>
-                <span className="info-value address">{wallet.token_address}</span>
+                <span className="info-value address">{wallet.token_address || 'N/A'}</span>
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Balance:</span>
                 <span className="info-value">
-                  {wallet.balance?.toLocaleString('de-DE', { maximumFractionDigits: 2 })} Tokens
+                  {balance.toLocaleString('de-DE', { maximumFractionDigits: 2 })} Tokens
                 </span>
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Anteil am Supply:</span>
                 <span className="info-value">
-                  {wallet.percentage_of_supply?.toFixed(4)}%
+                  {/* ✅ FIX: Backend gibt bereits Prozent, KEINE Multiplikation mit 100 */}
+                  {percentageOfSupply.toFixed(4)}%
                 </span>
               </div>
             </div>
@@ -117,7 +158,7 @@ const WalletDetail = ({ wallet, onClose }) => {
             <div className="wallet-info-grid">
               <div className="wallet-info-item">
                 <span className="info-label">Anzahl Transaktionen:</span>
-                <span className="info-value">{wallet.transaction_count.toLocaleString('de-DE')}</span>
+                <span className="info-value">{transactionCount.toLocaleString('de-DE')}</span>
               </div>
               <div className="wallet-info-item">
                 <span className="info-label">Erste Transaktion:</span>
@@ -130,6 +171,55 @@ const WalletDetail = ({ wallet, onClose }) => {
             </div>
           </div>
           
+          {/* Trading-Aktivität (falls vorhanden) */}
+          {(wallet.buy_count !== undefined || wallet.sell_count !== undefined) && (
+            <div className="wallet-section">
+              <h3>Trading-Aktivität</h3>
+              <div className="wallet-info-grid">
+                {wallet.buy_count !== undefined && (
+                  <div className="wallet-info-item">
+                    <span className="info-label">Käufe:</span>
+                    <span className="info-value" style={{ color: '#10b981' }}>
+                      {wallet.buy_count.toLocaleString('de-DE')}
+                    </span>
+                  </div>
+                )}
+                {wallet.sell_count !== undefined && (
+                  <div className="wallet-info-item">
+                    <span className="info-label">Verkäufe:</span>
+                    <span className="info-value" style={{ color: '#ef4444' }}>
+                      {wallet.sell_count.toLocaleString('de-DE')}
+                    </span>
+                  </div>
+                )}
+                {wallet.total_bought !== undefined && (
+                  <div className="wallet-info-item">
+                    <span className="info-label">Gesamt gekauft:</span>
+                    <span className="info-value">
+                      {wallet.total_bought.toLocaleString('de-DE', { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+                {wallet.total_sold !== undefined && (
+                  <div className="wallet-info-item">
+                    <span className="info-label">Gesamt verkauft:</span>
+                    <span className="info-value">
+                      {wallet.total_sold.toLocaleString('de-DE', { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+                {wallet.total_volume !== undefined && (
+                  <div className="wallet-info-item">
+                    <span className="info-label">Gesamtvolumen:</span>
+                    <span className="info-value">
+                      {wallet.total_volume.toLocaleString('de-DE', { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* Risikoanalyse */}
           <div className="wallet-section">
             <h3>Risikoanalyse</h3>
@@ -138,13 +228,13 @@ const WalletDetail = ({ wallet, onClose }) => {
                 <div 
                   className="risk-score-fill" 
                   style={{ 
-                    width: `${wallet.risk_score}%`,
-                    backgroundColor: getRiskColor(wallet.risk_score)
+                    width: `${riskScore}%`,
+                    backgroundColor: getRiskColor(riskScore)
                   }}
                 ></div>
               </div>
               <div className="risk-score-value">
-                Risiko-Score: {wallet.risk_score}/100
+                Risiko-Score: {riskScore}/100
               </div>
             </div>
             
@@ -158,7 +248,13 @@ const WalletDetail = ({ wallet, onClose }) => {
                     </span>
                   ))
                 ) : (
-                  <span className="risk-flag">Keine Risiko-Merkmale erkannt</span>
+                  <span className="risk-flag" style={{ 
+                    background: '#d1fae5', 
+                    color: '#065f46',
+                    border: '1px solid #6ee7b7'
+                  }}>
+                    ✅ Keine Risiko-Merkmale erkannt
+                  </span>
                 )}
               </div>
             </div>
