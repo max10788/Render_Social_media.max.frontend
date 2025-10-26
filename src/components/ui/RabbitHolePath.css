@@ -1,0 +1,120 @@
+/* ===================================
+   RABBIT HOLE PATH
+   =================================== */
+
+.rabbit-hole-path-container {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 100%;
+  max-width: 200px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.6;
+}
+
+.rabbit-hole-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Main Path Animation */
+.main-path {
+  animation: pathPulse 3s ease-in-out infinite;
+}
+
+@keyframes pathPulse {
+  0%, 100% {
+    stroke-width: 3;
+    opacity: 1;
+  }
+  50% {
+    stroke-width: 4;
+    opacity: 0.8;
+  }
+}
+
+/* Path Particles */
+.path-particle {
+  animation: particlePulse 2s ease-in-out infinite;
+}
+
+@keyframes particlePulse {
+  0%, 100% {
+    r: 2;
+    opacity: 1;
+  }
+  50% {
+    r: 4;
+    opacity: 0.6;
+  }
+}
+
+/* Path Nodes (markers at key points) */
+.path-node {
+  animation: nodePulse 2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.node-pulse-1 {
+  animation-delay: 0s;
+}
+
+.node-pulse-2 {
+  animation-delay: 0.5s;
+}
+
+.node-pulse-3 {
+  animation-delay: 1s;
+}
+
+.node-pulse-4 {
+  animation-delay: 1.5s;
+}
+
+@keyframes nodePulse {
+  0%, 100% {
+    r: 6;
+    opacity: 1;
+  }
+  50% {
+    r: 10;
+    opacity: 0.4;
+  }
+}
+
+/* Depth Labels */
+.depth-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  opacity: 0.6;
+  animation: labelGlow 3s ease-in-out infinite;
+}
+
+@keyframes labelGlow {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .rabbit-hole-path-container {
+    max-width: 120px;
+    opacity: 0.4;
+  }
+}
+
+@media (max-width: 480px) {
+  .rabbit-hole-path-container {
+    max-width: 80px;
+    opacity: 0.3;
+  }
+}
