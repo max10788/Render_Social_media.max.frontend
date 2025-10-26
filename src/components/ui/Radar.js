@@ -122,12 +122,13 @@ const Radar = ({ config, radarData, loading }) => {
       'UNKNOWN': (5 * Math.PI) / 3       // 300°
     };
     
+
     // Basis-Winkel für den Wallet-Typ
     const walletType = wallet.wallet_type?.toUpperCase() || 'UNKNOWN';
     const baseAngle = typeAngles[walletType] || 0;
     
-    // Spread innerhalb des Sektors (±30° = π/6)
-    const sectorSpread = Math.PI / 6;
+    // Breiterer Spread innerhalb des Sektors (±50° = π/3.6 statt ±30°)
+    const sectorSpread = Math.PI / 3.6;
     const walletTypeCount = wallets.filter(w => 
       (w.wallet_type?.toUpperCase() || 'UNKNOWN') === walletType
     ).length;
@@ -135,10 +136,18 @@ const Radar = ({ config, radarData, loading }) => {
       i <= index && (w.wallet_type?.toUpperCase() || 'UNKNOWN') === walletType
     ).length - 1;
     
-    // Verteilung innerhalb des Sektors
-    const angleInSector = walletTypeCount > 1 
-      ? (walletIndexInType / (walletTypeCount - 1)) * 2 * sectorSpread - sectorSpread
-      : 0;
+    // Verteilung innerhalb des Sektors mit zusätzlicher Streuung
+    let angleInSector;
+    if (walletTypeCount > 1) {
+      // Gleichmäßige Verteilung über die gesamte Sektorbreite
+      angleInSector = (walletIndexInType / (walletTypeCount - 1)) * 2 * sectorSpread - sectorSpread;
+      
+      // Zusätzliche leichte Randomisierung für noch bessere Verteilung
+      const jitter = (Math.sin(index * 137.5) * 0.1); // Pseudo-random basierend auf Index
+      angleInSector += jitter;
+    } else {
+      angleInSector = 0;
+    }
     
     const finalAngle = baseAngle + angleInSector;
     
