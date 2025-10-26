@@ -1,6 +1,6 @@
 // src/config/api.js - API Configuration for BlockIntel
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend.onrender.com';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-cf3y.onrender.com';
 
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
