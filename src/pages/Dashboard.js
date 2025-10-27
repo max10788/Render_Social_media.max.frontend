@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import RabbitHolePath from '../components/RabbitHolePath';
-import ParticleSystem from '../components/ParticleSystem';
-import CursorTrail from '../components/CursorTrail';
+import RabbitHolePath from '../components/ui/RabbitHolePath';
+import ParticleSystem from '../components/ui/ParticleSystem';
+import CursorTrail from '../components/ui/CursorTrail';
 import './Dashboard.css';
 
 const Dashboard = () => {
