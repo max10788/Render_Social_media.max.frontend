@@ -8,6 +8,7 @@ import TokenOverview from './pages/TokenOverview';
 import WalletAnalyses from './pages/WalletAnalyses';
 import ScanJobs from './pages/ScanJobs';
 import TransactionNetworkPage from './components/ui/TransactionNetworkPage';
+import PriceMovers from './pages/PriceMovers';
 import Login from './auth/Login/Login';
 import Register from './auth/Register/Register';
 import Account from './auth/Account/Account';
@@ -29,6 +30,7 @@ function App() {
               <Route path="/wallets" element={<WalletAnalyses />} />
               <Route path="/scans" element={<ScanJobs />} />
               <Route path="/network" element={<TransactionNetworkPage />} />
+              <Route path="/price-movers" element={<PriceMovers />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
