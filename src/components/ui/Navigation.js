@@ -81,6 +81,7 @@ const Navigation = () => {
     { path: '/tokens', icon: '💎', text: 'Token Overview', label: 'Token Overview' },
     { path: '/wallets', icon: '👛', text: 'Wallet Analysis', label: 'Wallet Analysis' },
     { path: '/network', icon: '🕸️', text: 'Transaction Network', label: 'Transaction Network' },
+    { path: '/price-movers', icon: '📈', text: 'Price Movers', label: 'Price Movers' },
   ];
 
   // Account-Seiten (nur wenn angemeldet)
