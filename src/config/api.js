@@ -2,6 +2,8 @@
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-cf3y.onrender.com';
 
+export const API_BASE_URL = API_BASE_URL;  // ← Füge diese Zeile hinzu
+
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
   ENDPOINTS: {
