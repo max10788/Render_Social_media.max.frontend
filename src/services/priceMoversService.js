@@ -5,8 +5,19 @@
  */
 
 import axios from 'axios';
-import { API_BASE_URL } from '../config/api';
 
+// Flexible API Base URL - funktioniert mit verschiedenen Config-Strukturen
+const getApiBaseUrl = () => {
+  // Option 1: Direkt aus Environment Variable (empfohlen)
+  if (process.env.REACT_APP_API_BASE_URL) {
+    return process.env.REACT_APP_API_BASE_URL;
+  }
+  
+  // Option 2: Fallback auf localhost
+  return 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const API_URL = `${API_BASE_URL}/api/v1`;
 
 /**
