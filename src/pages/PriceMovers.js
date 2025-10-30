@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { usePriceMovers } from '../hooks/usePriceMovers';
-import './PriceMovers-Improved.css';
+import './PriceMovers.css';
 
 const PriceMovers = () => {
   // State Management
