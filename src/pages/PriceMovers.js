@@ -54,7 +54,7 @@ const PriceMovers = () => {
   }, []);
 
   // Analysis Mode Definitions
-  const analysisMode = [
+  const analysisModes = [
     {
       id: 'quick',
       title: 'Quick Analysis',
