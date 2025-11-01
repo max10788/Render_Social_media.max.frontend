@@ -110,29 +110,50 @@ export const PRICE_MOVERS_CONFIG = {
 };
 
 /**
- * Helper: Validiert Quick Analysis Request
+ * Helper: Validiert Quick Analysis Request (ROBUST)
  */
 export const validateQuickAnalysisRequest = (exchange, symbol, timeframe) => {
   const errors = [];
 
+  // Exchange Validation
   if (!exchange) {
     errors.push('Exchange is required');
+  } else {
+    const exchangeLower = exchange.toLowerCase().trim();
+    const validExchanges = PRICE_MOVERS_CONFIG.EXCHANGES.map(e => e.value.toLowerCase());
+    
+    if (!validExchanges.includes(exchangeLower)) {
+      errors.push(
+        `Invalid exchange "${exchange}". Supported: ${PRICE_MOVERS_CONFIG.EXCHANGES.map(e => e.value).join(', ')}`
+      );
+    }
   }
 
-  // Case-insensitive Vergleich
-  const exchangeLower = exchange?.toLowerCase();
-  if (!PRICE_MOVERS_CONFIG.EXCHANGES.find(e => e.value.toLowerCase() === exchangeLower)) {
-    errors.push(`Invalid exchange. Supported: ${PRICE_MOVERS_CONFIG.EXCHANGES.map(e => e.value).join(', ')}`);
-  }
-
-  if (!symbol || !symbol.includes('/')) {
+  // Symbol Validation
+  if (!symbol) {
+    errors.push('Symbol is required');
+  } else if (!symbol.includes('/')) {
     errors.push('Invalid symbol format. Use format: BASE/QUOTE (e.g., BTC/USDT)');
+  } else {
+    // Optional: Validiere Symbol-Format genauer
+    const parts = symbol.split('/');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      errors.push('Invalid symbol format. Use format: BASE/QUOTE (e.g., BTC/USDT)');
+    }
   }
 
-  // Case-insensitive Vergleich für Timeframe
-  const timeframeLower = timeframe?.toLowerCase();
-  if (!PRICE_MOVERS_CONFIG.TIMEFRAMES.find(t => t.value.toLowerCase() === timeframeLower)) {
-    errors.push(`Invalid timeframe. Supported: ${PRICE_MOVERS_CONFIG.TIMEFRAMES.map(t => t.value).join(', ')}`);
+  // Timeframe Validation
+  if (!timeframe) {
+    errors.push('Timeframe is required');
+  } else {
+    const timeframeLower = timeframe.toLowerCase().trim();
+    const validTimeframes = PRICE_MOVERS_CONFIG.TIMEFRAMES.map(t => t.value.toLowerCase());
+    
+    if (!validTimeframes.includes(timeframeLower)) {
+      errors.push(
+        `Invalid timeframe "${timeframe}". Supported: ${PRICE_MOVERS_CONFIG.TIMEFRAMES.map(t => t.value).join(', ')}`
+      );
+    }
   }
 
   return {
@@ -142,7 +163,7 @@ export const validateQuickAnalysisRequest = (exchange, symbol, timeframe) => {
 };
 
 /**
- * Helper: Erstellt Quick Analysis Request
+ * Helper: Erstellt Quick Analysis Request (NORMALISIERT)
  */
 export const createQuickAnalysisRequest = (
   exchange = 'bitget',
@@ -150,10 +171,20 @@ export const createQuickAnalysisRequest = (
   timeframe = '5m',
   topNWallets = 10
 ) => {
+  // Normalisiere Eingaben
+  const normalizedExchange = exchange?.toLowerCase().trim() || 'bitget';
+  const normalizedSymbol = symbol?.toUpperCase().trim() || 'BTC/USDT';
+  const normalizedTimeframe = timeframe?.toLowerCase().trim() || '5m';
+
   // Validierung
-  const validation = validateQuickAnalysisRequest(exchange, symbol, timeframe);
+  const validation = validateQuickAnalysisRequest(
+    normalizedExchange, 
+    normalizedSymbol, 
+    normalizedTimeframe
+  );
+  
   if (!validation.isValid) {
-    throw new Error(validation.errors.join(', '));
+    throw new Error(validation.errors.join('; '));
   }
 
   // Validiere topNWallets
@@ -166,10 +197,65 @@ export const createQuickAnalysisRequest = (
   );
 
   return {
-    exchange: exchange.toLowerCase(),
-    symbol: symbol.toUpperCase(),
-    timeframe: timeframe.toLowerCase(),
+    exchange: normalizedExchange,
+    symbol: normalizedSymbol,
+    timeframe: normalizedTimeframe,
     top_n_wallets: validatedWallets
+  };
+};
+
+/**
+ * Helper: Validiert Full Analysis Request
+ */
+export const validateAnalysisRequest = (params) => {
+  const errors = [];
+
+  if (!params.exchange) {
+    errors.push('Exchange is required');
+  }
+
+  if (!params.symbol) {
+    errors.push('Symbol is required');
+  }
+
+  if (!params.timeframe) {
+    errors.push('Timeframe is required');
+  }
+
+  if (!params.start_time) {
+    errors.push('Start time is required');
+  }
+
+  if (!params.end_time) {
+    errors.push('End time is required');
+  }
+
+  if (params.start_time && params.end_time) {
+    const start = new Date(params.start_time);
+    const end = new Date(params.end_time);
+    
+    if (start >= end) {
+      errors.push('End time must be after start time');
+    }
+  }
+
+  if (params.min_impact_threshold !== undefined) {
+    const threshold = parseFloat(params.min_impact_threshold);
+    if (isNaN(threshold) || threshold < 0 || threshold > 1) {
+      errors.push('Min impact threshold must be between 0 and 1');
+    }
+  }
+
+  if (params.top_n_wallets !== undefined) {
+    const wallets = parseInt(params.top_n_wallets);
+    if (isNaN(wallets) || wallets < 1 || wallets > 100) {
+      errors.push('Top N wallets must be between 1 and 100');
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
   };
 };
 
@@ -188,7 +274,7 @@ export const parseAnalysisResponse = (response) => {
   return {
     success: response.success,
     candle: response.candle,
-    topMovers: response.top_movers,
+    topMovers: response.top_movers || [],
     metadata: response.analysis_metadata,
     
     // Extracted Info
@@ -206,7 +292,9 @@ export const parseAnalysisResponse = (response) => {
  * Helper: Get Wallet Type Info
  */
 export const getWalletTypeInfo = (walletType) => {
-  const type = walletType?.toUpperCase();
+  if (!walletType) return PRICE_MOVERS_CONFIG.WALLET_TYPES.UNKNOWN;
+  
+  const type = walletType.toUpperCase().replace(/-/g, '_');
   return PRICE_MOVERS_CONFIG.WALLET_TYPES[type] || PRICE_MOVERS_CONFIG.WALLET_TYPES.UNKNOWN;
 };
 
@@ -214,6 +302,10 @@ export const getWalletTypeInfo = (walletType) => {
  * Helper: Get Impact Level Info
  */
 export const getImpactLevelInfo = (impactScore) => {
+  if (impactScore === undefined || impactScore === null) {
+    return PRICE_MOVERS_CONFIG.IMPACT_LEVELS.MINIMAL;
+  }
+
   const levels = PRICE_MOVERS_CONFIG.IMPACT_LEVELS;
   
   if (impactScore >= levels.CRITICAL.min) return levels.CRITICAL;
@@ -221,6 +313,37 @@ export const getImpactLevelInfo = (impactScore) => {
   if (impactScore >= levels.MEDIUM.min) return levels.MEDIUM;
   if (impactScore >= levels.LOW.min) return levels.LOW;
   return levels.MINIMAL;
+};
+
+/**
+ * Helper: Format Price Change
+ */
+export const formatPriceChange = (candle) => {
+  if (!candle || !candle.open || !candle.close) return '0.00%';
+  
+  const change = ((candle.close - candle.open) / candle.open) * 100;
+  const sign = change >= 0 ? '+' : '';
+  return `${sign}${change.toFixed(2)}%`;
+};
+
+/**
+ * Helper: Get Exchange Label
+ */
+export const getExchangeLabel = (exchangeValue) => {
+  const exchange = PRICE_MOVERS_CONFIG.EXCHANGES.find(
+    e => e.value.toLowerCase() === exchangeValue?.toLowerCase()
+  );
+  return exchange ? exchange.label : exchangeValue;
+};
+
+/**
+ * Helper: Get Timeframe Label
+ */
+export const getTimeframeLabel = (timeframeValue) => {
+  const timeframe = PRICE_MOVERS_CONFIG.TIMEFRAMES.find(
+    t => t.value.toLowerCase() === timeframeValue?.toLowerCase()
+  );
+  return timeframe ? timeframe.label : timeframeValue;
 };
 
 /**
@@ -242,6 +365,12 @@ export const usePriceMovers = () => {
     setLoading(true);
     setError(null);
     try {
+      // Validierung
+      const validation = validateAnalysisRequest(params);
+      if (!validation.isValid) {
+        throw new Error(validation.errors.join('; '));
+      }
+
       const data = await analyzePriceMovers(params);
       const parsed = parseAnalysisResponse(data);
       setAnalysisData(parsed);
@@ -249,6 +378,7 @@ export const usePriceMovers = () => {
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Analysis failed';
       setError(errorMessage);
+      console.error('Analysis error:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -267,14 +397,19 @@ export const usePriceMovers = () => {
     setLoading(true);
     setError(null);
     try {
+      // DEBUG: Zeige die übergebenen Werte
+      console.log('quickAnalyze called with:', { exchange, symbol, timeframe, topNWallets });
+      
       // Erstelle validiertes Request-Objekt
       const request = createQuickAnalysisRequest(exchange, symbol, timeframe, topNWallets);
+      console.log('Created request:', request);
       
       const data = await quickAnalysis(request);
       const parsed = parseAnalysisResponse(data);
       setAnalysisData(parsed);
       return parsed;
     } catch (err) {
+      console.error('quickAnalyze error:', err);
       const errorMessage = err.response?.data?.detail || err.message || 'Quick analysis failed';
       setError(errorMessage);
       throw err;
@@ -296,6 +431,7 @@ export const usePriceMovers = () => {
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Historical analysis failed';
       setError(errorMessage);
+      console.error('Historical analysis error:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -315,6 +451,7 @@ export const usePriceMovers = () => {
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Wallet lookup failed';
       setError(errorMessage);
+      console.error('Wallet lookup error:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -334,6 +471,7 @@ export const usePriceMovers = () => {
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Exchange comparison failed';
       setError(errorMessage);
+      console.error('Exchange comparison error:', err);
       throw err;
     } finally {
       setLoading(false);
@@ -353,6 +491,7 @@ export const usePriceMovers = () => {
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Health check failed';
       setError(errorMessage);
+      console.error('Health check error:', err);
       throw err;
     } finally {
       setLoading(false);
