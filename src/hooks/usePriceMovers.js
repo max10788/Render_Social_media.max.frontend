@@ -119,7 +119,9 @@ export const validateQuickAnalysisRequest = (exchange, symbol, timeframe) => {
     errors.push('Exchange is required');
   }
 
-  if (!PRICE_MOVERS_CONFIG.EXCHANGES.find(e => e.value === exchange)) {
+  // Case-insensitive Vergleich
+  const exchangeLower = exchange?.toLowerCase();
+  if (!PRICE_MOVERS_CONFIG.EXCHANGES.find(e => e.value.toLowerCase() === exchangeLower)) {
     errors.push(`Invalid exchange. Supported: ${PRICE_MOVERS_CONFIG.EXCHANGES.map(e => e.value).join(', ')}`);
   }
 
@@ -127,7 +129,9 @@ export const validateQuickAnalysisRequest = (exchange, symbol, timeframe) => {
     errors.push('Invalid symbol format. Use format: BASE/QUOTE (e.g., BTC/USDT)');
   }
 
-  if (!PRICE_MOVERS_CONFIG.TIMEFRAMES.find(t => t.value === timeframe)) {
+  // Case-insensitive Vergleich für Timeframe
+  const timeframeLower = timeframe?.toLowerCase();
+  if (!PRICE_MOVERS_CONFIG.TIMEFRAMES.find(t => t.value.toLowerCase() === timeframeLower)) {
     errors.push(`Invalid timeframe. Supported: ${PRICE_MOVERS_CONFIG.TIMEFRAMES.map(t => t.value).join(', ')}`);
   }
 
