@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './Radar.css';
 import WalletDetail from './WalletDetail';
 import WalletDetailUnclassified from './WalletDetailUnclassified';
 
 const Radar = ({ config, radarData, loading }) => {
-  // ===== STATE =====
   const [showContractDetails, setShowContractDetails] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [tooltip, setTooltip] = useState(null);
@@ -13,145 +12,18 @@ const Radar = ({ config, radarData, loading }) => {
   
   const radarRef = useRef(null);
   const animationRef = useRef(null);
-  const tooltipTimeoutRef = useRef(null);
   
-  // ===== CONFIGURATION =====
-  const svgSize = 500;
-  const center = svgSize / 2;
-  const outerRadius = center * 0.95;
-  
-  // ===== WALLET COLORS =====
-  const getWalletColor = useCallback((walletType) => {
-    const colors = {
-      'WHALE': '#818cf8',
-      'HODLER': '#10b981',
-      'TRADER': '#f59e0b',
-      'MIXER': '#ef4444',
-      'DUST_SWEEPER': '#8b5cf6',
-      'BOT': '#8b5cf6',
-      'SMART_MONEY': '#06b6d4',
-      'UNKNOWN': '#9ca3af',
-      'unclassified': '#9ca3af'
-    };
-    return colors[walletType?.toUpperCase()] || '#9ca3af';
-  }, []);
-  
-  // ===== SCAN ANIMATION =====
-  useEffect(() => {
-    if (!radarData || loading) return;
-    
-    const animateScan = () => {
-      setScanAngle(prev => (prev + 0.4) % 360); // Slightly slower for smoother feel
-      animationRef.current = requestAnimationFrame(animateScan);
-    };
-    
-    animationRef.current = requestAnimationFrame(animateScan);
-    
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [radarData, loading]);
-  
-  // ===== HELPER FUNCTIONS =====
-  const calculateScanEndPoint = useCallback((angle, radius) => {
-    const rad = angle * (Math.PI / 180);
-    return {
-      x: center + radius * Math.cos(rad),
-      y: center + radius * Math.sin(rad)
-    };
-  }, [center]);
-  
-  const calculateWalletPosition = useCallback((wallet, index, total, wallets) => {
-    // Check if classified
-    const isClassified = wallet.wallet_type !== 'UNKNOWN' && 
-                         wallet.wallet_type !== 'unclassified';
-    
-    // 1. RADIUS: Based on risk score (inner = safe, outer = risky)
-    let radius;
-    if (isClassified) {
-      const riskScore = wallet.risk_score || 0;
-      // Scale: 35% to 90% of radius for better distribution
-      radius = center * 0.35 + (riskScore / 100) * (outerRadius - center * 0.35);
-    } else {
-      // Unclassified wallets in outer ring (75-88%)
-      const variation = (index % 10) / 100;
-      radius = outerRadius * (0.75 + variation);
-    }
-    
-    // 2. ANGLE: Grouped by wallet type with even distribution
-    const typeAngles = {
-      'WHALE': 0,
-      'HODLER': Math.PI / 3,
-      'TRADER': (2 * Math.PI) / 3,
-      'MIXER': Math.PI,
-      'DUST_SWEEPER': (4 * Math.PI) / 3,
-      'BOT': (5 * Math.PI) / 3,
-      'UNKNOWN': (5 * Math.PI) / 3
-    };
-    
-    const walletType = wallet.wallet_type?.toUpperCase() || 'UNKNOWN';
-    const baseAngle = typeAngles[walletType] || 0;
-    
-    // Sector spread (±55° = π/3.3)
-    const sectorSpread = Math.PI / 3.3;
-    const walletTypeCount = wallets.filter(w => 
-      (w.wallet_type?.toUpperCase() || 'UNKNOWN') === walletType
-    ).length;
-    const walletIndexInType = wallets.filter((w, i) => 
-      i <= index && (w.wallet_type?.toUpperCase() || 'UNKNOWN') === walletType
-    ).length - 1;
-    
-    // Distribution within sector
-    let angleInSector;
-    if (walletTypeCount > 1) {
-      angleInSector = (walletIndexInType / (walletTypeCount - 1)) * 2 * sectorSpread - sectorSpread;
-      
-      // Light jitter for natural distribution
-      const jitter = (Math.sin(index * 137.5) * 0.08);
-      angleInSector += jitter;
-    } else {
-      angleInSector = 0;
-    }
-    
-    const finalAngle = baseAngle + angleInSector;
-    
-    return {
-      x: center + radius * Math.cos(finalAngle),
-      y: center + radius * Math.sin(finalAngle)
-    };
-  }, [center, outerRadius]);
-  
-  const formatAddress = useCallback((address) => {
-    if (!address) return '';
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
-  }, []);
-  
-  const getRiskColor = useCallback((score) => {
-    if (score < 30) return '#10b981';
-    if (score < 70) return '#f59e0b';
-    return '#ef4444';
-  }, []);
-  
-  // ===== HANDLERS =====
-  const handleWalletSelect = useCallback((wallet) => {
+  const handleWalletSelect = (wallet) => {
     setSelectedWallet(wallet);
-    setTooltip(null);
-  }, []);
+  };
   
-  const toggleContractDetails = useCallback(() => {
-    setShowContractDetails(prev => !prev);
-  }, []);
+  const toggleContractDetails = () => {
+    setShowContractDetails(!showContractDetails);
+  };
   
-  const showWalletTooltip = useCallback((event, wallet) => {
-    // Clear existing timeout
-    if (tooltipTimeoutRef.current) {
-      clearTimeout(tooltipTimeoutRef.current);
-    }
-    
-    const isClassified = wallet.wallet_type !== 'UNKNOWN' && 
-                         wallet.wallet_type !== 'unclassified';
+  const showWalletTooltip = (event, wallet) => {
+    // ✅ Check if wallet is classified
+    const isClassified = wallet.wallet_type !== 'UNKNOWN' && wallet.wallet_type !== 'unclassified';
     
     setTooltip({
       content: wallet.wallet_address || wallet.walletAddress,
@@ -166,55 +38,161 @@ const Radar = ({ config, radarData, loading }) => {
       y: event.clientY
     });
     setHoveredPoint(wallet.wallet_address || wallet.walletAddress);
-  }, []);
+  };
   
-  const hideTooltip = useCallback(() => {
-    // Delay hiding for smoother UX
-    tooltipTimeoutRef.current = setTimeout(() => {
-      setTooltip(null);
-      setHoveredPoint(null);
-    }, 100);
-  }, []);
+  const hideTooltip = () => {
+    setTooltip(null);
+    setHoveredPoint(null);
+  };
   
-  // Cleanup timeout on unmount
+  const getWalletColor = (walletType) => {
+    const colors = {
+      'WHALE': '#818cf8',
+      'HODLER': '#10b981',
+      'TRADER': '#f59e0b',
+      'MIXER': '#ef4444',
+      'DUST_SWEEPER': '#8b5cf6',
+      'BOT': '#8b5cf6',
+      'SMART_MONEY': '#06b6d4',
+      'UNKNOWN': '#9ca3af',
+      'unclassified': '#9ca3af'
+    };
+    return colors[walletType?.toUpperCase()] || '#9ca3af';
+  };
+  
+  const svgSize = 500;
+  const center = svgSize / 2;
+  const outerRadius = center * 0.95;
+  
   useEffect(() => {
+    const animateScan = () => {
+      setScanAngle(prev => (prev + 0.5) % 360);
+      animationRef.current = requestAnimationFrame(animateScan);
+    };
+    
+    animationRef.current = requestAnimationFrame(animateScan);
+    
     return () => {
-      if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
     };
   }, []);
   
-  // ===== LOADING STATE =====
+  const calculateScanEndPoint = (angle, radius) => {
+    const rad = angle * (Math.PI / 180);
+    return {
+      x: center + radius * Math.cos(rad),
+      y: center + radius * Math.sin(rad)
+    };
+  };
+  
+  const calculateWalletPosition = (wallet, index, total) => {
+    // ✅ VERBESSERT: Bessere Verteilung der Wallets
+    
+    // Check if classified
+    const isClassified = wallet.wallet_type !== 'UNKNOWN' && wallet.wallet_type !== 'unclassified';
+    
+    // 1. RADIUS: Basierend auf Risk Score (innen = sicher, außen = riskant)
+    let radius;
+    if (isClassified) {
+      const riskScore = wallet.risk_score || 0;
+      // Skalierung: 30% bis 95% des Radius
+      radius = center * 0.3 + (riskScore / 100) * (outerRadius - center * 0.3);
+    } else {
+      // Unclassified wallets im äußeren Ring (80-90%)
+      // Leichte Variation für bessere Verteilung
+      const variation = (index % 10) / 100; // 0.00 bis 0.09
+      radius = outerRadius * (0.8 + variation);
+    }
+    
+    // 2. WINKEL: Gleichmäßige Verteilung um 360°
+    // Golden Angle für bessere Verteilung (verhindert Clustering)
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.5°
+    const angle = (index * goldenAngle) % (2 * Math.PI);
+    
+    // Alternative: Gruppierung nach Wallet-Typ
+    // Jeder Typ bekommt einen Sektor
+    const typeAngles = {
+      'WHALE': 0,
+      'HODLER': Math.PI / 3,      // 60°
+      'TRADER': (2 * Math.PI) / 3, // 120°
+      'MIXER': Math.PI,             // 180°
+      'DUST_SWEEPER': (4 * Math.PI) / 3, // 240°
+      'UNKNOWN': (5 * Math.PI) / 3       // 300°
+    };
+    
+
+    // Basis-Winkel für den Wallet-Typ
+    const walletType = wallet.wallet_type?.toUpperCase() || 'UNKNOWN';
+    const baseAngle = typeAngles[walletType] || 0;
+    
+    // Breiterer Spread innerhalb des Sektors (±50° = π/3.6 statt ±30°)
+    const sectorSpread = Math.PI / 3.6;
+    const walletTypeCount = wallets.filter(w => 
+      (w.wallet_type?.toUpperCase() || 'UNKNOWN') === walletType
+    ).length;
+    const walletIndexInType = wallets.filter((w, i) => 
+      i <= index && (w.wallet_type?.toUpperCase() || 'UNKNOWN') === walletType
+    ).length - 1;
+    
+    // Verteilung innerhalb des Sektors mit zusätzlicher Streuung
+    let angleInSector;
+    if (walletTypeCount > 1) {
+      // Gleichmäßige Verteilung über die gesamte Sektorbreite
+      angleInSector = (walletIndexInType / (walletTypeCount - 1)) * 2 * sectorSpread - sectorSpread;
+      
+      // Zusätzliche leichte Randomisierung für noch bessere Verteilung
+      const jitter = (Math.sin(index * 137.5) * 0.1); // Pseudo-random basierend auf Index
+      angleInSector += jitter;
+    } else {
+      angleInSector = 0;
+    }
+    
+    const finalAngle = baseAngle + angleInSector;
+    
+    return {
+      x: center + radius * Math.cos(finalAngle),
+      y: center + radius * Math.sin(finalAngle)
+    };
+  };
+  
+  const formatAddress = (address) => {
+    if (!address) return '';
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
+  
+  const getRiskColor = (score) => {
+    if (score < 30) return '#10b981';
+    if (score < 70) return '#f59e0b';
+    return '#ef4444';
+  };
+  
   if (loading) {
     return (
       <div className="radar-loading">
         <div className="spinner"></div>
-        <p>Analyzing wallets...</p>
-        <span className="loading-hint">This may take a moment</span>
+        <p>Analyzing contract...</p>
       </div>
     );
   }
   
-  // ===== EMPTY STATE =====
   if (!radarData || !radarData.wallets || radarData.wallets.length === 0) {
     return (
       <div className="radar-empty">
-        <span className="empty-radar-icon">📡</span>
-        <p>No radar data available</p>
-        <span className="empty-hint">Start an analysis to visualize wallet activity</span>
+        <p>No data available. Please start an analysis.</p>
       </div>
     );
   }
   
-  // ===== DATA PREPARATION =====
+  // ✅ FIXED: radarData.wallets ist bereits ein FLAT ARRAY
   const wallets = Array.isArray(radarData.wallets) ? radarData.wallets : [];
-  const classifiedWallets = wallets.filter(w => 
-    w.wallet_type !== 'UNKNOWN' && w.wallet_type !== 'unclassified'
-  );
-  const unclassifiedWallets = wallets.filter(w => 
-    w.wallet_type === 'UNKNOWN' || w.wallet_type === 'unclassified'
-  );
+  
+  // ✅ Separate für Statistics
+  const classifiedWallets = wallets.filter(w => w.wallet_type !== 'UNKNOWN' && w.wallet_type !== 'unclassified');
+  const unclassifiedWallets = wallets.filter(w => w.wallet_type === 'UNKNOWN' || w.wallet_type === 'unclassified');
+  
+  console.log(`🎯 Radar Display: ${wallets.length} total (${classifiedWallets.length} classified, ${unclassifiedWallets.length} unclassified)`);
   
   const tokenInfo = radarData.tokenInfo || {};
   const mainScanEndPoint = calculateScanEndPoint(scanAngle, outerRadius);
@@ -223,35 +201,26 @@ const Radar = ({ config, radarData, loading }) => {
     <>
       <div className="radar-container">
         <div className="radar-display" ref={radarRef}>
-          <svg 
-            viewBox={`0 0 ${svgSize} ${svgSize}`} 
-            className="radar-svg" 
-            preserveAspectRatio="xMidYMid meet"
-            role="img"
-            aria-label="Wallet radar visualization"
-          >
+          <svg viewBox={`0 0 ${svgSize} ${svgSize}`} className="radar-svg" preserveAspectRatio="xMidYMid meet">
             <defs>
-              {/* Glow Filter */}
               <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feGaussianBlur stdDeviation="3" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
               
-              {/* Scan Gradient */}
               <radialGradient id="scanGradient">
-                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.05" />
+                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.1" />
               </radialGradient>
               
-              {/* Center Glow */}
               <radialGradient id="centerGlow">
                 <stop offset="0%" stopColor="#10b981" stopOpacity="1" />
-                <stop offset="50%" stopColor="#10b981" stopOpacity="0.5" />
+                <stop offset="50%" stopColor="#10b981" stopOpacity="0.6" />
                 <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
               </radialGradient>
             </defs>
             
-            {/* Radar Rings */}
+            {/* Radar Ringe */}
             {[...Array(4)].map((_, i) => {
               const radius = ((svgSize / 2) / 4) * (i + 1);
               return (
@@ -262,14 +231,14 @@ const Radar = ({ config, radarData, loading }) => {
                   r={radius} 
                   className="radar-circle"
                   style={{ 
-                    strokeOpacity: 0.1 + (i * 0.05),
-                    strokeWidth: i === 3 ? 0.7 : 0.4
+                    strokeOpacity: 0.15 + (i * 0.05),
+                    strokeWidth: i === 3 ? 0.8 : 0.5
                   }}
                 />
               );
             })}
             
-            {/* Main Axes */}
+            {/* Hauptachsen */}
             {[0, 90, 180, 270].map(angle => {
               const endPoint = calculateScanEndPoint(angle, outerRadius);
               return (
@@ -280,12 +249,12 @@ const Radar = ({ config, radarData, loading }) => {
                   x2={endPoint.x} 
                   y2={endPoint.y} 
                   className="radar-line"
-                  style={{ strokeWidth: 0.5, strokeOpacity: 0.2 }}
+                  style={{ strokeWidth: 0.6, strokeOpacity: 0.25 }}
                 />
               );
             })}
             
-            {/* Radial Spokes */}
+            {/* Radiale Speichen */}
             {[...Array(8)].map((_, i) => {
               const angle = (i / 8) * 360;
               const endPoint = calculateScanEndPoint(angle, outerRadius);
@@ -298,18 +267,18 @@ const Radar = ({ config, radarData, loading }) => {
                   y2={endPoint.y} 
                   className="radial-line"
                   style={{ 
-                    strokeWidth: 0.25,
-                    strokeOpacity: 0.12,
+                    strokeWidth: 0.3,
+                    strokeOpacity: 0.15,
                     strokeDasharray: '2,4'
                   }}
                 />
               );
             })}
             
-            {/* Scan Trail Effect */}
-            {[...Array(5)].map((_, i) => {
-              const opacity = 0.2 - (i * 0.035);
-              const trailAngle = scanAngle - (i * 4);
+            {/* Schweif-Effekt */}
+            {[...Array(6)].map((_, i) => {
+              const opacity = 0.25 - (i * 0.04);
+              const trailAngle = scanAngle - (i * 3);
               const trailEndPoint = calculateScanEndPoint(trailAngle, outerRadius);
               
               return (
@@ -322,13 +291,13 @@ const Radar = ({ config, radarData, loading }) => {
                   className="radar-sweep-trail" 
                   style={{ 
                     opacity,
-                    strokeWidth: 1 - (i * 0.12)
+                    strokeWidth: 1.2 - (i * 0.15)
                   }}
                 />
               );
             })}
             
-            {/* Main Scan Beam */}
+            {/* Haupt-Scan-Strahl */}
             <line 
               x1={center} 
               y1={center} 
@@ -336,63 +305,55 @@ const Radar = ({ config, radarData, loading }) => {
               y2={mainScanEndPoint.y} 
               className="radar-sweep-main" 
               filter="url(#glow)"
-              style={{ strokeWidth: 1.5 }}
+              style={{ strokeWidth: 1.8 }}
             />
             
-            {/* Central Contract Point */}
-            <g 
-              onClick={toggleContractDetails} 
-              className="central-contract-point" 
-              role="button"
-              aria-label="Smart contract center point"
-              tabIndex={0}
-              onKeyPress={(e) => e.key === 'Enter' && toggleContractDetails()}
-            >
+            {/* Zentraler Smart Contract-Punkt */}
+            <g onClick={toggleContractDetails} className="central-contract-point" cursor="pointer">
               <circle 
                 cx={center} 
                 cy={center} 
-                r={18} 
+                r={20} 
                 fill="url(#centerGlow)" 
-                opacity="0.25"
+                opacity="0.3"
               />
               <circle 
                 cx={center} 
                 cy={center} 
-                r={7} 
+                r={8} 
                 fill="#10b981" 
                 className="central-contract-circle"
               />
               <circle 
                 cx={center} 
                 cy={center} 
-                r={4} 
+                r={5} 
                 fill="#065f46" 
-                opacity="0.7"
+                opacity="0.6"
               />
               <circle 
                 cx={center} 
                 cy={center} 
-                r={11} 
+                r={12} 
                 fill="none" 
                 stroke="#10b981" 
-                strokeWidth="1.2"
-                strokeOpacity="0.35"
+                strokeWidth="1.5"
+                strokeOpacity="0.4"
                 className="central-contract-pulse"
               />
             </g>
             
-            {/* Wallet Points */}
+            {/* Wallet-Punkte */}
             {wallets.map((wallet, index) => {
-              const position = calculateWalletPosition(wallet, index, wallets.length, wallets);
+              const position = calculateWalletPosition(wallet, index, wallets.length);
               const walletColor = getWalletColor(wallet.wallet_type);
               const isHovered = hoveredPoint === (wallet.wallet_address || wallet.walletAddress);
-              const isClassified = wallet.wallet_type !== 'UNKNOWN' && 
-                                   wallet.wallet_type !== 'unclassified';
+              const isClassified = wallet.wallet_type !== 'UNKNOWN' && wallet.wallet_type !== 'unclassified';
               
-              // Size based on classification and confidence
-              const baseSize = isClassified ? 3 : 2;
-              const confidenceBoost = isClassified ? (wallet.confidence_score || 0) * 1.5 : 0;
-              const walletSize = baseSize + confidenceBoost;
+              // ✅ Größe basierend auf Klassifizierung
+              const walletSize = isClassified 
+                ? 3 + (wallet.confidence_score || 0) * 2 
+                : 2;
               
               return (
                 <g 
@@ -401,35 +362,28 @@ const Radar = ({ config, radarData, loading }) => {
                   onMouseEnter={(e) => showWalletTooltip(e, wallet)}
                   onMouseLeave={hideTooltip}
                   onClick={() => handleWalletSelect(wallet)}
-                  role="button"
-                  aria-label={`Wallet ${formatAddress(wallet.wallet_address)}`}
-                  tabIndex={0}
-                  onKeyPress={(e) => e.key === 'Enter' && handleWalletSelect(wallet)}
+                  style={{ cursor: 'pointer' }}
                 >
-                  {/* Hover Glow */}
                   {isHovered && (
                     <circle 
                       cx={position.x} 
                       cy={position.y} 
-                      r={walletSize + 4}
+                      r={walletSize + 3}
                       fill={walletColor}
-                      opacity="0.25"
-                      className="wallet-hover-glow"
+                      opacity="0.3"
                     />
                   )}
-                  
-                  {/* Main Wallet Dot */}
                   <circle 
                     cx={position.x} 
                     cy={position.y} 
-                    r={isHovered ? walletSize + 0.5 : walletSize}
+                    r={isHovered ? walletSize + 1 : walletSize}
                     fill={walletColor}
-                    stroke="rgba(255, 255, 255, 0.25)"
-                    strokeWidth={isHovered ? 0.8 : 0.4}
+                    stroke="rgba(255, 255, 255, 0.3)"
+                    strokeWidth={isHovered ? 1 : 0.5}
                     style={{ 
-                      filter: isHovered ? `drop-shadow(0 0 5px ${walletColor})` : 'none',
+                      filter: isHovered ? `drop-shadow(0 0 6px ${walletColor})` : 'none',
                       transition: 'all 0.2s ease',
-                      opacity: isClassified ? 1 : 0.65
+                      opacity: isClassified ? 1 : 0.6
                     }}
                   />
                 </g>
@@ -439,50 +393,38 @@ const Radar = ({ config, radarData, loading }) => {
           
           {/* Contract Detail Modal */}
           {showContractDetails && config && (
-            <div className="contract-detail-modal" role="dialog" aria-modal="true">
+            <div className="contract-detail-modal">
               <div className="modal-content">
                 <div className="modal-header">
                   <h3>Smart Contract Details</h3>
-                  <button 
-                    className="close-button" 
-                    onClick={toggleContractDetails}
-                    aria-label="Close modal"
-                  >
-                    ×
-                  </button>
+                  <button className="close-button" onClick={toggleContractDetails}>×</button>
                 </div>
                 <div className="modal-body">
                   <div className="detail-row">
-                    <span className="detail-label">Address</span>
-                    <span className="detail-value" title={config.contractAddress}>
-                      {formatAddress(config.contractAddress)}
-                    </span>
+                    <span className="detail-label">Address:</span>
+                    <span className="detail-value">{formatAddress(config.contractAddress)}</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Token</span>
+                    <span className="detail-label">Token Name:</span>
                     <span className="detail-value">
                       {tokenInfo.name || 'Unknown'} ({tokenInfo.symbol || 'N/A'})
                     </span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Chain</span>
+                    <span className="detail-label">Chain:</span>
                     <span className="detail-value">{config.blockchain || 'Unknown'}</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Score</span>
+                    <span className="detail-label">Score:</span>
                     <span className="detail-value">{radarData.score || 0}/100</span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Wallets</span>
+                    <span className="detail-label">Wallets Analyzed:</span>
                     <span className="detail-value">
-                      {wallets.length} total
+                      {wallets.length}
                       {classifiedWallets.length > 0 && (
-                        <span style={{ 
-                          fontSize: '0.75rem', 
-                          marginLeft: '0.5rem', 
-                          opacity: 0.7 
-                        }}>
-                          ({classifiedWallets.length} classified)
+                        <span style={{ fontSize: '12px', marginLeft: '8px', opacity: 0.7 }}>
+                          ({classifiedWallets.length} classified, {unclassifiedWallets.length} unclassified)
                         </span>
                       )}
                     </span>
@@ -500,47 +442,39 @@ const Radar = ({ config, radarData, loading }) => {
                 left: `${tooltip.x}px`, 
                 top: `${tooltip.y}px`
               }}
-              role="tooltip"
             >
-              <div className="tooltip-address">
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
                 {formatAddress(tooltip.content)}
               </div>
               {tooltip.details && (
-                <div className="tooltip-details">
+                <div style={{ fontSize: '11px', opacity: 0.9 }}>
                   {tooltip.details.type && (
-                    <div className="tooltip-row">
-                      <span>Type:</span>
-                      <span className="tooltip-value">{tooltip.details.type}</span>
+                    <div>
+                      Type: {tooltip.details.type}
                       {!tooltip.details.isClassified && (
-                        <span className="unclassified-badge">UNCLASSIFIED</span>
+                        <span style={{ 
+                          marginLeft: '6px', 
+                          padding: '2px 6px',
+                          backgroundColor: '#6b7280',
+                          borderRadius: '4px',
+                          fontSize: '9px',
+                          color: 'white'
+                        }}>
+                          NOT CLASSIFIED
+                        </span>
                       )}
                     </div>
                   )}
-                  {tooltip.details.isClassified && (
-                    <>
-                      {tooltip.details.riskScore !== undefined && (
-                        <div className="tooltip-row">
-                          <span>Risk:</span>
-                          <span className="tooltip-value">{tooltip.details.riskScore}/100</span>
-                        </div>
-                      )}
-                      {tooltip.details.confidence !== undefined && (
-                        <div className="tooltip-row">
-                          <span>Confidence:</span>
-                          <span className="tooltip-value">
-                            {(tooltip.details.confidence * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                      )}
-                    </>
+                  {tooltip.details.riskScore !== undefined && tooltip.details.isClassified && (
+                    <div>Risk: {tooltip.details.riskScore}/100</div>
+                  )}
+                  {tooltip.details.confidence !== undefined && tooltip.details.isClassified && (
+                    <div>Confidence: {(tooltip.details.confidence * 100).toFixed(1)}%</div>
                   )}
                   {tooltip.details.transactions && (
-                    <div className="tooltip-row">
-                      <span>Txs:</span>
-                      <span className="tooltip-value">{tooltip.details.transactions}</span>
-                    </div>
+                    <div>Transactions: {tooltip.details.transactions}</div>
                   )}
-                  <div className="tooltip-hint">
+                  <div style={{ marginTop: '4px', fontSize: '10px', color: '#94a3b8' }}>
                     💡 Click for {tooltip.details.isClassified ? 'full' : 'basic'} details
                   </div>
                 </div>
@@ -550,11 +484,10 @@ const Radar = ({ config, radarData, loading }) => {
         </div>
       </div>
       
-      {/* Wallet Detail Modals */}
+      {/* Wallet Detail Modal */}
       {selectedWallet && (
         <>
-          {selectedWallet.wallet_type !== 'UNKNOWN' && 
-           selectedWallet.wallet_type !== 'unclassified' ? (
+          {selectedWallet.wallet_type !== 'UNKNOWN' && selectedWallet.wallet_type !== 'unclassified' ? (
             <WalletDetail 
               wallet={selectedWallet} 
               onClose={() => setSelectedWallet(null)} 
