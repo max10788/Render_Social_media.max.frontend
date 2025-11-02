@@ -123,7 +123,7 @@ const PriceMovers = () => {
         timeframe: formData.timeframe,
         start_time,
         end_time,
-        include_impact: true,
+        include_impact: false, // FALSE für schnelleres Laden (Impact nur bei Click)
       });
       
       setChartData(response.candles || []);
@@ -424,7 +424,7 @@ const PriceMovers = () => {
                   <div className="detail-item">
                     <span className="label">Time:</span>
                     <span className="value">
-                      {new Date(typeof selectedCandleData.time === 'number' ? selectedCandleData.time * 1000 : selectedCandleData.time).toLocaleString('de-DE')}
+                      {new Date(typeof selectedCandleData.time === 'number' ? selected CandleData.time * 1000 : selectedCandleData.time).toLocaleString('de-DE')}
                     </span>
                   </div>
                   <div className="detail-item">
