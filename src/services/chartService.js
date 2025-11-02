@@ -30,7 +30,7 @@ export const fetchChartCandles = async (params) => {
       timeframe,
       start_time,
       end_time,
-      include_impact = true,
+      include_impact = false,
     } = params;
 
     // Konvertiere Dates zu ISO Strings falls nötig
