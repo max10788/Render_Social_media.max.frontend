@@ -3,29 +3,65 @@
  * 
  * Service für die Kommunikation mit der Price Movers Backend API
  */
-
 import axios from 'axios';
 
-// Flexible API Base URL - funktioniert mit verschiedenen Config-Strukturen
-const getApiBaseUrl = () => {
-  // Option 1: Direkt aus Environment Variable (empfohlen)
-  if (process.env.REACT_APP_API_BASE_URL) {
-    return process.env.REACT_APP_API_BASE_URL;
-  }
-  
-  // Option 2: Fallback auf localhost
-  return 'http://localhost:8000';
-};
+// Import der existierenden API Config
+import { API_BASE_URL } from '../config/api';
 
-const API_BASE_URL = getApiBaseUrl();
-const API_URL = `${API_BASE_URL}/api/v1`;
+// Price Movers API Base URL
+const PRICE_MOVERS_API_URL = `${API_BASE_URL}/api/v1`;
+
+// Axios Instance mit Defaults
+const priceMoversApi = axios.create({
+  baseURL: PRICE_MOVERS_API_URL,
+  timeout: 30000, // 30 seconds
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request Interceptor für Logging
+priceMoversApi.interceptors.request.use(
+  (config) => {
+    console.log('Price Movers API Request:', {
+      method: config.method,
+      url: config.url,
+      baseURL: config.baseURL,
+      data: config.data,
+    });
+    return config;
+  },
+  (error) => {
+    console.error('Price Movers API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Response Interceptor für Error Handling
+priceMoversApi.interceptors.response.use(
+  (response) => {
+    console.log('Price Movers API Response:', {
+      status: response.status,
+      data: response.data,
+    });
+    return response;
+  },
+  (error) => {
+    console.error('Price Movers API Response Error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+    });
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Analysiert Price Movers für eine bestimmte Candle
  */
 export const analyzePriceMovers = async (params) => {
   try {
-    const response = await axios.post(`${API_URL}/analyze/price-movers`, params);
+    const response = await priceMoversApi.post('/analyze/price-movers', params);
     return response.data;
   } catch (error) {
     console.error('Price Movers Analysis Error:', error);
@@ -38,7 +74,7 @@ export const analyzePriceMovers = async (params) => {
  */
 export const quickAnalysis = async (params) => {
   try {
-    const response = await axios.post(`${API_URL}/analyze/quick`, params);
+    const response = await priceMoversApi.post('/analyze/quick', params);
     return response.data;
   } catch (error) {
     console.error('Quick Analysis Error:', error);
@@ -51,7 +87,7 @@ export const quickAnalysis = async (params) => {
  */
 export const historicalAnalysis = async (params) => {
   try {
-    const response = await axios.post(`${API_URL}/analyze/historical`, params);
+    const response = await priceMoversApi.post('/analyze/historical', params);
     return response.data;
   } catch (error) {
     console.error('Historical Analysis Error:', error);
@@ -67,8 +103,8 @@ export const getWalletDetails = async (walletId, exchange, symbol = null, timeRa
     const params = { exchange };
     if (symbol) params.symbol = symbol;
     if (timeRangeHours) params.time_range_hours = timeRangeHours;
-
-    const response = await axios.get(`${API_URL}/wallet/${walletId}`, { params });
+    
+    const response = await priceMoversApi.get(`/wallet/${walletId}`, { params });
     return response.data;
   } catch (error) {
     console.error('Wallet Lookup Error:', error);
@@ -81,7 +117,7 @@ export const getWalletDetails = async (walletId, exchange, symbol = null, timeRa
  */
 export const compareExchanges = async (params) => {
   try {
-    const response = await axios.post(`${API_URL}/compare-exchanges`, params);
+    const response = await priceMoversApi.post('/compare-exchanges', params);
     return response.data;
   } catch (error) {
     console.error('Exchange Comparison Error:', error);
@@ -94,11 +130,26 @@ export const compareExchanges = async (params) => {
  */
 export const checkHealth = async () => {
   try {
-    const response = await axios.get(`${API_URL}/health`);
+    const response = await priceMoversApi.get('/health');
     return response.data;
   } catch (error) {
     console.error('Health Check Error:', error);
     throw error;
+  }
+};
+
+/**
+ * Helper: Teste Verbindung zum Backend
+ */
+export const testConnection = async () => {
+  try {
+    console.log('Testing connection to:', PRICE_MOVERS_API_URL);
+    const response = await checkHealth();
+    console.log('Connection test successful:', response);
+    return true;
+  } catch (error) {
+    console.error('Connection test failed:', error);
+    return false;
   }
 };
 
@@ -109,4 +160,5 @@ export default {
   getWalletDetails,
   compareExchanges,
   checkHealth,
+  testConnection,
 };
