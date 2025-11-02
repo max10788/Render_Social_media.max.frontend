@@ -247,7 +247,8 @@ export const ANALYSIS_CONFIG = {
 };
 
 // Request Configuration
-export const REQUEST_TIMEOUT = 30000; // 30 seconds
+// WICHTIG: Timeout auf 60 Sekunden erhöht für Chart-Requests mit vielen Candles
+export const REQUEST_TIMEOUT = 60000; // 60 seconds (war: 30000)
 export const RETRY_ATTEMPTS = 3;
 export const RETRY_DELAY = 1000; // 1 second
 
