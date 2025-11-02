@@ -1,12 +1,21 @@
 /**
- * Price Movers Page - Enhanced Version
+ * PriceMovers.js - Enhanced Version with Interactive Chart
  * 
- * Modern On-Chain Analysis Tool für die Identifikation von Wallets
- * mit dem größten Einfluss auf Preisbewegungen
+ * Neue Features:
+ * - Interaktiver Candlestick-Chart
+ * - Click auf Candle zeigt Price Movers
+ * - Impact-Indikatoren auf Candles
+ * - Dual-View: Chart + Analysis Results
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePriceMovers } from '../hooks/usePriceMovers';
+import CandlestickChart from '../components/ui/CandlestickChart';
+import { 
+  fetchChartCandles, 
+  fetchCandleMovers, 
+  calculateTimeWindow 
+} from '../services/chartService';
 import './PriceMovers.css';
 
 const PriceMovers = () => {
@@ -22,9 +31,16 @@ const PriceMovers = () => {
     includeTrades: false,
   });
 
-  const [analysisMode, setAnalysisMode] = useState('quick');
+  const [analysisMode, setAnalysisMode] = useState('chart'); // 'chart', 'quick', 'custom', 'historical'
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [showWalletPanel, setShowWalletPanel] = useState(false);
+  
+  // Chart State
+  const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState(null);
+  const [selectedCandleData, setSelectedCandleData] = useState(null);
+  const [candleMoversData, setCandleMoversData] = useState(null);
 
   // Custom Hook
   const {
@@ -53,39 +69,102 @@ const PriceMovers = () => {
     }));
   }, []);
 
-  // Debug: Log analysisData when it changes
+  // Load chart data when switching to chart mode
   useEffect(() => {
-    if (analysisData) {
-      console.log('analysisData updated:', analysisData);
-      console.log('topMovers:', analysisData.topMovers);
-      console.log('Number of topMovers:', analysisData.topMovers?.length);
+    if (analysisMode === 'chart') {
+      loadChartData();
     }
-  }, [analysisData]);
+  }, [analysisMode, formData.exchange, formData.symbol, formData.timeframe]);
 
   // Analysis Mode Definitions
   const analysisModes = [
     {
+      id: 'chart',
+      title: 'Interactive Chart',
+      icon: '📊',
+      description: 'Interaktiver Candlestick-Chart mit Click-to-Analyze',
+      badge: 'Neu',
+    },
+    {
       id: 'quick',
       title: 'Quick Analysis',
       icon: '⚡',
-      description: 'Schnelle Analyse der letzten Candle mit den einflussreichsten Wallets',
+      description: 'Schnelle Analyse der letzten Candle',
       badge: 'Empfohlen',
     },
     {
       id: 'custom',
       title: 'Custom Analysis',
       icon: '🎯',
-      description: 'Detaillierte Analyse mit benutzerdefinierten Parametern und Zeiträumen',
+      description: 'Detaillierte Analyse mit benutzerdefinierten Parametern',
       badge: null,
     },
     {
       id: 'historical',
       title: 'Historical Analysis',
-      icon: '📊',
-      description: 'Historische Analyse über mehrere Candles hinweg',
+      icon: '📈',
+      description: 'Historische Analyse über mehrere Candles',
       badge: 'Pro',
     },
   ];
+
+  // Load Chart Data
+  const loadChartData = async () => {
+    setChartLoading(true);
+    setChartError(null);
+    
+    try {
+      // Calculate time window (last 100 candles)
+      const { start_time, end_time } = calculateTimeWindow(formData.timeframe, 100);
+      
+      const response = await fetchChartCandles({
+        exchange: formData.exchange,
+        symbol: formData.symbol,
+        timeframe: formData.timeframe,
+        start_time,
+        end_time,
+        include_impact: true,
+      });
+      
+      setChartData(response.candles || []);
+    } catch (err) {
+      console.error('Error loading chart data:', err);
+      setChartError(err.message || 'Failed to load chart data');
+    } finally {
+      setChartLoading(false);
+    }
+  };
+
+  // Handle Candle Click from Chart
+  const handleCandleClick = async (timestamp, candleData) => {
+    console.log('Candle clicked:', timestamp, candleData);
+    setSelectedCandleData(candleData);
+    setCandleMoversData(null); // Clear previous data
+    
+    try {
+      const response = await fetchCandleMovers(timestamp, {
+        exchange: formData.exchange,
+        symbol: formData.symbol,
+        timeframe: formData.timeframe,
+        top_n_wallets: formData.topNWallets,
+      });
+      
+      // Set candle movers data
+      setCandleMoversData(response);
+      
+      // Scroll to results
+      setTimeout(() => {
+        document.querySelector('.candle-analysis-results')?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }, 100);
+      
+    } catch (err) {
+      console.error('Error loading candle movers:', err);
+      setChartError(err.message || 'Failed to load price movers for this candle');
+    }
+  };
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -100,13 +179,17 @@ const PriceMovers = () => {
   const handleModeSelect = (modeId) => {
     setAnalysisMode(modeId);
     reset();
+    setSelectedCandleData(null);
+    setCandleMoversData(null);
   };
 
-  // Handle analysis submission
+  // Handle analysis submission (for non-chart modes)
   const handleAnalyze = async (e) => {
     e.preventDefault();
     reset();
     setShowWalletPanel(false);
+    setSelectedCandleData(null);
+    setCandleMoversData(null);
 
     try {
       if (analysisMode === 'quick') {
@@ -257,19 +340,15 @@ const PriceMovers = () => {
           ))}
         </section>
 
-        {/* Analysis Form */}
-        <form className="analysis-form" onSubmit={handleAnalyze}>
-          {/* Basic Parameters */}
-          <div className="form-section">
-            <h3 className="form-section-title">Basis-Parameter</h3>
-            <div className="form-grid">
-              <div className="form-group">
-                <label htmlFor="exchange">
-                  Exchange
-                  <span className="help-icon" title="Wählen Sie die Exchange aus">?</span>
-                </label>
+        {/* Chart View - NEW */}
+        {analysisMode === 'chart' && (
+          <div className="chart-view">
+            {/* Chart Controls */}
+            <div className="chart-controls">
+              <div className="control-group">
+                <label htmlFor="chart-exchange">Exchange</label>
                 <select
-                  id="exchange"
+                  id="chart-exchange"
                   name="exchange"
                   value={formData.exchange}
                   onChange={handleInputChange}
@@ -280,13 +359,10 @@ const PriceMovers = () => {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="symbol">
-                  Trading Pair
-                  <span className="help-icon" title="Format: BTC/USDT">?</span>
-                </label>
+              <div className="control-group">
+                <label htmlFor="chart-symbol">Trading Pair</label>
                 <input
-                  id="symbol"
+                  id="chart-symbol"
                   type="text"
                   name="symbol"
                   value={formData.symbol}
@@ -295,13 +371,10 @@ const PriceMovers = () => {
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="timeframe">
-                  Timeframe
-                  <span className="help-icon" title="Candle-Intervall">?</span>
-                </label>
+              <div className="control-group">
+                <label htmlFor="chart-timeframe">Timeframe</label>
                 <select
-                  id="timeframe"
+                  id="chart-timeframe"
                   name="timeframe"
                   value={formData.timeframe}
                   onChange={handleInputChange}
@@ -316,133 +389,401 @@ const PriceMovers = () => {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="topNWallets">
-                  Top N Wallets
-                  <span className="help-icon" title="Anzahl der anzuzeigenden Wallets">?</span>
-                </label>
-                <input
-                  id="topNWallets"
-                  type="number"
-                  name="topNWallets"
-                  value={formData.topNWallets}
-                  onChange={handleInputChange}
-                  min="1"
-                  max="100"
-                />
-              </div>
+              <button 
+                className="btn-refresh"
+                onClick={loadChartData}
+                disabled={chartLoading}
+              >
+                {chartLoading ? '🔄 Loading...' : '🔄 Refresh Chart'}
+              </button>
             </div>
-          </div>
 
-          {/* Advanced Parameters - Only for Custom and Historical */}
-          {(analysisMode === 'custom' || analysisMode === 'historical') && (
-            <div className="form-section">
-              <h3 className="form-section-title">Erweiterte Parameter</h3>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label htmlFor="startTime">
-                    Start-Zeit
-                  </label>
-                  <input
-                    id="startTime"
-                    type="datetime-local"
-                    name="startTime"
-                    value={formData.startTime}
-                    onChange={handleInputChange}
-                  />
-                  <span className="input-hint">Beginn des Analysezeitraums</span>
+            {/* Chart Error */}
+            {chartError && (
+              <div className="error-message" role="alert">
+                <span className="error-icon">⚠️</span>
+                <span className="error-text">{chartError}</span>
+              </div>
+            )}
+
+            {/* Candlestick Chart */}
+            <CandlestickChart
+              candleData={chartData}
+              onCandleClick={handleCandleClick}
+              loading={chartLoading}
+              symbol={formData.symbol}
+              timeframe={formData.timeframe}
+              height={500}
+            />
+
+            {/* Selected Candle Info */}
+            {selectedCandleData && (
+              <div className="selected-candle-info">
+                <h3>🎯 Selected Candle</h3>
+                <div className="candle-details-grid">
+                  <div className="detail-item">
+                    <span className="label">Time:</span>
+                    <span className="value">
+                      {new Date(typeof selectedCandleData.time === 'number' ? selected CandleData.time * 1000 : selectedCandleData.time).toLocaleString('de-DE')}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Open:</span>
+                    <span className="value">${formatNumber(selectedCandleData.open)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">High:</span>
+                    <span className="value green">${formatNumber(selectedCandleData.high)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Low:</span>
+                    <span className="value red">${formatNumber(selectedCandleData.low)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Close:</span>
+                    <span className="value">${formatNumber(selectedCandleData.close)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Change:</span>
+                    <span className={`value ${selectedCandleData.close >= selectedCandleData.open ? 'green' : 'red'}`}>
+                      {((selectedCandleData.close - selectedCandleData.open) / selectedCandleData.open * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Candle Analysis Results - NEW */}
+            {candleMoversData && (
+              <div className="candle-analysis-results analysis-results">
+                {/* Results Header with Candle Info */}
+                <div className="results-header">
+                  <h2>🎯 Price Movers for Selected Candle</h2>
+                  <div className="candle-info">
+                    <div className="info-item">
+                      <span className="label">Open</span>
+                      <span className="value">${formatNumber(candleMoversData.candle?.open)}</span>
+                    </div>
+                    <div className="info-item">
+                      <span className="label">High</span>
+                      <span className="value green">${formatNumber(candleMoversData.candle?.high)}</span>
+                    </div>
+                    <div className="info-item">
+                      <span className="label">Low</span>
+                      <span className="value red">${formatNumber(candleMoversData.candle?.low)}</span>
+                    </div>
+                    <div className="info-item">
+                      <span className="label">Close</span>
+                      <span className="value">${formatNumber(candleMoversData.candle?.close)}</span>
+                    </div>
+                    <div className="info-item">
+                      <span className="label">Volume</span>
+                      <span className="value">{formatNumber(candleMoversData.candle?.volume)}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="endTime">
-                    End-Zeit
-                  </label>
-                  <input
-                    id="endTime"
-                    type="datetime-local"
-                    name="endTime"
-                    value={formData.endTime}
-                    onChange={handleInputChange}
-                  />
-                  <span className="input-hint">Ende des Analysezeitraums</span>
+                {/* Top Movers - Wallet Cards */}
+                <div className="top-movers">
+                  <h3>
+                    🏆 Top Wallets ({candleMoversData.top_movers?.length || 0})
+                  </h3>
+                  {candleMoversData.top_movers && candleMoversData.top_movers.length > 0 ? (
+                    <div className="wallets-grid">
+                      {candleMoversData.top_movers.map((mover, index) => (
+                        <div
+                          key={mover.wallet_id}
+                          className={`wallet-card ${
+                            selectedWallet?.wallet_id === mover.wallet_id ? 'selected' : ''
+                          }`}
+                          onClick={() => handleWalletClick(mover)}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="wallet-card-header">
+                            <div className="wallet-rank">#{index + 1}</div>
+                            <span className={`wallet-type-badge ${mover.wallet_type}`}>
+                              {mover.wallet_type}
+                            </span>
+                          </div>
+                          
+                          <div className="wallet-address" title={mover.wallet_id}>
+                            {mover.wallet_id}
+                          </div>
+                          
+                          <div className="wallet-stats-grid">
+                            <div className="wallet-stat">
+                              <span className="label">Volume</span>
+                              <span className="value">${formatNumber(mover.total_volume)}</span>
+                            </div>
+                            <div className="wallet-stat">
+                              <span className="label">Trades</span>
+                              <span className="value">{mover.trade_count}</span>
+                            </div>
+                            <div className="wallet-stat">
+                              <span className="label">Ø Trade Size</span>
+                              <span className="value">${formatNumber(mover.avg_trade_size)}</span>
+                            </div>
+                            <div className="wallet-stat">
+                              <span className="label">Aktivität</span>
+                              <span className="value">
+                                {mover.trade_count > 50 ? 'Hoch' : mover.trade_count > 20 ? 'Mittel' : 'Niedrig'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="impact-score">
+                            <div className="impact-label">
+                              <span>Impact Score</span>
+                              <span className="impact-value">
+                                {formatPercentage(mover.impact_score)}
+                              </span>
+                            </div>
+                            <div className="impact-bar">
+                              <div 
+                                className="impact-fill"
+                                style={{ width: `${mover.impact_score * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <div className="empty-state-icon">🔍</div>
+                      <p className="empty-state-text">
+                        Keine Price Movers gefunden für diese Candle.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="minImpactThreshold">
-                    Min. Impact Threshold
-                    <span className="help-icon" title="Minimaler Einfluss (0.0 - 1.0)">?</span>
-                  </label>
-                  <input
-                    id="minImpactThreshold"
-                    type="number"
-                    name="minImpactThreshold"
-                    value={formData.minImpactThreshold}
-                    onChange={handleInputChange}
-                    min="0"
-                    max="1"
-                    step="0.01"
-                  />
-                  <span className="input-hint">
-                    Nur Wallets mit Impact ≥ {formatPercentage(formData.minImpactThreshold)}
-                  </span>
-                </div>
-
-                {analysisMode === 'custom' && (
-                  <div className="form-group checkbox-group">
-                    <input
-                      id="includeTrades"
-                      type="checkbox"
-                      name="includeTrades"
-                      checked={formData.includeTrades}
-                      onChange={handleInputChange}
-                    />
-                    <label htmlFor="includeTrades">
-                      Einzelne Trades einbeziehen
-                    </label>
+                {/* Analysis Metadata */}
+                {candleMoversData.analysis_metadata && (
+                  <div className="analysis-metadata">
+                    <h3>ℹ️ Analyse-Informationen</h3>
+                    <div className="metadata-grid">
+                      <div className="metadata-item">
+                        <span className="label">Analyse-Zeitpunkt</span>
+                        <span className="value">
+                          {formatDate(candleMoversData.analysis_metadata.analysis_timestamp)}
+                        </span>
+                      </div>
+                      <div className="metadata-item">
+                        <span className="label">Verarbeitungsdauer</span>
+                        <span className="value">
+                          {candleMoversData.analysis_metadata.processing_duration_ms}ms
+                        </span>
+                      </div>
+                      <div className="metadata-item">
+                        <span className="label">Analysierte Trades</span>
+                        <span className="value">
+                          {formatNumber(candleMoversData.analysis_metadata.total_trades_analyzed, 0)}
+                        </span>
+                      </div>
+                      <div className="metadata-item">
+                        <span className="label">Unique Wallets</span>
+                        <span className="value">
+                          {formatNumber(candleMoversData.analysis_metadata.unique_wallets_found, 0)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* Form Actions */}
-          <div className="form-actions">
-            <button 
-              type="submit" 
-              className="btn-primary"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="progress-spinner"></span>
-                  Analysiere...
-                </>
-              ) : (
-                <>
-                  🚀 Analyse starten
-                </>
-              )}
-            </button>
-            <button 
-              type="button" 
-              className="btn-secondary"
-              onClick={handleCompareExchanges}
-              disabled={loading}
-            >
-              📊 Exchanges vergleichen
-            </button>
+            )}
           </div>
+        )}
 
-          {/* Progress Indicator */}
-          {loading && (
-            <div className="progress-indicator">
-              <div className="progress-spinner"></div>
-              <span className="progress-text">
-                Daten werden analysiert... Dies kann einen Moment dauern.
-              </span>
+        {/* Original Analysis Form - For non-chart modes */}
+        {analysisMode !== 'chart' && (
+          <form className="analysis-form" onSubmit={handleAnalyze}>
+            {/* Basic Parameters */}
+            <div className="form-section">
+              <h3 className="form-section-title">Basis-Parameter</h3>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label htmlFor="exchange">
+                    Exchange
+                    <span className="help-icon" title="Wählen Sie die Exchange aus">?</span>
+                  </label>
+                  <select
+                    id="exchange"
+                    name="exchange"
+                    value={formData.exchange}
+                    onChange={handleInputChange}
+                  >
+                    <option value="binance">Binance</option>
+                    <option value="bitget">Bitget</option>
+                    <option value="kraken">Kraken</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="symbol">
+                    Trading Pair
+                    <span className="help-icon" title="Format: BTC/USDT">?</span>
+                  </label>
+                  <input
+                    id="symbol"
+                    type="text"
+                    name="symbol"
+                    value={formData.symbol}
+                    onChange={handleInputChange}
+                    placeholder="BTC/USDT"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="timeframe">
+                    Timeframe
+                    <span className="help-icon" title="Candle-Intervall">?</span>
+                  </label>
+                  <select
+                    id="timeframe"
+                    name="timeframe"
+                    value={formData.timeframe}
+                    onChange={handleInputChange}
+                  >
+                    <option value="1m">1 Minute</option>
+                    <option value="5m">5 Minutes</option>
+                    <option value="15m">15 Minutes</option>
+                    <option value="30m">30 Minutes</option>
+                    <option value="1h">1 Hour</option>
+                    <option value="4h">4 Hours</option>
+                    <option value="1d">1 Day</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="topNWallets">
+                    Top N Wallets
+                    <span className="help-icon" title="Anzahl der anzuzeigenden Wallets">?</span>
+                  </label>
+                  <input
+                    id="topNWallets"
+                    type="number"
+                    name="topNWallets"
+                    value={formData.topNWallets}
+                    onChange={handleInputChange}
+                    min="1"
+                    max="100"
+                  />
+                </div>
+              </div>
             </div>
-          )}
-        </form>
+
+            {/* Advanced Parameters - Only for Custom and Historical */}
+            {(analysisMode === 'custom' || analysisMode === 'historical') && (
+              <div className="form-section">
+                <h3 className="form-section-title">Erweiterte Parameter</h3>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label htmlFor="startTime">
+                      Start-Zeit
+                    </label>
+                    <input
+                      id="startTime"
+                      type="datetime-local"
+                      name="startTime"
+                      value={formData.startTime}
+                      onChange={handleInputChange}
+                    />
+                    <span className="input-hint">Beginn des Analysezeitraums</span>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="endTime">
+                      End-Zeit
+                    </label>
+                    <input
+                      id="endTime"
+                      type="datetime-local"
+                      name="endTime"
+                      value={formData.endTime}
+                      onChange={handleInputChange}
+                    />
+                    <span className="input-hint">Ende des Analysezeitraums</span>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="minImpactThreshold">
+                      Min. Impact Threshold
+                      <span className="help-icon" title="Minimaler Einfluss (0.0 - 1.0)">?</span>
+                    </label>
+                    <input
+                      id="minImpactThreshold"
+                      type="number"
+                      name="minImpactThreshold"
+                      value={formData.minImpactThreshold}
+                      onChange={handleInputChange}
+                      min="0"
+                      max="1"
+                      step="0.01"
+                    />
+                    <span className="input-hint">
+                      Nur Wallets mit Impact ≥ {formatPercentage(formData.minImpactThreshold)}
+                    </span>
+                  </div>
+
+                  {analysisMode === 'custom' && (
+                    <div className="form-group checkbox-group">
+                      <input
+                        id="includeTrades"
+                        type="checkbox"
+                        name="includeTrades"
+                        checked={formData.includeTrades}
+                        onChange={handleInputChange}
+                      />
+                      <label htmlFor="includeTrades">
+                        Einzelne Trades einbeziehen
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Form Actions */}
+            <div className="form-actions">
+              <button 
+                type="submit" 
+                className="btn-primary"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="progress-spinner"></span>
+                    Analysiere...
+                  </>
+                ) : (
+                  <>
+                    🚀 Analyse starten
+                  </>
+                )}
+              </button>
+              <button 
+                type="button" 
+                className="btn-secondary"
+                onClick={handleCompareExchanges}
+                disabled={loading}
+              >
+                📊 Exchanges vergleichen
+              </button>
+            </div>
+
+            {/* Progress Indicator */}
+            {loading && (
+              <div className="progress-indicator">
+                <div className="progress-spinner"></div>
+                <span className="progress-text">
+                  Daten werden analysiert... Dies kann einen Moment dauern.
+                </span>
+              </div>
+            )}
+          </form>
+        )}
 
         {/* Error Display */}
         {error && (
@@ -484,10 +825,10 @@ const PriceMovers = () => {
           </div>
         )}
 
-        {/* Analysis Results */}
-        {analysisData && (
+        {/* Analysis Results - For non-chart modes */}
+        {analysisMode !== 'chart' && analysisData && (
           <div className="analysis-results">
-            {/* Results Header with Candle Info */}
+            {/* ... Keep all your existing analysis results code ... */}
             <div className="results-header">
               <h2>🎯 Analyse-Ergebnisse</h2>
               <div className="candle-info">
