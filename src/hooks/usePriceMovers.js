@@ -119,7 +119,7 @@ export const validateQuickAnalysisRequest = (exchange, symbol, timeframe) => {
   if (!exchange) {
     errors.push('Exchange is required');
   } else {
-    const exchangeLower = exchange.toLowerCase().trim();
+    const exchangeLower = String(exchange).toLowerCase().trim();
     const validExchanges = PRICE_MOVERS_CONFIG.EXCHANGES.map(e => e.value.toLowerCase());
     
     if (!validExchanges.includes(exchangeLower)) {
@@ -132,11 +132,10 @@ export const validateQuickAnalysisRequest = (exchange, symbol, timeframe) => {
   // Symbol Validation
   if (!symbol) {
     errors.push('Symbol is required');
-  } else if (!symbol.includes('/')) {
+  } else if (!String(symbol).includes('/')) {
     errors.push('Invalid symbol format. Use format: BASE/QUOTE (e.g., BTC/USDT)');
   } else {
-    // Optional: Validiere Symbol-Format genauer
-    const parts = symbol.split('/');
+    const parts = String(symbol).split('/');
     if (parts.length !== 2 || !parts[0] || !parts[1]) {
       errors.push('Invalid symbol format. Use format: BASE/QUOTE (e.g., BTC/USDT)');
     }
@@ -146,7 +145,7 @@ export const validateQuickAnalysisRequest = (exchange, symbol, timeframe) => {
   if (!timeframe) {
     errors.push('Timeframe is required');
   } else {
-    const timeframeLower = timeframe.toLowerCase().trim();
+    const timeframeLower = String(timeframe).toLowerCase().trim();
     const validTimeframes = PRICE_MOVERS_CONFIG.TIMEFRAMES.map(t => t.value.toLowerCase());
     
     if (!validTimeframes.includes(timeframeLower)) {
@@ -171,10 +170,10 @@ export const createQuickAnalysisRequest = (
   timeframe = '5m',
   topNWallets = 10
 ) => {
-  // Normalisiere Eingaben
-  const normalizedExchange = exchange?.toLowerCase().trim() || 'bitget';
-  const normalizedSymbol = symbol?.toUpperCase().trim() || 'BTC/USDT';
-  const normalizedTimeframe = timeframe?.toLowerCase().trim() || '5m';
+  // Normalisiere Eingaben mit sicherer String-Konvertierung
+  const normalizedExchange = String(exchange || 'bitget').toLowerCase().trim();
+  const normalizedSymbol = String(symbol || 'BTC/USDT').toUpperCase().trim();
+  const normalizedTimeframe = String(timeframe || '5m').toLowerCase().trim();
 
   // Validierung
   const validation = validateQuickAnalysisRequest(
@@ -294,7 +293,7 @@ export const parseAnalysisResponse = (response) => {
 export const getWalletTypeInfo = (walletType) => {
   if (!walletType) return PRICE_MOVERS_CONFIG.WALLET_TYPES.UNKNOWN;
   
-  const type = walletType.toUpperCase().replace(/-/g, '_');
+  const type = String(walletType).toUpperCase().replace(/-/g, '_');
   return PRICE_MOVERS_CONFIG.WALLET_TYPES[type] || PRICE_MOVERS_CONFIG.WALLET_TYPES.UNKNOWN;
 };
 
@@ -331,7 +330,7 @@ export const formatPriceChange = (candle) => {
  */
 export const getExchangeLabel = (exchangeValue) => {
   const exchange = PRICE_MOVERS_CONFIG.EXCHANGES.find(
-    e => e.value.toLowerCase() === exchangeValue?.toLowerCase()
+    e => e.value.toLowerCase() === String(exchangeValue || '').toLowerCase()
   );
   return exchange ? exchange.label : exchangeValue;
 };
@@ -341,7 +340,7 @@ export const getExchangeLabel = (exchangeValue) => {
  */
 export const getTimeframeLabel = (timeframeValue) => {
   const timeframe = PRICE_MOVERS_CONFIG.TIMEFRAMES.find(
-    t => t.value.toLowerCase() === timeframeValue?.toLowerCase()
+    t => t.value.toLowerCase() === String(timeframeValue || '').toLowerCase()
   );
   return timeframe ? timeframe.label : timeframeValue;
 };
@@ -365,7 +364,6 @@ export const usePriceMovers = () => {
     setLoading(true);
     setError(null);
     try {
-      // Validierung
       const validation = validateAnalysisRequest(params);
       if (!validation.isValid) {
         throw new Error(validation.errors.join('; '));
@@ -386,22 +384,50 @@ export const usePriceMovers = () => {
   }, []);
 
   /**
-   * Schnellanalyse (vereinfachte Schnittstelle)
+   * Schnellanalyse - Unterstützt beide Aufruf-Arten
+   * 1. quickAnalyze('binance', 'BTC/USDT', '5m', 10)
+   * 2. quickAnalyze({ exchange: 'binance', symbol: 'BTC/USDT', timeframe: '5m', top_n_wallets: 10 })
    */
   const quickAnalyze = useCallback(async (
-    exchange = 'bitget',
-    symbol = 'BTC/USDT',
-    timeframe = '5m',
-    topNWallets = 10
+    exchangeOrParams,
+    symbol,
+    timeframe,
+    topNWallets
   ) => {
     setLoading(true);
     setError(null);
     try {
-      // DEBUG: Zeige die übergebenen Werte
-      console.log('quickAnalyze called with:', { exchange, symbol, timeframe, topNWallets });
+      let exchange, normalizedSymbol, normalizedTimeframe, normalizedWallets;
+
+      // Check ob erstes Argument ein Objekt ist
+      if (typeof exchangeOrParams === 'object' && exchangeOrParams !== null) {
+        // Objekt-Aufruf: quickAnalyze({ exchange: 'binance', ... })
+        const params = exchangeOrParams;
+        exchange = params.exchange || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange;
+        normalizedSymbol = params.symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol;
+        normalizedTimeframe = params.timeframe || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.timeframe;
+        normalizedWallets = params.top_n_wallets || params.topNWallets || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.top_n_wallets;
+      } else {
+        // Parameter-Aufruf: quickAnalyze('binance', 'BTC/USDT', ...)
+        exchange = exchangeOrParams || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange;
+        normalizedSymbol = symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol;
+        normalizedTimeframe = timeframe || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.timeframe;
+        normalizedWallets = topNWallets || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.top_n_wallets;
+      }
+
+      console.log('quickAnalyze called with:', { 
+        exchange, 
+        symbol: normalizedSymbol, 
+        timeframe: normalizedTimeframe, 
+        topNWallets: normalizedWallets 
+      });
       
-      // Erstelle validiertes Request-Objekt
-      const request = createQuickAnalysisRequest(exchange, symbol, timeframe, topNWallets);
+      const request = createQuickAnalysisRequest(
+        exchange, 
+        normalizedSymbol, 
+        normalizedTimeframe, 
+        normalizedWallets
+      );
       console.log('Created request:', request);
       
       const data = await quickAnalysis(request);
@@ -512,7 +538,6 @@ export const usePriceMovers = () => {
   }, []);
 
   return {
-    // State
     loading,
     error,
     analysisData,
@@ -520,8 +545,6 @@ export const usePriceMovers = () => {
     exchangeComparison,
     historicalData,
     healthStatus,
-    
-    // Actions
     analyze,
     quickAnalyze,
     analyzeHistorical,
