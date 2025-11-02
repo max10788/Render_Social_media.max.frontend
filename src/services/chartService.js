@@ -179,6 +179,7 @@ export const fetchAvailableSymbols = async (exchange) => {
 
 /**
  * Helper: Berechnet Zeitfenster basierend auf Timeframe
+ * FIX: Lädt die AKTUELLSTEN Candles (nicht historische)
  * 
  * @param {string} timeframe - Timeframe (e.g., '5m', '1h')
  * @param {number} candleCount - Anzahl Candles
@@ -198,8 +199,17 @@ export const calculateTimeWindow = (timeframe, candleCount = 100) => {
   const minutes = timeframeMinutes[timeframe] || 5;
   const totalMinutes = minutes * candleCount;
 
+  // WICHTIG: end_time ist JETZT (aktuelle Zeit)
   const end_time = new Date();
   const start_time = new Date(end_time.getTime() - totalMinutes * 60 * 1000);
+
+  console.log('📊 Chart Time Window:', {
+    timeframe,
+    candleCount,
+    start: start_time.toISOString(),
+    end: end_time.toISOString(),
+    totalMinutes
+  });
 
   return { start_time, end_time };
 };
