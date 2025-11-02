@@ -12,7 +12,7 @@ import './PriceMovers.css';
 const PriceMovers = () => {
   // State Management
   const [formData, setFormData] = useState({
-    exchange: 'binance',
+    exchange: 'bitget',
     symbol: 'BTC/USDT',
     timeframe: '5m',
     startTime: '',
@@ -52,6 +52,15 @@ const PriceMovers = () => {
       endTime: now.toISOString().slice(0, 16),
     }));
   }, []);
+
+  // Debug: Log analysisData when it changes
+  useEffect(() => {
+    if (analysisData) {
+      console.log('analysisData updated:', analysisData);
+      console.log('topMovers:', analysisData.topMovers);
+      console.log('Number of topMovers:', analysisData.topMovers?.length);
+    }
+  }, [analysisData]);
 
   // Analysis Mode Definitions
   const analysisModes = [
@@ -508,11 +517,11 @@ const PriceMovers = () => {
             {/* Top Movers - Wallet Cards */}
             <div className="top-movers">
               <h3>
-                🏆 Top Wallets ({analysisData.top_movers?.length || 0})
+                🏆 Top Wallets ({analysisData.topMovers?.length || 0})
               </h3>
-              {analysisData.top_movers && analysisData.top_movers.length > 0 ? (
+              {analysisData.topMovers && analysisData.topMovers.length > 0 ? (
                 <div className="wallets-grid">
-                  {analysisData.top_movers.map((mover, index) => (
+                  {analysisData.topMovers.map((mover, index) => (
                     <div
                       key={mover.wallet_id}
                       className={`wallet-card ${
@@ -587,32 +596,32 @@ const PriceMovers = () => {
             </div>
 
             {/* Analysis Metadata */}
-            {analysisData.analysis_metadata && (
+            {analysisData.metadata && (
               <div className="analysis-metadata">
                 <h3>ℹ️ Analyse-Informationen</h3>
                 <div className="metadata-grid">
                   <div className="metadata-item">
                     <span className="label">Analyse-Zeitpunkt</span>
                     <span className="value">
-                      {formatDate(analysisData.analysis_metadata.analysis_timestamp)}
+                      {formatDate(analysisData.metadata.analysis_timestamp)}
                     </span>
                   </div>
                   <div className="metadata-item">
                     <span className="label">Verarbeitungsdauer</span>
                     <span className="value">
-                      {analysisData.analysis_metadata.processing_duration_ms}ms
+                      {analysisData.metadata.processing_duration_ms}ms
                     </span>
                   </div>
                   <div className="metadata-item">
                     <span className="label">Analysierte Trades</span>
                     <span className="value">
-                      {formatNumber(analysisData.analysis_metadata.total_trades_analyzed, 0)}
+                      {formatNumber(analysisData.metadata.total_trades_analyzed, 0)}
                     </span>
                   </div>
                   <div className="metadata-item">
                     <span className="label">Unique Wallets</span>
                     <span className="value">
-                      {formatNumber(analysisData.analysis_metadata.unique_wallets_found, 0)}
+                      {formatNumber(analysisData.metadata.unique_wallets_found, 0)}
                     </span>
                   </div>
                 </div>
