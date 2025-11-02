@@ -424,7 +424,7 @@ const PriceMovers = () => {
                   <div className="detail-item">
                     <span className="label">Time:</span>
                     <span className="value">
-                      {new Date(typeof selectedCandleData.time === 'number' ? selected CandleData.time * 1000 : selectedCandleData.time).toLocaleString('de-DE')}
+                      {new Date(typeof selectedCandleData.time === 'number' ? selectedCandleData.time * 1000 : selectedCandleData.time).toLocaleString('de-DE')}
                     </span>
                   </div>
                   <div className="detail-item">
