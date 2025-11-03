@@ -411,6 +411,8 @@ const PriceMovers = () => {
             <CandlestickChart
               candleData={chartData}
               onCandleClick={handleCandleClick}
+              candleMoversData={candleMoversData}     // NEU!
+              onWalletClick={handleWalletClick}       // NEU!
               loading={chartLoading}
               symbol={formData.symbol}
               timeframe={formData.timeframe}
