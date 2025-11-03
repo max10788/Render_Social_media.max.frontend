@@ -31,8 +31,8 @@ const PriceMovers = () => {
     includeTrades: false,
   });
 
-  const [candleMoversData, setCandleMoversData] = useState(null);  // NEU!
-  const [analysisMode, setAnalysisMode] = useState('chart'); // 'chart', 'quick', 'custom', 'historical'
+  const [candleMoversData, setCandleMoversData] = useState(null);  // Nur EINMAL!
+  const [analysisMode, setAnalysisMode] = useState('chart');
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [showWalletPanel, setShowWalletPanel] = useState(false);
   
@@ -41,7 +41,7 @@ const PriceMovers = () => {
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState(null);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
-  const [candleMoversData, setCandleMoversData] = useState(null);
+  // candleMoversData ist bereits oben deklariert - nicht nochmal hier!
 
   // Custom Hook
   const {
