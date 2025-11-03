@@ -31,6 +31,7 @@ const PriceMovers = () => {
     includeTrades: false,
   });
 
+  const [candleMoversData, setCandleMoversData] = useState(null);  // NEU!
   const [analysisMode, setAnalysisMode] = useState('chart'); // 'chart', 'quick', 'custom', 'historical'
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [showWalletPanel, setShowWalletPanel] = useState(false);
