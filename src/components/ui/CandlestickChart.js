@@ -1,17 +1,15 @@
 /**
- * CandlestickChart.jsx
+ * CandlestickChart.jsx - FIXED VERSION
  * ===================
  * 
  * Interaktiver Candlestick-Chart mit Price Movers Integration
- * - Klick auf Candle zeigt Top Wallets
+ * - Klick auf Candle zeigt Top Wallets ✓ FIXED
  * - Hover zeigt OHLCV-Daten
  * - Impact-Indikatoren auf Candles
  * - WalletImpactBreakdown Integration
- * 
- * Verwendet: Lightweight Charts von TradingView
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CrosshairMode } from 'lightweight-charts';
 import WalletImpactBreakdown from './WalletImpactBreakdown';
 import './CandlestickChart.css';
@@ -36,6 +34,8 @@ const CandlestickChart = ({
   // Initialize Chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
+
+    console.log('🎨 Initializing chart...');
 
     // Create Chart
     const chart = createChart(chartContainerRef.current, {
@@ -106,7 +106,7 @@ const CandlestickChart = ({
       wickDownColor: '#FF3D00',
     });
 
-    // Add Impact Markers Series (Line for indicators)
+    // Add Impact Markers Series
     const impactMarkers = chart.addLineSeries({
       color: 'rgba(0, 153, 255, 0)',
       lineWidth: 0,
@@ -136,41 +136,61 @@ const CandlestickChart = ({
         return;
       }
 
-      const candleData = param.seriesData.get(candlestickSeries);
-      if (candleData) {
+      const candleDataItem = param.seriesData.get(candlestickSeries);
+      if (candleDataItem) {
         setHoveredCandle({
           time: param.time,
-          ...candleData,
+          ...candleDataItem,
         });
       }
     });
 
-    // Subscribe to Click Events
+    // ✓ FIXED: Subscribe to Click Events with correct scope
     chart.subscribeClick((param) => {
-      if (!param.time || !param.seriesData || !param.seriesData.get(candlestickSeries)) {
+      console.log('🖱️ Chart clicked:', param);
+      
+      if (!param.time) {
+        console.log('⚠️ No time in click param');
         setSelectedCandle(null);
         return;
       }
 
-      const candleData = param.seriesData.get(candlestickSeries);
-      if (candleData && onCandleClick) {
-        const clickedCandle = {
-          time: param.time,
-          ...candleData,
-        };
-        setSelectedCandle(clickedCandle);
+      // Get candle data from the series
+      const candleDataItem = param.seriesData?.get(candlestickSeries);
+      
+      if (!candleDataItem) {
+        console.log('⚠️ No candle data found for clicked time');
+        return;
+      }
 
-        // Convert time to Date object for API call
+      console.log('✅ Candle data found:', candleDataItem);
+
+      const clickedCandle = {
+        time: param.time,
+        ...candleDataItem,
+      };
+      
+      setSelectedCandle(clickedCandle);
+
+      // Call parent handler if provided
+      if (onCandleClick) {
+        // Convert time to ISO string for API
         const timestamp = typeof param.time === 'number' 
-          ? new Date(param.time * 1000) 
-          : new Date(param.time);
+          ? new Date(param.time * 1000).toISOString()
+          : new Date(param.time).toISOString();
 
+        console.log('📡 Calling onCandleClick with timestamp:', timestamp);
         onCandleClick(timestamp, clickedCandle);
+      } else {
+        console.log('⚠️ No onCandleClick handler provided');
       }
     });
 
+    console.log('✅ Chart initialized with click handler');
+
     // Cleanup
     return () => {
+      console.log('🧹 Cleaning up chart');
       window.removeEventListener('resize', handleResize);
       if (chartRef.current) {
         chartRef.current.remove();
@@ -180,9 +200,18 @@ const CandlestickChart = ({
 
   // Update Chart Data
   useEffect(() => {
-    if (!candlestickSeriesRef.current || !impactMarkersRef.current || !candleData.length) return;
+    if (!candlestickSeriesRef.current || !impactMarkersRef.current || !candleData.length) {
+      console.log('⚠️ Cannot update chart data:', {
+        hasSeries: !!candlestickSeriesRef.current,
+        hasMarkers: !!impactMarkersRef.current,
+        dataLength: candleData.length
+      });
+      return;
+    }
 
     try {
+      console.log('📊 Updating chart with', candleData.length, 'candles');
+
       // Convert candle data to Lightweight Charts format
       const formattedData = candleData.map(candle => ({
         time: Math.floor(new Date(candle.timestamp).getTime() / 1000),
@@ -194,6 +223,9 @@ const CandlestickChart = ({
 
       // Sort by time
       formattedData.sort((a, b) => a.time - b.time);
+
+      console.log('📈 First candle:', formattedData[0]);
+      console.log('📈 Last candle:', formattedData[formattedData.length - 1]);
 
       // Set data
       candlestickSeriesRef.current.setData(formattedData);
@@ -211,14 +243,17 @@ const CandlestickChart = ({
         }));
 
       if (markers.length > 0) {
+        console.log('💎 Adding', markers.length, 'impact markers');
         candlestickSeriesRef.current.setMarkers(markers);
       }
 
       // Fit content
       chartRef.current?.timeScale().fitContent();
 
+      console.log('✅ Chart data updated successfully');
+
     } catch (error) {
-      console.error('Error updating chart data:', error);
+      console.error('❌ Error updating chart data:', error);
     }
   }, [candleData]);
 
@@ -314,7 +349,7 @@ const CandlestickChart = ({
         )}
       </div>
 
-      {/* Wallet Impact Breakdown - NEW: Integration from first version */}
+      {/* Wallet Impact Breakdown */}
       {candleMoversData && candleMoversData.top_movers && (
         <WalletImpactBreakdown
           topMovers={candleMoversData.top_movers}
@@ -342,7 +377,7 @@ const CandlestickChart = ({
         <div className="chart-instructions">
           <span className="instruction-icon">💡</span>
           <span className="instruction-text">
-            Click on a candle to see the top 3 wallets that moved the price
+            Click on a candle to analyze the top wallets that moved the price
           </span>
         </div>
       </div>
