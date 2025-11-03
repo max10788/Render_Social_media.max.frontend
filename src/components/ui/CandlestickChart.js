@@ -1,4 +1,17 @@
-import React, { useEffect, useRef, useState } from 'react';
+/**
+ * CandlestickChart.jsx
+ * ===================
+ * 
+ * Interaktiver Candlestick-Chart mit Price Movers Integration
+ * - Klick auf Candle zeigt Top Wallets
+ * - Hover zeigt OHLCV-Daten
+ * - Impact-Indikatoren auf Candles
+ * - WalletImpactBreakdown Integration
+ * 
+ * Verwendet: Lightweight Charts von TradingView
+ */
+
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, CrosshairMode } from 'lightweight-charts';
 import WalletImpactBreakdown from './WalletImpactBreakdown';
 import './CandlestickChart.css';
@@ -16,12 +29,15 @@ const CandlestickChart = ({
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candlestickSeriesRef = useRef(null);
+  const impactMarkersRef = useRef(null);
   const [hoveredCandle, setHoveredCandle] = useState(null);
   const [selectedCandle, setSelectedCandle] = useState(null);
 
+  // Initialize Chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
+    // Create Chart
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: height,
@@ -32,8 +48,14 @@ const CandlestickChart = ({
         fontFamily: "'Exo 2', sans-serif",
       },
       grid: {
-        vertLines: { color: 'rgba(0, 153, 255, 0.1)', style: 1 },
-        horzLines: { color: 'rgba(0, 153, 255, 0.1)', style: 1 },
+        vertLines: {
+          color: 'rgba(0, 153, 255, 0.1)',
+          style: 1,
+        },
+        horzLines: {
+          color: 'rgba(0, 153, 255, 0.1)',
+          style: 1,
+        },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -57,7 +79,10 @@ const CandlestickChart = ({
       },
       rightPriceScale: {
         borderColor: 'rgba(0, 153, 255, 0.2)',
-        scaleMargins: { top: 0.1, bottom: 0.1 },
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
       },
       handleScroll: {
         mouseWheel: true,
@@ -72,6 +97,7 @@ const CandlestickChart = ({
       },
     });
 
+    // Add Candlestick Series
     const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#00E676',
       downColor: '#FF3D00',
@@ -80,9 +106,19 @@ const CandlestickChart = ({
       wickDownColor: '#FF3D00',
     });
 
+    // Add Impact Markers Series (Line for indicators)
+    const impactMarkers = chart.addLineSeries({
+      color: 'rgba(0, 153, 255, 0)',
+      lineWidth: 0,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    });
+
     chartRef.current = chart;
     candlestickSeriesRef.current = candlestickSeries;
+    impactMarkersRef.current = impactMarkers;
 
+    // Handle Resize
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
@@ -93,6 +129,7 @@ const CandlestickChart = ({
 
     window.addEventListener('resize', handleResize);
 
+    // Subscribe to Crosshair Move (for hover)
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.seriesData || !param.seriesData.get(candlestickSeries)) {
         setHoveredCandle(null);
@@ -101,10 +138,14 @@ const CandlestickChart = ({
 
       const candleData = param.seriesData.get(candlestickSeries);
       if (candleData) {
-        setHoveredCandle({ time: param.time, ...candleData });
+        setHoveredCandle({
+          time: param.time,
+          ...candleData,
+        });
       }
     });
 
+    // Subscribe to Click Events
     chart.subscribeClick((param) => {
       if (!param.time || !param.seriesData || !param.seriesData.get(candlestickSeries)) {
         setSelectedCandle(null);
@@ -113,17 +154,22 @@ const CandlestickChart = ({
 
       const candleData = param.seriesData.get(candlestickSeries);
       if (candleData && onCandleClick) {
-        const clickedCandle = { time: param.time, ...candleData };
+        const clickedCandle = {
+          time: param.time,
+          ...candleData,
+        };
         setSelectedCandle(clickedCandle);
-        
+
+        // Convert time to Date object for API call
         const timestamp = typeof param.time === 'number' 
           ? new Date(param.time * 1000) 
           : new Date(param.time);
-        
+
         onCandleClick(timestamp, clickedCandle);
       }
     });
 
+    // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
       if (chartRef.current) {
@@ -132,10 +178,12 @@ const CandlestickChart = ({
     };
   }, [height, onCandleClick]);
 
+  // Update Chart Data
   useEffect(() => {
-    if (!candlestickSeriesRef.current || !candleData.length) return;
+    if (!candlestickSeriesRef.current || !impactMarkersRef.current || !candleData.length) return;
 
     try {
+      // Convert candle data to Lightweight Charts format
       const formattedData = candleData.map(candle => ({
         time: Math.floor(new Date(candle.timestamp).getTime() / 1000),
         open: candle.open,
@@ -144,9 +192,13 @@ const CandlestickChart = ({
         close: candle.close,
       }));
 
+      // Sort by time
       formattedData.sort((a, b) => a.time - b.time);
+
+      // Set data
       candlestickSeriesRef.current.setData(formattedData);
 
+      // Add Impact Markers
       const markers = candleData
         .filter(candle => candle.has_high_impact)
         .map(candle => ({
@@ -162,12 +214,15 @@ const CandlestickChart = ({
         candlestickSeriesRef.current.setMarkers(markers);
       }
 
+      // Fit content
       chartRef.current?.timeScale().fitContent();
+
     } catch (error) {
       console.error('Error updating chart data:', error);
     }
   }, [candleData]);
 
+  // Format numbers
   const formatPrice = (price) => {
     return price?.toLocaleString('de-DE', {
       minimumFractionDigits: 2,
@@ -195,12 +250,14 @@ const CandlestickChart = ({
 
   return (
     <div className="candlestick-chart-wrapper">
+      {/* Chart Header */}
       <div className="chart-header">
         <div className="chart-title">
           <span className="chart-symbol">{symbol}</span>
           <span className="chart-timeframe">{timeframe}</span>
         </div>
 
+        {/* Hovered Candle Info */}
         {hoveredCandle && (
           <div className="candle-info-bar">
             <div className="candle-info-item">
@@ -233,6 +290,7 @@ const CandlestickChart = ({
           </div>
         )}
 
+        {/* Selected Candle Badge */}
         {selectedCandle && (
           <div className="selected-candle-badge">
             <span className="badge-icon">🎯</span>
@@ -243,7 +301,11 @@ const CandlestickChart = ({
         )}
       </div>
 
-      <div ref={chartContainerRef} className={`chart-container ${loading ? 'loading' : ''}`}>
+      {/* Chart Container */}
+      <div 
+        ref={chartContainerRef} 
+        className={`chart-container ${loading ? 'loading' : ''}`}
+      >
         {loading && (
           <div className="chart-loading-overlay">
             <div className="loading-spinner"></div>
@@ -252,6 +314,7 @@ const CandlestickChart = ({
         )}
       </div>
 
+      {/* Wallet Impact Breakdown - NEW: Integration from first version */}
       {candleMoversData && candleMoversData.top_movers && (
         <WalletImpactBreakdown
           topMovers={candleMoversData.top_movers}
@@ -260,6 +323,7 @@ const CandlestickChart = ({
         />
       )}
 
+      {/* Chart Footer */}
       <div className="chart-footer">
         <div className="chart-legend">
           <div className="legend-item">
