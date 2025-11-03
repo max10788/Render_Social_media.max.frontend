@@ -1,12 +1,8 @@
 /**
- * CandlestickChart.jsx - FIXED VERSION
+ * CandlestickChart.jsx - WORKING VERSION
  * ===================
  * 
- * Interaktiver Candlestick-Chart mit Price Movers Integration
- * - Klick auf Candle zeigt Top Wallets ✓ FIXED
- * - Hover zeigt OHLCV-Daten
- * - Impact-Indikatoren auf Candles
- * - WalletImpactBreakdown Integration
+ * FIX: Verwendet seriesPrices statt seriesData für Click Events
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -37,7 +33,6 @@ const CandlestickChart = ({
 
     console.log('🎨 Initializing chart...');
 
-    // Create Chart
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: height,
@@ -97,7 +92,6 @@ const CandlestickChart = ({
       },
     });
 
-    // Add Candlestick Series
     const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#00E676',
       downColor: '#FF3D00',
@@ -106,7 +100,6 @@ const CandlestickChart = ({
       wickDownColor: '#FF3D00',
     });
 
-    // Add Impact Markers Series
     const impactMarkers = chart.addLineSeries({
       color: 'rgba(0, 153, 255, 0)',
       lineWidth: 0,
@@ -118,7 +111,6 @@ const CandlestickChart = ({
     candlestickSeriesRef.current = candlestickSeries;
     impactMarkersRef.current = impactMarkers;
 
-    // Handle Resize
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
@@ -131,12 +123,14 @@ const CandlestickChart = ({
 
     // Subscribe to Crosshair Move (for hover)
     chart.subscribeCrosshairMove((param) => {
-      if (!param.time || !param.seriesData || !param.seriesData.get(candlestickSeries)) {
+      // Try both seriesData and seriesPrices for compatibility
+      const data = param.seriesData || param.seriesPrices;
+      if (!param.time || !data) {
         setHoveredCandle(null);
         return;
       }
 
-      const candleDataItem = param.seriesData.get(candlestickSeries);
+      const candleDataItem = data.get(candlestickSeries);
       if (candleDataItem) {
         setHoveredCandle({
           time: param.time,
@@ -145,21 +139,31 @@ const CandlestickChart = ({
       }
     });
 
-    // ✓ FIXED: Subscribe to Click Events with correct scope
+    // ✓ FIXED: Subscribe to Click Events - USE seriesPrices!
     chart.subscribeClick((param) => {
       console.log('🖱️ Chart clicked:', param);
       
       if (!param.time) {
         console.log('⚠️ No time in click param');
-        setSelectedCandle(null);
         return;
       }
 
-      // Get candle data from the series
-      const candleDataItem = param.seriesData?.get(candlestickSeries);
+      // Try seriesPrices first (newer API), then seriesData (older API)
+      const pricesMap = param.seriesPrices || param.seriesData;
+      
+      if (!pricesMap) {
+        console.log('⚠️ No seriesPrices or seriesData in param');
+        return;
+      }
+
+      console.log('📊 Prices map:', pricesMap);
+      
+      // Get the candle data for our series
+      const candleDataItem = pricesMap.get(candlestickSeries);
       
       if (!candleDataItem) {
         console.log('⚠️ No candle data found for clicked time');
+        console.log('Available series in map:', Array.from(pricesMap.keys()));
         return;
       }
 
@@ -167,19 +171,21 @@ const CandlestickChart = ({
 
       const clickedCandle = {
         time: param.time,
-        ...candleDataItem,
+        open: candleDataItem.open,
+        high: candleDataItem.high,
+        low: candleDataItem.low,
+        close: candleDataItem.close,
       };
       
       setSelectedCandle(clickedCandle);
 
-      // Call parent handler if provided
       if (onCandleClick) {
-        // Convert time to ISO string for API
-        const timestamp = typeof param.time === 'number' 
-          ? new Date(param.time * 1000).toISOString()
-          : new Date(param.time).toISOString();
-
+        // Convert Unix timestamp to ISO string
+        const timestamp = new Date(param.time * 1000).toISOString();
+        
         console.log('📡 Calling onCandleClick with timestamp:', timestamp);
+        console.log('📡 Candle data:', clickedCandle);
+        
         onCandleClick(timestamp, clickedCandle);
       } else {
         console.log('⚠️ No onCandleClick handler provided');
@@ -188,7 +194,6 @@ const CandlestickChart = ({
 
     console.log('✅ Chart initialized with click handler');
 
-    // Cleanup
     return () => {
       console.log('🧹 Cleaning up chart');
       window.removeEventListener('resize', handleResize);
@@ -212,7 +217,6 @@ const CandlestickChart = ({
     try {
       console.log('📊 Updating chart with', candleData.length, 'candles');
 
-      // Convert candle data to Lightweight Charts format
       const formattedData = candleData.map(candle => ({
         time: Math.floor(new Date(candle.timestamp).getTime() / 1000),
         open: candle.open,
@@ -221,16 +225,13 @@ const CandlestickChart = ({
         close: candle.close,
       }));
 
-      // Sort by time
       formattedData.sort((a, b) => a.time - b.time);
 
       console.log('📈 First candle:', formattedData[0]);
       console.log('📈 Last candle:', formattedData[formattedData.length - 1]);
 
-      // Set data
       candlestickSeriesRef.current.setData(formattedData);
 
-      // Add Impact Markers
       const markers = candleData
         .filter(candle => candle.has_high_impact)
         .map(candle => ({
@@ -247,7 +248,6 @@ const CandlestickChart = ({
         candlestickSeriesRef.current.setMarkers(markers);
       }
 
-      // Fit content
       chartRef.current?.timeScale().fitContent();
 
       console.log('✅ Chart data updated successfully');
@@ -257,7 +257,6 @@ const CandlestickChart = ({
     }
   }, [candleData]);
 
-  // Format numbers
   const formatPrice = (price) => {
     return price?.toLocaleString('de-DE', {
       minimumFractionDigits: 2,
@@ -285,14 +284,12 @@ const CandlestickChart = ({
 
   return (
     <div className="candlestick-chart-wrapper">
-      {/* Chart Header */}
       <div className="chart-header">
         <div className="chart-title">
           <span className="chart-symbol">{symbol}</span>
           <span className="chart-timeframe">{timeframe}</span>
         </div>
 
-        {/* Hovered Candle Info */}
         {hoveredCandle && (
           <div className="candle-info-bar">
             <div className="candle-info-item">
@@ -325,7 +322,6 @@ const CandlestickChart = ({
           </div>
         )}
 
-        {/* Selected Candle Badge */}
         {selectedCandle && (
           <div className="selected-candle-badge">
             <span className="badge-icon">🎯</span>
@@ -336,7 +332,6 @@ const CandlestickChart = ({
         )}
       </div>
 
-      {/* Chart Container */}
       <div 
         ref={chartContainerRef} 
         className={`chart-container ${loading ? 'loading' : ''}`}
@@ -349,7 +344,6 @@ const CandlestickChart = ({
         )}
       </div>
 
-      {/* Wallet Impact Breakdown */}
       {candleMoversData && candleMoversData.top_movers && (
         <WalletImpactBreakdown
           topMovers={candleMoversData.top_movers}
@@ -358,7 +352,6 @@ const CandlestickChart = ({
         />
       )}
 
-      {/* Chart Footer */}
       <div className="chart-footer">
         <div className="chart-legend">
           <div className="legend-item">
