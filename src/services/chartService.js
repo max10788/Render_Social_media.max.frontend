@@ -1,26 +1,65 @@
 /**
- * chartService.js
+ * chartService.js - FIXED VERSION
  * ==============
  * 
  * Service für Chart-spezifische API-Calls
- * Interagiert mit den neuen /api/v1/chart Endpoints
+ * Interagiert mit /api/v1/chart Endpoints
  */
 
-import api from './api';
+import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
-const CHART_API_BASE = '/api/v1/chart';
+const CHART_API_URL = `${API_BASE_URL}/api/v1/chart`;
+
+// Axios Instance mit Interceptors
+const chartApi = axios.create({
+  baseURL: CHART_API_URL,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request Interceptor
+chartApi.interceptors.request.use(
+  (config) => {
+    console.log('📊 Chart API Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      fullURL: `${config.baseURL}${config.url}`,
+      params: config.params,
+    });
+    return config;
+  },
+  (error) => {
+    console.error('❌ Chart API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Response Interceptor
+chartApi.interceptors.response.use(
+  (response) => {
+    console.log('✅ Chart API Response:', {
+      status: response.status,
+      url: response.config.url,
+      dataKeys: response.data ? Object.keys(response.data) : [],
+    });
+    return response;
+  },
+  (error) => {
+    console.error('❌ Chart API Response Error:', {
+      message: error.message,
+      status: error.response?.status,
+      url: error.config?.url,
+      data: error.response?.data,
+    });
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Lädt Candlestick-Daten für den Chart
- * 
- * @param {Object} params - Query-Parameter
- * @param {string} params.exchange - Exchange (binance/bitget/kraken)
- * @param {string} params.symbol - Trading Pair (e.g., BTC/USDT)
- * @param {string} params.timeframe - Timeframe (e.g., 5m)
- * @param {Date|string} params.start_time - Start-Zeit
- * @param {Date|string} params.end_time - End-Zeit
- * @param {boolean} [params.include_impact=true] - Impact-Indikatoren berechnen
- * @returns {Promise<Object>} Chart Candles Response
  */
 export const fetchChartCandles = async (params) => {
   try {
@@ -33,7 +72,7 @@ export const fetchChartCandles = async (params) => {
       include_impact = false,
     } = params;
 
-    // Konvertiere Dates zu ISO Strings falls nötig
+    // Konvertiere Dates zu ISO Strings
     const startTimeISO = start_time instanceof Date 
       ? start_time.toISOString() 
       : start_time;
@@ -41,7 +80,15 @@ export const fetchChartCandles = async (params) => {
       ? end_time.toISOString() 
       : end_time;
 
-    const response = await api.get(`${CHART_API_BASE}/candles`, {
+    console.log('📊 Fetching chart candles:', {
+      exchange,
+      symbol,
+      timeframe,
+      start_time: startTimeISO,
+      end_time: endTimeISO,
+    });
+
+    const response = await chartApi.get('/candles', {
       params: {
         exchange,
         symbol,
@@ -54,7 +101,7 @@ export const fetchChartCandles = async (params) => {
 
     return response.data;
   } catch (error) {
-    console.error('Error fetching chart candles:', error);
+    console.error('❌ Error fetching chart candles:', error);
     throw error;
   }
 };
@@ -62,13 +109,7 @@ export const fetchChartCandles = async (params) => {
 /**
  * Lädt Price Movers für eine spezifische Candle
  * 
- * @param {Date|string} candleTimestamp - Timestamp der Candle
- * @param {Object} params - Query-Parameter
- * @param {string} params.exchange - Exchange
- * @param {string} params.symbol - Trading Pair
- * @param {string} params.timeframe - Timeframe
- * @param {number} [params.top_n_wallets=10] - Anzahl Top Wallets
- * @returns {Promise<Object>} Candle Movers Response
+ * WICHTIG: Backend-Route ist /candle/{timestamp}/movers (SINGULAR!)
  */
 export const fetchCandleMovers = async (candleTimestamp, params) => {
   try {
@@ -80,12 +121,28 @@ export const fetchCandleMovers = async (candleTimestamp, params) => {
     } = params;
 
     // Konvertiere Timestamp zu ISO String
-    const timestampISO = candleTimestamp instanceof Date 
-      ? candleTimestamp.toISOString() 
-      : candleTimestamp;
+    let timestampISO;
+    if (candleTimestamp instanceof Date) {
+      timestampISO = candleTimestamp.toISOString();
+    } else if (typeof candleTimestamp === 'string') {
+      // Bereits ein String, könnte ISO oder etwas anderes sein
+      timestampISO = candleTimestamp;
+    } else {
+      console.error('❌ Invalid timestamp type:', typeof candleTimestamp);
+      throw new Error('Invalid timestamp format');
+    }
 
-    const response = await api.get(
-      `${CHART_API_BASE}/candle/${encodeURIComponent(timestampISO)}/movers`,
+    console.log('🎯 Fetching candle movers:', {
+      timestamp: timestampISO,
+      exchange,
+      symbol,
+      timeframe,
+      top_n_wallets,
+    });
+
+    // WICHTIG: Backend-Route ist /candle/{timestamp}/movers (SINGULAR!)
+    const response = await chartApi.get(
+      `/candle/${encodeURIComponent(timestampISO)}/movers`,
       {
         params: {
           exchange,
@@ -96,23 +153,20 @@ export const fetchCandleMovers = async (candleTimestamp, params) => {
       }
     );
 
+    console.log('✅ Candle movers loaded:', {
+      top_movers_count: response.data.top_movers?.length,
+      candle: response.data.candle,
+    });
+
     return response.data;
   } catch (error) {
-    console.error('Error fetching candle movers:', error);
+    console.error('❌ Error fetching candle movers:', error);
     throw error;
   }
 };
 
 /**
  * Batch-Analyse für mehrere Candles
- * 
- * @param {Object} params - Request-Parameter
- * @param {string} params.exchange - Exchange
- * @param {string} params.symbol - Trading Pair
- * @param {string} params.timeframe - Timeframe
- * @param {Array<Date|string>} params.candle_timestamps - Liste von Timestamps
- * @param {number} [params.top_n_wallets=10] - Anzahl Top Wallets
- * @returns {Promise<Object>} Batch Analyze Response
  */
 export const batchAnalyzeCandles = async (params) => {
   try {
@@ -129,7 +183,7 @@ export const batchAnalyzeCandles = async (params) => {
       ts instanceof Date ? ts.toISOString() : ts
     );
 
-    const response = await api.post(`${CHART_API_BASE}/batch-analyze`, {
+    const response = await chartApi.post('/batch-analyze', {
       exchange,
       symbol,
       timeframe,
@@ -139,51 +193,42 @@ export const batchAnalyzeCandles = async (params) => {
 
     return response.data;
   } catch (error) {
-    console.error('Error in batch analyze:', error);
+    console.error('❌ Error in batch analyze:', error);
     throw error;
   }
 };
 
 /**
  * Lädt verfügbare Timeframes
- * 
- * @returns {Promise<Object>} Available Timeframes
  */
 export const fetchAvailableTimeframes = async () => {
   try {
-    const response = await api.get(`${CHART_API_BASE}/timeframes`);
+    const response = await chartApi.get('/timeframes');
     return response.data;
   } catch (error) {
-    console.error('Error fetching timeframes:', error);
+    console.error('❌ Error fetching timeframes:', error);
     throw error;
   }
 };
 
 /**
  * Lädt verfügbare Trading Pairs für eine Exchange
- * 
- * @param {string} exchange - Exchange name
- * @returns {Promise<Object>} Available Symbols
  */
 export const fetchAvailableSymbols = async (exchange) => {
   try {
-    const response = await api.get(`${CHART_API_BASE}/symbols`, {
+    const response = await chartApi.get('/symbols', {
       params: { exchange },
     });
     return response.data;
   } catch (error) {
-    console.error('Error fetching symbols:', error);
+    console.error('❌ Error fetching symbols:', error);
     throw error;
   }
 };
 
 /**
  * Helper: Berechnet Zeitfenster basierend auf Timeframe
- * FIX: Lädt die AKTUELLSTEN Candles (nicht historische)
- * 
- * @param {string} timeframe - Timeframe (e.g., '5m', '1h')
- * @param {number} candleCount - Anzahl Candles
- * @returns {Object} { start_time, end_time }
+ * Lädt die AKTUELLSTEN Candles
  */
 export const calculateTimeWindow = (timeframe, candleCount = 100) => {
   const timeframeMinutes = {
@@ -199,7 +244,7 @@ export const calculateTimeWindow = (timeframe, candleCount = 100) => {
   const minutes = timeframeMinutes[timeframe] || 5;
   const totalMinutes = minutes * candleCount;
 
-  // WICHTIG: end_time ist JETZT (aktuelle Zeit)
+  // end_time ist JETZT
   const end_time = new Date();
   const start_time = new Date(end_time.getTime() - totalMinutes * 60 * 1000);
 
@@ -216,9 +261,6 @@ export const calculateTimeWindow = (timeframe, candleCount = 100) => {
 
 /**
  * Helper: Konvertiert Timeframe zu Sekunden
- * 
- * @param {string} timeframe - Timeframe
- * @returns {number} Sekunden
  */
 export const timeframeToSeconds = (timeframe) => {
   const timeframeMap = {
@@ -236,9 +278,6 @@ export const timeframeToSeconds = (timeframe) => {
 
 /**
  * Helper: Formatiert Candle-Daten für Chart
- * 
- * @param {Array} candlesData - Raw Candle-Daten vom API
- * @returns {Array} Formatierte Candle-Daten
  */
 export const formatCandlesForChart = (candlesData) => {
   if (!Array.isArray(candlesData)) return [];
@@ -258,9 +297,6 @@ export const formatCandlesForChart = (candlesData) => {
 
 /**
  * Helper: Validiert Chart-Parameter
- * 
- * @param {Object} params - Parameter zum Validieren
- * @returns {Object} { isValid, errors }
  */
 export const validateChartParams = (params) => {
   const errors = [];
