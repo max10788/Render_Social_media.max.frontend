@@ -1,9 +1,58 @@
-// src/config/api.js - API Configuration for BlockIntel
+// src/config/api.js - Complete API Configuration for BlockIntel
+import axios from 'axios';
 
+// Base Configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-cf3y.onrender.com';
 
-export { API_BASE_URL };
+// Axios Instance with Interceptors
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 60000, // 60 seconds for chart requests with many candles
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
+// Request Interceptor
+api.interceptors.request.use(
+  (config) => {
+    console.log('API Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      params: config.params,
+      data: config.data,
+    });
+    return config;
+  },
+  (error) => {
+    console.error('Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Response Interceptor
+api.interceptors.response.use(
+  (response) => {
+    console.log('API Response:', {
+      url: response.config.url,
+      status: response.status,
+      data: response.data,
+    });
+    return response;
+  },
+  (error) => {
+    console.error('Response Error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+    });
+    return Promise.reject(error);
+  }
+);
+
+// API Configuration
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
   ENDPOINTS: {
@@ -48,6 +97,7 @@ export const API_ENDPOINTS = {
   WALLET_SOURCES: `${API_BASE_URL}/api/analyze/wallet-sources`,
 };
 
+// Error Codes
 export const ERROR_CODES = {
   UNAUTHORIZED: 'UNAUTHORIZED',
   NOT_FOUND: 'NOT_FOUND',
@@ -57,6 +107,7 @@ export const ERROR_CODES = {
   RATE_LIMIT: 'RATE_LIMIT_EXCEEDED'
 };
 
+// Blockchain Configuration
 export const BLOCKCHAIN_CONFIG = {
   // Backend-unterstützte Chains (aus API Dokumentation)
   SUPPORTED_CHAINS: ['ethereum', 'bsc', 'solana', 'sui'],
@@ -85,6 +136,7 @@ export const BLOCKCHAIN_CONFIG = {
   }
 };
 
+// Supported Chains
 export const SUPPORTED_CHAINS = [
   { value: 'ethereum', label: 'Ethereum' },
   { value: 'bsc', label: 'Binance Smart Chain' },
@@ -92,6 +144,7 @@ export const SUPPORTED_CHAINS = [
   { value: 'sui', label: 'Sui' }
 ];
 
+// Time Periods
 export const TIME_PERIODS = [
   { id: '1h', label: '1 Stunde', hours: 1 },
   { id: '6h', label: '6 Stunden', hours: 6 },
@@ -101,6 +154,7 @@ export const TIME_PERIODS = [
   { id: '30d', label: '30 Tage', hours: 720 }
 ];
 
+// Intervals
 export const INTERVALS = [
   { id: '1m', label: '1 Minute', minutes: 1 },
   { id: '5m', label: '5 Minuten', minutes: 5 },
@@ -247,8 +301,7 @@ export const ANALYSIS_CONFIG = {
 };
 
 // Request Configuration
-// WICHTIG: Timeout auf 60 Sekunden erhöht für Chart-Requests mit vielen Candles
-export const REQUEST_TIMEOUT = 60000; // 60 seconds (war: 30000)
+export const REQUEST_TIMEOUT = 60000; // 60 seconds for chart requests with many candles
 export const RETRY_ATTEMPTS = 3;
 export const RETRY_DELAY = 1000; // 1 second
 
@@ -408,10 +461,14 @@ export const validateAnalysisRequest = (tokenAddress, chain, walletSource, recen
   };
 };
 
-export default {
+// Default Export - Axios Instance
+export default api;
+
+// Named Export - Complete Configuration Object
+export {
+  API_BASE_URL,
   API_CONFIG,
   API_ENDPOINTS,
-  API_BASE_URL,
   ERROR_CODES,
   BLOCKCHAIN_CONFIG,
   SUPPORTED_CHAINS,
@@ -423,13 +480,5 @@ export default {
   ANALYSIS_CONFIG,
   REQUEST_TIMEOUT,
   RETRY_ATTEMPTS,
-  RETRY_DELAY,
-  getFullUrl,
-  validateAddress,
-  getChainLabel,
-  isChainSupported,
-  createAnalysisRequest,
-  parseAnalysisResponse,
-  getWalletSourceInfo,
-  validateAnalysisRequest
+  RETRY_DELAY
 };
