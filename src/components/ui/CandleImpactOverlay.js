@@ -36,7 +36,7 @@ const CandleImpactOverlay = ({
     const top = priceScale.priceToCoordinate(Math.max(candleData.open, candleData.close));
     const bottom = priceScale.priceToCoordinate(Math.min(candleData.open, candleData.close));
     const height = Math.abs(bottom - top);
-    const width = Math.max(8, containerWidth / 100); // Candle width estimation
+    const width = Math.max(8, containerWidth / 100);
 
     const top3 = candleMoversData.top_movers.slice(0, 3);
     const totalImpact = top3.reduce((sum, m) => sum + m.impact_score, 0);
