@@ -1,13 +1,6 @@
-/**
- * CandlestickChart.jsx - WORKING VERSION
- * ===================
- * 
- * FIX: Verwendet seriesPrices statt seriesData für Click Events
- */
-
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CrosshairMode } from 'lightweight-charts';
-import WalletImpactBreakdown from './WalletImpactBreakdown';
+import CandleImpactOverlay from './CandleImpactOverlay';
 import './CandlestickChart.css';
 
 const CandlestickChart = ({
@@ -26,15 +19,18 @@ const CandlestickChart = ({
   const impactMarkersRef = useRef(null);
   const [hoveredCandle, setHoveredCandle] = useState(null);
   const [selectedCandle, setSelectedCandle] = useState(null);
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
 
-  // Initialize Chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
     console.log('🎨 Initializing chart...');
 
+    const width = chartContainerRef.current.clientWidth;
+    setContainerDimensions({ width, height });
+
     const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
+      width: width,
       height: height,
       layout: {
         background: { type: 'solid', color: '#0F1419' },
@@ -113,17 +109,15 @@ const CandlestickChart = ({
 
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        });
+        const newWidth = chartContainerRef.current.clientWidth;
+        chartRef.current.applyOptions({ width: newWidth });
+        setContainerDimensions({ width: newWidth, height });
       }
     };
 
     window.addEventListener('resize', handleResize);
 
-    // Subscribe to Crosshair Move (for hover)
     chart.subscribeCrosshairMove((param) => {
-      // Try both seriesData and seriesPrices for compatibility
       const data = param.seriesData || param.seriesPrices;
       if (!param.time || !data) {
         setHoveredCandle(null);
@@ -139,7 +133,6 @@ const CandlestickChart = ({
       }
     });
 
-    // ✓ FIXED: Subscribe to Click Events - USE seriesPrices!
     chart.subscribeClick((param) => {
       console.log('🖱️ Chart clicked:', param);
       
@@ -148,7 +141,6 @@ const CandlestickChart = ({
         return;
       }
 
-      // Try seriesPrices first (newer API), then seriesData (older API)
       const pricesMap = param.seriesPrices || param.seriesData;
       
       if (!pricesMap) {
@@ -158,12 +150,10 @@ const CandlestickChart = ({
 
       console.log('📊 Prices map:', pricesMap);
       
-      // Get the candle data for our series
       const candleDataItem = pricesMap.get(candlestickSeries);
       
       if (!candleDataItem) {
         console.log('⚠️ No candle data found for clicked time');
-        console.log('Available series in map:', Array.from(pricesMap.keys()));
         return;
       }
 
@@ -180,19 +170,13 @@ const CandlestickChart = ({
       setSelectedCandle(clickedCandle);
 
       if (onCandleClick) {
-        // Convert Unix timestamp to ISO string
         const timestamp = new Date(param.time * 1000).toISOString();
-        
         console.log('📡 Calling onCandleClick with timestamp:', timestamp);
-        console.log('📡 Candle data:', clickedCandle);
-        
         onCandleClick(timestamp, clickedCandle);
-      } else {
-        console.log('⚠️ No onCandleClick handler provided');
       }
     });
 
-    console.log('✅ Chart initialized with click handler');
+    console.log('✅ Chart initialized');
 
     return () => {
       console.log('🧹 Cleaning up chart');
@@ -203,14 +187,8 @@ const CandlestickChart = ({
     };
   }, [height, onCandleClick]);
 
-  // Update Chart Data
   useEffect(() => {
     if (!candlestickSeriesRef.current || !impactMarkersRef.current || !candleData.length) {
-      console.log('⚠️ Cannot update chart data:', {
-        hasSeries: !!candlestickSeriesRef.current,
-        hasMarkers: !!impactMarkersRef.current,
-        dataLength: candleData.length
-      });
       return;
     }
 
@@ -227,9 +205,6 @@ const CandlestickChart = ({
 
       formattedData.sort((a, b) => a.time - b.time);
 
-      console.log('📈 First candle:', formattedData[0]);
-      console.log('📈 Last candle:', formattedData[formattedData.length - 1]);
-
       candlestickSeriesRef.current.setData(formattedData);
 
       const markers = candleData
@@ -244,7 +219,6 @@ const CandlestickChart = ({
         }));
 
       if (markers.length > 0) {
-        console.log('💎 Adding', markers.length, 'impact markers');
         candlestickSeriesRef.current.setMarkers(markers);
       }
 
@@ -335,6 +309,7 @@ const CandlestickChart = ({
       <div 
         ref={chartContainerRef} 
         className={`chart-container ${loading ? 'loading' : ''}`}
+        style={{ position: 'relative' }}
       >
         {loading && (
           <div className="chart-loading-overlay">
@@ -342,15 +317,17 @@ const CandlestickChart = ({
             <span className="loading-text">Loading chart data...</span>
           </div>
         )}
+        
+        {candleMoversData && chartRef.current && (
+          <CandleImpactOverlay
+            chartRef={chartRef}
+            candleMoversData={candleMoversData}
+            onWalletClick={onWalletClick}
+            containerWidth={containerDimensions.width}
+            containerHeight={containerDimensions.height}
+          />
+        )}
       </div>
-
-      {candleMoversData && candleMoversData.top_movers && (
-        <WalletImpactBreakdown
-          topMovers={candleMoversData.top_movers}
-          candleData={candleMoversData.candle}
-          onWalletClick={onWalletClick}
-        />
-      )}
 
       <div className="chart-footer">
         <div className="chart-legend">
@@ -370,7 +347,7 @@ const CandlestickChart = ({
         <div className="chart-instructions">
           <span className="instruction-icon">💡</span>
           <span className="instruction-text">
-            Click on a candle to analyze the top wallets that moved the price
+            Click on a candle to analyze - hover over segments for wallet details
           </span>
         </div>
       </div>
