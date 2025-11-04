@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePriceMovers } from '../hooks/usePriceMovers';
-import CandlestickChart from '../components/ui/CandlestickChart';
+import CustomCandlestickChart from '../components/ui/CustomCandlestickChart';
 import { 
   fetchChartCandles, 
   fetchCandleMovers, 
