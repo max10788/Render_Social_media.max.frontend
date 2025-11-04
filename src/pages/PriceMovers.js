@@ -365,7 +365,7 @@ const PriceMovers = () => {
               </div>
             )}
 
-            <CandlestickChart
+            <CustomCandlestickChart
               candleData={chartData}
               onCandleClick={handleCandleClick}
               candleMoversData={candleMoversData}
