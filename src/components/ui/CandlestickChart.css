@@ -1,28 +1,16 @@
-/* ============================================
-   CandlestickChart.css
-   Cyberpunk FinTech Design für Chart
-   ============================================ */
-
-.candlestick-chart-wrapper {
+.custom-candlestick-wrapper {
   background: var(--gradient-card);
   border: 1px solid rgba(0, 153, 255, 0.2);
   border-radius: var(--border-radius-lg);
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
   box-shadow: var(--shadow-sm);
-  position: relative;
-  overflow: hidden;
 }
 
-/* ============================================
-   Chart Header
-   ============================================ */
 .chart-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
   padding-bottom: var(--spacing-md);
   border-bottom: 1px solid rgba(0, 153, 255, 0.1);
@@ -35,14 +23,13 @@
 }
 
 .chart-symbol {
-  font-family: var(--font-heading);
+  font-family: 'Orbitron', sans-serif;
   font-size: 1.25rem;
   font-weight: 700;
   background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  letter-spacing: 1px;
 }
 
 .chart-timeframe {
@@ -50,99 +37,34 @@
   background: rgba(0, 153, 255, 0.1);
   border: 1px solid var(--color-accent-blue);
   border-radius: 8px;
-  font-family: var(--font-mono);
+  font-family: 'Roboto Mono', monospace;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-accent-blue);
-  text-transform: uppercase;
 }
 
-/* ============================================
-   Candle Info Bar (Hover Info)
-   ============================================ */
-.candle-info-bar {
+.chart-controls-info {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-lg);
-  flex-wrap: wrap;
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: var(--border-radius-md);
-  border: 1px solid rgba(0, 153, 255, 0.2);
+  gap: var(--spacing-md);
 }
 
-.candle-info-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-}
-
-.candle-info-item .label {
+.control-hint {
   font-size: 0.75rem;
   color: var(--color-text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
+  font-family: 'Roboto Mono', monospace;
 }
 
-.candle-info-item .value {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.candle-info-item .value.green {
-  color: var(--color-success);
-}
-
-.candle-info-item .value.red {
-  color: var(--color-error);
-}
-
-/* ============================================
-   Selected Candle Badge
-   ============================================ */
-.selected-candle-badge {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: rgba(255, 0, 153, 0.1);
-  border: 1px solid var(--color-accent-pink);
-  border-radius: 12px;
-  animation: pulse-badge 2s ease-in-out infinite;
-}
-
-@keyframes pulse-badge {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(255, 0, 153, 0.7);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(255, 0, 153, 0);
-  }
-}
-
-.badge-icon {
-  font-size: 1.25rem;
-}
-
-.badge-text {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-accent-pink);
-}
-
-/* ============================================
-   Chart Container
-   ============================================ */
 .chart-container {
   position: relative;
-  width: 100%;
   border-radius: var(--border-radius-md);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(0, 153, 255, 0.1);
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.chart-container canvas {
+  display: block;
+  width: 100%;
 }
 
 .chart-container.loading {
@@ -150,9 +72,6 @@
   opacity: 0.5;
 }
 
-/* ============================================
-   Chart Loading Overlay
-   ============================================ */
 .chart-loading-overlay {
   position: absolute;
   top: 0;
@@ -168,7 +87,7 @@
   z-index: 100;
 }
 
-.chart-loading-overlay .loading-spinner {
+.loading-spinner {
   width: 48px;
   height: 48px;
   border: 4px solid rgba(0, 153, 255, 0.2);
@@ -178,35 +97,22 @@
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-.chart-loading-overlay .loading-text {
+.loading-text {
   margin-top: var(--spacing-md);
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-accent-blue);
 }
 
-/* ============================================
-   Chart Footer
-   ============================================ */
 .chart-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--spacing-md);
   margin-top: var(--spacing-md);
   padding-top: var(--spacing-md);
   border-top: 1px solid rgba(0, 153, 255, 0.1);
 }
 
-/* ============================================
-   Chart Legend
-   ============================================ */
 .chart-legend {
   display: flex;
   align-items: center;
@@ -227,11 +133,11 @@
 }
 
 .legend-color.green-candle {
-  background: var(--color-success);
+  background: #00E676;
 }
 
 .legend-color.red-candle {
-  background: var(--color-error);
+  background: #FF3D00;
 }
 
 .legend-icon {
@@ -244,87 +150,113 @@
   font-weight: 500;
 }
 
-/* ============================================
-   Chart Instructions
-   ============================================ */
-.chart-instructions {
+/* Tooltips */
+.custom-chart-tooltip {
+  background: linear-gradient(145deg, rgba(26, 35, 50, 0.98), rgba(15, 20, 25, 0.98));
+  border: 1px solid rgba(0, 153, 255, 0.5);
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 250px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.8),
+    0 0 20px rgba(0, 153, 255, 0.3);
+  font-family: 'Exo 2', sans-serif;
+  backdrop-filter: blur(10px);
+  animation: tooltipFadeIn 0.15s ease-out;
+  z-index: 10000;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background: rgba(0, 153, 255, 0.05);
-  border: 1px solid rgba(0, 153, 255, 0.2);
-  border-radius: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 153, 255, 0.2);
 }
 
-.instruction-icon {
+.tooltip-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0099FF;
+}
+
+.tooltip-impact,
+.tooltip-change {
+  font-family: 'Roboto Mono', monospace;
   font-size: 1rem;
+  font-weight: 700;
 }
 
-.instruction-text {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
+.tooltip-impact {
+  background: linear-gradient(135deg, #0099FF, #FF0099);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.tooltip-change.green {
+  color: #00E676;
+}
+
+.tooltip-change.red {
+  color: #FF3D00;
+}
+
+.tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.tooltip-row .label {
+  color: #8899A6;
   font-weight: 500;
+}
+
+.tooltip-row .value {
+  color: #E1E8ED;
+  font-weight: 600;
+}
+
+.tooltip-row .value.mono {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.tooltip-row .value.green {
+  color: #00E676;
+}
+
+.tooltip-row .value.red {
+  color: #FF3D00;
+}
+
+.tooltip-hint {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #5C6B7A;
   font-style: italic;
-}
-
-/* ============================================
-   Responsive Design
-   ============================================ */
-@media (max-width: 768px) {
-  .chart-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .candle-info-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-sm);
-  }
-
-  .chart-footer {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .chart-legend {
-    width: 100%;
-  }
-
-  .chart-instructions {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .candlestick-chart-wrapper {
-    padding: var(--spacing-md);
-  }
-
-  .chart-symbol {
-    font-size: 1rem;
-  }
-
-  .candle-info-item {
-    width: 100%;
-    justify-content: space-between;
-  }
-}
-
-/* ============================================
-   Accessibility
-   ============================================ */
-.chart-container:focus {
-  outline: 2px solid var(--color-accent-blue);
-  outline-offset: 2px;
-}
-
-/* Reduce Motion */
-@media (prefers-reduced-motion: reduce) {
-  .chart-loading-overlay .loading-spinner,
-  .selected-candle-badge {
-    animation: none !important;
-  }
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 153, 255, 0.1);
 }
