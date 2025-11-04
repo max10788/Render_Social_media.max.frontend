@@ -1,0 +1,143 @@
+.candle-impact-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.candle-impact-overlay .impact-segment {
+  pointer-events: auto;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.candle-impact-overlay .impact-segment.clickable:hover {
+  opacity: 1 !important;
+  filter: brightness(1.2);
+  box-shadow: 
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+    0 0 8px rgba(0, 153, 255, 0.5);
+}
+
+.candle-impact-tooltip {
+  background: linear-gradient(145deg, rgba(26, 35, 50, 0.98), rgba(15, 20, 25, 0.98));
+  border: 1px solid rgba(0, 153, 255, 0.5);
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 280px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.8),
+    0 0 20px rgba(0, 153, 255, 0.3);
+  font-family: 'Exo 2', sans-serif;
+  backdrop-filter: blur(10px);
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 153, 255, 0.2);
+}
+
+.tooltip-rank {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0099FF;
+  text-transform: uppercase;
+}
+
+.tooltip-impact {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #0099FF, #FF0099);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.tooltip-row .label {
+  color: #8899A6;
+  font-weight: 500;
+}
+
+.tooltip-row .value {
+  color: #E1E8ED;
+  font-weight: 600;
+}
+
+.tooltip-row .value.mono {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.tooltip-footer {
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(0, 153, 255, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.footer-label {
+  color: #8899A6;
+  font-weight: 500;
+}
+
+.footer-value {
+  color: #E1E8ED;
+  font-weight: 600;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.footer-value .green {
+  color: #00E676;
+}
+
+.footer-value .red {
+  color: #FF3D00;
+}
+
+.tooltip-hint {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #5C6B7A;
+  font-style: italic;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 153, 255, 0.1);
+}
