@@ -260,3 +260,45 @@
   padding-top: 8px;
   border-top: 1px solid rgba(0, 153, 255, 0.1);
 }
+
+/* Center Button */
+.btn-center-analyzed {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #0099FF, #00E676);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0, 153, 255, 0.3);
+}
+
+.btn-center-analyzed:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 153, 255, 0.5);
+}
+
+.btn-center-analyzed:active {
+  transform: translateY(0);
+}
+
+/* Prevent page scroll during zoom */
+.chart-container {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+/* Selection indicator animation */
+@keyframes glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px #FFD700);
+  }
+  50% {
+    filter: drop-shadow(0 0 20px #FFD700);
+  }
+}
