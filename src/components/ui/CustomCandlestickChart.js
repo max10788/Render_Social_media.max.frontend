@@ -21,6 +21,7 @@ const CustomCandlestickChart = ({
   const [panOffset, setPanOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(0);
+  const [currentPrice, setCurrentPrice] = useState(null);
   
   const chartDataRef = useRef({
     candles: [],
@@ -30,7 +31,9 @@ const CustomCandlestickChart = ({
     segmentedCandle: null,
   });
 
-  // Initialize dimensions
+  // Chart margins - optimiert für bessere Lesbarkeit
+  const MARGIN = { top: 30, right: 90, bottom: 50, left: 10 };
+
   useEffect(() => {
     if (!containerRef.current) return;
     
@@ -44,7 +47,6 @@ const CustomCandlestickChart = ({
     return () => window.removeEventListener('resize', updateDimensions);
   }, [height]);
 
-  // Process candle data
   useEffect(() => {
     if (!candleData.length) return;
 
@@ -52,7 +54,7 @@ const CustomCandlestickChart = ({
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
     const priceRange = maxPrice - minPrice;
-    const padding = priceRange * 0.1;
+    const padding = priceRange * 0.15; // Mehr Padding
 
     chartDataRef.current = {
       candles: candleData,
@@ -68,10 +70,14 @@ const CustomCandlestickChart = ({
       segmentedCandle: null,
     };
 
+    // Aktuellen Preis setzen
+    if (candleData.length > 0) {
+      setCurrentPrice(candleData[candleData.length - 1].close);
+    }
+
     drawChart();
   }, [candleData, dimensions, zoom, panOffset]);
 
-  // Update segmented candle
   useEffect(() => {
     if (candleMoversData?.candle) {
       const candleIndex = candleData.findIndex(
@@ -91,7 +97,6 @@ const CustomCandlestickChart = ({
     }
   }, [candleMoversData, candleData]);
 
-  // Main drawing function
   const drawChart = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -102,7 +107,6 @@ const CustomCandlestickChart = ({
 
     if (!candles.length || width === 0 || height === 0) return;
 
-    // Set canvas resolution
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -110,17 +114,15 @@ const CustomCandlestickChart = ({
     canvas.style.height = `${height}px`;
     ctx.scale(dpr, dpr);
 
-    // Clear canvas
+    // Clear
     ctx.fillStyle = '#0F1419';
     ctx.fillRect(0, 0, width, height);
 
-    // Chart margins
-    const margin = { top: 20, right: 80, bottom: 40, left: 10 };
-    const chartWidth = width - margin.left - margin.right;
-    const chartHeight = height - margin.top - margin.bottom;
+    const chartWidth = width - MARGIN.left - MARGIN.right;
+    const chartHeight = height - MARGIN.top - MARGIN.bottom;
 
-    // Calculate visible range
-    const visibleCandles = Math.floor(chartWidth / (12 * zoom));
+    // Visible range
+    const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoom)));
     const totalCandles = candles.length;
     const startIdx = Math.max(0, Math.min(totalCandles - visibleCandles, Math.floor(panOffset)));
     const endIdx = Math.min(totalCandles, startIdx + visibleCandles);
@@ -129,21 +131,19 @@ const CustomCandlestickChart = ({
     const candleWidth = chartWidth / visibleData.length;
     chartDataRef.current.candleWidth = candleWidth;
 
-    // Price to Y coordinate
     const priceToY = (price) => {
       const ratio = (price - priceScale.min) / (priceScale.max - priceScale.min);
-      return margin.top + chartHeight * (1 - ratio);
+      return MARGIN.top + chartHeight * (1 - ratio);
     };
 
-    // Draw grid
-    drawGrid(ctx, margin, chartWidth, chartHeight, priceScale, priceToY);
+    // Draw background grid
+    drawGrid(ctx, MARGIN, chartWidth, chartHeight, priceScale, priceToY);
 
     // Draw candles
     visibleData.forEach((candle, idx) => {
       const globalIdx = startIdx + idx;
-      const x = margin.left + idx * candleWidth;
+      const x = MARGIN.left + idx * candleWidth;
       
-      // Check if this is the segmented candle
       if (segmentedCandle && globalIdx === segmentedCandle.index) {
         drawSegmentedCandle(ctx, candle, segmentedCandle.data, x, candleWidth, priceToY);
       } else {
@@ -151,20 +151,22 @@ const CustomCandlestickChart = ({
       }
     });
 
-    // Draw price scale
-    drawPriceScale(ctx, width, margin, chartHeight, priceScale);
+    // Draw current price line
+    if (currentPrice && visibleData.length > 0) {
+      drawCurrentPriceLine(ctx, currentPrice, MARGIN, chartWidth, priceToY);
+    }
 
-    // Draw time scale
-    drawTimeScale(ctx, margin, chartWidth, chartHeight, visibleData, candleWidth);
+    // Draw scales
+    drawPriceScale(ctx, width, MARGIN, chartHeight, priceScale, priceToY);
+    drawTimeScale(ctx, MARGIN, chartWidth, chartHeight, visibleData, candleWidth, startIdx);
 
-  }, [dimensions, zoom, panOffset]);
+  }, [dimensions, zoom, panOffset, currentPrice]);
 
   const drawGrid = (ctx, margin, width, height, priceScale, priceToY) => {
-    ctx.strokeStyle = 'rgba(0, 153, 255, 0.1)';
+    ctx.strokeStyle = 'rgba(0, 153, 255, 0.08)';
     ctx.lineWidth = 1;
 
-    // Horizontal lines
-    const priceSteps = 5;
+    const priceSteps = 8;
     for (let i = 0; i <= priceSteps; i++) {
       const price = priceScale.min + (priceScale.max - priceScale.min) * (i / priceSteps);
       const y = priceToY(price);
@@ -187,26 +189,41 @@ const CustomCandlestickChart = ({
     
     const bodyTop = Math.min(openY, closeY);
     const bodyHeight = Math.abs(closeY - openY);
-    const bodyWidth = Math.max(width * 0.7, 2);
+    const bodyWidth = Math.max(width * 0.7, 3);
     const centerX = x + width / 2;
 
     // Wick
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = Math.max(1, width * 0.15);
     ctx.beginPath();
     ctx.moveTo(centerX, highY);
     ctx.lineTo(centerX, lowY);
     ctx.stroke();
 
     // Body
-    ctx.fillStyle = color;
-    ctx.fillRect(centerX - bodyWidth / 2, bodyTop, bodyWidth, Math.max(bodyHeight, 1));
+    if (bodyHeight < 2) {
+      // Doji - draw line
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX - bodyWidth / 2, bodyTop);
+      ctx.lineTo(centerX + bodyWidth / 2, bodyTop);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = color;
+      ctx.fillRect(centerX - bodyWidth / 2, bodyTop, bodyWidth, bodyHeight);
+    }
 
     // Impact marker
     if (hasImpact) {
+      ctx.save();
+      ctx.shadowColor = '#0099FF';
+      ctx.shadowBlur = 8;
       ctx.fillStyle = '#0099FF';
-      ctx.font = '10px Arial';
-      ctx.fillText('💎', centerX - 5, highY - 10);
+      ctx.beginPath();
+      ctx.arc(centerX, highY - 8, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
   };
 
@@ -218,17 +235,20 @@ const CustomCandlestickChart = ({
     
     const bodyTop = Math.min(openY, closeY);
     const bodyHeight = Math.abs(closeY - openY);
-    const bodyWidth = Math.max(width * 0.7, 4);
+    const bodyWidth = Math.max(width * 0.85, 6);
     const centerX = x + width / 2;
 
-    // Wick
+    // Enhanced wick
     const isGreen = candle.close >= candle.open;
     ctx.strokeStyle = isGreen ? '#00E676' : '#FF3D00';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(2, width * 0.2);
+    ctx.shadowColor = '#0099FF';
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.moveTo(centerX, highY);
     ctx.lineTo(centerX, lowY);
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
     // Segmented body
     const top3 = moversData.top_movers.slice(0, 3);
@@ -248,72 +268,147 @@ const CustomCandlestickChart = ({
 
     let currentY = bodyTop;
     segments.forEach((segment) => {
-      const segHeight = bodyHeight * segment.impact;
+      const segHeight = Math.max(bodyHeight * segment.impact, 1);
       
+      // Segment fill
       ctx.fillStyle = segment.color;
-      ctx.fillRect(centerX - bodyWidth / 2, currentY, bodyWidth, Math.max(segHeight, 1));
+      ctx.fillRect(centerX - bodyWidth / 2, currentY, bodyWidth, segHeight);
       
-      // Border
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(centerX - bodyWidth / 2, currentY, bodyWidth, segHeight);
+      // Subtle separator
+      if (segment.wallet) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(centerX - bodyWidth / 2, currentY, bodyWidth, segHeight);
+      }
       
       currentY += segHeight;
     });
 
-    // Highlight border
+    // Glowing border
+    ctx.save();
     ctx.strokeStyle = '#0099FF';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(centerX - bodyWidth / 2 - 1, bodyTop - 1, bodyWidth + 2, bodyHeight + 2);
-
-    // Glow effect
+    ctx.lineWidth = 3;
     ctx.shadowColor = '#0099FF';
-    ctx.shadowBlur = 10;
-    ctx.strokeRect(centerX - bodyWidth / 2 - 1, bodyTop - 1, bodyWidth + 2, bodyHeight + 2);
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur = 15;
+    ctx.strokeRect(centerX - bodyWidth / 2 - 1.5, bodyTop - 1.5, bodyWidth + 3, bodyHeight + 3);
+    ctx.restore();
+
+    // Analysis badge
+    ctx.fillStyle = '#0099FF';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('🎯', centerX, highY - 15);
   };
 
-  const drawPriceScale = (ctx, width, margin, chartHeight, priceScale) => {
+  const drawCurrentPriceLine = (ctx, price, margin, width, priceToY) => {
+    const y = priceToY(price);
+    
+    // Dashed line
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = '#0099FF';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(margin.left, y);
+    ctx.lineTo(margin.left + width, y);
+    ctx.stroke();
+    ctx.restore();
+    
+    // Price label
+    ctx.fillStyle = '#0099FF';
+    ctx.fillRect(margin.left + width + 5, y - 10, 75, 20);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 11px Roboto Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(`$${formatPrice(price)}`, margin.left + width + 42, y + 4);
+  };
+
+  const drawPriceScale = (ctx, width, margin, chartHeight, priceScale, priceToY) => {
     ctx.fillStyle = '#8899A6';
     ctx.font = '11px Roboto Mono';
     ctx.textAlign = 'left';
 
-    const priceSteps = 5;
+    const priceSteps = 8;
     for (let i = 0; i <= priceSteps; i++) {
       const price = priceScale.min + (priceScale.max - priceScale.min) * (i / priceSteps);
-      const y = margin.top + chartHeight * (1 - i / priceSteps);
+      const y = priceToY(price);
       
-      ctx.fillText(
-        `$${price.toFixed(2)}`,
-        width - margin.right + 10,
-        y + 4
-      );
+      // Background for better readability
+      const text = `$${formatPrice(price)}`;
+      const textWidth = ctx.measureText(text).width;
+      ctx.fillStyle = 'rgba(15, 20, 25, 0.8)';
+      ctx.fillRect(width - margin.right + 8, y - 8, textWidth + 4, 16);
+      
+      // Price text
+      ctx.fillStyle = '#8899A6';
+      ctx.fillText(text, width - margin.right + 10, y + 4);
     }
   };
 
-  const drawTimeScale = (ctx, margin, width, chartHeight, visibleData, candleWidth) => {
+  const drawTimeScale = (ctx, margin, width, chartHeight, visibleData, candleWidth, startIdx) => {
+    if (!visibleData.length) return;
+
     ctx.fillStyle = '#8899A6';
     ctx.font = '10px Roboto Mono';
     ctx.textAlign = 'center';
 
-    const maxLabels = Math.floor(width / 100);
-    const step = Math.ceil(visibleData.length / maxLabels);
+    // Adaptive label count basierend auf Breite
+    const minLabelSpacing = 80;
+    const maxLabels = Math.floor(width / minLabelSpacing);
+    const step = Math.max(1, Math.ceil(visibleData.length / maxLabels));
 
     visibleData.forEach((candle, idx) => {
-      if (idx % step === 0) {
+      if (idx % step === 0 || idx === visibleData.length - 1) {
         const x = margin.left + idx * candleWidth + candleWidth / 2;
         const date = new Date(candle.timestamp);
-        const timeStr = date.toLocaleTimeString('de-DE', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        });
+        const timeStr = formatTimeLabel(date, timeframe);
         
+        // Background
+        const textWidth = ctx.measureText(timeStr).width;
+        ctx.fillStyle = 'rgba(15, 20, 25, 0.8)';
+        ctx.fillRect(x - textWidth / 2 - 2, margin.top + chartHeight + 10, textWidth + 4, 14);
+        
+        // Text
+        ctx.fillStyle = '#8899A6';
         ctx.fillText(timeStr, x, margin.top + chartHeight + 20);
+
+        // Tick mark
+        ctx.strokeStyle = 'rgba(0, 153, 255, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top + chartHeight);
+        ctx.lineTo(x, margin.top + chartHeight + 5);
+        ctx.stroke();
       }
     });
   };
 
-  // Mouse handlers
+  const formatPrice = (price) => {
+    if (price >= 10000) return price.toFixed(0);
+    if (price >= 1000) return price.toFixed(1);
+    if (price >= 100) return price.toFixed(2);
+    if (price >= 1) return price.toFixed(3);
+    if (price >= 0.1) return price.toFixed(4);
+    return price.toFixed(6);
+  };
+
+  const formatTimeLabel = (date, timeframe) => {
+    const showDate = ['4h', '1d'].includes(timeframe);
+    
+    if (showDate) {
+      return date.toLocaleDateString('de-DE', { 
+        day: '2-digit', 
+        month: '2-digit' 
+      });
+    } else {
+      return date.toLocaleTimeString('de-DE', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    }
+  };
+
+  // Mouse handlers (unchanged)
   const handleMouseMove = (e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -377,27 +472,26 @@ const CustomCandlestickChart = ({
 
   const getElementAtPosition = (x, y) => {
     const { candles, candleWidth, segmentedCandle } = chartDataRef.current;
-    const margin = { top: 20, right: 80, bottom: 40, left: 10 };
     
-    if (x < margin.left || y < margin.top) return null;
+    if (x < MARGIN.left || y < MARGIN.top) return null;
 
-    const visibleCandles = Math.floor((dimensions.width - margin.left - margin.right) / (12 * zoom));
+    const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
+    const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoom)));
     const startIdx = Math.floor(panOffset);
-    const candleIdx = Math.floor((x - margin.left) / candleWidth);
+    const candleIdx = Math.floor((x - MARGIN.left) / candleWidth);
     const globalIdx = startIdx + candleIdx;
 
     if (globalIdx < 0 || globalIdx >= candles.length) return null;
 
     const candle = candles[globalIdx];
 
-    // Check if it's the segmented candle
     if (segmentedCandle && globalIdx === segmentedCandle.index) {
       const priceScale = chartDataRef.current.priceScale;
-      const chartHeight = dimensions.height - margin.top - margin.bottom;
+      const chartHeight = dimensions.height - MARGIN.top - MARGIN.bottom;
       
       const priceToY = (price) => {
         const ratio = (price - priceScale.min) / (priceScale.max - priceScale.min);
-        return margin.top + chartHeight * (1 - ratio);
+        return MARGIN.top + chartHeight * (1 - ratio);
       };
 
       const openY = priceToY(candle.open);
@@ -436,10 +530,10 @@ const CustomCandlestickChart = ({
 
   const getWalletColor = (walletType, index) => {
     const colors = {
-      whale: '#818cf8',
-      market_maker: '#10b981',
-      bot: '#f59e0b',
-      unknown: '#64748b',
+      whale: '#FFC107',
+      market_maker: '#2196F3',
+      bot: '#AB47BC',
+      unknown: '#9E9E9E',
     };
     const defaultColors = ['#0ea5e9', '#8b5cf6', '#ec4899'];
     return colors[walletType?.toLowerCase()] || defaultColors[index] || '#64748b';
@@ -451,9 +545,10 @@ const CustomCandlestickChart = ({
         <div className="chart-title">
           <span className="chart-symbol">{symbol}</span>
           <span className="chart-timeframe">{timeframe}</span>
+          <span className="chart-zoom-indicator">Zoom: {zoom.toFixed(1)}x</span>
         </div>
         <div className="chart-controls-info">
-          <span className="control-hint">🖱️ Drag to pan • 🔍 Scroll to zoom</span>
+          <span className="control-hint">🖱️ Drag to pan • 🔍 Scroll to zoom • 🎯 Click candle to analyze</span>
         </div>
       </div>
 
@@ -507,8 +602,18 @@ const CustomCandlestickChart = ({
           </div>
           <div className="legend-item">
             <span className="legend-icon">🎯</span>
-            <span className="legend-label">Segmented (analyzed)</span>
+            <span className="legend-label">Analyzed</span>
           </div>
+        </div>
+        <div className="chart-stats">
+          <span className="stat-item">
+            Candles: {candleData.length}
+          </span>
+          {currentPrice && (
+            <span className="stat-item">
+              Current: ${formatPrice(currentPrice)}
+            </span>
+          )}
         </div>
       </div>
     </div>
