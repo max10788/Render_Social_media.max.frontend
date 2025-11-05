@@ -551,390 +551,374 @@ const PriceMovers = () => {
           </div>
         )}
 
-// Ersetze den Kommentar "/* Rest of the form code remains the same */" 
-// in deiner PriceMovers.jsx Datei mit diesem Code:
-
-{analysisMode !== 'chart' && (
-  <form className="analysis-form" onSubmit={handleAnalyze}>
-    <div className="form-grid">
-      {/* Exchange Selection - Für alle Modi */}
-      <div className="form-group">
-        <label htmlFor="exchange">
-          Exchange
-          <span className="required">*</span>
-        </label>
-        <select
-          id="exchange"
-          name="exchange"
-          value={formData.exchange}
-          onChange={handleInputChange}
-          required
-        >
-          <option value="binance">Binance</option>
-          <option value="bitget">Bitget</option>
-          <option value="kraken">Kraken</option>
-        </select>
-      </div>
-
-      {/* Symbol Input - Für alle Modi */}
-      <div className="form-group">
-        <label htmlFor="symbol">
-          Trading Pair
-          <span className="required">*</span>
-        </label>
-        <input
-          id="symbol"
-          type="text"
-          name="symbol"
-          value={formData.symbol}
-          onChange={handleInputChange}
-          placeholder="BTC/USDT"
-          required
-        />
-        <small className="form-help">Format: BASE/QUOTE (z.B. BTC/USDT)</small>
-      </div>
-
-      {/* Timeframe Selection - Für alle Modi */}
-      <div className="form-group">
-        <label htmlFor="timeframe">
-          Timeframe
-          <span className="required">*</span>
-        </label>
-        <select
-          id="timeframe"
-          name="timeframe"
-          value={formData.timeframe}
-          onChange={handleInputChange}
-          required
-        >
-          <option value="1m">1 Minute</option>
-          <option value="5m">5 Minutes</option>
-          <option value="15m">15 Minutes</option>
-          <option value="30m">30 Minutes</option>
-          <option value="1h">1 Hour</option>
-          <option value="4h">4 Hours</option>
-          <option value="1d">1 Day</option>
-        </select>
-      </div>
-
-      {/* Top N Wallets - Für Quick & Custom */}
-      {(analysisMode === 'quick' || analysisMode === 'custom') && (
-        <div className="form-group">
-          <label htmlFor="topNWallets">
-            Top N Wallets
-            <span className="required">*</span>
-          </label>
-          <input
-            id="topNWallets"
-            type="number"
-            name="topNWallets"
-            value={formData.topNWallets}
-            onChange={handleInputChange}
-            min="1"
-            max="100"
-            required
-          />
-          <small className="form-help">Anzahl der Top Price Movers (1-100)</small>
-        </div>
-      )}
-
-      {/* Zeitbereich - Nur für Custom & Historical */}
-      {(analysisMode === 'custom' || analysisMode === 'historical') && (
-        <>
-          <div className="form-group">
-            <label htmlFor="startTime">
-              Start Time
-              <span className="required">*</span>
-            </label>
-            <input
-              id="startTime"
-              type="datetime-local"
-              name="startTime"
-              value={formData.startTime}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="endTime">
-              End Time
-              <span className="required">*</span>
-            </label>
-            <input
-              id="endTime"
-              type="datetime-local"
-              name="endTime"
-              value={formData.endTime}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-        </>
-      )}
-
-      {/* Min Impact Threshold - Für Custom & Historical */}
-      {(analysisMode === 'custom' || analysisMode === 'historical') && (
-        <div className="form-group">
-          <label htmlFor="minImpactThreshold">
-            Min Impact Threshold
-          </label>
-          <input
-            id="minImpactThreshold"
-            type="number"
-            name="minImpactThreshold"
-            value={formData.minImpactThreshold}
-            onChange={handleInputChange}
-            min="0"
-            max="1"
-            step="0.01"
-          />
-          <small className="form-help">
-            Minimaler Impact Score (0.0 - 1.0, default: 0.1)
-          </small>
-        </div>
-      )}
-
-      {/* Include Trades - Nur für Custom */}
-      {analysisMode === 'custom' && (
-        <div className="form-group form-group-checkbox">
-          <label htmlFor="includeTrades" className="checkbox-label">
-            <input
-              id="includeTrades"
-              type="checkbox"
-              name="includeTrades"
-              checked={formData.includeTrades}
-              onChange={handleInputChange}
-            />
-            <span>Include detailed trade data</span>
-          </label>
-          <small className="form-help">
-            ⚠️ Aktiviert detaillierte Trade-Daten (langsamer)
-          </small>
-        </div>
-      )}
-    </div>
-
-    {/* Info Box für den aktuellen Modus */}
-    <div className={`analysis-mode-info ${analysisMode}`}>
-      <div className="info-icon">
-        {analysisMode === 'quick' && '⚡'}
-        {analysisMode === 'custom' && '🎯'}
-        {analysisMode === 'historical' && '📈'}
-      </div>
-      <div className="info-content">
-        <h4>
-          {analysisMode === 'quick' && 'Quick Analysis'}
-          {analysisMode === 'custom' && 'Custom Analysis'}
-          {analysisMode === 'historical' && 'Historical Analysis'}
-        </h4>
-        <p>
-          {analysisMode === 'quick' && 
-            'Analysiert die aktuellste Candle und identifiziert die Top Price Movers in Echtzeit.'}
-          {analysisMode === 'custom' && 
-            'Detaillierte Analyse mit benutzerdefinierten Parametern für einen spezifischen Zeitraum.'}
-          {analysisMode === 'historical' && 
-            'Historische Analyse über mehrere Candles zur Identifikation von Trends und Mustern.'}
-        </p>
-      </div>
-    </div>
-
-    {/* Submit Button */}
-    <div className="form-actions">
-      <button
-        type="submit"
-        className="btn-primary"
-        disabled={loading}
-      >
-        {loading ? (
-          <>
-            <span className="loading-spinner-small"></span>
-            Analysiere...
-          </>
-        ) : (
-          <>
-            {analysisMode === 'quick' && '⚡ Quick Analyse starten'}
-            {analysisMode === 'custom' && '🎯 Custom Analyse starten'}
-            {analysisMode === 'historical' && '📈 Historical Analyse starten'}
-          </>
-        )}
-      </button>
-
-      {(analysisData || error) && (
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={reset}
-        >
-          🔄 Zurücksetzen
-        </button>
-      )}
-    </div>
-  </form>
-)}
-
-{/* Results Section - Für non-chart Modi */}
-{analysisMode !== 'chart' && analysisData && (
-  <div className="analysis-results">
-    <div className="results-header">
-      <h2>📊 Analysis Results</h2>
-      <div className="results-meta">
-        <span className="meta-item">
-          <strong>Exchange:</strong> {analysisData.exchange}
-        </span>
-        <span className="meta-item">
-          <strong>Symbol:</strong> {analysisData.symbol}
-        </span>
-        <span className="meta-item">
-          <strong>Timeframe:</strong> {analysisData.timeframe}
-        </span>
-      </div>
-    </div>
-
-    {/* Candle Information */}
-    {analysisData.candle && (
-      <div className="candle-summary">
-        <h3>🕯️ Candle Data</h3>
-        <div className="candle-details-grid">
-          <div className="detail-item">
-            <span className="label">Time:</span>
-            <span className="value">
-              {formatDate(analysisData.candle.timestamp)}
-            </span>
-          </div>
-          <div className="detail-item">
-            <span className="label">Open:</span>
-            <span className="value">${formatNumber(analysisData.candle.open)}</span>
-          </div>
-          <div className="detail-item">
-            <span className="label">High:</span>
-            <span className="value green">${formatNumber(analysisData.candle.high)}</span>
-          </div>
-          <div className="detail-item">
-            <span className="label">Low:</span>
-            <span className="value red">${formatNumber(analysisData.candle.low)}</span>
-          </div>
-          <div className="detail-item">
-            <span className="label">Close:</span>
-            <span className="value">${formatNumber(analysisData.candle.close)}</span>
-          </div>
-          <div className="detail-item">
-            <span className="label">Volume:</span>
-            <span className="value">{formatNumber(analysisData.candle.volume)}</span>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* Top Movers */}
-    <div className="top-movers">
-      <h3>🏆 Top Price Movers ({analysisData.topMovers?.length || 0})</h3>
-      {analysisData.topMovers && analysisData.topMovers.length > 0 ? (
-        <div className="wallets-grid">
-          {analysisData.topMovers.map((mover, index) => (
-            <div
-              key={mover.wallet_id}
-              className={`wallet-card ${
-                selectedWallet?.wallet_id === mover.wallet_id ? 'selected' : ''
-              }`}
-              onClick={() => handleWalletClick(mover)}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="wallet-card-header">
-                <div className="wallet-rank">#{index + 1}</div>
-                <span className={`wallet-type-badge ${mover.wallet_type}`}>
-                  {mover.wallet_type}
-                </span>
+        {analysisMode !== 'chart' && (
+          <form className="analysis-form" onSubmit={handleAnalyze}>
+            <div className="form-grid">
+              <div className="form-group">
+                <label htmlFor="exchange">
+                  Exchange
+                  <span className="required">*</span>
+                </label>
+                <select
+                  id="exchange"
+                  name="exchange"
+                  value={formData.exchange}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="binance">Binance</option>
+                  <option value="bitget">Bitget</option>
+                  <option value="kraken">Kraken</option>
+                </select>
               </div>
-              
-              <div className="wallet-address" title={mover.wallet_id}>
-                {mover.wallet_id}
+
+              <div className="form-group">
+                <label htmlFor="symbol">
+                  Trading Pair
+                  <span className="required">*</span>
+                </label>
+                <input
+                  id="symbol"
+                  type="text"
+                  name="symbol"
+                  value={formData.symbol}
+                  onChange={handleInputChange}
+                  placeholder="BTC/USDT"
+                  required
+                />
+                <small className="form-help">Format: BASE/QUOTE (z.B. BTC/USDT)</small>
               </div>
-              
-              <div className="wallet-stats-grid">
-                <div className="wallet-stat">
-                  <span className="label">Volume</span>
-                  <span className="value">${formatNumber(mover.total_volume)}</span>
-                </div>
-                <div className="wallet-stat">
-                  <span className="label">Trades</span>
-                  <span className="value">{mover.trade_count}</span>
-                </div>
-                <div className="wallet-stat">
-                  <span className="label">Ø Trade Size</span>
-                  <span className="value">${formatNumber(mover.avg_trade_size)}</span>
-                </div>
-                <div className="wallet-stat">
-                  <span className="label">Aktivität</span>
-                  <span className="value">
-                    {mover.trade_count > 50 ? 'Hoch' : 
-                     mover.trade_count > 20 ? 'Mittel' : 'Niedrig'}
-                  </span>
-                </div>
+
+              <div className="form-group">
+                <label htmlFor="timeframe">
+                  Timeframe
+                  <span className="required">*</span>
+                </label>
+                <select
+                  id="timeframe"
+                  name="timeframe"
+                  value={formData.timeframe}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="1m">1 Minute</option>
+                  <option value="5m">5 Minutes</option>
+                  <option value="15m">15 Minutes</option>
+                  <option value="30m">30 Minutes</option>
+                  <option value="1h">1 Hour</option>
+                  <option value="4h">4 Hours</option>
+                  <option value="1d">1 Day</option>
+                </select>
               </div>
-              
-              <div className="impact-score">
-                <div className="impact-label">
-                  <span>Impact Score</span>
-                  <span className="impact-value">
-                    {formatPercentage(mover.impact_score)}
-                  </span>
-                </div>
-                <div className="impact-bar">
-                  <div 
-                    className="impact-fill"
-                    style={{ width: `${mover.impact_score * 100}%` }}
+
+              {(analysisMode === 'quick' || analysisMode === 'custom') && (
+                <div className="form-group">
+                  <label htmlFor="topNWallets">
+                    Top N Wallets
+                    <span className="required">*</span>
+                  </label>
+                  <input
+                    id="topNWallets"
+                    type="number"
+                    name="topNWallets"
+                    value={formData.topNWallets}
+                    onChange={handleInputChange}
+                    min="1"
+                    max="100"
+                    required
                   />
+                  <small className="form-help">Anzahl der Top Price Movers (1-100)</small>
                 </div>
+              )}
+
+              {(analysisMode === 'custom' || analysisMode === 'historical') && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="startTime">
+                      Start Time
+                      <span className="required">*</span>
+                    </label>
+                    <input
+                      id="startTime"
+                      type="datetime-local"
+                      name="startTime"
+                      value={formData.startTime}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="endTime">
+                      End Time
+                      <span className="required">*</span>
+                    </label>
+                    <input
+                      id="endTime"
+                      type="datetime-local"
+                      name="endTime"
+                      value={formData.endTime}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              {(analysisMode === 'custom' || analysisMode === 'historical') && (
+                <div className="form-group">
+                  <label htmlFor="minImpactThreshold">
+                    Min Impact Threshold
+                  </label>
+                  <input
+                    id="minImpactThreshold"
+                    type="number"
+                    name="minImpactThreshold"
+                    value={formData.minImpactThreshold}
+                    onChange={handleInputChange}
+                    min="0"
+                    max="1"
+                    step="0.01"
+                  />
+                  <small className="form-help">
+                    Minimaler Impact Score (0.0 - 1.0, default: 0.1)
+                  </small>
+                </div>
+              )}
+
+              {analysisMode === 'custom' && (
+                <div className="form-group form-group-checkbox">
+                  <label htmlFor="includeTrades" className="checkbox-label">
+                    <input
+                      id="includeTrades"
+                      type="checkbox"
+                      name="includeTrades"
+                      checked={formData.includeTrades}
+                      onChange={handleInputChange}
+                    />
+                    <span>Include detailed trade data</span>
+                  </label>
+                  <small className="form-help">
+                    ⚠️ Aktiviert detaillierte Trade-Daten (langsamer)
+                  </small>
+                </div>
+              )}
+            </div>
+
+            <div className={`analysis-mode-info ${analysisMode}`}>
+              <div className="info-icon">
+                {analysisMode === 'quick' && '⚡'}
+                {analysisMode === 'custom' && '🎯'}
+                {analysisMode === 'historical' && '📈'}
+              </div>
+              <div className="info-content">
+                <h4>
+                  {analysisMode === 'quick' && 'Quick Analysis'}
+                  {analysisMode === 'custom' && 'Custom Analysis'}
+                  {analysisMode === 'historical' && 'Historical Analysis'}
+                </h4>
+                <p>
+                  {analysisMode === 'quick' && 
+                    'Analysiert die aktuellste Candle und identifiziert die Top Price Movers in Echtzeit.'}
+                  {analysisMode === 'custom' && 
+                    'Detaillierte Analyse mit benutzerdefinierten Parametern für einen spezifischen Zeitraum.'}
+                  {analysisMode === 'historical' && 
+                    'Historische Analyse über mehrere Candles zur Identifikation von Trends und Mustern.'}
+                </p>
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">
-          <div className="empty-state-icon">🔍</div>
-          <p className="empty-state-text">
-            Keine Price Movers gefunden für die gewählten Parameter.
-          </p>
-        </div>
-      )}
-    </div>
 
-    {/* Analysis Metadata */}
-    {analysisData.metadata && (
-      <div className="analysis-metadata">
-        <h3>ℹ️ Analyse-Informationen</h3>
-        <div className="metadata-grid">
-          <div className="metadata-item">
-            <span className="label">Analyse-Zeitpunkt</span>
-            <span className="value">
-              {formatDate(analysisData.metadata.analysis_timestamp)}
-            </span>
+            <div className="form-actions">
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="loading-spinner-small"></span>
+                    Analysiere...
+                  </>
+                ) : (
+                  <>
+                    {analysisMode === 'quick' && '⚡ Quick Analyse starten'}
+                    {analysisMode === 'custom' && '🎯 Custom Analyse starten'}
+                    {analysisMode === 'historical' && '📈 Historical Analyse starten'}
+                  </>
+                )}
+              </button>
+
+              {(analysisData || error) && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={reset}
+                >
+                  🔄 Zurücksetzen
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+
+        {analysisMode !== 'chart' && analysisData && (
+          <div className="analysis-results">
+            <div className="results-header">
+              <h2>📊 Analysis Results</h2>
+              <div className="results-meta">
+                <span className="meta-item">
+                  <strong>Exchange:</strong> {analysisData.exchange}
+                </span>
+                <span className="meta-item">
+                  <strong>Symbol:</strong> {analysisData.symbol}
+                </span>
+                <span className="meta-item">
+                  <strong>Timeframe:</strong> {analysisData.timeframe}
+                </span>
+              </div>
+            </div>
+
+            {analysisData.candle && (
+              <div className="candle-summary">
+                <h3>🕯️ Candle Data</h3>
+                <div className="candle-details-grid">
+                  <div className="detail-item">
+                    <span className="label">Time:</span>
+                    <span className="value">
+                      {formatDate(analysisData.candle.timestamp)}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Open:</span>
+                    <span className="value">${formatNumber(analysisData.candle.open)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">High:</span>
+                    <span className="value green">${formatNumber(analysisData.candle.high)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Low:</span>
+                    <span className="value red">${formatNumber(analysisData.candle.low)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Close:</span>
+                    <span className="value">${formatNumber(analysisData.candle.close)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Volume:</span>
+                    <span className="value">{formatNumber(analysisData.candle.volume)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="top-movers">
+              <h3>🏆 Top Price Movers ({analysisData.topMovers?.length || 0})</h3>
+              {analysisData.topMovers && analysisData.topMovers.length > 0 ? (
+                <div className="wallets-grid">
+                  {analysisData.topMovers.map((mover, index) => (
+                    <div
+                      key={mover.wallet_id}
+                      className={`wallet-card ${
+                        selectedWallet?.wallet_id === mover.wallet_id ? 'selected' : ''
+                      }`}
+                      onClick={() => handleWalletClick(mover)}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="wallet-card-header">
+                        <div className="wallet-rank">#{index + 1}</div>
+                        <span className={`wallet-type-badge ${mover.wallet_type}`}>
+                          {mover.wallet_type}
+                        </span>
+                      </div>
+                      
+                      <div className="wallet-address" title={mover.wallet_id}>
+                        {mover.wallet_id}
+                      </div>
+                      
+                      <div className="wallet-stats-grid">
+                        <div className="wallet-stat">
+                          <span className="label">Volume</span>
+                          <span className="value">${formatNumber(mover.total_volume)}</span>
+                        </div>
+                        <div className="wallet-stat">
+                          <span className="label">Trades</span>
+                          <span className="value">{mover.trade_count}</span>
+                        </div>
+                        <div className="wallet-stat">
+                          <span className="label">Ø Trade Size</span>
+                          <span className="value">${formatNumber(mover.avg_trade_size)}</span>
+                        </div>
+                        <div className="wallet-stat">
+                          <span className="label">Aktivität</span>
+                          <span className="value">
+                            {mover.trade_count > 50 ? 'Hoch' : 
+                             mover.trade_count > 20 ? 'Mittel' : 'Niedrig'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="impact-score">
+                        <div className="impact-label">
+                          <span>Impact Score</span>
+                          <span className="impact-value">
+                            {formatPercentage(mover.impact_score)}
+                          </span>
+                        </div>
+                        <div className="impact-bar">
+                          <div 
+                            className="impact-fill"
+                            style={{ width: `${mover.impact_score * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <div className="empty-state-icon">🔍</div>
+                  <p className="empty-state-text">
+                    Keine Price Movers gefunden für die gewählten Parameter.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {analysisData.metadata && (
+              <div className="analysis-metadata">
+                <h3>ℹ️ Analyse-Informationen</h3>
+                <div className="metadata-grid">
+                  <div className="metadata-item">
+                    <span className="label">Analyse-Zeitpunkt</span>
+                    <span className="value">
+                      {formatDate(analysisData.metadata.analysis_timestamp)}
+                    </span>
+                  </div>
+                  <div className="metadata-item">
+                    <span className="label">Verarbeitungsdauer</span>
+                    <span className="value">
+                      {analysisData.metadata.processing_duration_ms}ms
+                    </span>
+                  </div>
+                  <div className="metadata-item">
+                    <span className="label">Analysierte Trades</span>
+                    <span className="value">
+                      {formatNumber(analysisData.metadata.total_trades_analyzed, 0)}
+                    </span>
+                  </div>
+                  <div className="metadata-item">
+                    <span className="label">Unique Wallets</span>
+                    <span className="value">
+                      {formatNumber(analysisData.metadata.unique_wallets_found, 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="metadata-item">
-            <span className="label">Verarbeitungsdauer</span>
-            <span className="value">
-              {analysisData.metadata.processing_duration_ms}ms
-            </span>
-          </div>
-          <div className="metadata-item">
-            <span className="label">Analysierte Trades</span>
-            <span className="value">
-              {formatNumber(analysisData.metadata.total_trades_analyzed, 0)}
-            </span>
-          </div>
-          <div className="metadata-item">
-            <span className="label">Unique Wallets</span>
-            <span className="value">
-              {formatNumber(analysisData.metadata.unique_wallets_found, 0)}
-            </span>
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-)}
+        )}
 
         {error && (
           <div className="error-message" role="alert">
@@ -945,13 +929,7 @@ const PriceMovers = () => {
 
         {exchangeComparison && (
           <div className="exchange-comparison">
-            {/* ... existing comparison code ... */}
-          </div>
-        )}
-
-        {analysisMode !== 'chart' && analysisData && (
-          <div className="analysis-results">
-            {/* ... existing results code ... */}
+            {/* Exchange comparison content */}
           </div>
         )}
       </main>
