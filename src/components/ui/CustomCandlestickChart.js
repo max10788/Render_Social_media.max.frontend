@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import CustomChartTooltip from './CustomChartTooltip';
+import CandleConfirmationModal from './CandleConfirmationModal';
 import './CustomCandlestickChart.css';
 
 const CustomCandlestickChart = ({
@@ -23,6 +24,11 @@ const CustomCandlestickChart = ({
   const [dragStart, setDragStart] = useState(0);
   const [currentPrice, setCurrentPrice] = useState(null);
   
+  // Confirmation Modal States
+  const [selectedCandleForConfirmation, setSelectedCandleForConfirmation] = useState(null);
+  const [analyzedCandleIndex, setAnalyzedCandleIndex] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
   const chartDataRef = useRef({
     candles: [],
     priceScale: { min: 0, max: 0 },
@@ -31,8 +37,24 @@ const CustomCandlestickChart = ({
     segmentedCandle: null,
   });
 
-  // Chart margins - optimiert für bessere Lesbarkeit
   const MARGIN = { top: 30, right: 90, bottom: 50, left: 10 };
+
+  // Hochkontrast Farbpalette für Wallet-Segmente
+  const WALLET_COLORS = {
+    whale: '#FFD700',        // Gold
+    market_maker: '#00E5FF', // Cyan
+    bot: '#FF10F0',          // Magenta
+    unknown: '#607D8B',      // Blue Grey
+  };
+
+  const SEGMENT_COLORS = [
+    '#FF6B6B', // Coral Red
+    '#4ECDC4', // Turquoise
+    '#FFE66D', // Yellow
+    '#A8E6CF', // Mint
+    '#FF8B94', // Pink
+    '#C7CEEA', // Lavender
+  ];
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -54,7 +76,7 @@ const CustomCandlestickChart = ({
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
     const priceRange = maxPrice - minPrice;
-    const padding = priceRange * 0.15; // Mehr Padding
+    const padding = priceRange * 0.15;
 
     chartDataRef.current = {
       candles: candleData,
@@ -67,10 +89,9 @@ const CustomCandlestickChart = ({
         end: candleData.length - 1,
       },
       candleWidth: 0,
-      segmentedCandle: null,
+      segmentedCandle: chartDataRef.current.segmentedCandle, // Behalte segmentierte Candle
     };
 
-    // Aktuellen Preis setzen
     if (candleData.length > 0) {
       setCurrentPrice(candleData[candleData.length - 1].close);
     }
@@ -78,6 +99,7 @@ const CustomCandlestickChart = ({
     drawChart();
   }, [candleData, dimensions, zoom, panOffset]);
 
+  // Update segmented candle - bleibt persistent
   useEffect(() => {
     if (candleMoversData?.candle) {
       const candleIndex = candleData.findIndex(
@@ -89,11 +111,9 @@ const CustomCandlestickChart = ({
           index: candleIndex,
           data: candleMoversData,
         };
+        setAnalyzedCandleIndex(candleIndex);
         drawChart();
       }
-    } else {
-      chartDataRef.current.segmentedCandle = null;
-      drawChart();
     }
   }, [candleMoversData, candleData]);
 
@@ -114,14 +134,12 @@ const CustomCandlestickChart = ({
     canvas.style.height = `${height}px`;
     ctx.scale(dpr, dpr);
 
-    // Clear
     ctx.fillStyle = '#0F1419';
     ctx.fillRect(0, 0, width, height);
 
     const chartWidth = width - MARGIN.left - MARGIN.right;
     const chartHeight = height - MARGIN.top - MARGIN.bottom;
 
-    // Visible range
     const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoom)));
     const totalCandles = candles.length;
     const startIdx = Math.max(0, Math.min(totalCandles - visibleCandles, Math.floor(panOffset)));
@@ -136,31 +154,35 @@ const CustomCandlestickChart = ({
       return MARGIN.top + chartHeight * (1 - ratio);
     };
 
-    // Draw background grid
     drawGrid(ctx, MARGIN, chartWidth, chartHeight, priceScale, priceToY);
 
-    // Draw candles
     visibleData.forEach((candle, idx) => {
       const globalIdx = startIdx + idx;
       const x = MARGIN.left + idx * candleWidth;
       
-      if (segmentedCandle && globalIdx === segmentedCandle.index) {
+      const isSelected = selectedCandleForConfirmation && 
+                        new Date(selectedCandleForConfirmation.timestamp).getTime() === 
+                        new Date(candle.timestamp).getTime();
+      
+      const isAnalyzed = segmentedCandle && globalIdx === segmentedCandle.index;
+      
+      if (isAnalyzed) {
         drawSegmentedCandle(ctx, candle, segmentedCandle.data, x, candleWidth, priceToY);
+      } else if (isSelected) {
+        drawSelectedCandle(ctx, candle, x, candleWidth, priceToY);
       } else {
         drawNormalCandle(ctx, candle, x, candleWidth, priceToY, candle.has_high_impact);
       }
     });
 
-    // Draw current price line
     if (currentPrice && visibleData.length > 0) {
       drawCurrentPriceLine(ctx, currentPrice, MARGIN, chartWidth, priceToY);
     }
 
-    // Draw scales
     drawPriceScale(ctx, width, MARGIN, chartHeight, priceScale, priceToY);
     drawTimeScale(ctx, MARGIN, chartWidth, chartHeight, visibleData, candleWidth, startIdx);
 
-  }, [dimensions, zoom, panOffset, currentPrice]);
+  }, [dimensions, zoom, panOffset, currentPrice, selectedCandleForConfirmation]);
 
   const drawGrid = (ctx, margin, width, height, priceScale, priceToY) => {
     ctx.strokeStyle = 'rgba(0, 153, 255, 0.08)';
@@ -192,7 +214,6 @@ const CustomCandlestickChart = ({
     const bodyWidth = Math.max(width * 0.7, 3);
     const centerX = x + width / 2;
 
-    // Wick
     ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(1, width * 0.15);
     ctx.beginPath();
@@ -200,9 +221,7 @@ const CustomCandlestickChart = ({
     ctx.lineTo(centerX, lowY);
     ctx.stroke();
 
-    // Body
     if (bodyHeight < 2) {
-      // Doji - draw line
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -214,7 +233,6 @@ const CustomCandlestickChart = ({
       ctx.fillRect(centerX - bodyWidth / 2, bodyTop, bodyWidth, bodyHeight);
     }
 
-    // Impact marker
     if (hasImpact) {
       ctx.save();
       ctx.shadowColor = '#0099FF';
@@ -225,6 +243,64 @@ const CustomCandlestickChart = ({
       ctx.fill();
       ctx.restore();
     }
+  };
+
+  const drawSelectedCandle = (ctx, candle, x, width, priceToY) => {
+    const isGreen = candle.close >= candle.open;
+    const baseColor = isGreen ? '#00E676' : '#FF3D00';
+    
+    const openY = priceToY(candle.open);
+    const closeY = priceToY(candle.close);
+    const highY = priceToY(candle.high);
+    const lowY = priceToY(candle.low);
+    
+    const bodyTop = Math.min(openY, closeY);
+    const bodyHeight = Math.abs(closeY - openY);
+    const bodyWidth = Math.max(width * 0.85, 4);
+    const centerX = x + width / 2;
+
+    // Animated glow effect
+    const time = Date.now() / 1000;
+    const glowIntensity = (Math.sin(time * 3) + 1) / 2;
+    
+    // Outer glow
+    ctx.save();
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 15 + glowIntensity * 10;
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(centerX - bodyWidth / 2 - 3, bodyTop - 3, bodyWidth + 6, bodyHeight + 6);
+    ctx.restore();
+
+    // Inner glow
+    ctx.save();
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = baseColor;
+    ctx.lineWidth = Math.max(2, width * 0.2);
+    ctx.beginPath();
+    ctx.moveTo(centerX, highY);
+    ctx.lineTo(centerX, lowY);
+    ctx.stroke();
+    ctx.restore();
+
+    if (bodyHeight < 2) {
+      ctx.strokeStyle = baseColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX - bodyWidth / 2, bodyTop);
+      ctx.lineTo(centerX + bodyWidth / 2, bodyTop);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = baseColor;
+      ctx.fillRect(centerX - bodyWidth / 2, bodyTop, bodyWidth, bodyHeight);
+    }
+
+    // Selection indicator
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('👆', centerX, highY - 20);
   };
 
   const drawSegmentedCandle = (ctx, candle, moversData, x, width, priceToY) => {
@@ -238,7 +314,6 @@ const CustomCandlestickChart = ({
     const bodyWidth = Math.max(width * 0.85, 6);
     const centerX = x + width / 2;
 
-    // Enhanced wick
     const isGreen = candle.close >= candle.open;
     ctx.strokeStyle = isGreen ? '#00E676' : '#FF3D00';
     ctx.lineWidth = Math.max(2, width * 0.2);
@@ -250,7 +325,7 @@ const CustomCandlestickChart = ({
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Segmented body
+    // Hochkontrast Segmente
     const top3 = moversData.top_movers.slice(0, 3);
     const totalImpact = top3.reduce((sum, m) => sum + m.impact_score, 0);
     const segments = [
@@ -262,48 +337,68 @@ const CustomCandlestickChart = ({
       {
         wallet: null,
         impact: Math.max(0, 1 - totalImpact),
-        color: '#1e293b',
+        color: '#1a1f2e',
       }
     ];
 
     let currentY = bodyTop;
-    segments.forEach((segment) => {
-      const segHeight = Math.max(bodyHeight * segment.impact, 1);
+    segments.forEach((segment, idx) => {
+      const segHeight = Math.max(bodyHeight * segment.impact, 2);
       
-      // Segment fill
-      ctx.fillStyle = segment.color;
+      // Segment mit Gradient
+      if (segment.wallet) {
+        const gradient = ctx.createLinearGradient(
+          centerX - bodyWidth / 2, currentY,
+          centerX + bodyWidth / 2, currentY
+        );
+        gradient.addColorStop(0, segment.color);
+        gradient.addColorStop(1, lightenColor(segment.color, 20));
+        ctx.fillStyle = gradient;
+      } else {
+        ctx.fillStyle = segment.color;
+      }
+      
       ctx.fillRect(centerX - bodyWidth / 2, currentY, bodyWidth, segHeight);
       
-      // Subtle separator
-      if (segment.wallet) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(centerX - bodyWidth / 2, currentY, bodyWidth, segHeight);
+      // Separator line zwischen Segmenten
+      if (idx < segments.length - 1 && segment.wallet) {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(centerX - bodyWidth / 2, currentY + segHeight);
+        ctx.lineTo(centerX + bodyWidth / 2, currentY + segHeight);
+        ctx.stroke();
       }
       
       currentY += segHeight;
     });
 
-    // Glowing border
+    // Glowing border mit Animation
     ctx.save();
-    ctx.strokeStyle = '#0099FF';
+    const time = Date.now() / 1000;
+    const pulseIntensity = (Math.sin(time * 2) + 1) / 2;
+    ctx.strokeStyle = '#00E5FF';
     ctx.lineWidth = 3;
-    ctx.shadowColor = '#0099FF';
-    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#00E5FF';
+    ctx.shadowBlur = 10 + pulseIntensity * 10;
     ctx.strokeRect(centerX - bodyWidth / 2 - 1.5, bodyTop - 1.5, bodyWidth + 3, bodyHeight + 3);
     ctx.restore();
 
-    // Analysis badge
-    ctx.fillStyle = '#0099FF';
-    ctx.font = 'bold 14px Arial';
+    // Analysis badge mit Animation
+    ctx.save();
+    ctx.shadowColor = '#00E5FF';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#00E5FF';
+    ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('🎯', centerX, highY - 15);
+    const badgeY = highY - 18 + Math.sin(time * 3) * 3;
+    ctx.fillText('🎯', centerX, badgeY);
+    ctx.restore();
   };
 
   const drawCurrentPriceLine = (ctx, price, margin, width, priceToY) => {
     const y = priceToY(price);
     
-    // Dashed line
     ctx.save();
     ctx.setLineDash([5, 5]);
     ctx.strokeStyle = '#0099FF';
@@ -314,7 +409,6 @@ const CustomCandlestickChart = ({
     ctx.stroke();
     ctx.restore();
     
-    // Price label
     ctx.fillStyle = '#0099FF';
     ctx.fillRect(margin.left + width + 5, y - 10, 75, 20);
     ctx.fillStyle = '#FFFFFF';
@@ -333,13 +427,11 @@ const CustomCandlestickChart = ({
       const price = priceScale.min + (priceScale.max - priceScale.min) * (i / priceSteps);
       const y = priceToY(price);
       
-      // Background for better readability
       const text = `$${formatPrice(price)}`;
       const textWidth = ctx.measureText(text).width;
       ctx.fillStyle = 'rgba(15, 20, 25, 0.8)';
       ctx.fillRect(width - margin.right + 8, y - 8, textWidth + 4, 16);
       
-      // Price text
       ctx.fillStyle = '#8899A6';
       ctx.fillText(text, width - margin.right + 10, y + 4);
     }
@@ -352,7 +444,6 @@ const CustomCandlestickChart = ({
     ctx.font = '10px Roboto Mono';
     ctx.textAlign = 'center';
 
-    // Adaptive label count basierend auf Breite
     const minLabelSpacing = 80;
     const maxLabels = Math.floor(width / minLabelSpacing);
     const step = Math.max(1, Math.ceil(visibleData.length / maxLabels));
@@ -363,16 +454,13 @@ const CustomCandlestickChart = ({
         const date = new Date(candle.timestamp);
         const timeStr = formatTimeLabel(date, timeframe);
         
-        // Background
         const textWidth = ctx.measureText(timeStr).width;
         ctx.fillStyle = 'rgba(15, 20, 25, 0.8)';
         ctx.fillRect(x - textWidth / 2 - 2, margin.top + chartHeight + 10, textWidth + 4, 14);
         
-        // Text
         ctx.fillStyle = '#8899A6';
         ctx.fillText(timeStr, x, margin.top + chartHeight + 20);
 
-        // Tick mark
         ctx.strokeStyle = 'rgba(0, 153, 255, 0.3)';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -408,7 +496,27 @@ const CustomCandlestickChart = ({
     }
   };
 
-  // Mouse handlers (unchanged)
+  const getWalletColor = (walletType, index) => {
+    const color = WALLET_COLORS[walletType?.toLowerCase()];
+    if (color) return color;
+    return SEGMENT_COLORS[index % SEGMENT_COLORS.length];
+  };
+
+  const lightenColor = (color, percent) => {
+    const num = parseInt(color.replace('#', ''), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return '#' + (
+      0x1000000 +
+      (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+      (B < 255 ? B < 1 ? 0 : B : 255)
+    ).toString(16).slice(1);
+  };
+
+  // Mouse handlers
   const handleMouseMove = (e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -456,9 +564,10 @@ const CustomCandlestickChart = ({
 
     const element = getElementAtPosition(x, y);
     
-    if (element?.type === 'candle' && onCandleClick) {
-      const candle = element.candle;
-      onCandleClick(candle.timestamp, candle);
+    if (element?.type === 'candle') {
+      // Zeige Confirmation Modal
+      setSelectedCandleForConfirmation(element.candle);
+      requestAnimationFrame(() => drawChart());
     } else if (element?.type === 'segment' && onWalletClick) {
       onWalletClick(element.wallet);
     }
@@ -466,8 +575,39 @@ const CustomCandlestickChart = ({
 
   const handleWheel = (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(prev => Math.max(0.5, Math.min(5, prev * delta)));
+    const newZoom = Math.max(0.5, Math.min(5, zoom * delta));
+    setZoom(newZoom);
+  };
+
+  const handleConfirmAnalysis = async () => {
+    if (!selectedCandleForConfirmation || !onCandleClick) return;
+    
+    setIsAnalyzing(true);
+    try {
+      await onCandleClick(selectedCandleForConfirmation.timestamp, selectedCandleForConfirmation);
+    } catch (error) {
+      console.error('Analysis error:', error);
+    } finally {
+      setIsAnalyzing(false);
+      setSelectedCandleForConfirmation(null);
+    }
+  };
+
+  const handleCancelSelection = () => {
+    setSelectedCandleForConfirmation(null);
+    drawChart();
+  };
+
+  const centerOnAnalyzedCandle = () => {
+    if (analyzedCandleIndex !== null) {
+      const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
+      const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoom)));
+      const targetOffset = Math.max(0, analyzedCandleIndex - visibleCandles / 2);
+      setPanOffset(targetOffset);
+    }
   };
 
   const getElementAtPosition = (x, y) => {
@@ -528,16 +668,36 @@ const CustomCandlestickChart = ({
     };
   };
 
-  const getWalletColor = (walletType, index) => {
-    const colors = {
-      whale: '#FFC107',
-      market_maker: '#2196F3',
-      bot: '#AB47BC',
-      unknown: '#9E9E9E',
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (selectedCandleForConfirmation) {
+        if (e.key === 'Enter') {
+          handleConfirmAnalysis();
+        } else if (e.key === 'Escape') {
+          handleCancelSelection();
+        }
+      }
+      
+      if (e.key === 'c' && analyzedCandleIndex !== null) {
+        centerOnAnalyzedCandle();
+      }
     };
-    const defaultColors = ['#0ea5e9', '#8b5cf6', '#ec4899'];
-    return colors[walletType?.toLowerCase()] || defaultColors[index] || '#64748b';
-  };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCandleForConfirmation, analyzedCandleIndex]);
+
+  // Animation loop for glowing effects
+  useEffect(() => {
+    if (selectedCandleForConfirmation || chartDataRef.current.segmentedCandle) {
+      const animationId = requestAnimationFrame(function animate() {
+        drawChart();
+        requestAnimationFrame(animate);
+      });
+      return () => cancelAnimationFrame(animationId);
+    }
+  }, [selectedCandleForConfirmation, drawChart]);
 
   return (
     <div className="custom-candlestick-wrapper">
@@ -548,7 +708,14 @@ const CustomCandlestickChart = ({
           <span className="chart-zoom-indicator">Zoom: {zoom.toFixed(1)}x</span>
         </div>
         <div className="chart-controls-info">
-          <span className="control-hint">🖱️ Drag to pan • 🔍 Scroll to zoom • 🎯 Click candle to analyze</span>
+          <span className="control-hint">
+            🖱️ Drag • 🔍 Scroll • 👆 Click • ⌨️ C=Center
+          </span>
+          {analyzedCandleIndex !== null && (
+            <button className="btn-center-analyzed" onClick={centerOnAnalyzedCandle}>
+              🎯 Center on Analyzed
+            </button>
+          )}
         </div>
       </div>
 
@@ -578,11 +745,22 @@ const CustomCandlestickChart = ({
         )}
       </div>
 
-      {hoveredElement && (
+      {hoveredElement && !selectedCandleForConfirmation && (
         <CustomChartTooltip
           element={hoveredElement}
           position={mousePosition}
           candleMoversData={candleMoversData}
+        />
+      )}
+
+      {selectedCandleForConfirmation && (
+        <CandleConfirmationModal
+          candle={selectedCandleForConfirmation}
+          symbol={symbol}
+          timeframe={timeframe}
+          onConfirm={handleConfirmAnalysis}
+          onCancel={handleCancelSelection}
+          isAnalyzing={isAnalyzing}
         />
       )}
 
@@ -603,6 +781,10 @@ const CustomCandlestickChart = ({
           <div className="legend-item">
             <span className="legend-icon">🎯</span>
             <span className="legend-label">Analyzed</span>
+          </div>
+          <div className="legend-item">
+            <span className="legend-icon">👆</span>
+            <span className="legend-label">Selected</span>
           </div>
         </div>
         <div className="chart-stats">
