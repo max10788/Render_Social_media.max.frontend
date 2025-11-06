@@ -302,3 +302,122 @@
     filter: drop-shadow(0 0 20px #FFD700);
   }
 }
+
+/* Connection Line Animation */
+.connection-line-svg {
+  animation: fadeInLine 0.5s ease-out;
+}
+
+@keyframes fadeInLine {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* State Indicators in Legend */
+.legend-state-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 2px solid;
+  position: relative;
+}
+
+.legend-state-indicator.analyzed {
+  background: rgba(0, 229, 255, 0.2);
+  border-color: #00E5FF;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+}
+
+.legend-state-indicator.selected {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: #FFD700;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  animation: pulse-gold 2s infinite;
+}
+
+.legend-state-indicator.hovered {
+  background: rgba(0, 153, 255, 0.15);
+  border-color: rgba(0, 153, 255, 0.5);
+  border-style: dashed;
+}
+
+@keyframes pulse-gold {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+  }
+}
+
+/* Crosshair cursor enhancement */
+.chart-container canvas {
+  cursor: crosshair !important;
+}
+
+.chart-container canvas:active {
+  cursor: grabbing !important;
+}
+
+/* Center Button Enhancement */
+.btn-center-analyzed {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #0099FF, #00E676);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0, 153, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-center-analyzed::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn-center-analyzed:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.btn-center-analyzed:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 153, 255, 0.5);
+}
+
+.btn-center-analyzed:active {
+  transform: translateY(0);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .legend-state-indicator {
+    width: 12px;
+    height: 12px;
+  }
+  
+  .btn-center-analyzed {
+    font-size: 0.7rem;
+    padding: 6px 12px;
+  }
+}
