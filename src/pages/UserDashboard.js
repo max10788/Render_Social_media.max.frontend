@@ -7,6 +7,17 @@ import ComparisonPanel from '../components/dashboard/ComparisonPanel';
 import DashboardTabView from '../components/dashboard/DashboardTabView';
 import './UserDashboard.css';
 
+// ✅ React Icons importieren - Font Awesome (professionell & bekannt)
+import { 
+  FaRadar,           // Radar Icon
+  FaGem,             // Token/Diamond Icon
+  FaChartLine,       // Price Movers/Chart Icon
+  FaWallet,          // Wallet Icon
+  FaProjectDiagram,  // Network/Graph Icon
+  FaBalanceScale,    // Compare/Balance Icon
+  FaBullseye         // Target/Welcome Icon
+} from 'react-icons/fa';
+
 const UserDashboard = () => {
   const { currentUser } = useAuth();
   const [activeTabs, setActiveTabs] = useState([]);
@@ -112,12 +123,43 @@ const UserDashboard = () => {
     }
   };
 
+  // ✅ Tool Quick Actions mit React Icons anstatt Emojis
   const toolQuickActions = [
-    { id: 'radar', icon: '📡', name: 'Contract Radar', path: '/radar', description: 'Analyze smart contracts' },
-    { id: 'tokens', icon: '💎', name: 'Token Overview', path: '/tokens', description: 'Track token metrics' },
-    { id: 'price-movers', icon: '💹', name: 'Price Movers', path: '/price-movers', description: 'Identify price impacts' },
-    { id: 'wallets', icon: '👛', name: 'Wallet Analysis', path: '/wallets', description: 'Analyze wallet behavior' },
-    { id: 'network', icon: '🕸️', name: 'Transaction Network', path: '/network', description: 'Visualize flows' }
+    { 
+      id: 'radar', 
+      icon: <FaRadar />, 
+      name: 'Contract Radar', 
+      path: '/radar', 
+      description: 'Analyze smart contracts' 
+    },
+    { 
+      id: 'tokens', 
+      icon: <FaGem />, 
+      name: 'Token Overview', 
+      path: '/tokens', 
+      description: 'Track token metrics' 
+    },
+    { 
+      id: 'price-movers', 
+      icon: <FaChartLine />, 
+      name: 'Price Movers', 
+      path: '/price-movers', 
+      description: 'Identify price impacts' 
+    },
+    { 
+      id: 'wallets', 
+      icon: <FaWallet />, 
+      name: 'Wallet Analysis', 
+      path: '/wallets', 
+      description: 'Analyze wallet behavior' 
+    },
+    { 
+      id: 'network', 
+      icon: <FaProjectDiagram />, 
+      name: 'Transaction Network', 
+      path: '/network', 
+      description: 'Visualize flows' 
+    }
   ];
 
   return (
@@ -133,7 +175,9 @@ const UserDashboard = () => {
             onClick={() => setComparisonMode(!comparisonMode)}
             title="Toggle Comparison Mode"
           >
-            <span className="btn-icon">⚖️</span>
+            <span className="btn-icon">
+              <FaBalanceScale />
+            </span>
             {comparisonMode ? 'Exit Compare' : 'Compare Mode'}
             {comparisonItems.length > 0 && (
               <span className="comparison-count">{comparisonItems.length}</span>
@@ -211,7 +255,9 @@ const UserDashboard = () => {
 
           {activeTabs.length === 0 ? (
             <div className="dashboard-welcome-screen">
-              <div className="welcome-icon">🎯</div>
+              <div className="welcome-icon">
+                <FaBullseye />
+              </div>
               <h2 className="welcome-title">Get Started</h2>
               <p className="welcome-text">
                 Select a tool from Quick Actions to begin your analysis
