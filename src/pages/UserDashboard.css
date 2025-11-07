@@ -503,3 +503,180 @@
     transition: none;
   }
 }
+
+/* ============================================
+   REACT ICONS STYLING
+   Füge diese Styles zu deiner UserDashboard.css hinzu
+   oder erstelle eine separate icons.css
+   ============================================ */
+
+/* Icons in Buttons und Cards sollten zentriert sein */
+.quick-action-icon svg,
+.welcome-tool-icon svg,
+.btn-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Quick Action Icons */
+.quick-action-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;      /* ✅ Feste Breite für konsistente Icon-Größe */
+  height: 24px;     /* ✅ Feste Höhe */
+  color: var(--color-primary); /* ✅ Icon-Farbe */
+}
+
+.quick-action-btn:hover .quick-action-icon {
+  color: var(--color-secondary); /* ✅ Hover-Farbe */
+  transform: scale(1.1);
+  transition: all var(--transition-fast);
+}
+
+/* Welcome Screen Icons */
+.welcome-icon {
+  font-size: 5rem;
+  margin-bottom: var(--space-xl);
+  animation: float 3s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary); /* ✅ Icon-Farbe */
+}
+
+.welcome-tool-icon {
+  font-size: 3rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-md);
+  flex-shrink: 0;
+  width: 48px;      /* ✅ Feste Breite */
+  height: 48px;     /* ✅ Feste Höhe */
+  color: var(--color-primary); /* ✅ Icon-Farbe */
+}
+
+.welcome-tool-card:hover .welcome-tool-icon {
+  color: var(--color-secondary); /* ✅ Hover-Farbe */
+  transform: scale(1.15);
+  transition: all var(--transition-normal);
+}
+
+/* Comparison Button Icon */
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: var(--space-xs);
+}
+
+.btn-comparison:hover .btn-icon {
+  transform: scale(1.1);
+}
+
+.btn-comparison.active .btn-icon {
+  color: white;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS FOR ICONS
+   ============================================ */
+@media (max-width: 768px) {
+  .quick-action-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 1.3rem;
+  }
+  
+  .welcome-tool-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 2.5rem;
+  }
+  
+  .welcome-icon {
+    font-size: 4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-action-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 1.2rem;
+  }
+  
+  .welcome-tool-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 2rem;
+  }
+  
+  .welcome-icon {
+    font-size: 3rem;
+  }
+  
+  .btn-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* ============================================
+   COLOR VARIANTS (Optional)
+   Verschiedene Farben für verschiedene Tools
+   ============================================ */
+.quick-action-btn[title*="Contract"] .quick-action-icon,
+.welcome-tool-card[title*="Contract"] .welcome-tool-icon {
+  color: #fb923c; /* Orange für Radar */
+}
+
+.quick-action-btn[title*="Token"] .quick-action-icon,
+.welcome-tool-card[title*="Token"] .welcome-tool-icon {
+  color: #a78bfa; /* Purple für Token */
+}
+
+.quick-action-btn[title*="Price"] .quick-action-icon,
+.welcome-tool-card[title*="Price"] .welcome-tool-icon {
+  color: #10b981; /* Green für Price Movers */
+}
+
+.quick-action-btn[title*="Wallet"] .quick-action-icon,
+.welcome-tool-card[title*="Wallet"] .welcome-tool-icon {
+  color: #60a5fa; /* Blue für Wallet */
+}
+
+.quick-action-btn[title*="Network"] .quick-action-icon,
+.welcome-tool-card[title*="Network"] .welcome-tool-icon {
+  color: #06b6d4; /* Cyan für Network */
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  .welcome-icon,
+  .quick-action-icon,
+  .welcome-tool-icon {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .quick-action-icon,
+  .welcome-tool-icon,
+  .welcome-icon,
+  .btn-icon {
+    filter: contrast(1.5);
+  }
+}
