@@ -6,7 +6,7 @@ import ParticleSystem from '../components/ui/ParticleSystem';
 import CursorTrail from '../components/ui/CursorTrail';
 import './LandingPage.css';
 
-const Dashboard = () => {
+const LandingPage = () => {
   const { currentUser } = useAuth();
   const [stats, setStats] = useState({
     contracts: { total: 0, active: 0, trend: '+12%' },
