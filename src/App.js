@@ -2,8 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import Navigation from './components/ui/Navigation';
-import LandingPage from './pages/LandingPage';  // ← GEÄNDERT
-import UserDashboard from './pages/UserDashboard';  // ← NEU
+import LandingPage from './pages/LandingPage';
+import UserDashboard from './pages/UserDashboard';
 import ContractRadar from './pages/ContractRadar';
 import TokenOverview from './pages/TokenOverview';
 import WalletAnalyses from './pages/WalletAnalyses';
@@ -24,8 +24,8 @@ function App() {
           <Navigation />
           <main className="main-content">
             <Routes>
-              {/* Public Routes - kein Login erforderlich */}
-              <Route path="/" element={<LandingPage />} />  {/* ← GEÄNDERT */}
+              {/* Public Routes */}
+              <Route path="/" element={<LandingPage />} />
               <Route path="/radar" element={<ContractRadar />} />
               <Route path="/tokens" element={<TokenOverview />} />
               <Route path="/wallets" element={<WalletAnalyses />} />
@@ -35,9 +35,9 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
-              {/* Protected Routes - Login erforderlich */}
+              {/* Protected Routes */}
               <Route 
-                path="/dashboard"  // ← NEU
+                path="/dashboard" 
                 element={
                   <ProtectedRoute>
                     <UserDashboard />
