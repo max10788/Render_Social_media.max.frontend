@@ -13,7 +13,7 @@
   max-width: 1400px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* ✅ Von 160px auf 180px erhöht für mehr Platz */
   gap: var(--space-md);
 }
 
@@ -27,9 +27,11 @@
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   transition: all var(--transition-normal);
-  overflow: visible; /* ✅ GEÄNDERT: von hidden zu visible - header wird nicht mehr abgeschnitten */
+  overflow: hidden; /* ✅ Zurück zu hidden - verhindert Text-Overflow */
   cursor: default;
-  min-height: 140px; /* ✅ NEU: Mindesthöhe für konsistente Darstellung */
+  min-height: 160px; /* ✅ Erhöht für mehr Platz */
+  display: flex;
+  flex-direction: column;
 }
 
 .stat-card:hover {
@@ -42,9 +44,11 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-md);
-  min-height: 44px; /* ✅ NEU: Mindesthöhe für Icons */
-  flex-wrap: nowrap; /* ✅ NEU: verhindert Umbruch */
-  gap: var(--space-xs); /* ✅ NEU: Abstand zwischen Icon und Actions */
+  min-height: 44px;
+  flex-wrap: nowrap;
+  gap: var(--space-sm); /* ✅ Mehr Abstand */
+  flex-shrink: 0; /* ✅ NEU: Header behält seine Größe */
+  max-width: 100%; /* ✅ NEU: Verhindert Overflow */
 }
 
 .stat-icon {
@@ -69,7 +73,9 @@
   gap: var(--space-xs);
   opacity: 0;
   transition: opacity var(--transition-fast);
-  flex-shrink: 0; /* ✅ NEU: Actions behalten ihre Größe */
+  flex-shrink: 0;
+  position: relative; /* ✅ Relative positioning für bessere Kontrolle */
+  z-index: 10; /* ✅ Über anderen Elementen */
 }
 
 .stat-card:hover .stat-actions {
@@ -105,6 +111,11 @@
 .stat-content {
   position: relative;
   z-index: 2;
+  flex: 1; /* ✅ NEU: Nimmt verfügbaren Platz ein */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* ✅ NEU: Verhindert Content-Overflow */
+  max-width: 100%; /* ✅ NEU: Begrenzt Breite */
 }
 
 .stat-label {
@@ -114,8 +125,15 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: var(--space-xs);
-  word-wrap: break-word; /* ✅ NEU: Textumbruch bei langen Labels */
-  overflow-wrap: break-word; /* ✅ NEU: Browserkompatibilität */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  /* ✅ NEU: Begrenzt auf 2 Zeilen mit Ellipsis */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .stat-value {
@@ -124,8 +142,15 @@
   color: var(--color-text-primary);
   margin-bottom: var(--space-xs);
   line-height: 1.2;
-  word-wrap: break-word; /* ✅ NEU: Textumbruch bei langen Werten */
-  overflow-wrap: break-word; /* ✅ NEU: Browserkompatibilität */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  /* ✅ NEU: Begrenzt auf 2 Zeilen mit Ellipsis */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .stat-change {
