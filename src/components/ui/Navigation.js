@@ -72,7 +72,7 @@ const Navigation = () => {
 
   const mainPages = [
     { path: '/', icon: '🏠', text: 'Home', label: 'Home' },
-    ...(currentUser ? [{ path: '/dashboard', icon: '📊', text: 'Dashboard', label: 'Dashboard' }] : []),
+    { path: '/dashboard', icon: '📊', text: 'Dashboard', label: 'Dashboard' },
     { path: '/radar', icon: '📡', text: 'Contract Radar', label: 'Contract Radar' },
     { path: '/tokens', icon: '💎', text: 'Token Overview', label: 'Token Overview' },
     { path: '/wallets', icon: '👛', text: 'Wallet Analysis', label: 'Wallet Analysis' },
