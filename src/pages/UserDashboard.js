@@ -9,7 +9,7 @@ import './UserDashboard.css';
 
 // ✅ React Icons importieren - Font Awesome (professionell & bekannt)
 import { 
-  FaRadar,           // Radar Icon
+  FaSatelliteDish,   // Radar/Scanning Icon (FaRadar existiert nicht!)
   FaGem,             // Token/Diamond Icon
   FaChartLine,       // Price Movers/Chart Icon
   FaWallet,          // Wallet Icon
@@ -127,7 +127,7 @@ const UserDashboard = () => {
   const toolQuickActions = [
     { 
       id: 'radar', 
-      icon: <FaRadar />, 
+      icon: <FaSatelliteDish />, 
       name: 'Contract Radar', 
       path: '/radar', 
       description: 'Analyze smart contracts' 
