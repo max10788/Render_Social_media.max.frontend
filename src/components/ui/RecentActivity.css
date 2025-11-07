@@ -1,0 +1,117 @@
+/* ============================================
+   RECENT ACTIVITY COMPONENT
+   ============================================ */
+
+.recent-activity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: var(--space-xs);
+}
+
+.recent-activity::-webkit-scrollbar {
+  width: 4px;
+}
+
+.recent-activity::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+  border-radius: 2px;
+}
+
+.recent-activity::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+.recent-activity::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-accent);
+}
+
+/* ============================================
+   ACTIVITY ITEM
+   ============================================ */
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.activity-item:hover {
+  background: var(--color-accent-light);
+  border-color: var(--color-border-accent);
+}
+
+.activity-icon {
+  font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-message {
+  font-size: var(--text-xs);
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+  line-height: 1.4;
+}
+
+.activity-time {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+.activity-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-md);
+  text-align: center;
+}
+
+.activity-empty .empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+}
+
+.activity-empty .empty-text {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+  .activity-item {
+    padding: var(--space-xs);
+  }
+
+  .activity-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+  }
+}
