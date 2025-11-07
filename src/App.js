@@ -26,6 +26,7 @@ function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/dashboard" element={<UserDashboard />} /> {/* 🔓 jetzt öffentlich */}
               <Route path="/radar" element={<ContractRadar />} />
               <Route path="/tokens" element={<TokenOverview />} />
               <Route path="/wallets" element={<WalletAnalyses />} />
@@ -35,15 +36,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
-              {/* Protected Routes */}
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <UserDashboard />
-                  </ProtectedRoute>
-                } 
-              />
+              {/* Protected Routes – nur für eingeloggte Nutzer */}
               <Route 
                 path="/account" 
                 element={
