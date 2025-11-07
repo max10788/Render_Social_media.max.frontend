@@ -1159,3 +1159,24 @@
     transition-duration: 0.01ms !important;
   }
 }
+/* Tool Color Variant - Orange (für Price Movers) */
+.tool-card-orange .tool-stats,
+.tool-card-orange .depth-badge {
+  background: rgba(251, 146, 60, 0.1);
+  border-color: rgba(251, 146, 60, 0.3);
+  color: #fb923c;
+}
+
+.tool-glow-orange {
+  background: #fb923c;
+  top: -50px;
+  right: -50px;
+}
+
+.tool-card-orange .tool-cta {
+  color: #fb923c;
+}
+
+.tool-card-orange:hover .card-3d-inner {
+  border-color: rgba(251, 146, 60, 0.5);
+}
