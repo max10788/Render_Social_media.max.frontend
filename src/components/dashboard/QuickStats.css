@@ -27,8 +27,9 @@
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   transition: all var(--transition-normal);
-  overflow: hidden;
+  overflow: visible; /* ✅ GEÄNDERT: von hidden zu visible - header wird nicht mehr abgeschnitten */
   cursor: default;
+  min-height: 140px; /* ✅ NEU: Mindesthöhe für konsistente Darstellung */
 }
 
 .stat-card:hover {
@@ -41,6 +42,9 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--space-md);
+  min-height: 44px; /* ✅ NEU: Mindesthöhe für Icons */
+  flex-wrap: nowrap; /* ✅ NEU: verhindert Umbruch */
+  gap: var(--space-xs); /* ✅ NEU: Abstand zwischen Icon und Actions */
 }
 
 .stat-icon {
@@ -53,6 +57,7 @@
   background: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
+  flex-shrink: 0; /* ✅ NEU: Icon behält immer seine Größe */
 }
 
 .stat-card:hover .stat-icon {
@@ -64,6 +69,7 @@
   gap: var(--space-xs);
   opacity: 0;
   transition: opacity var(--transition-fast);
+  flex-shrink: 0; /* ✅ NEU: Actions behalten ihre Größe */
 }
 
 .stat-card:hover .stat-actions {
@@ -83,6 +89,7 @@
   align-items: center;
   justify-content: center;
   transition: all var(--transition-fast);
+  flex-shrink: 0; /* ✅ NEU: Button behält seine Größe */
 }
 
 .stat-action-btn:hover {
@@ -107,6 +114,8 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: var(--space-xs);
+  word-wrap: break-word; /* ✅ NEU: Textumbruch bei langen Labels */
+  overflow-wrap: break-word; /* ✅ NEU: Browserkompatibilität */
 }
 
 .stat-value {
@@ -115,6 +124,8 @@
   color: var(--color-text-primary);
   margin-bottom: var(--space-xs);
   line-height: 1.2;
+  word-wrap: break-word; /* ✅ NEU: Textumbruch bei langen Werten */
+  overflow-wrap: break-word; /* ✅ NEU: Browserkompatibilität */
 }
 
 .stat-change {
@@ -144,6 +155,7 @@
   background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
   opacity: 0;
   transition: opacity var(--transition-normal);
+  border-radius: 0 0 var(--radius-md) var(--radius-md); /* ✅ NEU: Runde Ecken unten */
 }
 
 .stat-card:hover .stat-pulse {
@@ -256,15 +268,37 @@
 
   .stat-card {
     padding: var(--space-md);
+    min-height: 120px; /* ✅ NEU: Kleinere Mindesthöhe auf Mobil */
   }
 
   .stat-value {
     font-size: var(--text-lg);
+  }
+  
+  /* ✅ NEU: Header auf Mobil anpassen */
+  .stat-card-header {
+    min-height: 36px;
+  }
+  
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.5rem;
+  }
+  
+  .stat-action-btn {
+    width: 24px;
+    height: 24px;
+    font-size: var(--text-xs);
   }
 }
 
 @media (max-width: 480px) {
   .quick-stats-container {
     grid-template-columns: 1fr;
+  }
+  
+  .stat-card {
+    min-height: 100px; /* ✅ NEU: Noch kleinere Mindesthöhe auf sehr kleinen Screens */
   }
 }
