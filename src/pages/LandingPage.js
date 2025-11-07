@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import RabbitHolePath from '../components/ui/RabbitHolePath';
 import ParticleSystem from '../components/ui/ParticleSystem';
 import CursorTrail from '../components/ui/CursorTrail';
-import './Dashboard.css';
+import './LandingPage.css';
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
