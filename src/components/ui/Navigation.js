@@ -9,7 +9,6 @@ const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
 
-  // Handle scroll effect for navigation shadow
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -19,12 +18,10 @@ const Navigation = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location]);
 
-  // Close mobile menu when clicking outside or on overlay
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isMenuOpen && !event.target.closest('.nav-links') && !event.target.closest('.nav-toggle')) {
@@ -66,7 +63,6 @@ const Navigation = () => {
     }
   };
 
-  // Check if current route is active
   const isActiveRoute = (path) => {
     if (path === '/') {
       return location.pathname === '/';
@@ -74,9 +70,9 @@ const Navigation = () => {
     return location.pathname.startsWith(path);
   };
 
-  // Alle Haupt-Seiten (immer sichtbar, unabhängig vom Login-Status)
   const mainPages = [
-    { path: '/', icon: '🏠', text: 'Dashboard', label: 'Dashboard' },
+    { path: '/', icon: '🏠', text: 'Home', label: 'Home' },
+    ...(currentUser ? [{ path: '/dashboard', icon: '📊', text: 'Dashboard', label: 'Dashboard' }] : []),
     { path: '/radar', icon: '📡', text: 'Contract Radar', label: 'Contract Radar' },
     { path: '/tokens', icon: '💎', text: 'Token Overview', label: 'Token Overview' },
     { path: '/wallets', icon: '👛', text: 'Wallet Analysis', label: 'Wallet Analysis' },
@@ -84,12 +80,10 @@ const Navigation = () => {
     { path: '/price-movers', icon: '📈', text: 'Price Movers', label: 'Price Movers' },
   ];
 
-  // Account-Seiten (nur wenn angemeldet)
   const accountPages = currentUser ? [
     { path: '/account', icon: '👤', text: 'Account Settings', label: 'Account Settings' },
   ] : [];
 
-  // Auth-Seiten (nur wenn nicht angemeldet)
   const authPages = !currentUser ? [
     { path: '/login', icon: '🔑', text: 'Login', label: 'Login' },
     { path: '/register', icon: '📝', text: 'Register', label: 'Register' },
@@ -97,7 +91,6 @@ const Navigation = () => {
 
   return (
     <>
-      {/* Top Navigation Bar - mit Logo und Menu Toggle */}
       <nav className={`navigation ${isScrolled ? 'scrolled' : ''}`}>
         <div className="nav-brand">
           <Link to="/" aria-label="BlockIntel - Home">
@@ -117,7 +110,6 @@ const Navigation = () => {
           </Link>
         </div>
 
-        {/* Menu Toggle Button */}
         <button 
           className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
           onClick={toggleMenu}
@@ -132,14 +124,12 @@ const Navigation = () => {
         </button>
       </nav>
 
-      {/* Overlay for mobile */}
       <div 
         className={`nav-overlay ${isMenuOpen ? 'open' : ''}`}
         onClick={() => setIsMenuOpen(false)}
         aria-hidden="true"
       />
 
-      {/* Slide-out Side Menu */}
       <aside className={`nav-links ${isMenuOpen ? 'open' : ''}`} role="navigation" id="nav-links">
         <div className="nav-menu-header">
           <h2 className="nav-menu-title">Navigation</h2>
@@ -154,7 +144,6 @@ const Navigation = () => {
         </div>
 
         <nav className="nav-menu-content" role="menubar">
-          {/* Haupt-Seiten (immer sichtbar) */}
           {mainPages.map((item) => (
             <Link
               key={item.path}
@@ -175,10 +164,8 @@ const Navigation = () => {
             </Link>
           ))}
 
-          {/* Trennlinie */}
           <div className="nav-divider" aria-hidden="true"></div>
 
-          {/* Account-Seiten (nur wenn angemeldet) */}
           {accountPages.map((item) => (
             <Link
               key={item.path}
@@ -199,7 +186,6 @@ const Navigation = () => {
             </Link>
           ))}
 
-          {/* Auth-Seiten (nur wenn nicht angemeldet) */}
           {authPages.map((item) => (
             <Link
               key={item.path}
@@ -220,7 +206,6 @@ const Navigation = () => {
             </Link>
           ))}
 
-          {/* User Area (wenn angemeldet) */}
           {currentUser && (
             <div className="nav-user-area">
               <div className="nav-user-info">
@@ -249,7 +234,6 @@ const Navigation = () => {
             </div>
           )}
 
-          {/* Info für nicht angemeldete Benutzer */}
           {!currentUser && (
             <div className="nav-info-box">
               <p className="nav-info-text">
@@ -259,7 +243,6 @@ const Navigation = () => {
           )}
         </nav>
 
-        {/* Footer */}
         <div className="nav-menu-footer">
           <div className="nav-version">BlockIntel v1.0</div>
         </div>
