@@ -486,4 +486,4 @@ const LandingPage = () => {
   );
 };
 
-export default Dashboard;
+export default LandingPage;
