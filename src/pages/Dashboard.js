@@ -135,6 +135,18 @@ const Dashboard = () => {
       features: ['Real-time monitoring', 'Risk scoring', 'Activity heatmaps']
     },
     {
+      id: 'price-movers',
+      path: '/price-movers',
+      icon: '💹',
+      title: 'Price Movers',
+      description: 'Identify wallets with the highest impact on price movements in real-time.',
+      stats: `Live Analysis`,
+      color: 'orange',
+      depth: 'deep',
+      depthLevel: 2,
+      features: ['Interactive charts', 'Wallet impact scoring', 'Top movers tracking']
+    },
+    {
       id: 'tokens',
       path: '/tokens',
       icon: '💎',
@@ -143,7 +155,7 @@ const Dashboard = () => {
       stats: `$${stats.tokens.volume} Volume`,
       color: 'purple',
       depth: 'deep',
-      depthLevel: 2,
+      depthLevel: 3,
       features: ['Live price tracking', 'Supply analysis', 'Pattern recognition']
     },
     {
@@ -155,7 +167,7 @@ const Dashboard = () => {
       stats: `${(stats.wallets.tracked / 1000000).toFixed(1)}M Tracked`,
       color: 'green',
       depth: 'core',
-      depthLevel: 3,
+      depthLevel: 4,
       features: ['Behavioral profiling', 'Entity clustering', 'Portfolio tracking']
     },
     {
@@ -167,7 +179,7 @@ const Dashboard = () => {
       stats: `${stats.transactions.realtime} Live`,
       color: 'cyan',
       depth: 'matrix',
-      depthLevel: 4,
+      depthLevel: 5,
       features: ['Interactive graphs', 'Multi-hop tracing', 'Entity mapping']
     }
   ];
