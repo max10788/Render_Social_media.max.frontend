@@ -1,11 +1,13 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import CustomChartTooltip from './CustomChartTooltip';
 import CandleConfirmationModal from './CandleConfirmationModal';
+import MultiCandleSelectionModal from './MultiCandleSelectionModal';
 import './CustomCandlestickChart.css';
 
 const CustomCandlestickChart = ({
   candleData = [],
   onCandleClick,
+  onMultiCandleAnalysis,
   candleMoversData = null,
   onWalletClick = null,
   loading = false,
@@ -34,6 +36,14 @@ const CustomCandlestickChart = ({
   const [lastPanTime, setLastPanTime] = useState(0);
   const [lastPanPosition, setLastPanPosition] = useState(0);
   
+  // Multi-Candle Selection States
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState(null);
+  const [selectionEnd, setSelectionEnd] = useState(null);
+  const [selectedCandles, setSelectedCandles] = useState([]);
+  const [showMultiCandleModal, setShowMultiCandleModal] = useState(false);
+  const [isAnalyzingMultiple, setIsAnalyzingMultiple] = useState(false);
+  
   // Touch handling
   const [touches, setTouches] = useState([]);
   const [initialPinchDistance, setInitialPinchDistance] = useState(0);
@@ -60,6 +70,15 @@ const CustomCandlestickChart = ({
   const PAN_FRICTION = 0.92;
   const ZOOM_ANIMATION_SPEED = 0.15;
   const PAN_ANIMATION_SPEED = 0.2;
+
+  // Multi-Candle Selection Config
+  const SELECTION_CONFIG = {
+    MIN_CANDLES: 2,
+    MAX_CANDLES: 100,
+    LOOKBACK_CANDLES: 50,
+    INCLUDE_PREVIOUS: true,
+    EXCLUDE_ALREADY_ANALYZED: true,
+  };
 
   const WALLET_COLORS = {
     whale: '#FFD700',
@@ -205,6 +224,29 @@ const CustomCandlestickChart = ({
     }
   }, [analyzedCandleIndex, panOffset, zoom, dimensions]);
 
+  // Get selected candles from indices
+  const getSelectedCandlesData = useCallback(() => {
+    if (!selectionStart || !selectionEnd) return [];
+    
+    const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
+    const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoom)));
+    const startIdx = Math.floor(panOffset);
+    const candleWidth = chartDataRef.current.candleWidth;
+    
+    const startCandleIdx = Math.floor((Math.min(selectionStart.x, selectionEnd.x) - MARGIN.left) / candleWidth);
+    const endCandleIdx = Math.floor((Math.max(selectionStart.x, selectionEnd.x) - MARGIN.left) / candleWidth);
+    
+    const globalStartIdx = startIdx + startCandleIdx;
+    const globalEndIdx = startIdx + endCandleIdx + 1;
+    
+    const selected = chartDataRef.current.candles.slice(
+      Math.max(0, globalStartIdx),
+      Math.min(chartDataRef.current.candles.length, globalEndIdx)
+    );
+    
+    return selected;
+  }, [selectionStart, selectionEnd, panOffset, zoom, dimensions]);
+
   // Main draw function
   const drawChart = useCallback(() => {
     const canvas = canvasRef.current;
@@ -247,12 +289,12 @@ const CustomCandlestickChart = ({
     drawGrid(ctx, MARGIN, chartWidth, chartHeight, priceScale, priceToY);
 
     // Draw crosshair
-    if (chartMousePosition.x > 0 && chartMousePosition.y > 0 && !isDragging) {
+    if (chartMousePosition.x > 0 && chartMousePosition.y > 0 && !isDragging && !isSelecting) {
       drawCrosshair(ctx, chartMousePosition, MARGIN, chartWidth, chartHeight);
     }
 
     // Draw hover column
-    if (hoveredCandleIndex !== null && !isDragging) {
+    if (hoveredCandleIndex !== null && !isDragging && !isSelecting) {
       const localIdx = hoveredCandleIndex - startIdx;
       if (localIdx >= 0 && localIdx < visibleData.length) {
         const x = MARGIN.left + localIdx * candleWidth;
@@ -280,6 +322,11 @@ const CustomCandlestickChart = ({
       }
     });
 
+    // Draw selection box
+    if (isSelecting && selectionStart && selectionEnd) {
+      drawSelectionBox(ctx, selectionStart, selectionEnd, MARGIN, chartHeight);
+    }
+
     // Draw current price line
     if (currentPrice && visibleData.length > 0) {
       drawCurrentPriceLine(ctx, currentPrice, MARGIN, chartWidth, priceToY);
@@ -289,7 +336,7 @@ const CustomCandlestickChart = ({
     drawPriceScale(ctx, width, MARGIN, chartHeight, priceScale, priceToY);
     drawTimeScale(ctx, MARGIN, chartWidth, chartHeight, visibleData, candleWidth, startIdx);
 
-  }, [dimensions, zoom, panOffset, currentPrice, hoveredCandleIndex, selectedCandleForConfirmation, chartMousePosition, isDragging]);
+  }, [dimensions, zoom, panOffset, currentPrice, hoveredCandleIndex, selectedCandleForConfirmation, chartMousePosition, isDragging, isSelecting, selectionStart, selectionEnd]);
 
   // Draw functions (keeping existing implementations)
   const drawGrid = (ctx, margin, width, height, priceScale, priceToY) => {
@@ -352,6 +399,37 @@ const CustomCandlestickChart = ({
     }
 
     ctx.restore();
+  };
+
+  const drawSelectionBox = (ctx, start, end, margin, chartHeight) => {
+    const x = Math.min(start.x, end.x);
+    const y = margin.top;
+    const width = Math.abs(end.x - start.x);
+    const height = chartHeight;
+
+    // Fill
+    ctx.fillStyle = 'rgba(0, 120, 215, 0.15)';
+    ctx.fillRect(x, y, width, height);
+
+    // Stroke
+    ctx.strokeStyle = '#0078D7';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, width, height);
+
+    // Candle count indicator
+    const selectedCount = getSelectedCandlesData().length;
+    if (selectedCount > 0) {
+      ctx.save();
+      ctx.fillStyle = '#0078D7';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(
+        `${selectedCount} Candle${selectedCount !== 1 ? 's' : ''} selected`,
+        x + width / 2,
+        y - 10
+      );
+      ctx.restore();
+    }
   };
 
   const drawNormalCandle = (ctx, candle, x, width, priceToY, hasImpact, isHovered) => {
@@ -689,6 +767,13 @@ const CustomCandlestickChart = ({
     setMousePosition({ x: e.clientX, y: e.clientY });
     setChartMousePosition({ x, y });
 
+    // Handle selection drag
+    if (isSelecting) {
+      setSelectionEnd({ x, y });
+      return;
+    }
+
+    // Handle pan drag
     if (isDragging) {
       const deltaX = x - dragStart.x;
       const candlesPerPixel = chartDataRef.current.candles.length / (dimensions.width - MARGIN.left - MARGIN.right);
@@ -732,20 +817,51 @@ const CustomCandlestickChart = ({
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-    setIsDragging(true);
-    setDragStart({ x, offset: panOffset });
-    setVelocity(0);
-    setLastPanTime(Date.now());
-    setLastPanPosition(0);
+    // Right mouse button - Start selection
+    if (e.button === 2) {
+      e.preventDefault();
+      setIsSelecting(true);
+      setSelectionStart({ x, y });
+      setSelectionEnd({ x, y });
+      setSelectedCandles([]);
+      return;
+    }
+
+    // Left mouse button - Pan
+    if (e.button === 0) {
+      setIsDragging(true);
+      setDragStart({ x, offset: panOffset });
+      setVelocity(0);
+      setLastPanTime(Date.now());
+      setLastPanPosition(0);
+    }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e) => {
+    // Complete selection
+    if (isSelecting && e.button === 2) {
+      const selected = getSelectedCandlesData();
+      
+      if (selected.length >= SELECTION_CONFIG.MIN_CANDLES) {
+        setSelectedCandles(selected);
+        setShowMultiCandleModal(true);
+      } else {
+        console.log(`Please select at least ${SELECTION_CONFIG.MIN_CANDLES} candles`);
+      }
+      
+      setIsSelecting(false);
+      setSelectionStart(null);
+      setSelectionEnd(null);
+      return;
+    }
+
     setIsDragging(false);
   };
 
   const handleClick = (e) => {
-    if (isDragging) return;
+    if (isDragging || isSelecting) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -761,6 +877,10 @@ const CustomCandlestickChart = ({
     } else if (element?.type === 'segment' && onWalletClick) {
       onWalletClick(element.wallet);
     }
+  };
+
+  const handleContextMenu = (e) => {
+    e.preventDefault(); // Prevent default context menu
   };
 
   const handleDoubleClick = (e) => {
@@ -901,6 +1021,26 @@ const CustomCandlestickChart = ({
     setSelectedCandleForConfirmation(null);
   };
 
+  const handleConfirmMultiCandleAnalysis = async (options) => {
+    if (!selectedCandles.length || !onMultiCandleAnalysis) return;
+    
+    setIsAnalyzingMultiple(true);
+    try {
+      await onMultiCandleAnalysis(selectedCandles, options);
+    } catch (error) {
+      console.error('Multi-candle analysis error:', error);
+    } finally {
+      setIsAnalyzingMultiple(false);
+      setShowMultiCandleModal(false);
+      setSelectedCandles([]);
+    }
+  };
+
+  const handleCancelMultiCandleSelection = () => {
+    setShowMultiCandleModal(false);
+    setSelectedCandles([]);
+  };
+
   const centerOnAnalyzedCandle = () => {
     if (analyzedCandleIndex !== null) {
       const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
@@ -981,6 +1121,13 @@ const CustomCandlestickChart = ({
         }
         return;
       }
+
+      if (showMultiCandleModal) {
+        if (e.key === 'Escape') {
+          handleCancelMultiCandleSelection();
+        }
+        return;
+      }
       
       // Pan left/right
       if (e.key === 'ArrowLeft') {
@@ -1032,7 +1179,7 @@ const CustomCandlestickChart = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCandleForConfirmation, analyzedCandleIndex, targetPanOffset, zoom]);
+  }, [selectedCandleForConfirmation, showMultiCandleModal, analyzedCandleIndex, targetPanOffset, zoom]);
 
   // Draw loop
   useEffect(() => {
@@ -1072,7 +1219,7 @@ const CustomCandlestickChart = ({
             </button>
           </div>
           <span className="control-hint">
-            🖱️ Drag • 🔍 Scroll • 👆 Click • ⌨️ ←→±0 • C=Center
+            🖱️ Drag • 🔍 Scroll • 👆 Click • Right-Click+Drag=Select • ⌨️ ←→±0 • C=Center
           </span>
           {analyzedCandleIndex !== null && (
             <button className="btn-center-analyzed" onClick={centerOnAnalyzedCandle}>
@@ -1084,7 +1231,7 @@ const CustomCandlestickChart = ({
 
       <div 
         ref={containerRef}
-        className={`chart-container ${loading ? 'loading' : ''}`}
+        className={`chart-container ${loading ? 'loading' : ''} ${isSelecting ? 'selecting' : ''}`}
         onWheel={handleWheel}
       >
         <canvas
@@ -1097,14 +1244,20 @@ const CustomCandlestickChart = ({
             setHoveredCandleIndex(null);
             setChartMousePosition({ x: 0, y: 0 });
             setIsDragging(false);
+            if (isSelecting) {
+              setIsSelecting(false);
+              setSelectionStart(null);
+              setSelectionEnd(null);
+            }
           }}
           onClick={handleClick}
+          onContextMenu={handleContextMenu}
           onDoubleClick={handleDoubleClick}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           style={{ 
-            cursor: isDragging ? 'grabbing' : 'crosshair',
+            cursor: isDragging ? 'grabbing' : isSelecting ? 'crosshair' : 'crosshair',
             touchAction: 'none'
           }}
         />
@@ -1171,7 +1324,7 @@ const CustomCandlestickChart = ({
         )}
       </div>
 
-      {hoveredElement && !selectedCandleForConfirmation && (
+      {hoveredElement && !selectedCandleForConfirmation && !showMultiCandleModal && (
         <CustomChartTooltip
           element={hoveredElement}
           position={mousePosition}
@@ -1187,6 +1340,18 @@ const CustomCandlestickChart = ({
           onConfirm={handleConfirmAnalysis}
           onCancel={handleCancelSelection}
           isAnalyzing={isAnalyzing}
+        />
+      )}
+
+      {showMultiCandleModal && selectedCandles.length > 0 && (
+        <MultiCandleSelectionModal
+          selectedCandles={selectedCandles}
+          symbol={symbol}
+          timeframe={timeframe}
+          config={SELECTION_CONFIG}
+          onConfirm={handleConfirmMultiCandleAnalysis}
+          onCancel={handleCancelMultiCandleSelection}
+          isAnalyzing={isAnalyzingMultiple}
         />
       )}
 
