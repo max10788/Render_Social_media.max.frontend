@@ -1,5 +1,5 @@
 /**
- * chartService.js - FIXED VERSION
+ * chartService.js - ENHANCED VERSION with Multi-Candle Analysis
  * ==============
  * 
  * Service für Chart-spezifische API-Calls
@@ -167,6 +167,7 @@ export const fetchCandleMovers = async (candleTimestamp, params) => {
 
 /**
  * Batch-Analyse für mehrere Candles
+ * Optimiert für Multi-Candle Selection
  */
 export const batchAnalyzeCandles = async (params) => {
   try {
@@ -183,6 +184,14 @@ export const batchAnalyzeCandles = async (params) => {
       ts instanceof Date ? ts.toISOString() : ts
     );
 
+    console.log('📊 Batch analyzing candles:', {
+      exchange,
+      symbol,
+      timeframe,
+      candle_count: timestampsISO.length,
+      top_n_wallets,
+    });
+
     const response = await chartApi.post('/batch-analyze', {
       exchange,
       symbol,
@@ -191,11 +200,140 @@ export const batchAnalyzeCandles = async (params) => {
       top_n_wallets,
     });
 
+    console.log('✅ Batch analysis complete:', {
+      results_count: response.data.results?.length,
+    });
+
     return response.data;
   } catch (error) {
     console.error('❌ Error in batch analyze:', error);
     throw error;
   }
+};
+
+/**
+ * NEU: Analysiert eine Sequenz von Candles (aufeinanderfolgend)
+ * Unterstützt lookback und excludeAlreadyAnalysed
+ */
+export const analyzeMultipleCandles = async (params) => {
+  try {
+    const {
+      exchange,
+      symbol,
+      timeframe,
+      start_timestamp,
+      end_timestamp,
+      candle_timestamps,
+      top_n_wallets = 10,
+      include_lookback = true,
+      lookback_candles = 50,
+      exclude_already_analyzed = true,
+    } = params;
+
+    console.log('🎯 Analyzing multiple candles:', {
+      exchange,
+      symbol,
+      timeframe,
+      candle_count: candle_timestamps?.length,
+      include_lookback,
+      lookback_candles,
+    });
+
+    // Wenn wir Timestamps haben, verwende Batch-Analyse
+    if (candle_timestamps && candle_timestamps.length > 0) {
+      const timestampsISO = candle_timestamps.map(ts => 
+        ts instanceof Date ? ts.toISOString() : ts
+      );
+
+      const response = await chartApi.post('/multi-analyze', {
+        exchange,
+        symbol,
+        timeframe,
+        candle_timestamps: timestampsISO,
+        top_n_wallets,
+        include_lookback,
+        lookback_candles,
+        exclude_already_analyzed,
+      });
+
+      return response.data;
+    }
+
+    // Alternativ: Zeitbereich-basierte Analyse
+    if (start_timestamp && end_timestamp) {
+      const startISO = start_timestamp instanceof Date 
+        ? start_timestamp.toISOString() 
+        : start_timestamp;
+      const endISO = end_timestamp instanceof Date 
+        ? end_timestamp.toISOString() 
+        : end_timestamp;
+
+      const response = await chartApi.post('/multi-analyze', {
+        exchange,
+        symbol,
+        timeframe,
+        start_timestamp: startISO,
+        end_timestamp: endISO,
+        top_n_wallets,
+        include_lookback,
+        lookback_candles,
+        exclude_already_analyzed,
+      });
+
+      return response.data;
+    }
+
+    throw new Error('Either candle_timestamps or start/end_timestamp must be provided');
+  } catch (error) {
+    console.error('❌ Error in multi-candle analysis:', error);
+    throw error;
+  }
+};
+
+/**
+ * NEU: Validiert Selection-Parameter
+ */
+export const validateSelectionParams = (selectedCandles, config = {}) => {
+  const errors = [];
+  const {
+    minCandles = 2,
+    maxCandles = 100,
+    lookBackCandles = 50,
+  } = config;
+
+  if (!selectedCandles || !Array.isArray(selectedCandles)) {
+    errors.push('Selected candles must be an array');
+    return { isValid: false, errors };
+  }
+
+  if (selectedCandles.length < minCandles) {
+    errors.push(`At least ${minCandles} candles must be selected`);
+  }
+
+  if (selectedCandles.length > maxCandles) {
+    errors.push(`Maximum ${maxCandles} candles can be selected`);
+  }
+
+  // Validiere, dass Candles chronologisch sind
+  for (let i = 1; i < selectedCandles.length; i++) {
+    const prevTime = new Date(selectedCandles[i - 1].timestamp).getTime();
+    const currTime = new Date(selectedCandles[i].timestamp).getTime();
+    
+    if (currTime <= prevTime) {
+      errors.push('Selected candles must be in chronological order');
+      break;
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    config: {
+      minCandles,
+      maxCandles,
+      lookBackCandles,
+    }
+  };
 };
 
 /**
@@ -336,14 +474,73 @@ export const validateChartParams = (params) => {
   };
 };
 
+/**
+ * NEU: Helper für Multi-Candle Selection
+ */
+export const prepareMultiCandleAnalysis = (selectedCandles, allCandles, config = {}) => {
+  const {
+    includePreviousCandles = true,
+    lookBackCandles = 50,
+    excludeAlreadyAnalysed = true,
+  } = config;
+
+  // Validierung
+  const validation = validateSelectionParams(selectedCandles, {
+    minCandles: 2,
+    maxCandles: 100,
+    lookBackCandles,
+  });
+
+  if (!validation.isValid) {
+    throw new Error(validation.errors.join('; '));
+  }
+
+  // Sortiere Selected Candles chronologisch
+  const sortedSelected = [...selectedCandles].sort((a, b) => 
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  // Finde Index der ersten Selected Candle
+  const firstSelectedIndex = allCandles.findIndex(
+    c => new Date(c.timestamp).getTime() === new Date(sortedSelected[0].timestamp).getTime()
+  );
+
+  let candlesToAnalyze = [...sortedSelected];
+
+  // Füge Previous Candles hinzu wenn gewünscht
+  if (includePreviousCandles && firstSelectedIndex > 0) {
+    const lookbackStart = Math.max(0, firstSelectedIndex - lookBackCandles);
+    const previousCandles = allCandles.slice(lookbackStart, firstSelectedIndex);
+    
+    // Filter already analyzed wenn gewünscht
+    const filteredPrevious = excludeAlreadyAnalysed
+      ? previousCandles.filter(c => !c.has_high_impact && !c.already_analyzed)
+      : previousCandles;
+
+    candlesToAnalyze = [...filteredPrevious, ...sortedSelected];
+  }
+
+  return {
+    candles: candlesToAnalyze,
+    timestamps: candlesToAnalyze.map(c => c.timestamp),
+    count: candlesToAnalyze.length,
+    selectedCount: sortedSelected.length,
+    lookbackCount: candlesToAnalyze.length - sortedSelected.length,
+    validation,
+  };
+};
+
 export default {
   fetchChartCandles,
   fetchCandleMovers,
   batchAnalyzeCandles,
+  analyzeMultipleCandles,
+  validateSelectionParams,
   fetchAvailableTimeframes,
   fetchAvailableSymbols,
   calculateTimeWindow,
   timeframeToSeconds,
   formatCandlesForChart,
   validateChartParams,
+  prepareMultiCandleAnalysis,
 };
