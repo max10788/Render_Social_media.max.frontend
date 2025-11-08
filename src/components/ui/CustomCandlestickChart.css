@@ -421,3 +421,397 @@
     padding: 6px 12px;
   }
 }
+/* Enhanced Zoom Controls */
+.zoom-controls {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius-md);
+  border: 1px solid rgba(0, 153, 255, 0.2);
+}
+
+.zoom-btn {
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid rgba(0, 153, 255, 0.3);
+  border-radius: var(--border-radius-sm);
+  color: var(--color-accent-blue);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.zoom-btn:hover:not(:disabled) {
+  background: rgba(0, 153, 255, 0.15);
+  border-color: var(--color-accent-blue);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 153, 255, 0.2);
+}
+
+.zoom-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.zoom-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Chart Header Improvements */
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--gradient-card);
+  border: 1px solid rgba(0, 153, 255, 0.2);
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+  border-bottom: none;
+}
+
+.chart-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.chart-symbol {
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.chart-timeframe {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(0, 153, 255, 0.1);
+  border: 1px solid rgba(0, 153, 255, 0.2);
+  border-radius: var(--border-radius-sm);
+}
+
+.chart-controls-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.control-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  background: rgba(0, 0, 0, 0.3);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid rgba(0, 153, 255, 0.15);
+}
+
+.btn-center-analyzed {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid var(--color-accent-cyan);
+  border-radius: var(--border-radius-sm);
+  color: var(--color-accent-cyan);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.btn-center-analyzed:hover {
+  background: rgba(0, 229, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 229, 255, 0.3);
+}
+
+/* Chart Container Improvements */
+.custom-candlestick-wrapper {
+  background: var(--gradient-card);
+  border: 1px solid rgba(0, 153, 255, 0.2);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.chart-container {
+  position: relative;
+  background: var(--color-bg-primary);
+  border-top: 1px solid rgba(0, 153, 255, 0.2);
+  border-bottom: 1px solid rgba(0, 153, 255, 0.2);
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.chart-container.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.chart-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 20, 25, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 153, 255, 0.2);
+  border-top-color: var(--color-accent-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  margin-top: var(--spacing-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-accent-blue);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Chart Footer Improvements */
+.chart-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.chart-legend {
+  display: flex;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.legend-color {
+  width: 16px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.legend-color.green-candle {
+  background: var(--color-success);
+}
+
+.legend-color.red-candle {
+  background: var(--color-error);
+}
+
+.legend-icon {
+  font-size: 1rem;
+}
+
+.legend-state-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid;
+  position: relative;
+}
+
+.legend-state-indicator.analyzed {
+  border-color: #00E5FF;
+  background: rgba(0, 229, 255, 0.1);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+}
+
+.legend-state-indicator.selected {
+  border-color: #FFD700;
+  background: rgba(255, 215, 0, 0.1);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+.legend-state-indicator.hovered {
+  border-color: rgba(0, 153, 255, 0.5);
+  background: rgba(0, 153, 255, 0.1);
+}
+
+.legend-label {
+  font-weight: 500;
+}
+
+.chart-stats {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+.stat-item {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid rgba(0, 153, 255, 0.15);
+}
+
+.stat-item strong {
+  color: var(--color-accent-blue);
+  margin-right: var(--spacing-xs);
+}
+
+/* Connection Line SVG */
+.connection-line-svg {
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Responsive Design for Chart Controls */
+@media (max-width: 1200px) {
+  .chart-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+  }
+
+  .chart-title {
+    justify-content: space-between;
+  }
+
+  .chart-controls-info {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+
+  .zoom-controls {
+    justify-content: center;
+  }
+
+  .control-hint {
+    text-align: center;
+  }
+
+  .btn-center-analyzed {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-header {
+    padding: var(--spacing-sm);
+  }
+
+  .chart-footer {
+    flex-direction: column;
+    padding: var(--spacing-sm);
+  }
+
+  .chart-legend {
+    width: 100%;
+    justify-content: center;
+    gap: var(--spacing-sm);
+  }
+
+  .chart-stats {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .zoom-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+  }
+
+  .control-hint {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-symbol {
+    font-size: 1rem;
+  }
+
+  .chart-timeframe {
+    font-size: 0.75rem;
+  }
+
+  .chart-zoom-indicator {
+    font-size: 0.7rem;
+  }
+
+  .legend-item {
+    font-size: 0.7rem;
+  }
+
+  .stat-item {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+  }
+}
+
+/* Smooth Scrolling Performance */
+.chart-container canvas {
+  will-change: transform;
+}
+
+/* Touch Feedback */
+.chart-container:active {
+  cursor: grabbing;
+}
+
+/* Accessibility - Focus States */
+.zoom-btn:focus-visible,
+.btn-center-analyzed:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 2px;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .zoom-btn,
+  .btn-center-analyzed,
+  .loading-spinner {
+    animation: none !important;
+    transition: none !important;
+  }
+}
