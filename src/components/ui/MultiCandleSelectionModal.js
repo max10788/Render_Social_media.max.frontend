@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import '../CustomCandlestickChart.css';
+import './CustomCandlestickChart.css';
 
 const MultiCandleSelectionModal = ({
   selectedCandles = [],
