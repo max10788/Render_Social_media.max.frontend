@@ -212,8 +212,12 @@ export const batchAnalyzeCandles = async (params) => {
 };
 
 /**
- * NEU: Analysiert eine Sequenz von Candles (aufeinanderfolgend)
- * Unterstützt lookback und excludeAlreadyAnalysed
+ * NEU: Analysiert mehrere Candles (Batch)
+ * WICHTIG: Verwendet Backend /batch-analyze Endpoint
+ * 
+ * Backend unterstützt NICHT:
+ * - lookback_candles (muss Frontend-seitig gemacht werden)
+ * - exclude_already_analyzed (muss Frontend-seitig gemacht werden)
  */
 export const analyzeMultipleCandles = async (params) => {
   try {
@@ -221,69 +225,47 @@ export const analyzeMultipleCandles = async (params) => {
       exchange,
       symbol,
       timeframe,
-      start_timestamp,
-      end_timestamp,
       candle_timestamps,
       top_n_wallets = 10,
-      include_lookback = true,
-      lookback_candles = 50,
-      exclude_already_analyzed = true,
     } = params;
 
-    console.log('🎯 Analyzing multiple candles:', {
+    console.log('🎯 Analyzing multiple candles (batch):', {
       exchange,
       symbol,
       timeframe,
       candle_count: candle_timestamps?.length,
-      include_lookback,
-      lookback_candles,
+      top_n_wallets,
     });
 
-    // Wenn wir Timestamps haben, verwende Batch-Analyse
-    if (candle_timestamps && candle_timestamps.length > 0) {
-      const timestampsISO = candle_timestamps.map(ts => 
-        ts instanceof Date ? ts.toISOString() : ts
-      );
-
-      const response = await chartApi.post('/multi-analyze', {
-        exchange,
-        symbol,
-        timeframe,
-        candle_timestamps: timestampsISO,
-        top_n_wallets,
-        include_lookback,
-        lookback_candles,
-        exclude_already_analyzed,
-      });
-
-      return response.data;
+    // Validierung
+    if (!candle_timestamps || candle_timestamps.length === 0) {
+      throw new Error('candle_timestamps is required and must not be empty');
     }
 
-    // Alternativ: Zeitbereich-basierte Analyse
-    if (start_timestamp && end_timestamp) {
-      const startISO = start_timestamp instanceof Date 
-        ? start_timestamp.toISOString() 
-        : start_timestamp;
-      const endISO = end_timestamp instanceof Date 
-        ? end_timestamp.toISOString() 
-        : end_timestamp;
-
-      const response = await chartApi.post('/multi-analyze', {
-        exchange,
-        symbol,
-        timeframe,
-        start_timestamp: startISO,
-        end_timestamp: endISO,
-        top_n_wallets,
-        include_lookback,
-        lookback_candles,
-        exclude_already_analyzed,
-      });
-
-      return response.data;
+    if (candle_timestamps.length > 50) {
+      throw new Error('Maximum 50 candles per batch request');
     }
 
-    throw new Error('Either candle_timestamps or start/end_timestamp must be provided');
+    // Konvertiere Timestamps zu ISO Strings
+    const timestampsISO = candle_timestamps.map(ts => 
+      ts instanceof Date ? ts.toISOString() : ts
+    );
+
+    // WICHTIG: Backend Endpoint ist /batch-analyze (NICHT /multi-analyze!)
+    const response = await chartApi.post('/batch-analyze', {
+      exchange,
+      symbol,
+      timeframe,
+      candle_timestamps: timestampsISO,
+      top_n_wallets,
+    });
+
+    console.log('✅ Batch analysis complete:', {
+      successful: response.data.successful_analyses,
+      failed: response.data.failed_analyses,
+    });
+
+    return response.data;
   } catch (error) {
     console.error('❌ Error in multi-candle analysis:', error);
     throw error;
@@ -476,6 +458,10 @@ export const validateChartParams = (params) => {
 
 /**
  * NEU: Helper für Multi-Candle Selection
+ * 
+ * WICHTIG: Backend unterstützt keine Lookback-Logik!
+ * Diese Funktion bereitet die Candles Frontend-seitig vor und fügt
+ * Previous Candles zu den Timestamps hinzu.
  */
 export const prepareMultiCandleAnalysis = (selectedCandles, allCandles, config = {}) => {
   const {
@@ -520,6 +506,16 @@ export const prepareMultiCandleAnalysis = (selectedCandles, allCandles, config =
     candlesToAnalyze = [...filteredPrevious, ...sortedSelected];
   }
 
+  // WICHTIG: Limitiere auf max 50 Candles (Backend-Limit!)
+  if (candlesToAnalyze.length > 50) {
+    console.warn(
+      `⚠️ Too many candles for batch analysis (${candlesToAnalyze.length}). ` +
+      `Limiting to 50 most recent candles.`
+    );
+    // Nehme die letzten 50 Candles (inkl. Selected)
+    candlesToAnalyze = candlesToAnalyze.slice(-50);
+  }
+
   return {
     candles: candlesToAnalyze,
     timestamps: candlesToAnalyze.map(c => c.timestamp),
@@ -527,6 +523,8 @@ export const prepareMultiCandleAnalysis = (selectedCandles, allCandles, config =
     selectedCount: sortedSelected.length,
     lookbackCount: candlesToAnalyze.length - sortedSelected.length,
     validation,
+    limitApplied: candlesToAnalyze.length === 50 && 
+                   (sortedSelected.length + (includePreviousCandles ? lookBackCandles : 0)) > 50,
   };
 };
 
