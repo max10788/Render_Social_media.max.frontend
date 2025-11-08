@@ -460,6 +460,9 @@ export const usePriceMovers = () => {
 
   /**
    * NEU: Multi-Candle Analyse
+   * 
+   * WICHTIG: Backend unterstützt nur einfaches Batch-Processing!
+   * Lookback und Filtering muss Frontend-seitig gemacht werden.
    */
   const analyzeMultiCandles = useCallback(async (selectedCandles, allCandles, options = {}) => {
     setLoading(true);
@@ -472,7 +475,7 @@ export const usePriceMovers = () => {
         options,
       });
 
-      // Prepare candles with lookback
+      // Prepare candles with lookback (Frontend-seitig!)
       const prepared = prepareMultiCandleAnalysis(
         selectedCandles,
         allCandles,
@@ -483,26 +486,47 @@ export const usePriceMovers = () => {
         totalCandles: prepared.count,
         selectedCount: prepared.selectedCount,
         lookbackCount: prepared.lookbackCount,
+        limitApplied: prepared.limitApplied,
       });
 
-      // Call API
+      // Warne bei Limit
+      if (prepared.limitApplied) {
+        console.warn(
+          '⚠️ Candle limit applied! Only analyzing 50 most recent candles ' +
+          '(Backend limitation).'
+        );
+      }
+
+      // Call API (Backend macht NUR Batch-Processing, kein Lookback!)
       const data = await analyzeMultipleCandles({
         exchange: options.exchange || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange,
         symbol: options.symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol,
         timeframe: options.timeframe || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.timeframe,
         candle_timestamps: prepared.timestamps,
         top_n_wallets: options.topNWallets || 10,
-        include_lookback: options.includePreviousCandles !== false,
-        lookback_candles: options.lookBackCandles || PRICE_MOVERS_CONFIG.MULTI_CANDLE_CONFIG.LOOKBACK_CANDLES,
-        exclude_already_analyzed: options.excludeAlreadyAnalysed !== false,
+        // Backend unterstützt diese Parameter NICHT:
+        // include_lookback, lookback_candles, exclude_already_analyzed
       });
 
       console.log('✅ Multi-candle analysis complete:', {
+        successful: data.successful_analyses,
+        failed: data.failed_analyses,
         resultsCount: data.results?.length,
       });
 
-      setMultiCandleResults(data);
-      return data;
+      // Füge Metadata hinzu
+      const enhancedData = {
+        ...data,
+        frontend_metadata: {
+          selected_count: prepared.selectedCount,
+          lookback_count: prepared.lookbackCount,
+          total_analyzed: prepared.count,
+          limit_applied: prepared.limitApplied,
+        }
+      };
+
+      setMultiCandleResults(enhancedData);
+      return enhancedData;
     } catch (err) {
       console.error('❌ Multi-candle analysis error:', err);
       const errorMessage = err.response?.data?.detail || err.message || 'Multi-candle analysis failed';
