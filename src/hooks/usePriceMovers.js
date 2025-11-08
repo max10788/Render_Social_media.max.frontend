@@ -1,5 +1,5 @@
 /**
- * usePriceMovers Hook
+ * usePriceMovers Hook - ENHANCED with Multi-Candle Analysis
  * 
  * Custom Hook für Price Movers Analyse State Management
  * Kompatibel mit API_CONFIG Pattern
@@ -13,6 +13,10 @@ import {
   compareExchanges,
   checkHealth,
 } from '../services/priceMoversService';
+import {
+  analyzeMultipleCandles,
+  prepareMultiCandleAnalysis,
+} from '../services/chartService';
 
 // Price Movers spezifische Konfiguration (analog zu deiner API_CONFIG)
 export const PRICE_MOVERS_CONFIG = {
@@ -106,6 +110,15 @@ export const PRICE_MOVERS_CONFIG = {
       max: 720, // 30 days
       default: 24
     }
+  },
+  
+  // Multi-Candle Selection Config
+  MULTI_CANDLE_CONFIG: {
+    MIN_CANDLES: 2,
+    MAX_CANDLES: 100,
+    LOOKBACK_CANDLES: 50,
+    INCLUDE_PREVIOUS: true,
+    EXCLUDE_ALREADY_ANALYZED: true,
   }
 };
 
@@ -346,7 +359,7 @@ export const getTimeframeLabel = (timeframeValue) => {
 };
 
 /**
- * usePriceMovers Hook
+ * usePriceMovers Hook - ENHANCED
  */
 export const usePriceMovers = () => {
   const [loading, setLoading] = useState(false);
@@ -356,6 +369,7 @@ export const usePriceMovers = () => {
   const [exchangeComparison, setExchangeComparison] = useState(null);
   const [historicalData, setHistoricalData] = useState(null);
   const [healthStatus, setHealthStatus] = useState(null);
+  const [multiCandleResults, setMultiCandleResults] = useState(null);
 
   /**
    * Standard Price Movers Analyse
@@ -437,6 +451,61 @@ export const usePriceMovers = () => {
     } catch (err) {
       console.error('quickAnalyze error:', err);
       const errorMessage = err.response?.data?.detail || err.message || 'Quick analysis failed';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
+   * NEU: Multi-Candle Analyse
+   */
+  const analyzeMultiCandles = useCallback(async (selectedCandles, allCandles, options = {}) => {
+    setLoading(true);
+    setError(null);
+    setMultiCandleResults(null);
+    
+    try {
+      console.log('🎯 Starting multi-candle analysis:', {
+        selectedCount: selectedCandles.length,
+        options,
+      });
+
+      // Prepare candles with lookback
+      const prepared = prepareMultiCandleAnalysis(
+        selectedCandles,
+        allCandles,
+        options
+      );
+
+      console.log('📊 Prepared analysis:', {
+        totalCandles: prepared.count,
+        selectedCount: prepared.selectedCount,
+        lookbackCount: prepared.lookbackCount,
+      });
+
+      // Call API
+      const data = await analyzeMultipleCandles({
+        exchange: options.exchange || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange,
+        symbol: options.symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol,
+        timeframe: options.timeframe || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.timeframe,
+        candle_timestamps: prepared.timestamps,
+        top_n_wallets: options.topNWallets || 10,
+        include_lookback: options.includePreviousCandles !== false,
+        lookback_candles: options.lookBackCandles || PRICE_MOVERS_CONFIG.MULTI_CANDLE_CONFIG.LOOKBACK_CANDLES,
+        exclude_already_analyzed: options.excludeAlreadyAnalysed !== false,
+      });
+
+      console.log('✅ Multi-candle analysis complete:', {
+        resultsCount: data.results?.length,
+      });
+
+      setMultiCandleResults(data);
+      return data;
+    } catch (err) {
+      console.error('❌ Multi-candle analysis error:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Multi-candle analysis failed';
       setError(errorMessage);
       throw err;
     } finally {
@@ -533,6 +602,7 @@ export const usePriceMovers = () => {
     setExchangeComparison(null);
     setHistoricalData(null);
     setHealthStatus(null);
+    setMultiCandleResults(null);
     setError(null);
     setLoading(false);
   }, []);
@@ -545,8 +615,10 @@ export const usePriceMovers = () => {
     exchangeComparison,
     historicalData,
     healthStatus,
+    multiCandleResults,
     analyze,
     quickAnalyze,
+    analyzeMultiCandles,
     analyzeHistorical,
     fetchWalletDetails,
     compareMultipleExchanges,
