@@ -15,19 +15,31 @@ const CustomCandlestickChart = ({
 }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
-  const connectionLineRef = useRef(null);
+  const animationRef = useRef(null);
   
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [hoveredElement, setHoveredElement] = useState(null);
   const [hoveredCandleIndex, setHoveredCandleIndex] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [chartMousePosition, setChartMousePosition] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [panOffset, setPanOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState(0);
-  const [currentPrice, setCurrentPrice] = useState(null);
   
+  // Enhanced zoom and pan states
+  const [zoom, setZoom] = useState(1);
+  const [targetZoom, setTargetZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState(0);
+  const [targetPanOffset, setTargetPanOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, offset: 0 });
+  const [velocity, setVelocity] = useState(0);
+  const [lastPanTime, setLastPanTime] = useState(0);
+  const [lastPanPosition, setLastPanPosition] = useState(0);
+  
+  // Touch handling
+  const [touches, setTouches] = useState([]);
+  const [initialPinchDistance, setInitialPinchDistance] = useState(0);
+  const [initialPinchZoom, setInitialPinchZoom] = useState(1);
+  
+  const [currentPrice, setCurrentPrice] = useState(null);
   const [selectedCandleForConfirmation, setSelectedCandleForConfirmation] = useState(null);
   const [analyzedCandleIndex, setAnalyzedCandleIndex] = useState(null);
   const [analyzedCandlePosition, setAnalyzedCandlePosition] = useState(null);
@@ -42,6 +54,12 @@ const CustomCandlestickChart = ({
   });
 
   const MARGIN = { top: 30, right: 90, bottom: 50, left: 10 };
+  const ZOOM_SPEED = 0.15;
+  const MIN_ZOOM = 0.3;
+  const MAX_ZOOM = 8;
+  const PAN_FRICTION = 0.92;
+  const ZOOM_ANIMATION_SPEED = 0.15;
+  const PAN_ANIMATION_SPEED = 0.2;
 
   const WALLET_COLORS = {
     whale: '#FFD700',
@@ -59,6 +77,7 @@ const CustomCandlestickChart = ({
     '#C7CEEA',
   ];
 
+  // Initialize dimensions
   useEffect(() => {
     if (!containerRef.current) return;
     
@@ -72,6 +91,7 @@ const CustomCandlestickChart = ({
     return () => window.removeEventListener('resize', updateDimensions);
   }, [height]);
 
+  // Update chart data
   useEffect(() => {
     if (!candleData.length) return;
 
@@ -98,10 +118,9 @@ const CustomCandlestickChart = ({
     if (candleData.length > 0) {
       setCurrentPrice(candleData[candleData.length - 1].close);
     }
+  }, [candleData]);
 
-    drawChart();
-  }, [candleData, dimensions, zoom, panOffset]);
-
+  // Handle segmented candle
   useEffect(() => {
     if (candleMoversData?.candle) {
       const candleIndex = candleData.findIndex(
@@ -114,12 +133,50 @@ const CustomCandlestickChart = ({
           data: candleMoversData,
         };
         setAnalyzedCandleIndex(candleIndex);
-        drawChart();
       }
     }
   }, [candleMoversData, candleData]);
 
-  // Calculate analyzed candle position for connection line
+  // Animation loop for smooth zoom and pan
+  useEffect(() => {
+    const animate = () => {
+      let needsUpdate = false;
+
+      // Smooth zoom animation
+      if (Math.abs(zoom - targetZoom) > 0.001) {
+        const newZoom = zoom + (targetZoom - zoom) * ZOOM_ANIMATION_SPEED;
+        setZoom(newZoom);
+        needsUpdate = true;
+      }
+
+      // Smooth pan animation with momentum
+      if (Math.abs(velocity) > 0.01) {
+        const newVelocity = velocity * PAN_FRICTION;
+        setVelocity(newVelocity);
+        const newOffset = Math.max(0, targetPanOffset + newVelocity);
+        setTargetPanOffset(newOffset);
+        setPanOffset(newOffset);
+        needsUpdate = true;
+      } else if (Math.abs(panOffset - targetPanOffset) > 0.1) {
+        const newOffset = panOffset + (targetPanOffset - panOffset) * PAN_ANIMATION_SPEED;
+        setPanOffset(newOffset);
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [zoom, targetZoom, panOffset, targetPanOffset, velocity]);
+
+  // Calculate analyzed candle position
   useEffect(() => {
     if (analyzedCandleIndex === null || !canvasRef.current) {
       setAnalyzedCandlePosition(null);
@@ -133,7 +190,6 @@ const CustomCandlestickChart = ({
     const startIdx = Math.floor(panOffset);
     const endIdx = Math.min(chartDataRef.current.candles.length, startIdx + visibleCandles);
 
-    // Check if analyzed candle is visible
     if (analyzedCandleIndex >= startIdx && analyzedCandleIndex < endIdx) {
       const localIdx = analyzedCandleIndex - startIdx;
       const candleWidth = chartDataRef.current.candleWidth;
@@ -149,6 +205,7 @@ const CustomCandlestickChart = ({
     }
   }, [analyzedCandleIndex, panOffset, zoom, dimensions]);
 
+  // Main draw function
   const drawChart = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -189,12 +246,12 @@ const CustomCandlestickChart = ({
     // Draw grid
     drawGrid(ctx, MARGIN, chartWidth, chartHeight, priceScale, priceToY);
 
-    // Draw crosshair BEFORE candles (so candles are on top)
+    // Draw crosshair
     if (chartMousePosition.x > 0 && chartMousePosition.y > 0 && !isDragging) {
       drawCrosshair(ctx, chartMousePosition, MARGIN, chartWidth, chartHeight);
     }
 
-    // Draw hover column BEFORE candles
+    // Draw hover column
     if (hoveredCandleIndex !== null && !isDragging) {
       const localIdx = hoveredCandleIndex - startIdx;
       if (localIdx >= 0 && localIdx < visibleData.length) {
@@ -234,6 +291,7 @@ const CustomCandlestickChart = ({
 
   }, [dimensions, zoom, panOffset, currentPrice, hoveredCandleIndex, selectedCandleForConfirmation, chartMousePosition, isDragging]);
 
+  // Draw functions (keeping existing implementations)
   const drawGrid = (ctx, margin, width, height, priceScale, priceToY) => {
     ctx.strokeStyle = 'rgba(0, 153, 255, 0.08)';
     ctx.lineWidth = 1;
@@ -253,7 +311,6 @@ const CustomCandlestickChart = ({
   const drawHoverColumn = (ctx, x, width, margin, chartHeight) => {
     const centerX = x + width / 2;
     
-    // Vertical column highlight
     const gradient = ctx.createLinearGradient(centerX - 20, 0, centerX + 20, 0);
     gradient.addColorStop(0, 'rgba(0, 153, 255, 0)');
     gradient.addColorStop(0.5, 'rgba(0, 153, 255, 0.15)');
@@ -262,7 +319,6 @@ const CustomCandlestickChart = ({
     ctx.fillStyle = gradient;
     ctx.fillRect(x, margin.top, width, chartHeight);
     
-    // Subtle border lines
     ctx.strokeStyle = 'rgba(0, 153, 255, 0.3)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -281,7 +337,6 @@ const CustomCandlestickChart = ({
     ctx.strokeStyle = 'rgba(0, 153, 255, 0.4)';
     ctx.lineWidth = 1;
 
-    // Horizontal line
     if (mousePos.y >= margin.top && mousePos.y <= margin.top + chartHeight) {
       ctx.beginPath();
       ctx.moveTo(margin.left, mousePos.y);
@@ -289,7 +344,6 @@ const CustomCandlestickChart = ({
       ctx.stroke();
     }
 
-    // Vertical line
     if (mousePos.x >= margin.left && mousePos.x <= margin.left + chartWidth) {
       ctx.beginPath();
       ctx.moveTo(mousePos.x, margin.top);
@@ -314,7 +368,6 @@ const CustomCandlestickChart = ({
     const bodyWidth = Math.max(width * 0.7, 3);
     const centerX = x + width / 2;
 
-    // Hover glow effect
     if (isHovered) {
       ctx.save();
       ctx.shadowColor = color;
@@ -322,7 +375,6 @@ const CustomCandlestickChart = ({
       ctx.globalAlpha = 0.6;
     }
 
-    // Wick
     ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(1, width * 0.15);
     ctx.beginPath();
@@ -330,7 +382,6 @@ const CustomCandlestickChart = ({
     ctx.lineTo(centerX, lowY);
     ctx.stroke();
 
-    // Body
     if (bodyHeight < 2) {
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
@@ -347,7 +398,6 @@ const CustomCandlestickChart = ({
       ctx.restore();
     }
 
-    // Impact marker
     if (hasImpact) {
       ctx.save();
       ctx.shadowColor = '#0099FF';
@@ -374,7 +424,6 @@ const CustomCandlestickChart = ({
     const bodyWidth = Math.max(width * 0.85, 4);
     const centerX = x + width / 2;
 
-    // Animated gold glow effect (SELECTED state)
     const time = Date.now() / 1000;
     const glowIntensity = (Math.sin(time * 3) + 1) / 2;
     
@@ -409,7 +458,6 @@ const CustomCandlestickChart = ({
       ctx.fillRect(centerX - bodyWidth / 2, bodyTop, bodyWidth, bodyHeight);
     }
 
-    // Selection indicator
     ctx.fillStyle = '#FFD700';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
@@ -429,7 +477,6 @@ const CustomCandlestickChart = ({
 
     const isGreen = candle.close >= candle.open;
     
-    // Enhanced glow for analyzed candle
     const time = Date.now() / 1000;
     const pulseIntensity = (Math.sin(time * 2) + 1) / 2;
     const baseBlur = isHovered ? 15 : 10;
@@ -445,7 +492,6 @@ const CustomCandlestickChart = ({
     ctx.stroke();
     ctx.restore();
 
-    // High-contrast segments
     const top3 = moversData.top_movers.slice(0, 3);
     const totalImpact = top3.reduce((sum, m) => sum + m.impact_score, 0);
     const segments = [
@@ -491,7 +537,6 @@ const CustomCandlestickChart = ({
       currentY += segHeight;
     });
 
-    // Cyan glowing border (ANALYZED state)
     ctx.save();
     ctx.strokeStyle = '#00E5FF';
     ctx.lineWidth = 3;
@@ -500,7 +545,6 @@ const CustomCandlestickChart = ({
     ctx.strokeRect(centerX - bodyWidth / 2 - 1.5, bodyTop - 1.5, bodyWidth + 3, bodyHeight + 3);
     ctx.restore();
 
-    // Analysis badge with animation
     ctx.save();
     ctx.shadowColor = '#00E5FF';
     ctx.shadowBlur = 15;
@@ -587,6 +631,7 @@ const CustomCandlestickChart = ({
     });
   };
 
+  // Helper functions
   const formatPrice = (price) => {
     if (price >= 10000) return price.toFixed(0);
     if (price >= 1000) return price.toFixed(1);
@@ -632,6 +677,7 @@ const CustomCandlestickChart = ({
     ).toString(16).slice(1);
   };
 
+  // Enhanced Mouse Handlers
   const handleMouseMove = (e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -644,16 +690,30 @@ const CustomCandlestickChart = ({
     setChartMousePosition({ x, y });
 
     if (isDragging) {
-      const delta = (x - dragStart) / chartDataRef.current.candleWidth;
-      setPanOffset(Math.max(0, panOffset - delta));
-      setDragStart(x);
+      const deltaX = x - dragStart.x;
+      const candlesPerPixel = chartDataRef.current.candles.length / (dimensions.width - MARGIN.left - MARGIN.right);
+      const deltaCandles = -deltaX * candlesPerPixel / zoom;
+      
+      const now = Date.now();
+      const deltaTime = now - lastPanTime;
+      
+      if (deltaTime > 0) {
+        const newVelocity = (deltaCandles / deltaTime) * 16.67;
+        setVelocity(newVelocity);
+      }
+      
+      setLastPanTime(now);
+      setLastPanPosition(deltaCandles);
+      
+      const newOffset = Math.max(0, dragStart.offset + deltaCandles);
+      setTargetPanOffset(newOffset);
+      setPanOffset(newOffset);
       return;
     }
 
     const element = getElementAtPosition(x, y);
     setHoveredElement(element);
     
-    // Set hovered candle index for column highlight
     if (element?.type === 'candle' || element?.type === 'segment') {
       const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
       const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoom)));
@@ -674,7 +734,10 @@ const CustomCandlestickChart = ({
     const x = e.clientX - rect.left;
 
     setIsDragging(true);
-    setDragStart(x);
+    setDragStart({ x, offset: panOffset });
+    setVelocity(0);
+    setLastPanTime(Date.now());
+    setLastPanPosition(0);
   };
 
   const handleMouseUp = () => {
@@ -695,19 +758,129 @@ const CustomCandlestickChart = ({
     
     if (element?.type === 'candle') {
       setSelectedCandleForConfirmation(element.candle);
-      requestAnimationFrame(() => drawChart());
     } else if (element?.type === 'segment' && onWalletClick) {
       onWalletClick(element.wallet);
     }
   };
 
+  const handleDoubleClick = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+    if (x >= MARGIN.left && x <= dimensions.width - MARGIN.right) {
+      // Zoom in on double-click
+      handleZoomChange(0.5);
+    }
+  };
+
+  // Enhanced Wheel Handler
   const handleWheel = (e) => {
     e.preventDefault();
     e.stopPropagation();
     
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.5, Math.min(5, zoom * delta));
-    setZoom(newZoom);
+    const delta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
+    handleZoomChange(delta);
+  };
+
+  const handleZoomChange = (delta) => {
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom * (1 + delta)));
+    setTargetZoom(newZoom);
+    
+    // Adjust pan to keep center relatively stable
+    const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
+    const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoom)));
+    const newVisibleCandles = Math.max(10, Math.floor(chartWidth / (12 * newZoom)));
+    const centerIdx = panOffset + visibleCandles / 2;
+    const newOffset = Math.max(0, centerIdx - newVisibleCandles / 2);
+    setTargetPanOffset(newOffset);
+  };
+
+  // Touch Handlers
+  const handleTouchStart = (e) => {
+    e.preventDefault();
+    const touchList = Array.from(e.touches);
+    setTouches(touchList);
+
+    if (touchList.length === 1) {
+      const touch = touchList[0];
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      setDragStart({ x, offset: panOffset });
+      setIsDragging(true);
+      setVelocity(0);
+    } else if (touchList.length === 2) {
+      const distance = getTouchDistance(touchList[0], touchList[1]);
+      setInitialPinchDistance(distance);
+      setInitialPinchZoom(zoom);
+      setIsDragging(false);
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    e.preventDefault();
+    const touchList = Array.from(e.touches);
+
+    if (touchList.length === 1 && isDragging) {
+      const touch = touchList[0];
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      
+      const deltaX = x - dragStart.x;
+      const candlesPerPixel = chartDataRef.current.candles.length / (dimensions.width - MARGIN.left - MARGIN.right);
+      const deltaCandles = -deltaX * candlesPerPixel / zoom;
+      
+      const newOffset = Math.max(0, dragStart.offset + deltaCandles);
+      setTargetPanOffset(newOffset);
+      setPanOffset(newOffset);
+    } else if (touchList.length === 2) {
+      const distance = getTouchDistance(touchList[0], touchList[1]);
+      const zoomFactor = distance / initialPinchDistance;
+      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, initialPinchZoom * zoomFactor));
+      setTargetZoom(newZoom);
+      setZoom(newZoom);
+    }
+
+    setTouches(touchList);
+  };
+
+  const handleTouchEnd = (e) => {
+    e.preventDefault();
+    const touchList = Array.from(e.touches);
+    setTouches(touchList);
+
+    if (touchList.length === 0) {
+      setIsDragging(false);
+    } else if (touchList.length === 1) {
+      const touch = touchList[0];
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      setDragStart({ x, offset: panOffset });
+      setIsDragging(true);
+    }
+  };
+
+  const getTouchDistance = (touch1, touch2) => {
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Zoom Control Handlers
+  const handleZoomIn = () => {
+    handleZoomChange(0.3);
+  };
+
+  const handleZoomOut = () => {
+    handleZoomChange(-0.3);
+  };
+
+  const handleResetZoom = () => {
+    setTargetZoom(1);
+    setTargetPanOffset(0);
+    setVelocity(0);
   };
 
   const handleConfirmAnalysis = async () => {
@@ -726,7 +899,6 @@ const CustomCandlestickChart = ({
 
   const handleCancelSelection = () => {
     setSelectedCandleForConfirmation(null);
-    drawChart();
   };
 
   const centerOnAnalyzedCandle = () => {
@@ -734,7 +906,8 @@ const CustomCandlestickChart = ({
       const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
       const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoom)));
       const targetOffset = Math.max(0, analyzedCandleIndex - visibleCandles / 2);
-      setPanOffset(targetOffset);
+      setTargetPanOffset(targetOffset);
+      setVelocity(0);
     }
   };
 
@@ -796,34 +969,75 @@ const CustomCandlestickChart = ({
     };
   };
 
+  // Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Modal handling
       if (selectedCandleForConfirmation) {
         if (e.key === 'Enter') {
           handleConfirmAnalysis();
         } else if (e.key === 'Escape') {
           handleCancelSelection();
         }
+        return;
       }
       
+      // Pan left/right
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const step = 5 / zoom;
+        setTargetPanOffset(Math.max(0, targetPanOffset - step));
+        setVelocity(0);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const step = 5 / zoom;
+        const maxOffset = Math.max(0, chartDataRef.current.candles.length - 10);
+        setTargetPanOffset(Math.min(maxOffset, targetPanOffset + step));
+        setVelocity(0);
+      }
+      
+      // Zoom in/out
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        handleZoomIn();
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        handleZoomOut();
+      }
+      
+      // Reset
+      if (e.key === '0') {
+        e.preventDefault();
+        handleResetZoom();
+      }
+      
+      // Center on analyzed
       if (e.key === 'c' && analyzedCandleIndex !== null) {
+        e.preventDefault();
         centerOnAnalyzedCandle();
+      }
+      
+      // Go to start/end
+      if (e.key === 'Home') {
+        e.preventDefault();
+        setTargetPanOffset(0);
+        setVelocity(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        const maxOffset = Math.max(0, chartDataRef.current.candles.length - 10);
+        setTargetPanOffset(maxOffset);
+        setVelocity(0);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCandleForConfirmation, analyzedCandleIndex]);
+  }, [selectedCandleForConfirmation, analyzedCandleIndex, targetPanOffset, zoom]);
 
+  // Draw loop
   useEffect(() => {
-    if (hoveredCandleIndex !== null || selectedCandleForConfirmation || chartDataRef.current.segmentedCandle) {
-      const animationId = requestAnimationFrame(function animate() {
-        drawChart();
-        requestAnimationFrame(animate);
-      });
-      return () => cancelAnimationFrame(animationId);
-    }
-  }, [hoveredCandleIndex, selectedCandleForConfirmation, drawChart]);
+    drawChart();
+  }, [drawChart]);
 
   return (
     <div className="custom-candlestick-wrapper">
@@ -834,8 +1048,31 @@ const CustomCandlestickChart = ({
           <span className="chart-zoom-indicator">Zoom: {zoom.toFixed(1)}x</span>
         </div>
         <div className="chart-controls-info">
+          <div className="zoom-controls">
+            <button 
+              className="zoom-btn" 
+              onClick={handleZoomOut}
+              title="Zoom Out (-)"
+            >
+              🔍−
+            </button>
+            <button 
+              className="zoom-btn" 
+              onClick={handleResetZoom}
+              title="Reset Zoom (0)"
+            >
+              ⊙
+            </button>
+            <button 
+              className="zoom-btn" 
+              onClick={handleZoomIn}
+              title="Zoom In (+)"
+            >
+              🔍+
+            </button>
+          </div>
           <span className="control-hint">
-            🖱️ Drag • 🔍 Scroll • 👆 Click • ⌨️ C=Center
+            🖱️ Drag • 🔍 Scroll • 👆 Click • ⌨️ ←→±0 • C=Center
           </span>
           {analyzedCandleIndex !== null && (
             <button className="btn-center-analyzed" onClick={centerOnAnalyzedCandle}>
@@ -862,7 +1099,14 @@ const CustomCandlestickChart = ({
             setIsDragging(false);
           }}
           onClick={handleClick}
-          style={{ cursor: isDragging ? 'grabbing' : 'crosshair' }}
+          onDoubleClick={handleDoubleClick}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{ 
+            cursor: isDragging ? 'grabbing' : 'crosshair',
+            touchAction: 'none'
+          }}
         />
 
         {loading && (
@@ -872,7 +1116,6 @@ const CustomCandlestickChart = ({
           </div>
         )}
 
-        {/* Connection line from analyzed candle to results */}
         {analyzedCandlePosition?.isVisible && (
           <svg 
             className="connection-line-svg"
@@ -893,9 +1136,9 @@ const CustomCandlestickChart = ({
               </linearGradient>
             </defs>
             <line
-              x1={analyzedCandlePosition.x - containerRef.current?.getBoundingClientRect().left}
+              x1={analyzedCandlePosition.x - (containerRef.current?.getBoundingClientRect().left || 0)}
               y1={dimensions.height}
-              x2={analyzedCandlePosition.x - containerRef.current?.getBoundingClientRect().left}
+              x2={analyzedCandlePosition.x - (containerRef.current?.getBoundingClientRect().left || 0)}
               y2={dimensions.height + 40}
               stroke="url(#lineGradient)"
               strokeWidth="2"
@@ -911,7 +1154,7 @@ const CustomCandlestickChart = ({
               />
             </line>
             <circle
-              cx={analyzedCandlePosition.x - containerRef.current?.getBoundingClientRect().left}
+              cx={analyzedCandlePosition.x - (containerRef.current?.getBoundingClientRect().left || 0)}
               cy={dimensions.height + 40}
               r="6"
               fill="#00E5FF"
@@ -977,6 +1220,9 @@ const CustomCandlestickChart = ({
         <div className="chart-stats">
           <span className="stat-item">
             Candles: {candleData.length}
+          </span>
+          <span className="stat-item">
+            Visible: {Math.floor((dimensions.width - MARGIN.left - MARGIN.right) / (12 * zoom))}
           </span>
           {currentPrice && (
             <span className="stat-item">
