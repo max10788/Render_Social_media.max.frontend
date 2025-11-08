@@ -233,16 +233,40 @@ const CustomCandlestickChart = ({
     const startIdx = Math.floor(panOffset);
     const candleWidth = chartDataRef.current.candleWidth;
     
-    const startCandleIdx = Math.floor((Math.min(selectionStart.x, selectionEnd.x) - MARGIN.left) / candleWidth);
-    const endCandleIdx = Math.floor((Math.max(selectionStart.x, selectionEnd.x) - MARGIN.left) / candleWidth);
+    // WICHTIG: Berechne die X-Koordinaten relativ zum Chart-Bereich
+    const selectionStartX = Math.min(selectionStart.x, selectionEnd.x);
+    const selectionEndX = Math.max(selectionStart.x, selectionEnd.x);
     
-    const globalStartIdx = startIdx + startCandleIdx;
-    const globalEndIdx = startIdx + endCandleIdx + 1;
+    // Konvertiere zu Candle-Indizes
+    const startCandleIdx = Math.floor((selectionStartX - MARGIN.left) / candleWidth);
+    const endCandleIdx = Math.floor((selectionEndX - MARGIN.left) / candleWidth);
     
-    const selected = chartDataRef.current.candles.slice(
-      Math.max(0, globalStartIdx),
-      Math.min(chartDataRef.current.candles.length, globalEndIdx)
-    );
+    // Berechne globale Indizes
+    const globalStartIdx = Math.max(0, startIdx + startCandleIdx);
+    const globalEndIdx = Math.min(chartDataRef.current.candles.length, startIdx + endCandleIdx + 1);
+    
+    // Slice die Candles
+    const selected = chartDataRef.current.candles.slice(globalStartIdx, globalEndIdx);
+    
+    console.log('🎯 Selection calculation:', {
+      selectionBox: {
+        startX: selectionStartX,
+        endX: selectionEndX,
+        width: selectionEndX - selectionStartX
+      },
+      candleWidth,
+      localIndices: {
+        start: startCandleIdx,
+        end: endCandleIdx
+      },
+      globalIndices: {
+        start: globalStartIdx,
+        end: globalEndIdx
+      },
+      selectedCount: selected.length,
+      panOffset: startIdx,
+      zoom
+    });
     
     return selected;
   }, [selectionStart, selectionEnd, panOffset, zoom, dimensions]);
@@ -416,18 +440,37 @@ const CustomCandlestickChart = ({
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, width, height);
 
-    // Candle count indicator
-    const selectedCount = getSelectedCandlesData().length;
-    if (selectedCount > 0) {
+    // Candle count indicator (calculate in real-time)
+    const candleWidth = chartDataRef.current.candleWidth;
+    if (candleWidth > 0) {
+      const selectedCount = Math.max(1, Math.ceil(width / candleWidth));
+      
       ctx.save();
-      ctx.fillStyle = '#0078D7';
-      ctx.font = 'bold 12px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(
-        `${selectedCount} Candle${selectedCount !== 1 ? 's' : ''} selected`,
-        x + width / 2,
-        y - 10
+      
+      // Background für Text
+      const text = `${selectedCount} Candle${selectedCount !== 1 ? 's' : ''} selected`;
+      ctx.font = 'bold 14px Arial';
+      const textMetrics = ctx.measureText(text);
+      const textWidth = textMetrics.width;
+      const textHeight = 20;
+      const textX = x + width / 2;
+      const textY = y - 15;
+      
+      // Hintergrund
+      ctx.fillStyle = 'rgba(0, 120, 215, 0.9)';
+      ctx.fillRect(
+        textX - textWidth / 2 - 8,
+        textY - textHeight / 2 - 4,
+        textWidth + 16,
+        textHeight + 8
       );
+      
+      // Text
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, textX, textY);
+      
       ctx.restore();
     }
   };
@@ -842,13 +885,33 @@ const CustomCandlestickChart = ({
   const handleMouseUp = (e) => {
     // Complete selection
     if (isSelecting && e.button === 2) {
+      e.preventDefault();
+      
+      console.log('🎯 Selection completed:', {
+        selectionStart,
+        selectionEnd,
+        isSelecting,
+        button: e.button
+      });
+      
       const selected = getSelectedCandlesData();
+      
+      console.log('📊 Selected candles:', {
+        count: selected.length,
+        minRequired: SELECTION_CONFIG.MIN_CANDLES,
+        candles: selected.map(c => ({
+          timestamp: c.timestamp,
+          open: c.open,
+          close: c.close
+        }))
+      });
       
       if (selected.length >= SELECTION_CONFIG.MIN_CANDLES) {
         setSelectedCandles(selected);
         setShowMultiCandleModal(true);
+        console.log('✅ Opening multi-candle modal with', selected.length, 'candles');
       } else {
-        console.log(`Please select at least ${SELECTION_CONFIG.MIN_CANDLES} candles`);
+        console.warn(`⚠️ Please select at least ${SELECTION_CONFIG.MIN_CANDLES} candles (selected: ${selected.length})`);
       }
       
       setIsSelecting(false);
@@ -897,13 +960,26 @@ const CustomCandlestickChart = ({
   };
 
   // Enhanced Wheel Handler
-  const handleWheel = (e) => {
+  const handleWheel = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
     
     const delta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
     handleZoomChange(delta);
-  };
+  }, [targetZoom, zoom]);
+
+  // Setup wheel event with { passive: false } to allow preventDefault
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Add wheel listener with { passive: false }
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      canvas.removeEventListener('wheel', handleWheel);
+    };
+  }, [handleWheel]);
 
   const handleZoomChange = (delta) => {
     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom * (1 + delta)));
@@ -1232,7 +1308,6 @@ const CustomCandlestickChart = ({
       <div 
         ref={containerRef}
         className={`chart-container ${loading ? 'loading' : ''} ${isSelecting ? 'selecting' : ''}`}
-        onWheel={handleWheel}
       >
         <canvas
           ref={canvasRef}
