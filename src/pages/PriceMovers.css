@@ -1689,3 +1689,286 @@ body {
     justify-content: space-between;
   }
 }
+
+/* ======================================
+   MULTI-CANDLE RESULTS STYLES
+   (Add these at the END of your PriceMovers.css)
+   ====================================== */
+
+.multi-candle-results {
+  margin-top: 2rem;
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.05) 0%, rgba(0, 153, 255, 0.05) 100%);
+  border: 2px solid rgba(0, 229, 255, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  animation: slideInFromBottom 0.5s ease-out;
+}
+
+.multi-candle-results .results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(0, 229, 255, 0.2);
+}
+
+.multi-candle-results .results-header h2 {
+  font-size: 1.5rem;
+  color: #00E5FF;
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.multi-candle-results .results-meta {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.multi-candle-results .meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #8899A6;
+}
+
+.multi-candle-results .meta-item strong {
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.warning-message {
+  background: rgba(255, 165, 0, 0.1);
+  border: 1px solid rgba(255, 165, 0, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.warning-message .warning-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.warning-message .warning-text {
+  color: #FFA500;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.multi-candle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.multi-candle-card {
+  background: rgba(15, 20, 25, 0.8);
+  border: 1px solid rgba(0, 153, 255, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 0.3s ease;
+  animation: slideInFromBottom 0.3s ease-out backwards;
+}
+
+.multi-candle-card:hover {
+  border-color: rgba(0, 229, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 229, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.multi-candle-card:nth-child(1) { animation-delay: 0.05s; }
+.multi-candle-card:nth-child(2) { animation-delay: 0.1s; }
+.multi-candle-card:nth-child(3) { animation-delay: 0.15s; }
+.multi-candle-card:nth-child(4) { animation-delay: 0.2s; }
+.multi-candle-card:nth-child(5) { animation-delay: 0.25s; }
+
+.multi-candle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.candle-timestamp {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  font-family: var(--font-mono);
+}
+
+.synthetic-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  background: rgba(255, 165, 0, 0.2);
+  color: #FFA500;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.error-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #FF3D00;
+  font-size: 0.85rem;
+}
+
+.error-content .error-icon {
+  font-size: 1.2rem;
+}
+
+.error-content .error-text {
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.candle-mini-info {
+  margin-bottom: 0.5rem;
+}
+
+.price-change {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.movers-count {
+  font-size: 0.9rem;
+  color: #8899A6;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.top-mover-preview {
+  background: rgba(0, 153, 255, 0.05);
+  border: 1px solid rgba(0, 153, 255, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem;
+}
+
+.mover-preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.mover-wallet {
+  color: #00E5FF;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.mover-impact {
+  color: #FFD700;
+  font-weight: 700;
+}
+
+/* Animation for sliding in from bottom */
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading state for multi-candle analysis */
+.multi-candle-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+}
+
+.multi-candle-loading-text {
+  color: #00E5FF;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.multi-candle-progress {
+  width: 100%;
+  max-width: 400px;
+  height: 8px;
+  background: rgba(0, 153, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.multi-candle-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #0099FF, #00E5FF);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  animation: progressPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes progressPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Responsive Adjustments for Multi-Candle */
+@media (max-width: 1024px) {
+  .multi-candle-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .multi-candle-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .multi-candle-card {
+    padding: 0.75rem;
+  }
+
+  .multi-candle-results .results-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .multi-candle-results .results-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* Enhanced empty state for multi-candle results */
+.multi-candle-results .empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--color-text-muted);
+}
+
+.multi-candle-results .empty-state-icon {
+  font-size: 3rem;
+  opacity: 0.3;
+  margin-bottom: 1rem;
+}
+
+.multi-candle-results .empty-state-text {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+}
