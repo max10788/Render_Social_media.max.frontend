@@ -30,15 +30,18 @@ const PriceMovers = () => {
   const [chartError, setChartError] = useState(null);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
 
+  // ✅ WICHTIG: Multi-Candle Support hinzufügen!
   const {
     loading,
     error,
     analysisData,
     walletDetails,
     exchangeComparison,
+    multiCandleResults,      // ← NEU!
     analyze,
     quickAnalyze,
     analyzeHistorical,
+    analyzeMultiCandles,     // ← NEU!
     fetchWalletDetails,
     compareMultipleExchanges,
     reset,
@@ -135,6 +138,51 @@ const PriceMovers = () => {
     } catch (err) {
       console.error('Error loading candle movers:', err);
       setChartError(err.message || 'Failed to load price movers for this candle');
+    }
+  };
+
+  // ✅ NEU: Multi-Candle Analysis Handler
+  const handleMultiCandleAnalysis = async (selectedCandles, options) => {
+    console.log('🎯 Starting multi-candle analysis:', {
+      candlesCount: selectedCandles.length,
+      options,
+    });
+    
+    setChartError(null);
+    
+    try {
+      // Rufe Hook-Funktion auf
+      const result = await analyzeMultiCandles(
+        selectedCandles,
+        chartData,  // allCandles für Lookback
+        {
+          exchange: formData.exchange,
+          symbol: formData.symbol,
+          timeframe: formData.timeframe,
+          topNWallets: options.topNWallets || 10,
+          // Options vom Modal werden durchgereicht
+          ...options
+        }
+      );
+      
+      console.log('✅ Multi-candle analysis complete:', {
+        successful: result.successful_analyses,
+        failed: result.failed_analyses,
+        resultsCount: result.results?.length,
+      });
+      
+      // Zeige Erfolgs-Meldung
+      const message = 
+        `✅ Multi-Candle Analyse abgeschlossen!\n\n` +
+        `Erfolgreich: ${result.successful_analyses}\n` +
+        `Fehlgeschlagen: ${result.failed_analyses}\n` +
+        `Gesamt: ${result.results?.length} Candles`;
+      
+      alert(message);
+      
+    } catch (err) {
+      console.error('❌ Multi-candle analysis error:', err);
+      setChartError(err.message || 'Multi-candle analysis failed');
     }
   };
 
@@ -365,9 +413,11 @@ const PriceMovers = () => {
               </div>
             )}
 
+            {/* ✅ WICHTIG: onMultiCandleAnalysis Handler übergeben */}
             <CustomCandlestickChart
               candleData={chartData}
               onCandleClick={handleCandleClick}
+              onMultiCandleAnalysis={handleMultiCandleAnalysis}  // ← NEU!
               candleMoversData={candleMoversData}
               onWalletClick={handleWalletClick}
               loading={chartLoading}
@@ -546,6 +596,88 @@ const PriceMovers = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ✅ NEU: Multi-Candle Results Display */}
+            {multiCandleResults && (
+              <div className="multi-candle-results analysis-results">
+                <div className="results-header">
+                  <h2>🎯 Multi-Candle Analysis Results</h2>
+                  <div className="results-meta">
+                    <span className="meta-item">
+                      <strong>Erfolgreich:</strong> {multiCandleResults.successful_analyses}
+                    </span>
+                    <span className="meta-item">
+                      <strong>Fehlgeschlagen:</strong> {multiCandleResults.failed_analyses}
+                    </span>
+                    <span className="meta-item">
+                      <strong>Gesamt:</strong> {multiCandleResults.results?.length}
+                    </span>
+                  </div>
+                </div>
+
+                {multiCandleResults.warning && (
+                  <div className="warning-message">
+                    <span className="warning-icon">⚠️</span>
+                    <span className="warning-text">{multiCandleResults.warning}</span>
+                  </div>
+                )}
+
+                <div className="multi-candle-grid">
+                  {multiCandleResults.results?.map((result, index) => (
+                    <div key={index} className="multi-candle-card">
+                      <div className="multi-candle-header">
+                        <span className="candle-timestamp">
+                          {new Date(result.timestamp).toLocaleString('de-DE', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        {result.is_synthetic && (
+                          <span className="synthetic-badge">Synthetic</span>
+                        )}
+                      </div>
+                      
+                      {result.error ? (
+                        <div className="error-content">
+                          <span className="error-icon">❌</span>
+                          <span className="error-text">{result.error}</span>
+                        </div>
+                      ) : (
+                        <>
+                          {result.candle && (
+                            <div className="candle-mini-info">
+                              <span className="price-change" 
+                                    style={{ 
+                                      color: result.candle.close >= result.candle.open ? '#00E676' : '#FF3D00' 
+                                    }}>
+                                {((result.candle.close - result.candle.open) / result.candle.open * 100).toFixed(2)}%
+                              </span>
+                            </div>
+                          )}
+                          
+                          <div className="movers-count">
+                            {result.top_movers?.length || 0} Movers
+                          </div>
+                          
+                          {result.top_movers && result.top_movers.length > 0 && (
+                            <div className="top-mover-preview">
+                              <div className="mover-preview-item">
+                                <span className="mover-wallet">
+                                  {result.top_movers[0].wallet_id.substring(0, 8)}...
+                                </span>
+                                <span className="mover-impact">
+                                  {formatPercentage(result.top_movers[0].impact_score)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
