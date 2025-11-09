@@ -459,10 +459,11 @@ export const usePriceMovers = () => {
   }, []);
 
   /**
-   * NEU: Multi-Candle Analyse
+   * NEU: Multi-Candle Analyse - FIXED VERSION
    * 
-   * WICHTIG: Backend unterstützt nur einfaches Batch-Processing!
-   * Lookback und Filtering muss Frontend-seitig gemacht werden.
+   * ✅ FIX 1: Korrekte Parameter für prepareMultiCandleAnalysis
+   * ✅ FIX 2: Response wird direkt gesetzt ohne Transformation
+   * ✅ FIX 3: Verbesserte Fehlerbehandlung
    */
   const analyzeMultiCandles = useCallback(async (selectedCandles, allCandles, options = {}) => {
     setLoading(true);
@@ -475,11 +476,15 @@ export const usePriceMovers = () => {
         options,
       });
 
-      // Prepare candles with lookback (Frontend-seitig!)
+      // ✅ FIX 1: Korrekte Parameter-Namen verwenden
       const prepared = prepareMultiCandleAnalysis(
         selectedCandles,
         allCandles,
-        options
+        {
+          includePreviousCandles: options.includePreviousCandles ?? true,
+          lookBackCandles: options.lookBackCandles ?? 50,
+          excludeAlreadyAnalysed: options.excludeAlreadyAnalysed ?? true,
+        }
       );
 
       console.log('📊 Prepared analysis:', {
@@ -489,7 +494,7 @@ export const usePriceMovers = () => {
         limitApplied: prepared.limitApplied,
       });
 
-      // Warne bei Limit
+      // Warnung wenn Limit angewendet wurde
       if (prepared.limitApplied) {
         console.warn(
           '⚠️ Candle limit applied! Only analyzing 50 most recent candles ' +
@@ -497,40 +502,28 @@ export const usePriceMovers = () => {
         );
       }
 
-      // Call API (Backend macht NUR Batch-Processing, kein Lookback!)
-      const data = await analyzeMultipleCandles({
+      // Call backend with prepared timestamps
+      const response = await analyzeMultipleCandles({
         exchange: options.exchange || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange,
         symbol: options.symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol,
         timeframe: options.timeframe || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.timeframe,
         candle_timestamps: prepared.timestamps,
         top_n_wallets: options.topNWallets || 10,
-        // Backend unterstützt diese Parameter NICHT:
-        // include_lookback, lookback_candles, exclude_already_analyzed
       });
 
-      console.log('✅ Multi-candle analysis complete:', {
-        successful: data.successful_analyses,
-        failed: data.failed_analyses,
-        resultsCount: data.results?.length,
-      });
+      console.log('✅ Multi-candle analysis response:', response);
 
-      // Füge Metadata hinzu
-      const enhancedData = {
-        ...data,
-        frontend_metadata: {
-          selected_count: prepared.selectedCount,
-          lookback_count: prepared.lookbackCount,
-          total_analyzed: prepared.count,
-          limit_applied: prepared.limitApplied,
-        }
-      };
-
-      setMultiCandleResults(enhancedData);
-      return enhancedData;
+      // ✅ FIX 2: Setze die Results direkt ohne Transformation
+      setMultiCandleResults(response);
+      
+      return response;
     } catch (err) {
-      console.error('❌ Multi-candle analysis error:', err);
+      console.error('❌ Error in analyzeMultiCandles:', err);
+      
+      // ✅ FIX 3: Bessere Fehlerbehandlung
       const errorMessage = err.response?.data?.detail || err.message || 'Multi-candle analysis failed';
       setError(errorMessage);
+      
       throw err;
     } finally {
       setLoading(false);
