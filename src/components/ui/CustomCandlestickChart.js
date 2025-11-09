@@ -9,6 +9,7 @@ const CustomCandlestickChart = ({
   onCandleClick,
   onMultiCandleAnalysis,
   candleMoversData = null,
+  multiCandleMoversData = null,  // ✅ NEU: Multi-Candle Results
   onWalletClick = null,
   loading = false,
   symbol = 'BTC/USDT',
@@ -43,6 +44,9 @@ const CustomCandlestickChart = ({
   const [selectedCandles, setSelectedCandles] = useState([]);
   const [showMultiCandleModal, setShowMultiCandleModal] = useState(false);
   const [isAnalyzingMultiple, setIsAnalyzingMultiple] = useState(false);
+  
+  // ✅ NEU: State für analysierte Multi-Candles
+  const [analyzedMultiCandles, setAnalyzedMultiCandles] = useState(new Map());
   
   // Touch handling
   const [touches, setTouches] = useState([]);
@@ -96,6 +100,35 @@ const CustomCandlestickChart = ({
     '#C7CEEA',
   ];
 
+  // ✅ NEU: Process Multi-Candle Results
+  useEffect(() => {
+    if (!multiCandleMoversData?.results) {
+      setAnalyzedMultiCandles(new Map());
+      return;
+    }
+
+    console.log('📊 Processing multi-candle results:', {
+      totalResults: multiCandleMoversData.results.length,
+      successful: multiCandleMoversData.successful_analyses,
+    });
+
+    // Erstelle Map: timestamp -> movers data
+    const candleMap = new Map();
+    multiCandleMoversData.results.forEach(result => {
+      if (result.success && result.candle && result.top_movers) {
+        const timestamp = new Date(result.timestamp).getTime();
+        candleMap.set(timestamp, {
+          candle: result.candle,
+          top_movers: result.top_movers,
+          is_synthetic: result.is_synthetic,
+        });
+      }
+    });
+
+    console.log('✅ Created multi-candle map with', candleMap.size, 'entries');
+    setAnalyzedMultiCandles(candleMap);
+  }, [multiCandleMoversData]);
+
   // Initialize dimensions
   useEffect(() => {
     if (!containerRef.current) return;
@@ -139,7 +172,7 @@ const CustomCandlestickChart = ({
     }
   }, [candleData]);
 
-  // Handle segmented candle
+  // Handle segmented candle (Single Candle Analysis)
   useEffect(() => {
     if (candleMoversData?.candle) {
       const candleIndex = candleData.findIndex(
@@ -233,19 +266,15 @@ const CustomCandlestickChart = ({
     const startIdx = Math.floor(panOffset);
     const candleWidth = chartDataRef.current.candleWidth;
     
-    // WICHTIG: Berechne die X-Koordinaten relativ zum Chart-Bereich
     const selectionStartX = Math.min(selectionStart.x, selectionEnd.x);
     const selectionEndX = Math.max(selectionStart.x, selectionEnd.x);
     
-    // Konvertiere zu Candle-Indizes
     const startCandleIdx = Math.floor((selectionStartX - MARGIN.left) / candleWidth);
     const endCandleIdx = Math.floor((selectionEndX - MARGIN.left) / candleWidth);
     
-    // Berechne globale Indizes
     const globalStartIdx = Math.max(0, startIdx + startCandleIdx);
     const globalEndIdx = Math.min(chartDataRef.current.candles.length, startIdx + endCandleIdx + 1);
     
-    // Slice die Candles
     const selected = chartDataRef.current.candles.slice(globalStartIdx, globalEndIdx);
     
     console.log('🎯 Selection calculation:', {
@@ -270,6 +299,13 @@ const CustomCandlestickChart = ({
     
     return selected;
   }, [selectionStart, selectionEnd, panOffset, zoom, dimensions]);
+
+  // ✅ Helper: Check if candle is in multi-analyzed
+  const getMultiCandleData = useCallback((candle) => {
+    if (analyzedMultiCandles.size === 0) return null;
+    const timestamp = new Date(candle.timestamp).getTime();
+    return analyzedMultiCandles.get(timestamp) || null;
+  }, [analyzedMultiCandles]);
 
   // Main draw function
   const drawChart = useCallback(() => {
@@ -326,7 +362,7 @@ const CustomCandlestickChart = ({
       }
     }
 
-    // Draw candles
+    // ✅ Draw candles with Multi-Candle support
     visibleData.forEach((candle, idx) => {
       const globalIdx = startIdx + idx;
       const x = MARGIN.left + idx * candleWidth;
@@ -335,13 +371,26 @@ const CustomCandlestickChart = ({
       const isSelected = selectedCandleForConfirmation && 
                         new Date(selectedCandleForConfirmation.timestamp).getTime() === 
                         new Date(candle.timestamp).getTime();
-      const isAnalyzed = segmentedCandle && globalIdx === segmentedCandle.index;
       
-      if (isAnalyzed) {
-        drawSegmentedCandle(ctx, candle, segmentedCandle.data, x, candleWidth, priceToY, isHovered);
+      // ✅ Check: Is this the single analyzed candle?
+      const isSingleAnalyzed = segmentedCandle && globalIdx === segmentedCandle.index;
+      
+      // ✅ Check: Is this candle in multi-analyzed results?
+      const multiCandleData = getMultiCandleData(candle);
+      const isMultiAnalyzed = multiCandleData !== null;
+      
+      // ✅ Priority: Single Analysis > Multi Analysis > Normal
+      if (isSingleAnalyzed) {
+        // Single analyzed candle (highest priority, with glow)
+        drawSegmentedCandle(ctx, candle, segmentedCandle.data, x, candleWidth, priceToY, isHovered, 'single');
+      } else if (isMultiAnalyzed) {
+        // Multi-analyzed candle (medium priority, with border)
+        drawSegmentedCandle(ctx, candle, multiCandleData, x, candleWidth, priceToY, isHovered, 'multi');
       } else if (isSelected) {
+        // Selected for analysis (gold glow)
         drawSelectedCandle(ctx, candle, x, candleWidth, priceToY);
       } else {
+        // Normal candle
         drawNormalCandle(ctx, candle, x, candleWidth, priceToY, candle.has_high_impact, isHovered);
       }
     });
@@ -360,7 +409,7 @@ const CustomCandlestickChart = ({
     drawPriceScale(ctx, width, MARGIN, chartHeight, priceScale, priceToY);
     drawTimeScale(ctx, MARGIN, chartWidth, chartHeight, visibleData, candleWidth, startIdx);
 
-  }, [dimensions, zoom, panOffset, currentPrice, hoveredCandleIndex, selectedCandleForConfirmation, chartMousePosition, isDragging, isSelecting, selectionStart, selectionEnd]);
+  }, [dimensions, zoom, panOffset, currentPrice, hoveredCandleIndex, selectedCandleForConfirmation, chartMousePosition, isDragging, isSelecting, selectionStart, selectionEnd, getMultiCandleData, analyzedMultiCandles]);
 
   // Draw functions (keeping existing implementations)
   const drawGrid = (ctx, margin, width, height, priceScale, priceToY) => {
@@ -440,14 +489,13 @@ const CustomCandlestickChart = ({
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, width, height);
 
-    // Candle count indicator (calculate in real-time)
+    // Candle count indicator
     const candleWidth = chartDataRef.current.candleWidth;
     if (candleWidth > 0) {
       const selectedCount = Math.max(1, Math.ceil(width / candleWidth));
       
       ctx.save();
       
-      // Background für Text
       const text = `${selectedCount} Candle${selectedCount !== 1 ? 's' : ''} selected`;
       ctx.font = 'bold 14px Arial';
       const textMetrics = ctx.measureText(text);
@@ -456,7 +504,6 @@ const CustomCandlestickChart = ({
       const textX = x + width / 2;
       const textY = y - 15;
       
-      // Hintergrund
       ctx.fillStyle = 'rgba(0, 120, 215, 0.9)';
       ctx.fillRect(
         textX - textWidth / 2 - 8,
@@ -465,7 +512,6 @@ const CustomCandlestickChart = ({
         textHeight + 8
       );
       
-      // Text
       ctx.fillStyle = '#FFFFFF';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -585,7 +631,8 @@ const CustomCandlestickChart = ({
     ctx.fillText('👆', centerX, highY - 20);
   };
 
-  const drawSegmentedCandle = (ctx, candle, moversData, x, width, priceToY, isHovered) => {
+  // ✅ UPDATED: drawSegmentedCandle mit mode-Parameter
+  const drawSegmentedCandle = (ctx, candle, moversData, x, width, priceToY, isHovered, mode = 'single') => {
     const openY = priceToY(candle.open);
     const closeY = priceToY(candle.close);
     const highY = priceToY(candle.high);
@@ -600,11 +647,17 @@ const CustomCandlestickChart = ({
     
     const time = Date.now() / 1000;
     const pulseIntensity = (Math.sin(time * 2) + 1) / 2;
-    const baseBlur = isHovered ? 15 : 10;
     
+    // ✅ Unterschiedliche Styles für single vs multi
+    const isSingle = mode === 'single';
+    const glowColor = isSingle ? '#00E5FF' : '#9333EA';  // Cyan für single, Purple für multi
+    const baseBlur = isHovered ? 15 : (isSingle ? 10 : 6);
+    const strokeWidth = isSingle ? 3 : 2;
+    
+    // Draw wick
     ctx.save();
-    ctx.shadowColor = '#00E5FF';
-    ctx.shadowBlur = baseBlur + pulseIntensity * 5;
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = baseBlur + (isSingle ? pulseIntensity * 5 : 0);
     ctx.strokeStyle = isGreen ? '#00E676' : '#FF3D00';
     ctx.lineWidth = Math.max(2, width * 0.2);
     ctx.beginPath();
@@ -613,7 +666,8 @@ const CustomCandlestickChart = ({
     ctx.stroke();
     ctx.restore();
 
-    const top3 = moversData.top_movers.slice(0, 3);
+    // Draw segments
+    const top3 = moversData.top_movers?.slice(0, 3) || [];
     const totalImpact = top3.reduce((sum, m) => sum + m.impact_score, 0);
     const segments = [
       ...top3.map((mover, idx) => ({
@@ -658,22 +712,24 @@ const CustomCandlestickChart = ({
       currentY += segHeight;
     });
 
+    // Draw border (different for single vs multi)
     ctx.save();
-    ctx.strokeStyle = '#00E5FF';
-    ctx.lineWidth = 3;
-    ctx.shadowColor = '#00E5FF';
-    ctx.shadowBlur = 10 + pulseIntensity * 10;
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth = strokeWidth;
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = baseBlur + (isSingle ? pulseIntensity * 10 : 0);
     ctx.strokeRect(centerX - bodyWidth / 2 - 1.5, bodyTop - 1.5, bodyWidth + 3, bodyHeight + 3);
     ctx.restore();
 
+    // Draw badge (different emoji for single vs multi)
     ctx.save();
-    ctx.shadowColor = '#00E5FF';
+    ctx.shadowColor = glowColor;
     ctx.shadowBlur = 15;
-    ctx.fillStyle = '#00E5FF';
+    ctx.fillStyle = glowColor;
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    const badgeY = highY - 18 + Math.sin(time * 3) * 3;
-    ctx.fillText('🎯', centerX, badgeY);
+    const badgeY = highY - 18 + (isSingle ? Math.sin(time * 3) * 3 : 0);
+    ctx.fillText(isSingle ? '🎯' : '📊', centerX, badgeY);
     ctx.restore();
   };
 
@@ -810,13 +866,11 @@ const CustomCandlestickChart = ({
     setMousePosition({ x: e.clientX, y: e.clientY });
     setChartMousePosition({ x, y });
 
-    // Handle selection drag
     if (isSelecting) {
       setSelectionEnd({ x, y });
       return;
     }
 
-    // Handle pan drag
     if (isDragging) {
       const deltaX = x - dragStart.x;
       const candlesPerPixel = chartDataRef.current.candles.length / (dimensions.width - MARGIN.left - MARGIN.right);
@@ -862,7 +916,6 @@ const CustomCandlestickChart = ({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Right mouse button - Start selection
     if (e.button === 2) {
       e.preventDefault();
       setIsSelecting(true);
@@ -872,7 +925,6 @@ const CustomCandlestickChart = ({
       return;
     }
 
-    // Left mouse button - Pan
     if (e.button === 0) {
       setIsDragging(true);
       setDragStart({ x, offset: panOffset });
@@ -883,33 +935,14 @@ const CustomCandlestickChart = ({
   };
 
   const handleMouseUp = (e) => {
-    // Complete selection
     if (isSelecting && e.button === 2) {
       e.preventDefault();
       
-      console.log('🎯 Selection completed:', {
-        selectionStart,
-        selectionEnd,
-        isSelecting,
-        button: e.button
-      });
-      
       const selected = getSelectedCandlesData();
-      
-      console.log('📊 Selected candles:', {
-        count: selected.length,
-        minRequired: SELECTION_CONFIG.MIN_CANDLES,
-        candles: selected.map(c => ({
-          timestamp: c.timestamp,
-          open: c.open,
-          close: c.close
-        }))
-      });
       
       if (selected.length >= SELECTION_CONFIG.MIN_CANDLES) {
         setSelectedCandles(selected);
         setShowMultiCandleModal(true);
-        console.log('✅ Opening multi-candle modal with', selected.length, 'candles');
       } else {
         console.warn(`⚠️ Please select at least ${SELECTION_CONFIG.MIN_CANDLES} candles (selected: ${selected.length})`);
       }
@@ -943,7 +976,7 @@ const CustomCandlestickChart = ({
   };
 
   const handleContextMenu = (e) => {
-    e.preventDefault(); // Prevent default context menu
+    e.preventDefault();
   };
 
   const handleDoubleClick = (e) => {
@@ -954,12 +987,10 @@ const CustomCandlestickChart = ({
     const x = e.clientX - rect.left;
 
     if (x >= MARGIN.left && x <= dimensions.width - MARGIN.right) {
-      // Zoom in on double-click
       handleZoomChange(0.5);
     }
   };
 
-  // Enhanced Wheel Handler
   const handleWheel = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -968,12 +999,10 @@ const CustomCandlestickChart = ({
     handleZoomChange(delta);
   }, [targetZoom, zoom]);
 
-  // Setup wheel event with { passive: false } to allow preventDefault
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Add wheel listener with { passive: false }
     canvas.addEventListener('wheel', handleWheel, { passive: false });
 
     return () => {
@@ -985,7 +1014,6 @@ const CustomCandlestickChart = ({
     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoom * (1 + delta)));
     setTargetZoom(newZoom);
     
-    // Adjust pan to keep center relatively stable
     const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
     const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoom)));
     const newVisibleCandles = Math.max(10, Math.floor(chartWidth / (12 * newZoom)));
@@ -994,7 +1022,6 @@ const CustomCandlestickChart = ({
     setTargetPanOffset(newOffset);
   };
 
-  // Touch Handlers
   const handleTouchStart = (e) => {
     e.preventDefault();
     const touchList = Array.from(e.touches);
@@ -1064,7 +1091,6 @@ const CustomCandlestickChart = ({
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  // Zoom Control Handlers
   const handleZoomIn = () => {
     handleZoomChange(0.3);
   };
@@ -1185,10 +1211,8 @@ const CustomCandlestickChart = ({
     };
   };
 
-  // Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Modal handling
       if (selectedCandleForConfirmation) {
         if (e.key === 'Enter') {
           handleConfirmAnalysis();
@@ -1205,7 +1229,6 @@ const CustomCandlestickChart = ({
         return;
       }
       
-      // Pan left/right
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         const step = 5 / zoom;
@@ -1219,7 +1242,6 @@ const CustomCandlestickChart = ({
         setVelocity(0);
       }
       
-      // Zoom in/out
       if (e.key === '+' || e.key === '=') {
         e.preventDefault();
         handleZoomIn();
@@ -1228,19 +1250,16 @@ const CustomCandlestickChart = ({
         handleZoomOut();
       }
       
-      // Reset
       if (e.key === '0') {
         e.preventDefault();
         handleResetZoom();
       }
       
-      // Center on analyzed
       if (e.key === 'c' && analyzedCandleIndex !== null) {
         e.preventDefault();
         centerOnAnalyzedCandle();
       }
       
-      // Go to start/end
       if (e.key === 'Home') {
         e.preventDefault();
         setTargetPanOffset(0);
@@ -1257,7 +1276,6 @@ const CustomCandlestickChart = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedCandleForConfirmation, showMultiCandleModal, analyzedCandleIndex, targetPanOffset, zoom]);
 
-  // Draw loop
   useEffect(() => {
     drawChart();
   }, [drawChart]);
@@ -1269,6 +1287,12 @@ const CustomCandlestickChart = ({
           <span className="chart-symbol">{symbol}</span>
           <span className="chart-timeframe">{timeframe}</span>
           <span className="chart-zoom-indicator">Zoom: {zoom.toFixed(1)}x</span>
+          {/* ✅ Zeige Anzahl analysierter Candles */}
+          {analyzedMultiCandles.size > 0 && (
+            <span className="chart-analyzed-indicator">
+              📊 {analyzedMultiCandles.size} analyzed
+            </span>
+          )}
         </div>
         <div className="chart-controls-info">
           <div className="zoom-controls">
@@ -1445,8 +1469,12 @@ const CustomCandlestickChart = ({
             <span className="legend-label">High Impact</span>
           </div>
           <div className="legend-item">
-            <div className="legend-state-indicator analyzed"></div>
-            <span className="legend-label">Analyzed (Cyan)</span>
+            <div className="legend-state-indicator analyzed-single"></div>
+            <span className="legend-label">Single Analyzed (🎯 Cyan)</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-state-indicator analyzed-multi"></div>
+            <span className="legend-label">Multi Analyzed (📊 Purple)</span>
           </div>
           <div className="legend-item">
             <div className="legend-state-indicator selected"></div>
@@ -1464,6 +1492,11 @@ const CustomCandlestickChart = ({
           <span className="stat-item">
             Visible: {Math.floor((dimensions.width - MARGIN.left - MARGIN.right) / (12 * zoom))}
           </span>
+          {analyzedMultiCandles.size > 0 && (
+            <span className="stat-item">
+              Analyzed: {analyzedMultiCandles.size}
+            </span>
+          )}
           {currentPrice && (
             <span className="stat-item">
               Current: ${formatPrice(currentPrice)}
