@@ -417,8 +417,9 @@ const PriceMovers = () => {
             <CustomCandlestickChart
               candleData={chartData}
               onCandleClick={handleCandleClick}
-              onMultiCandleAnalysis={handleMultiCandleAnalysis}  // ← NEU!
+              onMultiCandleAnalysis={handleMultiCandleAnalysis}
               candleMoversData={candleMoversData}
+              multiCandleMoversData={multiCandleResults}  // ← DIESE ZEILE HINZUFÜGEN!
               onWalletClick={handleWalletClick}
               loading={chartLoading}
               symbol={formData.symbol}
