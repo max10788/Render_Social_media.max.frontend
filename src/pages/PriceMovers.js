@@ -18,6 +18,7 @@ const PriceMovers = () => {
     minImpactThreshold: 0.1,
     topNWallets: 10,
     includeTrades: false,
+    useEnhanced: true, // ✅ NEU: Enhanced Mode Toggle
   });
 
   const [candleMoversData, setCandleMoversData] = useState(null);
@@ -30,21 +31,23 @@ const PriceMovers = () => {
   const [chartError, setChartError] = useState(null);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
 
-  // ✅ WICHTIG: Multi-Candle Support hinzufügen!
+  // ✅ WICHTIG: Multi-Candle Support und Enhanced Mode hinzufügen!
   const {
     loading,
     error,
     analysisData,
     walletDetails,
     exchangeComparison,
-    multiCandleResults,      // ← NEU!
+    multiCandleResults,      
     analyze,
     quickAnalyze,
+    enhancedAnalyze, // ✅ NEU
     analyzeHistorical,
-    analyzeMultiCandles,     // ← NEU!
+    analyzeMultiCandles,     
     fetchWalletDetails,
     compareMultipleExchanges,
     reset,
+    isEnhancedMode, // ✅ NEU
   } = usePriceMovers();
 
   useEffect(() => {
@@ -210,12 +213,24 @@ const PriceMovers = () => {
 
     try {
       if (analysisMode === 'quick') {
-        await quickAnalyze({
-          exchange: formData.exchange,
-          symbol: formData.symbol,
-          timeframe: formData.timeframe,
-          top_n_wallets: parseInt(formData.topNWallets),
-        });
+        // ✅ NEU: Nutze Enhanced oder Standard basierend auf Toggle
+        if (formData.useEnhanced) {
+          console.log('🚀 Using ENHANCED MODE');
+          await enhancedAnalyze({
+            exchange: formData.exchange,
+            symbol: formData.symbol,
+            timeframe: formData.timeframe,
+            top_n_wallets: parseInt(formData.topNWallets),
+          });
+        } else {
+          console.log('⚡ Using STANDARD MODE');
+          await quickAnalyze({
+            exchange: formData.exchange,
+            symbol: formData.symbol,
+            timeframe: formData.timeframe,
+            top_n_wallets: parseInt(formData.topNWallets),
+          });
+        }
       } else if (analysisMode === 'custom') {
         await analyze({
           exchange: formData.exchange,
@@ -349,6 +364,25 @@ const PriceMovers = () => {
             </div>
           ))}
         </section>
+
+        {/* ✅ NEU: Enhanced Mode Info Banner */}
+        {analysisMode === 'quick' && formData.useEnhanced && (
+          <div className="enhanced-mode-banner">
+            <div className="banner-icon">✨</div>
+            <div className="banner-content">
+              <h4>Enhanced Mode Active</h4>
+              <p>
+                Using Aggregated Trades for better entity detection. 
+                Only works for recent data (< 30 minutes).
+                {analysisData?.fallbackReason && (
+                  <span className="fallback-notice">
+                    ⚠️ Fallback to standard: {analysisData.fallbackReason}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
 
         {analysisMode === 'chart' && (
           <div className="chart-view">
@@ -764,6 +798,30 @@ const PriceMovers = () => {
                 </div>
               )}
 
+              {/* ✅ NEU: Enhanced Mode Toggle (nur für Quick Analysis) */}
+              {analysisMode === 'quick' && (
+                <div className="form-group form-group-checkbox">
+                  <label htmlFor="useEnhanced" className="checkbox-label">
+                    <input
+                      id="useEnhanced"
+                      type="checkbox"
+                      name="useEnhanced"
+                      checked={formData.useEnhanced}
+                      onChange={handleInputChange}
+                    />
+                    <span>
+                      <strong>✨ Enhanced Mode</strong>
+                      {' '}(Aggregated Trades)
+                    </span>
+                  </label>
+                  <small className="form-help">
+                    ✅ Better entity detection using aggregated trades
+                    <br />
+                    ⚠️ Only works for recent data (< 30 minutes)
+                  </small>
+                </div>
+              )}
+
               {(analysisMode === 'custom' || analysisMode === 'historical') && (
                 <>
                   <div className="form-group">
@@ -898,6 +956,17 @@ const PriceMovers = () => {
           <div className="analysis-results">
             <div className="results-header">
               <h2>📊 Analysis Results</h2>
+              {/* ✅ NEU: Mode Badge */}
+              {isEnhancedMode && (
+                <span className="mode-badge enhanced">
+                  ✨ Enhanced Mode
+                </span>
+              )}
+              {!isEnhancedMode && analysisData?.mode === 'standard' && (
+                <span className="mode-badge standard">
+                  ⚡ Standard Mode
+                </span>
+              )}
               <div className="results-meta">
                 <span className="meta-item">
                   <strong>Exchange:</strong> {analysisData.exchange}
