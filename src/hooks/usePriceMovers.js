@@ -8,6 +8,7 @@ import { useState, useCallback } from 'react';
 import {
   analyzePriceMovers,
   quickAnalysis,
+  enhancedAnalysis, // ✅ NEU!
   historicalAnalysis,
   getWalletDetails,
   compareExchanges,
@@ -119,6 +120,21 @@ export const PRICE_MOVERS_CONFIG = {
     LOOKBACK_CANDLES: 50,
     INCLUDE_PREVIOUS: true,
     EXCLUDE_ALREADY_ANALYZED: true,
+  },
+  
+  // 🆕 Enhanced Analysis Config
+  ENHANCED_MODE: {
+    MAX_DATA_AGE_MINUTES: 30,
+    RECOMMENDED_FOR: ['5m', '15m', '30m'],
+    BENEFITS: [
+      'Aggregated Trades (bessere Entity-Gruppierung)',
+      'Höhere Accuracy bei Entity-Detection',
+      'Weniger False Positives',
+    ],
+    LIMITATIONS: [
+      'Nur für recent data (< 30 Min)',
+      'Nicht für historische Analyse',
+    ]
   }
 };
 
@@ -370,6 +386,9 @@ export const usePriceMovers = () => {
   const [historicalData, setHistoricalData] = useState(null);
   const [healthStatus, setHealthStatus] = useState(null);
   const [multiCandleResults, setMultiCandleResults] = useState(null);
+  
+  // 🆕 NEU: Enhanced Mode State
+  const [isEnhancedMode, setIsEnhancedMode] = useState(false);
 
   /**
    * Standard Price Movers Analyse
@@ -377,6 +396,8 @@ export const usePriceMovers = () => {
   const analyze = useCallback(async (params) => {
     setLoading(true);
     setError(null);
+    setIsEnhancedMode(false);
+    
     try {
       const validation = validateAnalysisRequest(params);
       if (!validation.isValid) {
@@ -398,9 +419,7 @@ export const usePriceMovers = () => {
   }, []);
 
   /**
-   * Schnellanalyse - Unterstützt beide Aufruf-Arten
-   * 1. quickAnalyze('binance', 'BTC/USDT', '5m', 10)
-   * 2. quickAnalyze({ exchange: 'binance', symbol: 'BTC/USDT', timeframe: '5m', top_n_wallets: 10 })
+   * Schnellanalyse - Standard Mode
    */
   const quickAnalyze = useCallback(async (
     exchangeOrParams,
@@ -410,26 +429,25 @@ export const usePriceMovers = () => {
   ) => {
     setLoading(true);
     setError(null);
+    setIsEnhancedMode(false);
+    
     try {
       let exchange, normalizedSymbol, normalizedTimeframe, normalizedWallets;
 
-      // Check ob erstes Argument ein Objekt ist
       if (typeof exchangeOrParams === 'object' && exchangeOrParams !== null) {
-        // Objekt-Aufruf: quickAnalyze({ exchange: 'binance', ... })
         const params = exchangeOrParams;
         exchange = params.exchange || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange;
         normalizedSymbol = params.symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol;
         normalizedTimeframe = params.timeframe || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.timeframe;
         normalizedWallets = params.top_n_wallets || params.topNWallets || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.top_n_wallets;
       } else {
-        // Parameter-Aufruf: quickAnalyze('binance', 'BTC/USDT', ...)
         exchange = exchangeOrParams || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange;
         normalizedSymbol = symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol;
         normalizedTimeframe = timeframe || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.timeframe;
         normalizedWallets = topNWallets || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.top_n_wallets;
       }
 
-      console.log('quickAnalyze called with:', { 
+      console.log('quickAnalyze (standard mode) called with:', { 
         exchange, 
         symbol: normalizedSymbol, 
         timeframe: normalizedTimeframe, 
@@ -442,7 +460,6 @@ export const usePriceMovers = () => {
         normalizedTimeframe, 
         normalizedWallets
       );
-      console.log('Created request:', request);
       
       const data = await quickAnalysis(request);
       const parsed = parseAnalysisResponse(data);
@@ -459,11 +476,83 @@ export const usePriceMovers = () => {
   }, []);
 
   /**
-   * NEU: Multi-Candle Analyse - FIXED VERSION
+   * 🆕 Enhanced Analyse (NEU!)
    * 
-   * ✅ FIX 1: Korrekte Parameter für prepareMultiCandleAnalysis
-   * ✅ FIX 2: Response wird direkt gesetzt ohne Transformation
-   * ✅ FIX 3: Verbesserte Fehlerbehandlung
+   * Nutzt Aggregated Trades für bessere Entity-Detection
+   */
+  const enhancedAnalyze = useCallback(async (
+    exchangeOrParams,
+    symbol,
+    timeframe,
+    topNWallets
+  ) => {
+    setLoading(true);
+    setError(null);
+    setIsEnhancedMode(true);
+    
+    try {
+      let exchange, normalizedSymbol, normalizedTimeframe, normalizedWallets;
+
+      if (typeof exchangeOrParams === 'object' && exchangeOrParams !== null) {
+        const params = exchangeOrParams;
+        exchange = params.exchange || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange;
+        normalizedSymbol = params.symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol;
+        normalizedTimeframe = params.timeframe || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.timeframe;
+        normalizedWallets = params.top_n_wallets || params.topNWallets || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.top_n_wallets;
+      } else {
+        exchange = exchangeOrParams || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange;
+        normalizedSymbol = symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol;
+        normalizedTimeframe = timeframe || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.timeframe;
+        normalizedWallets = topNWallets || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.top_n_wallets;
+      }
+
+      console.log('✨ enhancedAnalyze (ENHANCED MODE) called with:', { 
+        exchange, 
+        symbol: normalizedSymbol, 
+        timeframe: normalizedTimeframe, 
+        topNWallets: normalizedWallets 
+      });
+      
+      const request = createQuickAnalysisRequest(
+        exchange, 
+        normalizedSymbol, 
+        normalizedTimeframe, 
+        normalizedWallets
+      );
+      
+      try {
+        // Versuche Enhanced Analysis
+        const data = await enhancedAnalysis(request);
+        const parsed = parseAnalysisResponse(data);
+        parsed.mode = 'enhanced'; // ✅ Markierung
+        setAnalysisData(parsed);
+        console.log('✅ Enhanced analysis successful!');
+        return parsed;
+      } catch (enhancedError) {
+        // Fallback zu Standard Analysis
+        console.warn('⚠️ Enhanced analysis failed, falling back to standard:', enhancedError.message);
+        setIsEnhancedMode(false);
+        
+        const data = await quickAnalysis(request);
+        const parsed = parseAnalysisResponse(data);
+        parsed.mode = 'standard'; // Fallback-Markierung
+        parsed.fallbackReason = enhancedError.message;
+        setAnalysisData(parsed);
+        return parsed;
+      }
+    } catch (err) {
+      console.error('❌ enhancedAnalyze error:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Enhanced analysis failed';
+      setError(errorMessage);
+      setIsEnhancedMode(false);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
+   * Multi-Candle Analyse
    */
   const analyzeMultiCandles = useCallback(async (selectedCandles, allCandles, options = {}) => {
     setLoading(true);
@@ -476,7 +565,6 @@ export const usePriceMovers = () => {
         options,
       });
 
-      // ✅ FIX 1: Korrekte Parameter-Namen verwenden
       const prepared = prepareMultiCandleAnalysis(
         selectedCandles,
         allCandles,
@@ -494,15 +582,12 @@ export const usePriceMovers = () => {
         limitApplied: prepared.limitApplied,
       });
 
-      // Warnung wenn Limit angewendet wurde
       if (prepared.limitApplied) {
         console.warn(
-          '⚠️ Candle limit applied! Only analyzing 50 most recent candles ' +
-          '(Backend limitation).'
+          '⚠️ Candle limit applied! Only analyzing 50 most recent candles.'
         );
       }
 
-      // Call backend with prepared timestamps
       const response = await analyzeMultipleCandles({
         exchange: options.exchange || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.exchange,
         symbol: options.symbol || PRICE_MOVERS_CONFIG.DEFAULT_VALUES.symbol,
@@ -513,14 +598,12 @@ export const usePriceMovers = () => {
 
       console.log('✅ Multi-candle analysis response:', response);
 
-      // ✅ FIX 2: Setze die Results direkt ohne Transformation
       setMultiCandleResults(response);
       
       return response;
     } catch (err) {
       console.error('❌ Error in analyzeMultiCandles:', err);
       
-      // ✅ FIX 3: Bessere Fehlerbehandlung
       const errorMessage = err.response?.data?.detail || err.message || 'Multi-candle analysis failed';
       setError(errorMessage);
       
@@ -536,6 +619,8 @@ export const usePriceMovers = () => {
   const analyzeHistorical = useCallback(async (params) => {
     setLoading(true);
     setError(null);
+    setIsEnhancedMode(false);
+    
     try {
       const data = await historicalAnalysis(params);
       setHistoricalData(data);
@@ -622,6 +707,7 @@ export const usePriceMovers = () => {
     setMultiCandleResults(null);
     setError(null);
     setLoading(false);
+    setIsEnhancedMode(false);
   }, []);
 
   return {
@@ -633,8 +719,10 @@ export const usePriceMovers = () => {
     historicalData,
     healthStatus,
     multiCandleResults,
+    isEnhancedMode, // ✅ NEU: Enhanced Mode Flag
     analyze,
     quickAnalyze,
+    enhancedAnalyze, // ✅ NEU: Enhanced Analysis
     analyzeMultiCandles,
     analyzeHistorical,
     fetchWalletDetails,
