@@ -1,4 +1,4 @@
-// src/config/api.js - Complete API Configuration for BlockIntel
+// src/config/api.js - UPDATED with Enhanced Endpoint
 import axios from 'axios';
 
 // Base Configuration
@@ -7,7 +7,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-med
 // Axios Instance with Interceptors
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000,
+  timeout: 180000, // ✅ ERHÖHT: 3 Minuten für Enhanced Analysis
   headers: {
     'Content-Type': 'application/json',
   },
@@ -53,17 +53,35 @@ api.interceptors.response.use(
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
   ENDPOINTS: {
+    // Existing Contract & Radar Endpoints
     CONTRACT_INFO: (address, chain) => `/api/contracts/${address}/info?chain=${chain}`,
     CONTRACT_INTERACTIONS: (address, chain, timePeriod) => `/api/contracts/${address}/interactions?chain=${chain}&time_period=${timePeriod}`,
     CONTRACT_SECURITY: (address, chain) => `/api/contracts/${address}/security?chain=${chain}`,
     CONTRACT_TIME_SERIES: (address, chain, timePeriod, interval) => `/api/contracts/${address}/time-series?chain=${chain}&time_period=${timePeriod}&interval=${interval}`,
     RADAR_CONTRACT_DATA: (address, chain, timePeriod) => `/api/radar/contract/${address}/data?chain=${chain}&time_period=${timePeriod}`,
     RADAR_WALLET_DETAILS: (address, chain, contractAddress, timePeriod) => `/api/radar/wallet/${address}/details?chain=${chain}&contract_address=${contractAddress}&time_period=${timePeriod}`,
+    
+    // Analysis Endpoints
     ANALYZE_CUSTOM: `/api/analyze/custom`,
     ANALYZE_HEALTH: `/api/analyze/health`,
     ANALYZE_SUPPORTED_CHAINS: `/api/analyze/supported-chains`,
     ANALYZE_WALLET_TYPES: `/api/analyze/wallet-types`,
     ANALYZE_WALLET_SOURCES: `/api/analyze/wallet-sources`,
+    
+    // 🆕 PRICE MOVERS ENDPOINTS (NEU!)
+    PRICE_MOVERS_QUICK: `/api/v1/analyze/quick`,
+    PRICE_MOVERS_ENHANCED: `/api/v1/analyze/enhanced`, // ✅ NEU!
+    PRICE_MOVERS_STATUS: `/api/v1/analyze/status`,
+    PRICE_MOVERS_CHART_CANDLES: `/api/v1/chart/candles`,
+    PRICE_MOVERS_CANDLE_MOVERS: (timestamp) => `/api/v1/chart/candle/${timestamp}/movers`,
+    PRICE_MOVERS_BATCH_ANALYZE: `/api/v1/chart/batch-analyze`,
+    PRICE_MOVERS_WALLET_DETAILS: (walletId) => `/api/v1/wallet/${walletId}`,
+    PRICE_MOVERS_WALLET_HISTORY: (walletId) => `/api/v1/wallet/${walletId}/history`,
+    PRICE_MOVERS_TIMEFRAMES: `/api/v1/chart/timeframes`,
+    PRICE_MOVERS_SYMBOLS: `/api/v1/chart/symbols`,
+    PRICE_MOVERS_DATA_AVAILABILITY: `/api/v1/chart/data-availability`,
+    
+    // Other Endpoints
     DATA: `/api/data`,
     TRACK_TRANSACTION: `/api/track-transaction-chain`,
     DISCOVER_TOKENS: `/api/tokens`,
@@ -79,11 +97,21 @@ export const API_CONFIG = {
 };
 
 export const API_ENDPOINTS = {
+  // Analysis
   ANALYZE_CUSTOM: `${API_BASE_URL}/api/analyze/custom`,
   ANALYZE_HEALTH: `${API_BASE_URL}/api/analyze/health`,
   SUPPORTED_CHAINS: `${API_BASE_URL}/api/analyze/supported-chains`,
   WALLET_TYPES: `${API_BASE_URL}/api/analyze/wallet-types`,
   WALLET_SOURCES: `${API_BASE_URL}/api/analyze/wallet-sources`,
+  
+  // 🆕 Price Movers (NEU!)
+  PRICE_MOVERS_QUICK: `${API_BASE_URL}/api/v1/analyze/quick`,
+  PRICE_MOVERS_ENHANCED: `${API_BASE_URL}/api/v1/analyze/enhanced`, // ✅ NEU!
+  PRICE_MOVERS_STATUS: `${API_BASE_URL}/api/v1/analyze/status`,
+  PRICE_MOVERS_CHART_CANDLES: `${API_BASE_URL}/api/v1/chart/candles`,
+  PRICE_MOVERS_BATCH_ANALYZE: `${API_BASE_URL}/api/v1/chart/batch-analyze`,
+  PRICE_MOVERS_TIMEFRAMES: `${API_BASE_URL}/api/v1/chart/timeframes`,
+  PRICE_MOVERS_SYMBOLS: `${API_BASE_URL}/api/v1/chart/symbols`,
 };
 
 export const ERROR_CODES = {
