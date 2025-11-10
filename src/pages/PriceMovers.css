@@ -1972,3 +1972,133 @@ body {
   font-size: 1rem;
   color: var(--color-text-secondary);
 }
+
+/* Enhanced Mode Styles */
+
+.enhanced-mode-banner {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+  border: 2px solid rgba(99, 102, 241, 0.3);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
+  }
+}
+
+.enhanced-mode-banner .banner-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.enhanced-mode-banner .banner-content {
+  flex: 1;
+}
+
+.enhanced-mode-banner h4 {
+  margin: 0 0 4px 0;
+  color: #6366f1;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.enhanced-mode-banner p {
+  margin: 0;
+  color: #8899a6;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.enhanced-mode-banner .fallback-notice {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(251, 191, 36, 0.1);
+  border-left: 3px solid #fbbf24;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #fbbf24;
+}
+
+/* Mode Badges */
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.mode-badge.enhanced {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+  color: #a78bfa;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.mode-badge.standard {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* Enhanced Mode Checkbox */
+.form-group-checkbox input[type="checkbox"]:checked + span strong {
+  color: #a78bfa;
+}
+
+.form-group-checkbox input[type="checkbox"]:checked + span::before {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  border-color: #a855f7;
+}
+
+/* Enhanced Mode in Results */
+.results-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.results-header h2 {
+  margin: 0;
+  flex: 1;
+}
+
+.results-header .mode-badge {
+  margin-left: auto;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .enhanced-mode-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .enhanced-mode-banner .banner-icon {
+    font-size: 48px;
+  }
+  
+  .results-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .results-header .mode-badge {
+    margin-left: 0;
+  }
+}
