@@ -18,7 +18,7 @@ const PriceMovers = () => {
     minImpactThreshold: 0.1,
     topNWallets: 10,
     includeTrades: false,
-    useEnhanced: true, // ✅ NEU: Enhanced Mode Toggle
+    useEnhanced: true,
   });
 
   const [candleMoversData, setCandleMoversData] = useState(null);
@@ -31,7 +31,6 @@ const PriceMovers = () => {
   const [chartError, setChartError] = useState(null);
   const [selectedCandleData, setSelectedCandleData] = useState(null);
 
-  // ✅ WICHTIG: Multi-Candle Support und Enhanced Mode hinzufügen!
   const {
     loading,
     error,
@@ -41,13 +40,13 @@ const PriceMovers = () => {
     multiCandleResults,      
     analyze,
     quickAnalyze,
-    enhancedAnalyze, // ✅ NEU
+    enhancedAnalyze,
     analyzeHistorical,
     analyzeMultiCandles,     
     fetchWalletDetails,
     compareMultipleExchanges,
     reset,
-    isEnhancedMode, // ✅ NEU
+    isEnhancedMode,
   } = usePriceMovers();
 
   useEffect(() => {
@@ -144,7 +143,6 @@ const PriceMovers = () => {
     }
   };
 
-  // ✅ NEU: Multi-Candle Analysis Handler
   const handleMultiCandleAnalysis = async (selectedCandles, options) => {
     console.log('🎯 Starting multi-candle analysis:', {
       candlesCount: selectedCandles.length,
@@ -154,16 +152,14 @@ const PriceMovers = () => {
     setChartError(null);
     
     try {
-      // Rufe Hook-Funktion auf
       const result = await analyzeMultiCandles(
         selectedCandles,
-        chartData,  // allCandles für Lookback
+        chartData,
         {
           exchange: formData.exchange,
           symbol: formData.symbol,
           timeframe: formData.timeframe,
           topNWallets: options.topNWallets || 10,
-          // Options vom Modal werden durchgereicht
           ...options
         }
       );
@@ -174,12 +170,11 @@ const PriceMovers = () => {
         resultsCount: result.results?.length,
       });
       
-      // Zeige Erfolgs-Meldung
-      const message = 
-        `✅ Multi-Candle Analyse abgeschlossen!\n\n` +
-        `Erfolgreich: ${result.successful_analyses}\n` +
-        `Fehlgeschlagen: ${result.failed_analyses}\n` +
-        `Gesamt: ${result.results?.length} Candles`;
+      const message = `✅ Multi-Candle Analyse abgeschlossen!
+
+Erfolgreich: ${result.successful_analyses}
+Fehlgeschlagen: ${result.failed_analyses}
+Gesamt: ${result.results?.length} Candles`;
       
       alert(message);
       
@@ -213,7 +208,6 @@ const PriceMovers = () => {
 
     try {
       if (analysisMode === 'quick') {
-        // ✅ NEU: Nutze Enhanced oder Standard basierend auf Toggle
         if (formData.useEnhanced) {
           console.log('🚀 Using ENHANCED MODE');
           await enhancedAnalyze({
@@ -365,7 +359,6 @@ const PriceMovers = () => {
           ))}
         </section>
 
-        {/* ✅ NEU: Enhanced Mode Info Banner */}
         {analysisMode === 'quick' && formData.useEnhanced && (
           <div className="enhanced-mode-banner">
             <div className="banner-icon">✨</div>
@@ -373,7 +366,7 @@ const PriceMovers = () => {
               <h4>Enhanced Mode Active</h4>
               <p>
                 Using Aggregated Trades for better entity detection. 
-                Only works for recent data (< 30 minutes).
+                Only works for recent data (&lt; 30 minutes).
                 {analysisData?.fallbackReason && (
                   <span className="fallback-notice">
                     ⚠️ Fallback to standard: {analysisData.fallbackReason}
@@ -447,13 +440,12 @@ const PriceMovers = () => {
               </div>
             )}
 
-            {/* ✅ WICHTIG: onMultiCandleAnalysis Handler übergeben */}
             <CustomCandlestickChart
               candleData={chartData}
               onCandleClick={handleCandleClick}
               onMultiCandleAnalysis={handleMultiCandleAnalysis}
               candleMoversData={candleMoversData}
-              multiCandleMoversData={multiCandleResults}  // ← DIESE ZEILE HINZUFÜGEN!
+              multiCandleMoversData={multiCandleResults}
               onWalletClick={handleWalletClick}
               loading={chartLoading}
               symbol={formData.symbol}
@@ -634,7 +626,6 @@ const PriceMovers = () => {
               </div>
             )}
 
-            {/* ✅ NEU: Multi-Candle Results Display */}
             {multiCandleResults && (
               <div className="multi-candle-results analysis-results">
                 <div className="results-header">
@@ -798,7 +789,6 @@ const PriceMovers = () => {
                 </div>
               )}
 
-              {/* ✅ NEU: Enhanced Mode Toggle (nur für Quick Analysis) */}
               {analysisMode === 'quick' && (
                 <div className="form-group form-group-checkbox">
                   <label htmlFor="useEnhanced" className="checkbox-label">
@@ -817,7 +807,7 @@ const PriceMovers = () => {
                   <small className="form-help">
                     ✅ Better entity detection using aggregated trades
                     <br />
-                    ⚠️ Only works for recent data (< 30 minutes)
+                    ⚠️ Only works for recent data (&lt; 30 minutes)
                   </small>
                 </div>
               )}
@@ -956,7 +946,6 @@ const PriceMovers = () => {
           <div className="analysis-results">
             <div className="results-header">
               <h2>📊 Analysis Results</h2>
-              {/* ✅ NEU: Mode Badge */}
               {isEnhancedMode && (
                 <span className="mode-badge enhanced">
                   ✨ Enhanced Mode
