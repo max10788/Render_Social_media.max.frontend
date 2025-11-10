@@ -1,17 +1,18 @@
 /**
- * Price Movers API Service
+ * priceMoversService.js - Unified Price Movers Service
  * 
- * Service für die Kommunikation mit der Price Movers Backend API
+ * Combines functionality from both service implementations:
+ * - Uses dedicated axios instance with interceptors
+ * - Includes enhanced analysis functionality
+ * - Maintains consistent error handling
  */
 import axios from 'axios';
-
-// Import der existierenden API Config
 import { API_BASE_URL } from '../config/api';
 
 // Price Movers API Base URL
 const PRICE_MOVERS_API_URL = `${API_BASE_URL}/api/v1`;
 
-// Axios Instance mit Defaults
+// Axios Instance with Defaults
 const priceMoversApi = axios.create({
   baseURL: PRICE_MOVERS_API_URL,
   timeout: 30000, // 30 seconds
@@ -20,7 +21,7 @@ const priceMoversApi = axios.create({
   },
 });
 
-// Request Interceptor für Logging
+// Request Interceptor for Logging
 priceMoversApi.interceptors.request.use(
   (config) => {
     console.log('Price Movers API Request:', {
@@ -37,7 +38,7 @@ priceMoversApi.interceptors.request.use(
   }
 );
 
-// Response Interceptor für Error Handling
+// Response Interceptor for Error Handling
 priceMoversApi.interceptors.response.use(
   (response) => {
     console.log('Price Movers API Response:', {
@@ -57,46 +58,119 @@ priceMoversApi.interceptors.response.use(
 );
 
 /**
- * Analysiert Price Movers für eine bestimmte Candle
- */
-export const analyzePriceMovers = async (params) => {
-  try {
-    const response = await priceMoversApi.post('/analyze/price-movers', params);
-    return response.data;
-  } catch (error) {
-    console.error('Price Movers Analysis Error:', error);
-    throw error;
-  }
-};
-
-/**
- * Schnellanalyse der aktuellen/letzten Candle
+ * Quick Analysis (Standard)
  */
 export const quickAnalysis = async (params) => {
   try {
-    const response = await priceMoversApi.post('/analyze/quick', params);
-    return response.data;
+    const response = await priceMoversApi.post('/analyze/quick', {
+      exchange: params.exchange,
+      symbol: params.symbol,
+      timeframe: params.timeframe,
+      top_n_wallets: params.top_n_wallets || 10,
+    });
+    
+    return {
+      success: true,
+      ...response.data
+    };
   } catch (error) {
-    console.error('Quick Analysis Error:', error);
+    console.error('Quick analysis error:', error);
     throw error;
   }
 };
 
 /**
- * Historische Analyse über mehrere Candles
+ * 🆕 Enhanced Analysis (NEU - Bessere Daten!)
+ * 
+ * Nutzt Aggregated Trades für bessere Entity-Detection
+ * Nur für recent data (< 30 Minuten)
+ */
+export const enhancedAnalysis = async (params) => {
+  try {
+    console.log('🚀 Starting Enhanced Analysis:', params);
+    
+    const response = await priceMoversApi.post('/analyze/enhanced', {
+      exchange: params.exchange,
+      symbol: params.symbol,
+      timeframe: params.timeframe,
+      top_n_wallets: params.top_n_wallets || 10,
+    });
+    
+    console.log('✅ Enhanced Analysis Response:', response.data);
+    
+    return {
+      success: true,
+      mode: 'enhanced', // ✅ Markierung für Frontend
+      ...response.data
+    };
+  } catch (error) {
+    console.error('❌ Enhanced analysis error:', error);
+    
+    // Spezielle Fehlerbehandlung für "zu alt" Error
+    if (error.response?.status === 400 && 
+        error.response?.data?.detail?.includes('only available for recent data')) {
+      throw new Error(
+        'Enhanced analysis only available for recent data (< 30 minutes old). ' +
+        'Using standard analysis instead.'
+      );
+    }
+    
+    throw error;
+  }
+};
+
+/**
+ * Standard Price Movers Analysis
+ */
+export const analyzePriceMovers = async (params) => {
+  try {
+    const response = await priceMoversApi.post('/analyze/price-movers', {
+      exchange: params.exchange,
+      symbol: params.symbol,
+      timeframe: params.timeframe,
+      start_time: params.start_time,
+      end_time: params.end_time,
+      min_impact_threshold: params.min_impact_threshold || 0.05,
+      top_n_wallets: params.top_n_wallets || 10,
+      include_trades: params.include_trades || false,
+    });
+    
+    return {
+      success: true,
+      ...response.data
+    };
+  } catch (error) {
+    console.error('Price movers analysis error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Historical Analysis
  */
 export const historicalAnalysis = async (params) => {
   try {
-    const response = await priceMoversApi.post('/analyze/historical', params);
-    return response.data;
+    const response = await priceMoversApi.post('/analyze/historical', {
+      exchange: params.exchange,
+      symbol: params.symbol,
+      timeframe: params.timeframe,
+      start_time: params.start_time,
+      end_time: params.end_time,
+      min_impact_threshold: params.min_impact_threshold || 0.05,
+    });
+    
+    return {
+      success: true,
+      ...response.data
+    };
   } catch (error) {
-    console.error('Historical Analysis Error:', error);
+    console.error('Historical analysis error:', error);
     throw error;
   }
 };
 
 /**
- * Wallet Details abrufen
+ * Get Wallet Details
  */
 export const getWalletDetails = async (walletId, exchange, symbol = null, timeRangeHours = 24) => {
   try {
@@ -107,20 +181,20 @@ export const getWalletDetails = async (walletId, exchange, symbol = null, timeRa
     const response = await priceMoversApi.get(`/wallet/${walletId}`, { params });
     return response.data;
   } catch (error) {
-    console.error('Wallet Lookup Error:', error);
+    console.error('Wallet lookup error:', error);
     throw error;
   }
 };
 
 /**
- * Exchange-Vergleich
+ * Compare Exchanges
  */
 export const compareExchanges = async (params) => {
   try {
     const response = await priceMoversApi.post('/compare-exchanges', params);
     return response.data;
   } catch (error) {
-    console.error('Exchange Comparison Error:', error);
+    console.error('Exchange comparison error:', error);
     throw error;
   }
 };
@@ -133,13 +207,13 @@ export const checkHealth = async () => {
     const response = await priceMoversApi.get('/health');
     return response.data;
   } catch (error) {
-    console.error('Health Check Error:', error);
+    console.error('Health check error:', error);
     throw error;
   }
 };
 
 /**
- * Helper: Teste Verbindung zum Backend
+ * Helper: Test Connection to Backend
  */
 export const testConnection = async () => {
   try {
@@ -153,9 +227,11 @@ export const testConnection = async () => {
   }
 };
 
+// Default export with all methods
 export default {
-  analyzePriceMovers,
   quickAnalysis,
+  enhancedAnalysis,
+  analyzePriceMovers,
   historicalAnalysis,
   getWalletDetails,
   compareExchanges,
