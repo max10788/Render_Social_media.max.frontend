@@ -1,3 +1,57 @@
+// TEMPORARY FIX - Debugging für zirkuläre Imports
+console.log('🔍 Index.js wird ausgeführt');
+
+// Teste jeden Import einzeln
+try {
+  console.log('📦 Teste React Import...');
+  const React = require('react');
+  console.log('✅ React OK');
+} catch (e) {
+  console.error('❌ React Error:', e);
+}
+
+try {
+  console.log('📦 Teste ReactDOM Import...');
+  const ReactDOM = require('react-dom/client');
+  console.log('✅ ReactDOM OK');
+} catch (e) {
+  console.error('❌ ReactDOM Error:', e);
+}
+
+try {
+  console.log('📦 Teste index.css Import...');
+  require('./index.css');
+  console.log('✅ index.css OK');
+} catch (e) {
+  console.error('❌ index.css Error:', e);
+}
+
+try {
+  console.log('📦 Teste socket.js Import...');
+  const { initSocket } = require('./socket');
+  console.log('✅ socket.js OK');
+} catch (e) {
+  console.error('❌ socket.js Error:', e);
+}
+
+try {
+  console.log('📦 Teste reportWebVitals Import...');
+  const reportWebVitals = require('./reportWebVitals');
+  console.log('✅ reportWebVitals OK');
+} catch (e) {
+  console.error('❌ reportWebVitals Error:', e);
+}
+
+try {
+  console.log('📦 Teste App.js Import...');
+  const App = require('./App');
+  console.log('✅ App.js OK');
+} catch (e) {
+  console.error('❌ App.js Error:', e);
+  console.error('Stack:', e.stack);
+}
+
+// Original Code
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
@@ -57,21 +111,23 @@ try {
   console.log('✅ WebSocket initialisiert');
   
   // Log socket connection status
-  socketInstance.on('connected', () => {
-    console.log('🔌 WebSocket connected successfully');
-  });
-  
-  socketInstance.on('disconnected', () => {
-    console.log('🔌 WebSocket disconnected');
-  });
-  
-  socketInstance.on('error', (error) => {
-    console.error('🔌 WebSocket error:', error);
-  });
-  
-  socketInstance.on('message', (data) => {
-    console.log('🔌 WebSocket message received:', data);
-  });
+  if (socketInstance) {
+    socketInstance.on('connected', () => {
+      console.log('🔌 WebSocket connected successfully');
+    });
+    
+    socketInstance.on('disconnected', () => {
+      console.log('🔌 WebSocket disconnected');
+    });
+    
+    socketInstance.on('error', (error) => {
+      console.error('🔌 WebSocket error:', error);
+    });
+    
+    socketInstance.on('message', (data) => {
+      console.log('🔌 WebSocket message received:', data);
+    });
+  }
 } catch (error) {
   console.error('❌ WebSocket Initialisierung fehlgeschlagen:', error);
 }
@@ -79,14 +135,18 @@ try {
 console.log('📦 Rendere React App...');
 
 // React-App rendern
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-
-console.log('✅ React App gerendert');
+try {
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+  console.log('✅ React App gerendert');
+} catch (error) {
+  console.error('❌ React Render Error:', error);
+  console.error('Stack:', error.stack);
+}
 
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
