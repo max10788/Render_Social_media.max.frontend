@@ -1,5 +1,3 @@
-console.log('🎯 App.js wird geladen');
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
@@ -18,6 +16,7 @@ import Account from './auth/Account/Account';
 import ProtectedRoute from './auth/ProtectedRoute';
 import './App.css';
 
+console.log('🎯 App.js wird geladen');
 console.log('✅ Alle App-Imports erfolgreich');
 
 function App() {
