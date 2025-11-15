@@ -1,0 +1,193 @@
+/* ExchangeSelector Component Styles */
+
+.exchange-selector {
+  background: #1a1d29;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #2a2e3f;
+}
+
+.selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+/* Hybrid Mode: Special Layout */
+.exchange-selector .selector-grid:has(.hybrid-cex) {
+  grid-template-columns: 1fr auto 1fr 1fr 1fr auto;
+}
+
+.selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selector-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selector-group select,
+.selector-group input {
+  padding: 10px 12px;
+  background: #0f1117;
+  border: 1px solid #2a2e3f;
+  border-radius: 8px;
+  color: #e5e7eb;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.selector-group select:hover,
+.selector-group input:hover {
+  border-color: #3b82f6;
+}
+
+.selector-group select:focus,
+.selector-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.selector-group select:disabled,
+.selector-group input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Exchange Badges */
+.exchange-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.exchange-badge.cex {
+  background: #3b82f6;
+  color: white;
+}
+
+.exchange-badge.dex {
+  background: #10b981;
+  color: white;
+}
+
+/* Hybrid Mode Divider */
+.selector-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 8px;
+}
+
+.divider-icon {
+  font-size: 24px;
+  opacity: 0.6;
+}
+
+/* Refresh Button */
+.btn-refresh {
+  padding: 10px 20px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.btn-refresh:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Exchange Info Banner */
+.exchange-info-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-icon {
+  font-size: 16px;
+}
+
+.info-text {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.info-divider {
+  color: #4b5563;
+  font-weight: bold;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .exchange-selector .selector-grid:has(.hybrid-cex) {
+    grid-template-columns: 1fr;
+  }
+  
+  .selector-divider {
+    display: none;
+  }
+  
+  .exchange-info-banner {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .info-divider {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .selector-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .exchange-info-banner {
+    padding: 8px;
+  }
+  
+  .info-text {
+    font-size: 12px;
+  }
+}
