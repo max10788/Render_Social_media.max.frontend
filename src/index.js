@@ -1,5 +1,3 @@
-console.log('🚀 Index.js wird geladen');
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
@@ -7,6 +5,7 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { initSocket } from './socket';
 
+console.log('🚀 Index.js wird geladen');
 console.log('✅ Alle Imports erfolgreich geladen');
 
 // Konfigurationsobjekt für Umgebungsvariablen
