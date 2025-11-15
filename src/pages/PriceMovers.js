@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { usePriceMovers } from '../hooks/usePriceMovers';
+import { useHybridAnalysis } from '../hooks/useHybridAnalysis';
 import CustomCandlestickChart from '../components/ui/CustomCandlestickChart';
+import ExchangeSelector from '../components/ui/ExchangeSelector';
+import CorrelationDisplay from '../components/ui/CorrelationDisplay';
 import { 
   fetchChartCandles, 
   fetchCandleMovers, 
@@ -9,7 +12,16 @@ import {
 import './PriceMovers.css';
 
 const PriceMovers = () => {
-  const [formData, setFormData] = useState({
+  // ==================== STATE ====================
+  
+  // Analysis Mode: 'cex' | 'dex' | 'hybrid'
+  const [analysisMode, setAnalysisMode] = useState('cex');
+  
+  // Chart Mode: 'chart' | 'quick' | 'custom' | 'historical'
+  const [chartMode, setChartMode] = useState('chart');
+  
+  // Form Data for CEX
+  const [cexFormData, setCexFormData] = useState({
     exchange: 'bitget',
     symbol: 'BTC/USDT',
     timeframe: '5m',
@@ -21,39 +33,87 @@ const PriceMovers = () => {
     useEnhanced: true,
   });
 
-  const [candleMoversData, setCandleMoversData] = useState(null);
-  const [analysisMode, setAnalysisMode] = useState('chart');
-  const [selectedWallet, setSelectedWallet] = useState(null);
-  const [showWalletPanel, setShowWalletPanel] = useState(false);
-  
+  // Form Data for DEX
+  const [dexFormData, setDexFormData] = useState({
+    exchange: 'jupiter',
+    symbol: 'SOL/USDT',
+    timeframe: '5m',
+    startTime: '',
+    endTime: '',
+    minImpactThreshold: 0.1,
+    topNWallets: 10,
+  });
+
+  // Hybrid Form Data
+  const [hybridFormData, setHybridFormData] = useState({
+    cexExchange: 'bitget',
+    dexExchange: 'jupiter',
+    symbol: 'SOL/USDT',
+    timeframe: '5m',
+    startTime: '',
+    endTime: '',
+    minImpactThreshold: 0.05,
+    topNWallets: 10,
+  });
+
+  // Chart Data
   const [chartData, setChartData] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState(null);
+  
+  // Selected Candle
   const [selectedCandleData, setSelectedCandleData] = useState(null);
+  const [candleMoversData, setCandleMoversData] = useState(null);
+  
+  // Wallet Panel
+  const [selectedWallet, setSelectedWallet] = useState(null);
+  const [showWalletPanel, setShowWalletPanel] = useState(false);
 
+  // Hooks
   const {
-    loading,
-    error,
-    analysisData,
+    loading: cexLoading,
+    error: cexError,
+    analysisData: cexAnalysisData,
     walletDetails,
-    exchangeComparison,
-    multiCandleResults,      
+    multiCandleResults,
     analyze,
     quickAnalyze,
     enhancedAnalyze,
     analyzeHistorical,
-    analyzeMultiCandles,     
+    analyzeMultiCandles,
     fetchWalletDetails,
-    compareMultipleExchanges,
-    reset,
+    reset: resetCex,
     isEnhancedMode,
   } = usePriceMovers();
+
+  const {
+    loading: hybridLoading,
+    error: hybridError,
+    hybridData,
+    analyzeHybrid,
+    getSupportedDexs,
+    reset: resetHybrid,
+  } = useHybridAnalysis();
+
+  // ==================== EFFECTS ====================
 
   useEffect(() => {
     const now = new Date();
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
     
-    setFormData(prev => ({
+    setCexFormData(prev => ({
+      ...prev,
+      startTime: fiveMinutesAgo.toISOString().slice(0, 16),
+      endTime: now.toISOString().slice(0, 16),
+    }));
+
+    setDexFormData(prev => ({
+      ...prev,
+      startTime: fiveMinutesAgo.toISOString().slice(0, 16),
+      endTime: now.toISOString().slice(0, 16),
+    }));
+
+    setHybridFormData(prev => ({
       ...prev,
       startTime: fiveMinutesAgo.toISOString().slice(0, 16),
       endTime: now.toISOString().slice(0, 16),
@@ -61,53 +121,54 @@ const PriceMovers = () => {
   }, []);
 
   useEffect(() => {
-    if (analysisMode === 'chart') {
+    if (chartMode === 'chart') {
       loadChartData();
     }
-  }, [analysisMode, formData.exchange, formData.symbol, formData.timeframe]);
+  }, [chartMode, analysisMode, getCurrentFormData().exchange, getCurrentFormData().symbol, getCurrentFormData().timeframe]);
 
-  const analysisModes = [
-    {
-      id: 'chart',
-      title: 'Interactive Chart',
-      icon: '📊',
-      description: 'Interaktiver Candlestick-Chart mit Click-to-Analyze',
-      badge: 'Neu',
-    },
-    {
-      id: 'quick',
-      title: 'Quick Analysis',
-      icon: '⚡',
-      description: 'Schnelle Analyse der letzten Candle',
-      badge: 'Empfohlen',
-    },
-    {
-      id: 'custom',
-      title: 'Custom Analysis',
-      icon: '🎯',
-      description: 'Detaillierte Analyse mit benutzerdefinierten Parametern',
-      badge: null,
-    },
-    {
-      id: 'historical',
-      title: 'Historical Analysis',
-      icon: '📈',
-      description: 'Historische Analyse über mehrere Candles',
-      badge: 'Pro',
-    },
-  ];
+  // ==================== HELPER FUNCTIONS ====================
+
+  const getCurrentFormData = () => {
+    switch (analysisMode) {
+      case 'dex':
+        return dexFormData;
+      case 'hybrid':
+        return { 
+          exchange: hybridFormData.cexExchange, 
+          symbol: hybridFormData.symbol, 
+          timeframe: hybridFormData.timeframe 
+        };
+      default:
+        return cexFormData;
+    }
+  };
+
+  const getCurrentLoading = () => {
+    return analysisMode === 'hybrid' ? hybridLoading : cexLoading;
+  };
+
+  const getCurrentError = () => {
+    return analysisMode === 'hybrid' ? hybridError : cexError;
+  };
+
+  const getCurrentAnalysisData = () => {
+    return analysisMode === 'hybrid' ? hybridData : cexAnalysisData;
+  };
+
+  // ==================== CHART FUNCTIONS ====================
 
   const loadChartData = async () => {
     setChartLoading(true);
     setChartError(null);
     
     try {
-      const { start_time, end_time } = calculateTimeWindow(formData.timeframe, 100);
+      const currentForm = getCurrentFormData();
+      const { start_time, end_time } = calculateTimeWindow(currentForm.timeframe, 100);
       
       const response = await fetchChartCandles({
-        exchange: formData.exchange,
-        symbol: formData.symbol,
-        timeframe: formData.timeframe,
+        exchange: currentForm.exchange,
+        symbol: currentForm.symbol,
+        timeframe: currentForm.timeframe,
         start_time,
         end_time,
         include_impact: false,
@@ -128,11 +189,12 @@ const PriceMovers = () => {
     setCandleMoversData(null);
     
     try {
+      const currentForm = getCurrentFormData();
       const response = await fetchCandleMovers(timestamp, {
-        exchange: formData.exchange,
-        symbol: formData.symbol,
-        timeframe: formData.timeframe,
-        top_n_wallets: formData.topNWallets,
+        exchange: currentForm.exchange,
+        symbol: currentForm.symbol,
+        timeframe: currentForm.timeframe,
+        top_n_wallets: currentForm.topNWallets || 10,
       });
       
       setCandleMoversData(response);
@@ -152,13 +214,14 @@ const PriceMovers = () => {
     setChartError(null);
     
     try {
+      const currentForm = getCurrentFormData();
       const result = await analyzeMultiCandles(
         selectedCandles,
         chartData,
         {
-          exchange: formData.exchange,
-          symbol: formData.symbol,
-          timeframe: formData.timeframe,
+          exchange: currentForm.exchange,
+          symbol: currentForm.symbol,
+          timeframe: currentForm.timeframe,
           topNWallets: options.topNWallets || 10,
           ...options
         }
@@ -184,67 +247,171 @@ Gesamt: ${result.results?.length} Candles`;
     }
   };
 
-  const handleInputChange = (e) => {
+  // ==================== INPUT HANDLERS ====================
+
+  const handleCexInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setCexFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
-  const handleModeSelect = (modeId) => {
+  const handleDexInputChange = (e) => {
+    const { name, value } = e.target;
+    setDexFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleHybridInputChange = (e) => {
+    const { name, value } = e.target;
+    setHybridFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // ==================== MODE SELECTION ====================
+
+  const analysisModeOptions = [
+    {
+      id: 'cex',
+      title: 'CEX Analysis',
+      icon: '🏦',
+      description: 'Centralized Exchange (Bitget, Binance, Kraken)',
+      badge: 'Pattern-Based',
+    },
+    {
+      id: 'dex',
+      title: 'DEX Analysis',
+      icon: '🔗',
+      description: 'Decentralized Exchange (Jupiter, Raydium, Orca)',
+      badge: 'On-Chain',
+    },
+    {
+      id: 'hybrid',
+      title: 'Hybrid CEX + DEX',
+      icon: '🔀',
+      description: 'Compare CEX and DEX side-by-side',
+      badge: 'Advanced',
+    },
+  ];
+
+  const chartModeOptions = [
+    {
+      id: 'chart',
+      title: 'Interactive Chart',
+      icon: '📊',
+      description: 'Candlestick Chart mit Click-to-Analyze',
+      badge: 'Empfohlen',
+    },
+    {
+      id: 'quick',
+      title: 'Quick Analysis',
+      icon: '⚡',
+      description: 'Schnelle Analyse der letzten Candle',
+      badge: null,
+    },
+    {
+      id: 'custom',
+      title: 'Custom Analysis',
+      icon: '🎯',
+      description: 'Detaillierte Analyse mit Parametern',
+      badge: null,
+    },
+    {
+      id: 'historical',
+      title: 'Historical Analysis',
+      icon: '📈',
+      description: 'Historische Analyse über mehrere Candles',
+      badge: 'Pro',
+    },
+  ];
+
+  const handleAnalysisModeSelect = (modeId) => {
     setAnalysisMode(modeId);
-    reset();
+    resetCex();
+    resetHybrid();
     setSelectedCandleData(null);
     setCandleMoversData(null);
   };
 
+  const handleChartModeSelect = (modeId) => {
+    setChartMode(modeId);
+    resetCex();
+    resetHybrid();
+    setSelectedCandleData(null);
+    setCandleMoversData(null);
+  };
+
+  // ==================== ANALYZE HANDLERS ====================
+
   const handleAnalyze = async (e) => {
     e.preventDefault();
-    reset();
+    resetCex();
+    resetHybrid();
     setShowWalletPanel(false);
     setSelectedCandleData(null);
     setCandleMoversData(null);
 
     try {
-      if (analysisMode === 'quick') {
-        if (formData.useEnhanced) {
-          console.log('🚀 Using ENHANCED MODE');
-          await enhancedAnalyze({
+      if (analysisMode === 'hybrid') {
+        // Hybrid Analysis
+        await analyzeHybrid({
+          cex_exchange: hybridFormData.cexExchange,
+          dex_exchange: hybridFormData.dexExchange,
+          symbol: hybridFormData.symbol,
+          timeframe: hybridFormData.timeframe,
+          start_time: hybridFormData.startTime ? new Date(hybridFormData.startTime).toISOString() : undefined,
+          end_time: hybridFormData.endTime ? new Date(hybridFormData.endTime).toISOString() : undefined,
+          min_impact_threshold: parseFloat(hybridFormData.minImpactThreshold),
+          top_n_wallets: parseInt(hybridFormData.topNWallets),
+        });
+      } else {
+        // CEX or DEX Analysis
+        const formData = analysisMode === 'dex' ? dexFormData : cexFormData;
+        
+        if (chartMode === 'quick') {
+          if (formData.useEnhanced) {
+            console.log('🚀 Using ENHANCED MODE');
+            await enhancedAnalyze({
+              exchange: formData.exchange,
+              symbol: formData.symbol,
+              timeframe: formData.timeframe,
+              top_n_wallets: parseInt(formData.topNWallets),
+            });
+          } else {
+            console.log('⚡ Using STANDARD MODE');
+            await quickAnalyze({
+              exchange: formData.exchange,
+              symbol: formData.symbol,
+              timeframe: formData.timeframe,
+              top_n_wallets: parseInt(formData.topNWallets),
+            });
+          }
+        } else if (chartMode === 'custom') {
+          await analyze({
             exchange: formData.exchange,
             symbol: formData.symbol,
             timeframe: formData.timeframe,
+            start_time: new Date(formData.startTime).toISOString(),
+            end_time: new Date(formData.endTime).toISOString(),
+            min_impact_threshold: parseFloat(formData.minImpactThreshold),
             top_n_wallets: parseInt(formData.topNWallets),
+            include_trades: formData.includeTrades,
           });
-        } else {
-          console.log('⚡ Using STANDARD MODE');
-          await quickAnalyze({
+        } else if (chartMode === 'historical') {
+          await analyzeHistorical({
             exchange: formData.exchange,
             symbol: formData.symbol,
             timeframe: formData.timeframe,
-            top_n_wallets: parseInt(formData.topNWallets),
+            start_time: new Date(formData.startTime).toISOString(),
+            end_time: new Date(formData.endTime).toISOString(),
+            min_impact_threshold: parseFloat(formData.minImpactThreshold),
           });
         }
-      } else if (analysisMode === 'custom') {
-        await analyze({
-          exchange: formData.exchange,
-          symbol: formData.symbol,
-          timeframe: formData.timeframe,
-          start_time: new Date(formData.startTime).toISOString(),
-          end_time: new Date(formData.endTime).toISOString(),
-          min_impact_threshold: parseFloat(formData.minImpactThreshold),
-          top_n_wallets: parseInt(formData.topNWallets),
-          include_trades: formData.includeTrades,
-        });
-      } else if (analysisMode === 'historical') {
-        await analyzeHistorical({
-          exchange: formData.exchange,
-          symbol: formData.symbol,
-          timeframe: formData.timeframe,
-          start_time: new Date(formData.startTime).toISOString(),
-          end_time: new Date(formData.endTime).toISOString(),
-          min_impact_threshold: parseFloat(formData.minImpactThreshold),
-        });
       }
     } catch (err) {
       console.error('Analysis error:', err);
@@ -256,10 +423,11 @@ Gesamt: ${result.results?.length} Candles`;
     setShowWalletPanel(true);
     
     try {
+      const currentForm = getCurrentFormData();
       await fetchWalletDetails(
         wallet.wallet_id,
-        formData.exchange,
-        formData.symbol,
+        currentForm.exchange,
+        currentForm.symbol,
         24
       );
     } catch (err) {
@@ -267,22 +435,12 @@ Gesamt: ${result.results?.length} Candles`;
     }
   };
 
-  const handleCompareExchanges = async () => {
-    try {
-      await compareMultipleExchanges({
-        exchanges: ['binance', 'bitget', 'kraken'],
-        symbol: formData.symbol,
-        timeframe: formData.timeframe,
-      });
-    } catch (err) {
-      console.error('Exchange comparison error:', err);
-    }
-  };
-
   const closeWalletPanel = () => {
     setShowWalletPanel(false);
     setSelectedWallet(null);
   };
+
+  // ==================== FORMATTING HELPERS ====================
 
   const formatNumber = (num, decimals = 2) => {
     if (num === null || num === undefined) return 'N/A';
@@ -308,6 +466,8 @@ Gesamt: ${result.results?.length} Candles`;
     });
   };
 
+  // ==================== RENDER ====================
+
   return (
     <div className="price-movers-container">
       <header className="price-movers-header">
@@ -317,7 +477,7 @@ Gesamt: ${result.results?.length} Candles`;
             <div>
               <h1>Price Movers Analysis</h1>
               <p className="subtitle">
-                Identifiziere Wallets mit dem größten Einfluss auf Preisbewegungen
+                CEX, DEX, and Hybrid Analysis with Pattern Matching
               </p>
             </div>
           </div>
@@ -333,33 +493,58 @@ Gesamt: ${result.results?.length} Candles`;
       </header>
 
       <main className="main-content">
+        {/* Analysis Mode Selector */}
         <section className="mode-selector">
-          {analysisModes.map((mode) => (
-            <div
-              key={mode.id}
-              className={`mode-card ${analysisMode === mode.id ? 'active' : ''}`}
-              onClick={() => handleModeSelect(mode.id)}
-              role="button"
-              tabIndex={0}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  handleModeSelect(mode.id);
-                }
-              }}
-            >
-              {mode.badge && (
-                <div className="mode-card-badge">{mode.badge}</div>
-              )}
-              <div className="mode-card-header">
-                <div className="mode-icon">{mode.icon}</div>
-                <h3 className="mode-card-title">{mode.title}</h3>
+          <h3 className="mode-selector-title">Analysis Type</h3>
+          <div className="mode-cards">
+            {analysisModeOptions.map((mode) => (
+              <div
+                key={mode.id}
+                className={`mode-card ${analysisMode === mode.id ? 'active' : ''}`}
+                onClick={() => handleAnalysisModeSelect(mode.id)}
+                role="button"
+                tabIndex={0}
+              >
+                {mode.badge && (
+                  <div className="mode-card-badge">{mode.badge}</div>
+                )}
+                <div className="mode-card-header">
+                  <div className="mode-icon">{mode.icon}</div>
+                  <h3 className="mode-card-title">{mode.title}</h3>
+                </div>
+                <p className="mode-card-description">{mode.description}</p>
               </div>
-              <p className="mode-card-description">{mode.description}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </section>
 
-        {analysisMode === 'quick' && formData.useEnhanced && (
+        {/* Chart Mode Selector */}
+        <section className="mode-selector">
+          <h3 className="mode-selector-title">Analysis Mode</h3>
+          <div className="mode-cards">
+            {chartModeOptions.map((mode) => (
+              <div
+                key={mode.id}
+                className={`mode-card ${chartMode === mode.id ? 'active' : ''}`}
+                onClick={() => handleChartModeSelect(mode.id)}
+                role="button"
+                tabIndex={0}
+              >
+                {mode.badge && (
+                  <div className="mode-card-badge">{mode.badge}</div>
+                )}
+                <div className="mode-card-header">
+                  <div className="mode-icon">{mode.icon}</div>
+                  <h3 className="mode-card-title">{mode.title}</h3>
+                </div>
+                <p className="mode-card-description">{mode.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Enhanced Mode Banner */}
+        {chartMode === 'quick' && analysisMode === 'cex' && cexFormData.useEnhanced && (
           <div className="enhanced-mode-banner">
             <div className="banner-icon">✨</div>
             <div className="banner-content">
@@ -367,9 +552,9 @@ Gesamt: ${result.results?.length} Candles`;
               <p>
                 Using Aggregated Trades for better entity detection. 
                 Only works for recent data (&lt; 30 minutes).
-                {analysisData?.fallbackReason && (
+                {cexAnalysisData?.fallbackReason && (
                   <span className="fallback-notice">
-                    ⚠️ Fallback to standard: {analysisData.fallbackReason}
+                    ⚠️ Fallback to standard: {cexAnalysisData.fallbackReason}
                   </span>
                 )}
               </p>
@@ -377,61 +562,43 @@ Gesamt: ${result.results?.length} Candles`;
           </div>
         )}
 
-        {analysisMode === 'chart' && (
+        {/* CHART VIEW */}
+        {chartMode === 'chart' && (
           <div className="chart-view">
-            <div className="chart-controls">
-              <div className="control-group">
-                <label htmlFor="chart-exchange">Exchange</label>
-                <select
-                  id="chart-exchange"
-                  name="exchange"
-                  value={formData.exchange}
-                  onChange={handleInputChange}
-                >
-                  <option value="binance">Binance</option>
-                  <option value="bitget">Bitget</option>
-                  <option value="kraken">Kraken</option>
-                </select>
-              </div>
-
-              <div className="control-group">
-                <label htmlFor="chart-symbol">Trading Pair</label>
-                <input
-                  id="chart-symbol"
-                  type="text"
-                  name="symbol"
-                  value={formData.symbol}
-                  onChange={handleInputChange}
-                  placeholder="BTC/USDT"
-                />
-              </div>
-
-              <div className="control-group">
-                <label htmlFor="chart-timeframe">Timeframe</label>
-                <select
-                  id="chart-timeframe"
-                  name="timeframe"
-                  value={formData.timeframe}
-                  onChange={handleInputChange}
-                >
-                  <option value="1m">1 Minute</option>
-                  <option value="5m">5 Minutes</option>
-                  <option value="15m">15 Minutes</option>
-                  <option value="30m">30 Minutes</option>
-                  <option value="1h">1 Hour</option>
-                  <option value="4h">4 Hours</option>
-                  <option value="1d">1 Day</option>
-                </select>
-              </div>
-
-              <button 
-                className="btn-refresh"
-                onClick={loadChartData}
-                disabled={chartLoading}
-              >
-                {chartLoading ? '🔄 Loading...' : '🔄 Refresh Chart'}
-              </button>
-            </div>
+            {/* Exchange Selector Component */}
+            <ExchangeSelector
+              analysisMode={analysisMode}
+              cexExchange={cexFormData.exchange}
+              dexExchange={dexFormData.exchange}
+              hybridCexExchange={hybridFormData.cexExchange}
+              hybridDexExchange={hybridFormData.dexExchange}
+              symbol={getCurrentFormData().symbol}
+              timeframe={getCurrentFormData().timeframe}
+              onCexExchangeChange={(value) => setCexFormData(prev => ({ ...prev, exchange: value }))}
+              onDexExchangeChange={(value) => setDexFormData(prev => ({ ...prev, exchange: value }))}
+              onHybridCexExchangeChange={(value) => setHybridFormData(prev => ({ ...prev, cexExchange: value }))}
+              onHybridDexExchangeChange={(value) => setHybridFormData(prev => ({ ...prev, dexExchange: value }))}
+              onSymbolChange={(value) => {
+                if (analysisMode === 'hybrid') {
+                  setHybridFormData(prev => ({ ...prev, symbol: value }));
+                } else if (analysisMode === 'dex') {
+                  setDexFormData(prev => ({ ...prev, symbol: value }));
+                } else {
+                  setCexFormData(prev => ({ ...prev, symbol: value }));
+                }
+              }}
+              onTimeframeChange={(value) => {
+                if (analysisMode === 'hybrid') {
+                  setHybridFormData(prev => ({ ...prev, timeframe: value }));
+                } else if (analysisMode === 'dex') {
+                  setDexFormData(prev => ({ ...prev, timeframe: value }));
+                } else {
+                  setCexFormData(prev => ({ ...prev, timeframe: value }));
+                }
+              }}
+              onRefresh={loadChartData}
+              loading={chartLoading}
+            />
 
             {chartError && (
               <div className="error-message" role="alert">
@@ -448,8 +615,8 @@ Gesamt: ${result.results?.length} Candles`;
               multiCandleMoversData={multiCandleResults}
               onWalletClick={handleWalletClick}
               loading={chartLoading}
-              symbol={formData.symbol}
-              timeframe={formData.timeframe}
+              symbol={getCurrentFormData().symbol}
+              timeframe={getCurrentFormData().timeframe}
               height={500}
             />
 
@@ -591,228 +758,221 @@ Gesamt: ${result.results?.length} Candles`;
                     </div>
                   )}
                 </div>
-
-                {candleMoversData.analysis_metadata && (
-                  <div className="analysis-metadata">
-                    <h3>ℹ️ Analyse-Informationen</h3>
-                    <div className="metadata-grid">
-                      <div className="metadata-item">
-                        <span className="label">Analyse-Zeitpunkt</span>
-                        <span className="value">
-                          {formatDate(candleMoversData.analysis_metadata.analysis_timestamp)}
-                        </span>
-                      </div>
-                      <div className="metadata-item">
-                        <span className="label">Verarbeitungsdauer</span>
-                        <span className="value">
-                          {candleMoversData.analysis_metadata.processing_duration_ms}ms
-                        </span>
-                      </div>
-                      <div className="metadata-item">
-                        <span className="label">Analysierte Trades</span>
-                        <span className="value">
-                          {formatNumber(candleMoversData.analysis_metadata.total_trades_analyzed, 0)}
-                        </span>
-                      </div>
-                      <div className="metadata-item">
-                        <span className="label">Unique Wallets</span>
-                        <span className="value">
-                          {formatNumber(candleMoversData.analysis_metadata.unique_wallets_found, 0)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {multiCandleResults && (
-              <div className="multi-candle-results analysis-results">
-                <div className="results-header">
-                  <h2>🎯 Multi-Candle Analysis Results</h2>
-                  <div className="results-meta">
-                    <span className="meta-item">
-                      <strong>Erfolgreich:</strong> {multiCandleResults.successful_analyses}
-                    </span>
-                    <span className="meta-item">
-                      <strong>Fehlgeschlagen:</strong> {multiCandleResults.failed_analyses}
-                    </span>
-                    <span className="meta-item">
-                      <strong>Gesamt:</strong> {multiCandleResults.results?.length}
-                    </span>
-                  </div>
-                </div>
-
-                {multiCandleResults.warning && (
-                  <div className="warning-message">
-                    <span className="warning-icon">⚠️</span>
-                    <span className="warning-text">{multiCandleResults.warning}</span>
-                  </div>
-                )}
-
-                <div className="multi-candle-grid">
-                  {multiCandleResults.results?.map((result, index) => (
-                    <div key={index} className="multi-candle-card">
-                      <div className="multi-candle-header">
-                        <span className="candle-timestamp">
-                          {new Date(result.timestamp).toLocaleString('de-DE', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                        {result.is_synthetic && (
-                          <span className="synthetic-badge">Synthetic</span>
-                        )}
-                      </div>
-                      
-                      {result.error ? (
-                        <div className="error-content">
-                          <span className="error-icon">❌</span>
-                          <span className="error-text">{result.error}</span>
-                        </div>
-                      ) : (
-                        <>
-                          {result.candle && (
-                            <div className="candle-mini-info">
-                              <span className="price-change" 
-                                    style={{ 
-                                      color: result.candle.close >= result.candle.open ? '#00E676' : '#FF3D00' 
-                                    }}>
-                                {((result.candle.close - result.candle.open) / result.candle.open * 100).toFixed(2)}%
-                              </span>
-                            </div>
-                          )}
-                          
-                          <div className="movers-count">
-                            {result.top_movers?.length || 0} Movers
-                          </div>
-                          
-                          {result.top_movers && result.top_movers.length > 0 && (
-                            <div className="top-mover-preview">
-                              <div className="mover-preview-item">
-                                <span className="mover-wallet">
-                                  {result.top_movers[0].wallet_id.substring(0, 8)}...
-                                </span>
-                                <span className="mover-impact">
-                                  {formatPercentage(result.top_movers[0].impact_score)}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
           </div>
         )}
 
-        {analysisMode !== 'chart' && (
+        {/* FORM VIEW (Quick/Custom/Historical) */}
+        {chartMode !== 'chart' && (
           <form className="analysis-form" onSubmit={handleAnalyze}>
             <div className="form-grid">
-              <div className="form-group">
-                <label htmlFor="exchange">
-                  Exchange
-                  <span className="required">*</span>
-                </label>
-                <select
-                  id="exchange"
-                  name="exchange"
-                  value={formData.exchange}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="binance">Binance</option>
-                  <option value="bitget">Bitget</option>
-                  <option value="kraken">Kraken</option>
-                </select>
-              </div>
+              {/* Hybrid Mode: Show CEX + DEX Selectors */}
+              {analysisMode === 'hybrid' && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="cexExchange">
+                      CEX Exchange
+                      <span className="required">*</span>
+                    </label>
+                    <select
+                      id="cexExchange"
+                      name="cexExchange"
+                      value={hybridFormData.cexExchange}
+                      onChange={handleHybridInputChange}
+                      required
+                    >
+                      <option value="binance">Binance</option>
+                      <option value="bitget">Bitget</option>
+                      <option value="kraken">Kraken</option>
+                    </select>
+                  </div>
 
-              <div className="form-group">
-                <label htmlFor="symbol">
-                  Trading Pair
-                  <span className="required">*</span>
-                </label>
-                <input
-                  id="symbol"
-                  type="text"
-                  name="symbol"
-                  value={formData.symbol}
-                  onChange={handleInputChange}
-                  placeholder="BTC/USDT"
-                  required
-                />
-                <small className="form-help">Format: BASE/QUOTE (z.B. BTC/USDT)</small>
-              </div>
+                  <div className="form-group">
+                    <label htmlFor="dexExchange">
+                      DEX Exchange
+                      <span className="required">*</span>
+                    </label>
+                    <select
+                      id="dexExchange"
+                      name="dexExchange"
+                      value={hybridFormData.dexExchange}
+                      onChange={handleHybridInputChange}
+                      required
+                    >
+                      <option value="jupiter">Jupiter (Solana)</option>
+                      <option value="raydium">Raydium (Solana)</option>
+                      <option value="orca">Orca (Solana)</option>
+                    </select>
+                  </div>
 
-              <div className="form-group">
-                <label htmlFor="timeframe">
-                  Timeframe
-                  <span className="required">*</span>
-                </label>
-                <select
-                  id="timeframe"
-                  name="timeframe"
-                  value={formData.timeframe}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="1m">1 Minute</option>
-                  <option value="5m">5 Minutes</option>
-                  <option value="15m">15 Minutes</option>
-                  <option value="30m">30 Minutes</option>
-                  <option value="1h">1 Hour</option>
-                  <option value="4h">4 Hours</option>
-                  <option value="1d">1 Day</option>
-                </select>
-              </div>
-
-              {(analysisMode === 'quick' || analysisMode === 'custom') && (
-                <div className="form-group">
-                  <label htmlFor="topNWallets">
-                    Top N Wallets
-                    <span className="required">*</span>
-                  </label>
-                  <input
-                    id="topNWallets"
-                    type="number"
-                    name="topNWallets"
-                    value={formData.topNWallets}
-                    onChange={handleInputChange}
-                    min="1"
-                    max="100"
-                    required
-                  />
-                  <small className="form-help">Anzahl der Top Price Movers (1-100)</small>
-                </div>
-              )}
-
-              {analysisMode === 'quick' && (
-                <div className="form-group form-group-checkbox">
-                  <label htmlFor="useEnhanced" className="checkbox-label">
+                  <div className="form-group">
+                    <label htmlFor="symbol">
+                      Trading Pair
+                      <span className="required">*</span>
+                    </label>
                     <input
-                      id="useEnhanced"
-                      type="checkbox"
-                      name="useEnhanced"
-                      checked={formData.useEnhanced}
-                      onChange={handleInputChange}
+                      id="symbol"
+                      type="text"
+                      name="symbol"
+                      value={hybridFormData.symbol}
+                      onChange={handleHybridInputChange}
+                      placeholder="SOL/USDT"
+                      required
                     />
-                    <span>
-                      <strong>✨ Enhanced Mode</strong>
-                      {' '}(Aggregated Trades)
-                    </span>
-                  </label>
-                  <small className="form-help">
-                    ✅ Better entity detection using aggregated trades
-                    <br />
-                    ⚠️ Only works for recent data (&lt; 30 minutes)
-                  </small>
-                </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="timeframe">
+                      Timeframe
+                      <span className="required">*</span>
+                    </label>
+                    <select
+                      id="timeframe"
+                      name="timeframe"
+                      value={hybridFormData.timeframe}
+                      onChange={handleHybridInputChange}
+                      required
+                    >
+                      <option value="1m">1 Minute</option>
+                      <option value="5m">5 Minutes</option>
+                      <option value="15m">15 Minutes</option>
+                      <option value="30m">30 Minutes</option>
+                      <option value="1h">1 Hour</option>
+                      <option value="4h">4 Hours</option>
+                      <option value="1d">1 Day</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="topNWallets">
+                      Top N Wallets
+                    </label>
+                    <input
+                      id="topNWallets"
+                      type="number"
+                      name="topNWallets"
+                      value={hybridFormData.topNWallets}
+                      onChange={handleHybridInputChange}
+                      min="1"
+                      max="100"
+                    />
+                  </div>
+                </>
               )}
 
-              {(analysisMode === 'custom' || analysisMode === 'historical') && (
+              {/* CEX or DEX Mode: Show Single Exchange Selector */}
+              {analysisMode !== 'hybrid' && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="exchange">
+                      {analysisMode === 'dex' ? 'DEX' : 'CEX'} Exchange
+                      <span className="required">*</span>
+                    </label>
+                    <select
+                      id="exchange"
+                      name="exchange"
+                      value={analysisMode === 'dex' ? dexFormData.exchange : cexFormData.exchange}
+                      onChange={analysisMode === 'dex' ? handleDexInputChange : handleCexInputChange}
+                      required
+                    >
+                      {analysisMode === 'dex' ? (
+                        <>
+                          <option value="jupiter">Jupiter (Solana)</option>
+                          <option value="raydium">Raydium (Solana)</option>
+                          <option value="orca">Orca (Solana)</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="binance">Binance</option>
+                          <option value="bitget">Bitget</option>
+                          <option value="kraken">Kraken</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="symbol">
+                      Trading Pair
+                      <span className="required">*</span>
+                    </label>
+                    <input
+                      id="symbol"
+                      type="text"
+                      name="symbol"
+                      value={analysisMode === 'dex' ? dexFormData.symbol : cexFormData.symbol}
+                      onChange={analysisMode === 'dex' ? handleDexInputChange : handleCexInputChange}
+                      placeholder={analysisMode === 'dex' ? 'SOL/USDT' : 'BTC/USDT'}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="timeframe">
+                      Timeframe
+                      <span className="required">*</span>
+                    </label>
+                    <select
+                      id="timeframe"
+                      name="timeframe"
+                      value={analysisMode === 'dex' ? dexFormData.timeframe : cexFormData.timeframe}
+                      onChange={analysisMode === 'dex' ? handleDexInputChange : handleCexInputChange}
+                      required
+                    >
+                      <option value="1m">1 Minute</option>
+                      <option value="5m">5 Minutes</option>
+                      <option value="15m">15 Minutes</option>
+                      <option value="30m">30 Minutes</option>
+                      <option value="1h">1 Hour</option>
+                      <option value="4h">4 Hours</option>
+                      <option value="1d">1 Day</option>
+                    </select>
+                  </div>
+
+                  {(chartMode === 'quick' || chartMode === 'custom') && (
+                    <div className="form-group">
+                      <label htmlFor="topNWallets">
+                        Top N Wallets
+                      </label>
+                      <input
+                        id="topNWallets"
+                        type="number"
+                        name="topNWallets"
+                        value={analysisMode === 'dex' ? dexFormData.topNWallets : cexFormData.topNWallets}
+                        onChange={analysisMode === 'dex' ? handleDexInputChange : handleCexInputChange}
+                        min="1"
+                        max="100"
+                      />
+                    </div>
+                  )}
+
+                  {chartMode === 'quick' && analysisMode === 'cex' && (
+                    <div className="form-group form-group-checkbox">
+                      <label htmlFor="useEnhanced" className="checkbox-label">
+                        <input
+                          id="useEnhanced"
+                          type="checkbox"
+                          name="useEnhanced"
+                          checked={cexFormData.useEnhanced}
+                          onChange={handleCexInputChange}
+                        />
+                        <span>
+                          <strong>✨ Enhanced Mode</strong>
+                          {' '}(Aggregated Trades)
+                        </span>
+                      </label>
+                      <small className="form-help">
+                        ✅ Better entity detection
+                        <br />
+                        ⚠️ Only for recent data (&lt; 30 min)
+                      </small>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {(chartMode === 'custom' || chartMode === 'historical') && (
                 <>
                   <div className="form-group">
                     <label htmlFor="startTime">
@@ -823,8 +983,20 @@ Gesamt: ${result.results?.length} Candles`;
                       id="startTime"
                       type="datetime-local"
                       name="startTime"
-                      value={formData.startTime}
-                      onChange={handleInputChange}
+                      value={
+                        analysisMode === 'hybrid' 
+                          ? hybridFormData.startTime 
+                          : analysisMode === 'dex' 
+                            ? dexFormData.startTime 
+                            : cexFormData.startTime
+                      }
+                      onChange={
+                        analysisMode === 'hybrid' 
+                          ? handleHybridInputChange 
+                          : analysisMode === 'dex' 
+                            ? handleDexInputChange 
+                            : handleCexInputChange
+                      }
                       required
                     />
                   </div>
@@ -838,102 +1010,56 @@ Gesamt: ${result.results?.length} Candles`;
                       id="endTime"
                       type="datetime-local"
                       name="endTime"
-                      value={formData.endTime}
-                      onChange={handleInputChange}
+                      value={
+                        analysisMode === 'hybrid' 
+                          ? hybridFormData.endTime 
+                          : analysisMode === 'dex' 
+                            ? dexFormData.endTime 
+                            : cexFormData.endTime
+                      }
+                      onChange={
+                        analysisMode === 'hybrid' 
+                          ? handleHybridInputChange 
+                          : analysisMode === 'dex' 
+                            ? handleDexInputChange 
+                            : handleCexInputChange
+                      }
                       required
                     />
                   </div>
                 </>
               )}
-
-              {(analysisMode === 'custom' || analysisMode === 'historical') && (
-                <div className="form-group">
-                  <label htmlFor="minImpactThreshold">
-                    Min Impact Threshold
-                  </label>
-                  <input
-                    id="minImpactThreshold"
-                    type="number"
-                    name="minImpactThreshold"
-                    value={formData.minImpactThreshold}
-                    onChange={handleInputChange}
-                    min="0"
-                    max="1"
-                    step="0.01"
-                  />
-                  <small className="form-help">
-                    Minimaler Impact Score (0.0 - 1.0, default: 0.1)
-                  </small>
-                </div>
-              )}
-
-              {analysisMode === 'custom' && (
-                <div className="form-group form-group-checkbox">
-                  <label htmlFor="includeTrades" className="checkbox-label">
-                    <input
-                      id="includeTrades"
-                      type="checkbox"
-                      name="includeTrades"
-                      checked={formData.includeTrades}
-                      onChange={handleInputChange}
-                    />
-                    <span>Include detailed trade data</span>
-                  </label>
-                  <small className="form-help">
-                    ⚠️ Aktiviert detaillierte Trade-Daten (langsamer)
-                  </small>
-                </div>
-              )}
-            </div>
-
-            <div className={`analysis-mode-info ${analysisMode}`}>
-              <div className="info-icon">
-                {analysisMode === 'quick' && '⚡'}
-                {analysisMode === 'custom' && '🎯'}
-                {analysisMode === 'historical' && '📈'}
-              </div>
-              <div className="info-content">
-                <h4>
-                  {analysisMode === 'quick' && 'Quick Analysis'}
-                  {analysisMode === 'custom' && 'Custom Analysis'}
-                  {analysisMode === 'historical' && 'Historical Analysis'}
-                </h4>
-                <p>
-                  {analysisMode === 'quick' && 
-                    'Analysiert die aktuellste Candle und identifiziert die Top Price Movers in Echtzeit.'}
-                  {analysisMode === 'custom' && 
-                    'Detaillierte Analyse mit benutzerdefinierten Parametern für einen spezifischen Zeitraum.'}
-                  {analysisMode === 'historical' && 
-                    'Historische Analyse über mehrere Candles zur Identifikation von Trends und Mustern.'}
-                </p>
-              </div>
             </div>
 
             <div className="form-actions">
               <button
                 type="submit"
                 className="btn-primary"
-                disabled={loading}
+                disabled={getCurrentLoading()}
               >
-                {loading ? (
+                {getCurrentLoading() ? (
                   <>
                     <span className="loading-spinner-small"></span>
                     Analysiere...
                   </>
                 ) : (
                   <>
-                    {analysisMode === 'quick' && '⚡ Quick Analyse starten'}
-                    {analysisMode === 'custom' && '🎯 Custom Analyse starten'}
-                    {analysisMode === 'historical' && '📈 Historical Analyse starten'}
+                    {analysisMode === 'hybrid' && '🔀 Hybrid Analyse starten'}
+                    {analysisMode !== 'hybrid' && chartMode === 'quick' && '⚡ Quick Analyse starten'}
+                    {analysisMode !== 'hybrid' && chartMode === 'custom' && '🎯 Custom Analyse starten'}
+                    {analysisMode !== 'hybrid' && chartMode === 'historical' && '📈 Historical Analyse starten'}
                   </>
                 )}
               </button>
 
-              {(analysisData || error) && (
+              {(getCurrentAnalysisData() || getCurrentError()) && (
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={reset}
+                  onClick={() => {
+                    resetCex();
+                    resetHybrid();
+                  }}
                 >
                   🔄 Zurücksetzen
                 </button>
@@ -942,202 +1068,292 @@ Gesamt: ${result.results?.length} Candles`;
           </form>
         )}
 
-        {analysisMode !== 'chart' && analysisData && (
+        {/* RESULTS DISPLAY */}
+        {chartMode !== 'chart' && getCurrentAnalysisData() && (
           <div className="analysis-results">
-            <div className="results-header">
-              <h2>📊 Analysis Results</h2>
-              {isEnhancedMode && (
-                <span className="mode-badge enhanced">
-                  ✨ Enhanced Mode
-                </span>
-              )}
-              {!isEnhancedMode && analysisData?.mode === 'standard' && (
-                <span className="mode-badge standard">
-                  ⚡ Standard Mode
-                </span>
-              )}
-              <div className="results-meta">
-                <span className="meta-item">
-                  <strong>Exchange:</strong> {analysisData.exchange}
-                </span>
-                <span className="meta-item">
-                  <strong>Symbol:</strong> {analysisData.symbol}
-                </span>
-                <span className="meta-item">
-                  <strong>Timeframe:</strong> {analysisData.timeframe}
-                </span>
-              </div>
-            </div>
-
-            {analysisData.candle && (
-              <div className="candle-summary">
-                <h3>🕯️ Candle Data</h3>
-                <div className="candle-details-grid">
-                  <div className="detail-item">
-                    <span className="label">Time:</span>
-                    <span className="value">
-                      {formatDate(analysisData.candle.timestamp)}
+            {analysisMode === 'hybrid' ? (
+              // Hybrid Results
+              <>
+                <div className="results-header">
+                  <h2>🔀 Hybrid Analysis Results</h2>
+                  <div className="results-meta">
+                    <span className="meta-item">
+                      <strong>CEX:</strong> {hybridData.cex_analysis?.exchange}
+                    </span>
+                    <span className="meta-item">
+                      <strong>DEX:</strong> {hybridData.dex_analysis?.exchange}
+                    </span>
+                    <span className="meta-item">
+                      <strong>Symbol:</strong> {hybridData.analysis_metadata?.symbol}
                     </span>
                   </div>
-                  <div className="detail-item">
-                    <span className="label">Open:</span>
-                    <span className="value">${formatNumber(analysisData.candle.open)}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">High:</span>
-                    <span className="value green">${formatNumber(analysisData.candle.high)}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Low:</span>
-                    <span className="value red">${formatNumber(analysisData.candle.low)}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Close:</span>
-                    <span className="value">${formatNumber(analysisData.candle.close)}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Volume:</span>
-                    <span className="value">{formatNumber(analysisData.candle.volume)}</span>
+                </div>
+
+                {/* Correlation Display */}
+                <CorrelationDisplay correlation={hybridData.correlation} />
+
+                {/* CEX Movers */}
+                <div className="top-movers">
+                  <h3>🏦 CEX Top Movers ({hybridData.cex_analysis?.top_movers?.length || 0})</h3>
+                  {hybridData.cex_analysis?.top_movers && hybridData.cex_analysis.top_movers.length > 0 ? (
+                    <div className="wallets-grid">
+                      {hybridData.cex_analysis.top_movers.map((mover, index) => (
+                        <div
+                          key={mover.wallet_id}
+                          className="wallet-card"
+                          onClick={() => handleWalletClick(mover)}
+                        >
+                          <div className="wallet-card-header">
+                            <div className="wallet-rank">#{index + 1}</div>
+                            <span className={`wallet-type-badge ${mover.wallet_type}`}>
+                              {mover.wallet_type}
+                            </span>
+                          </div>
+                          
+                          <div className="wallet-address" title={mover.wallet_id}>
+                            {mover.wallet_id}
+                          </div>
+                          
+                          <div className="wallet-stats-grid">
+                            <div className="wallet-stat">
+                              <span className="label">Volume</span>
+                              <span className="value">${formatNumber(mover.total_volume)}</span>
+                            </div>
+                            <div className="wallet-stat">
+                              <span className="label">Trades</span>
+                              <span className="value">{mover.trade_count}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="impact-score">
+                            <div className="impact-label">
+                              <span>Impact</span>
+                              <span className="impact-value">
+                                {formatPercentage(mover.impact_score)}
+                              </span>
+                            </div>
+                            <div className="impact-bar">
+                              <div 
+                                className="impact-fill"
+                                style={{ width: `${mover.impact_score * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <p>Keine CEX Movers gefunden</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* DEX Movers */}
+                <div className="top-movers">
+                  <h3>🔗 DEX Top Movers ({hybridData.dex_analysis?.top_movers?.length || 0})</h3>
+                  {hybridData.dex_analysis?.top_movers && hybridData.dex_analysis.top_movers.length > 0 ? (
+                    <div className="wallets-grid">
+                      {hybridData.dex_analysis.top_movers.map((mover, index) => (
+                        <div
+                          key={mover.wallet_id || mover.wallet_address}
+                          className="wallet-card dex-wallet"
+                          onClick={() => handleWalletClick(mover)}
+                        >
+                          <div className="wallet-card-header">
+                            <div className="wallet-rank">#{index + 1}</div>
+                            <span className={`wallet-type-badge ${mover.wallet_type}`}>
+                              {mover.wallet_type}
+                            </span>
+                            {mover.wallet_address && (
+                              <span className="dex-badge" title="Real Blockchain Address">
+                                🔗
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="wallet-address" title={mover.wallet_address || mover.wallet_id}>
+                            {mover.wallet_address || mover.wallet_id}
+                          </div>
+                          
+                          <div className="wallet-stats-grid">
+                            <div className="wallet-stat">
+                              <span className="label">Volume</span>
+                              <span className="value">${formatNumber(mover.total_volume)}</span>
+                            </div>
+                            <div className="wallet-stat">
+                              <span className="label">Trades</span>
+                              <span className="value">{mover.trade_count}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="impact-score">
+                            <div className="impact-label">
+                              <span>Impact</span>
+                              <span className="impact-value">
+                                {formatPercentage(mover.impact_score)}
+                              </span>
+                            </div>
+                            <div className="impact-bar">
+                              <div 
+                                className="impact-fill"
+                                style={{ width: `${mover.impact_score * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <p>Keine DEX Movers gefunden</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              // CEX or DEX Single Results
+              <>
+                <div className="results-header">
+                  <h2>📊 Analysis Results</h2>
+                  {isEnhancedMode && (
+                    <span className="mode-badge enhanced">
+                      ✨ Enhanced Mode
+                    </span>
+                  )}
+                  <div className="results-meta">
+                    <span className="meta-item">
+                      <strong>Exchange:</strong> {cexAnalysisData.exchange}
+                    </span>
+                    <span className="meta-item">
+                      <strong>Symbol:</strong> {cexAnalysisData.symbol}
+                    </span>
+                    <span className="meta-item">
+                      <strong>Type:</strong> {analysisMode.toUpperCase()}
+                    </span>
                   </div>
                 </div>
-              </div>
-            )}
 
-            <div className="top-movers">
-              <h3>🏆 Top Price Movers ({analysisData.topMovers?.length || 0})</h3>
-              {analysisData.topMovers && analysisData.topMovers.length > 0 ? (
-                <div className="wallets-grid">
-                  {analysisData.topMovers.map((mover, index) => (
-                    <div
-                      key={mover.wallet_id}
-                      className={`wallet-card ${
-                        selectedWallet?.wallet_id === mover.wallet_id ? 'selected' : ''
-                      }`}
-                      onClick={() => handleWalletClick(mover)}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <div className="wallet-card-header">
-                        <div className="wallet-rank">#{index + 1}</div>
-                        <span className={`wallet-type-badge ${mover.wallet_type}`}>
-                          {mover.wallet_type}
+                {cexAnalysisData.candle && (
+                  <div className="candle-summary">
+                    <h3>🕯️ Candle Data</h3>
+                    <div className="candle-details-grid">
+                      <div className="detail-item">
+                        <span className="label">Time:</span>
+                        <span className="value">
+                          {formatDate(cexAnalysisData.candle.timestamp)}
                         </span>
                       </div>
-                      
-                      <div className="wallet-address" title={mover.wallet_id}>
-                        {mover.wallet_id}
+                      <div className="detail-item">
+                        <span className="label">Open:</span>
+                        <span className="value">${formatNumber(cexAnalysisData.candle.open)}</span>
                       </div>
-                      
-                      <div className="wallet-stats-grid">
-                        <div className="wallet-stat">
-                          <span className="label">Volume</span>
-                          <span className="value">${formatNumber(mover.total_volume)}</span>
-                        </div>
-                        <div className="wallet-stat">
-                          <span className="label">Trades</span>
-                          <span className="value">{mover.trade_count}</span>
-                        </div>
-                        <div className="wallet-stat">
-                          <span className="label">Ø Trade Size</span>
-                          <span className="value">${formatNumber(mover.avg_trade_size)}</span>
-                        </div>
-                        <div className="wallet-stat">
-                          <span className="label">Aktivität</span>
-                          <span className="value">
-                            {mover.trade_count > 50 ? 'Hoch' : 
-                             mover.trade_count > 20 ? 'Mittel' : 'Niedrig'}
-                          </span>
-                        </div>
+                      <div className="detail-item">
+                        <span className="label">High:</span>
+                        <span className="value green">${formatNumber(cexAnalysisData.candle.high)}</span>
                       </div>
-                      
-                      <div className="impact-score">
-                        <div className="impact-label">
-                          <span>Impact Score</span>
-                          <span className="impact-value">
-                            {formatPercentage(mover.impact_score)}
-                          </span>
-                        </div>
-                        <div className="impact-bar">
-                          <div 
-                            className="impact-fill"
-                            style={{ width: `${mover.impact_score * 100}%` }}
-                          />
-                        </div>
+                      <div className="detail-item">
+                        <span className="label">Low:</span>
+                        <span className="value red">${formatNumber(cexAnalysisData.candle.low)}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="label">Close:</span>
+                        <span className="value">${formatNumber(cexAnalysisData.candle.close)}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="label">Volume:</span>
+                        <span className="value">{formatNumber(cexAnalysisData.candle.volume)}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <div className="empty-state-icon">🔍</div>
-                  <p className="empty-state-text">
-                    Keine Price Movers gefunden für die gewählten Parameter.
-                  </p>
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
 
-            {analysisData.metadata && (
-              <div className="analysis-metadata">
-                <h3>ℹ️ Analyse-Informationen</h3>
-                <div className="metadata-grid">
-                  <div className="metadata-item">
-                    <span className="label">Analyse-Zeitpunkt</span>
-                    <span className="value">
-                      {formatDate(analysisData.metadata.analysis_timestamp)}
-                    </span>
-                  </div>
-                  <div className="metadata-item">
-                    <span className="label">Verarbeitungsdauer</span>
-                    <span className="value">
-                      {analysisData.metadata.processing_duration_ms}ms
-                    </span>
-                  </div>
-                  <div className="metadata-item">
-                    <span className="label">Analysierte Trades</span>
-                    <span className="value">
-                      {formatNumber(analysisData.metadata.total_trades_analyzed, 0)}
-                    </span>
-                  </div>
-                  <div className="metadata-item">
-                    <span className="label">Unique Wallets</span>
-                    <span className="value">
-                      {formatNumber(analysisData.metadata.unique_wallets_found, 0)}
-                    </span>
-                  </div>
+                <div className="top-movers">
+                  <h3>🏆 Top Price Movers ({cexAnalysisData.topMovers?.length || 0})</h3>
+                  {cexAnalysisData.topMovers && cexAnalysisData.topMovers.length > 0 ? (
+                    <div className="wallets-grid">
+                      {cexAnalysisData.topMovers.map((mover, index) => (
+                        <div
+                          key={mover.wallet_id}
+                          className={`wallet-card ${analysisMode === 'dex' ? 'dex-wallet' : ''}`}
+                          onClick={() => handleWalletClick(mover)}
+                        >
+                          <div className="wallet-card-header">
+                            <div className="wallet-rank">#{index + 1}</div>
+                            <span className={`wallet-type-badge ${mover.wallet_type}`}>
+                              {mover.wallet_type}
+                            </span>
+                            {analysisMode === 'dex' && mover.wallet_address && (
+                              <span className="dex-badge" title="Real Blockchain Address">
+                                🔗
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="wallet-address" title={mover.wallet_id}>
+                            {mover.wallet_id}
+                          </div>
+                          
+                          <div className="wallet-stats-grid">
+                            <div className="wallet-stat">
+                              <span className="label">Volume</span>
+                              <span className="value">${formatNumber(mover.total_volume)}</span>
+                            </div>
+                            <div className="wallet-stat">
+                              <span className="label">Trades</span>
+                              <span className="value">{mover.trade_count}</span>
+                            </div>
+                            <div className="wallet-stat">
+                              <span className="label">Ø Size</span>
+                              <span className="value">${formatNumber(mover.avg_trade_size)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="impact-score">
+                            <div className="impact-label">
+                              <span>Impact Score</span>
+                              <span className="impact-value">
+                                {formatPercentage(mover.impact_score)}
+                              </span>
+                            </div>
+                            <div className="impact-bar">
+                              <div 
+                                className="impact-fill"
+                                style={{ width: `${mover.impact_score * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">
+                      <div className="empty-state-icon">🔍</div>
+                      <p className="empty-state-text">
+                        Keine Price Movers gefunden.
+                      </p>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}
 
-        {error && (
+        {getCurrentError() && (
           <div className="error-message" role="alert">
             <span className="error-icon">⚠️</span>
-            <span className="error-text">{error}</span>
-          </div>
-        )}
-
-        {exchangeComparison && (
-          <div className="exchange-comparison">
-            {/* Exchange comparison content */}
+            <span className="error-text">{getCurrentError()}</span>
           </div>
         )}
       </main>
 
+      {/* Wallet Details Panel */}
       {showWalletPanel && selectedWallet && (
         <>
           <div 
             className="wallet-details-overlay"
             onClick={closeWalletPanel}
-            role="button"
-            aria-label="Close wallet details"
-            tabIndex={0}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                closeWalletPanel();
-              }
-            }}
           />
           <div className="wallet-details-panel">
             <div className="panel-header">
@@ -1145,7 +1361,6 @@ Gesamt: ${result.results?.length} Candles`;
               <button 
                 className="close-btn"
                 onClick={closeWalletPanel}
-                aria-label="Close"
               >
                 ×
               </button>
@@ -1165,51 +1380,29 @@ Gesamt: ${result.results?.length} Candles`;
                         {walletDetails.wallet_type}
                       </span>
                     </div>
-                    <div className="info-row">
-                      <span className="label">Erstmals gesehen:</span>
-                      <span className="value">{formatDate(walletDetails.first_seen)}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="label">Zuletzt gesehen:</span>
-                      <span className="value">{formatDate(walletDetails.last_seen)}</span>
-                    </div>
+                    {walletDetails.wallet_address && (
+                      <div className="info-row">
+                        <span className="label">Address:</span>
+                        <span className="value blockchain-address">
+                          {walletDetails.wallet_address}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="wallet-info-section">
-                    <h3>Handelsaktivität</h3>
+                    <h3>Trading Statistiken</h3>
                     <div className="info-row">
-                      <span className="label">Gesamte Trades:</span>
+                      <span className="label">Total Trades:</span>
                       <span className="value">{formatNumber(walletDetails.total_trades, 0)}</span>
                     </div>
                     <div className="info-row">
-                      <span className="label">Gesamtvolumen:</span>
+                      <span className="label">Total Volume:</span>
                       <span className="value">${formatNumber(walletDetails.total_volume)}</span>
                     </div>
                     <div className="info-row">
-                      <span className="label">Gesamtwert (USD):</span>
-                      <span className="value">${formatNumber(walletDetails.total_value_usd)}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="label">Ø Impact Score:</span>
+                      <span className="label">Ø Impact:</span>
                       <span className="value">{formatPercentage(walletDetails.avg_impact_score)}</span>
-                    </div>
-                  </div>
-
-                  <div className="wallet-info-section">
-                    <h3>Statistiken</h3>
-                    <div className="info-row">
-                      <span className="label">Aktivitätslevel:</span>
-                      <span className="value">
-                        {walletDetails.total_trades > 100 ? 'Sehr hoch' :
-                         walletDetails.total_trades > 50 ? 'Hoch' :
-                         walletDetails.total_trades > 20 ? 'Mittel' : 'Niedrig'}
-                      </span>
-                    </div>
-                    <div className="info-row">
-                      <span className="label">Durchschnittlicher Trade:</span>
-                      <span className="value">
-                        ${formatNumber(walletDetails.total_volume / walletDetails.total_trades)}
-                      </span>
                     </div>
                   </div>
                 </>
@@ -1224,7 +1417,7 @@ Gesamt: ${result.results?.length} Candles`;
         </>
       )}
 
-      {loading && !analysisData && (
+      {getCurrentLoading() && !getCurrentAnalysisData() && (
         <div className="loading-overlay">
           <div className="loading-spinner-large"></div>
           <p className="loading-text">Analysiere Daten...</p>
