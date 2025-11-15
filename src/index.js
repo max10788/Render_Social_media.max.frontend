@@ -1,9 +1,13 @@
+console.log('🚀 Index.js wird geladen');
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { initSocket } from './socket'; // Nur die Funktion importieren
+import { initSocket } from './socket';
+
+console.log('✅ Alle Imports erfolgreich geladen');
 
 // Konfigurationsobjekt für Umgebungsvariablen
 const config = {
@@ -15,13 +19,14 @@ const config = {
   suiRpcUrl: process.env.REACT_APP_SUI_RPC_URL,
 };
 
+console.log('⚙️ Config erstellt:', config.environment);
+
 // Protokolliere die Konfiguration zur Diagnose (nur in Entwicklung)
 if (config.environment === 'development') {
   console.log('App Configuration:', {
     apiUrl: config.apiUrl,
     wsUrl: config.wsUrl,
     environment: config.environment,
-    // RPC-URLs nicht vollständig loggen (Sicherheit)
     ethereumRpc: config.ethereumRpcUrl ? 'Configured' : 'Missing',
     solanaRpc: config.solanaRpcUrl ? 'Configured' : 'Missing',
     suiRpc: config.suiRpcUrl ? 'Configured' : 'Missing',
@@ -31,7 +36,6 @@ if (config.environment === 'development') {
 // Ignoriere den Ethereum-Fehler, falls er auftritt
 if (window.ethereum) {
   try {
-    // Ethereum-bezogener Code hier
     console.log('Ethereum provider detected');
   } catch (error) {
     if (error.message && error.message.includes('Cannot redefine property: ethereum')) {
@@ -45,22 +49,35 @@ if (window.ethereum) {
 // Globale Konfiguration für die gesamte App verfügbar machen
 window.appConfig = config;
 
-// Initialize WebSocket connection
-const socketInstance = initSocket(); // Variable umbenannt, um Konflikt zu vermeiden
+console.log('🔌 Initialisiere WebSocket...');
 
-// Log socket connection status
-socketInstance.on('connected', () => {
-  console.log('🔌 WebSocket connected successfully');
-});
-socketInstance.on('disconnected', () => {
-  console.log('🔌 WebSocket disconnected');
-});
-socketInstance.on('error', (error) => {
-  console.error('🔌 WebSocket error:', error);
-});
-socketInstance.on('message', (data) => {
-  console.log('🔌 WebSocket message received:', data);
-});
+// Initialize WebSocket connection
+let socketInstance = null;
+try {
+  socketInstance = initSocket();
+  console.log('✅ WebSocket initialisiert');
+  
+  // Log socket connection status
+  socketInstance.on('connected', () => {
+    console.log('🔌 WebSocket connected successfully');
+  });
+  
+  socketInstance.on('disconnected', () => {
+    console.log('🔌 WebSocket disconnected');
+  });
+  
+  socketInstance.on('error', (error) => {
+    console.error('🔌 WebSocket error:', error);
+  });
+  
+  socketInstance.on('message', (data) => {
+    console.log('🔌 WebSocket message received:', data);
+  });
+} catch (error) {
+  console.error('❌ WebSocket Initialisierung fehlgeschlagen:', error);
+}
+
+console.log('📦 Rendere React App...');
 
 // React-App rendern
 const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -70,9 +87,12 @@ root.render(
   </React.StrictMode>
 );
 
+console.log('✅ React App gerendert');
+
 // Clean up on page unload
 window.addEventListener('beforeunload', () => {
   if (socketInstance) {
+    console.log('🔌 Schließe WebSocket-Verbindung...');
     socketInstance.disconnect();
   }
 });
