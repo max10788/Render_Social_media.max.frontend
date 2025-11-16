@@ -53,9 +53,13 @@ const PriceMovers = () => {
   });
 
   // Chart Data
-  const [chartData, setChartData] = useState([]);
-  const [chartLoading, setChartLoading] = useState(false);
-  const [chartError, setChartError] = useState(null);
+  const {
+    chartData,
+    chartLoading,
+    chartError,
+    loadChartData,
+    loadCandleMovers,
+  } = useChartService();
   
   // Selected Candle
   const [selectedCandleData, setSelectedCandleData] = useState(null);
