@@ -100,10 +100,3 @@ export const getCorrelationHistory = async (params) => {
     throw error;
   }
 };
-
-export default {
-  analyzeHybrid,
-  getSupportedDexs,
-  trackWalletAcrossExchanges,
-  getCorrelationHistory,
-};
