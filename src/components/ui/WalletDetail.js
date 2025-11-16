@@ -1,7 +1,7 @@
 // src/components/ui/WalletDetail.jsx - FIXED VERSION ✅
 import React from 'react';
 import './WalletDetail.css';
-import { WALLET_TYPES } from '../../config/api';
+import { WALLET_TYPES } from '../config/api';
 
 const WalletDetail = ({ wallet, onClose }) => {
   // Formatieren von Adressen (gekürzt darstellen)
