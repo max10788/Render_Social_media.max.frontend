@@ -132,6 +132,17 @@ const PriceMovers = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartMode, analysisMode]);
 
+// ==================== DEBUG ====================
+  useEffect(() => {
+    console.log('🐛 PriceMovers State:', {
+      chartData: chartData?.length || 'null',
+      chartLoading,
+      chartError,
+      analysisMode,
+      chartMode,
+    });
+  }, [chartData, chartLoading, chartError, analysisMode, chartMode]);
+  
   // ==================== HELPER FUNCTIONS ====================
 
   const getCurrentFormData = () => {
