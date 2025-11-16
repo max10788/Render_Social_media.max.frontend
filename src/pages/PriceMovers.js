@@ -163,6 +163,8 @@ const PriceMovers = () => {
 
   // ==================== CHART FUNCTIONS ====================
 
+// ==================== CHART FUNCTIONS ====================
+
   const handleCandleClick = async (timestamp, candleData) => {
     console.log('Candle clicked:', timestamp, candleData);
     setSelectedCandleData(candleData);
@@ -170,8 +172,6 @@ const PriceMovers = () => {
     
     try {
       const currentForm = getCurrentFormData();
-      
-      // ✅ Verwende den Hook statt direktem Service Call:
       const response = await loadCandleMovers(timestamp, {
         exchange: currentForm.exchange,
         symbol: currentForm.symbol,
@@ -183,17 +183,15 @@ const PriceMovers = () => {
       
     } catch (err) {
       console.error('Error loading candle movers:', err);
-      setChartError(err.message || 'Failed to load price movers for this candle');
+      alert(`Error: ${err.message || 'Failed to load price movers for this candle'}`);
     }
   };
-
+  
   const handleMultiCandleAnalysis = async (selectedCandles, options) => {
     console.log('🎯 Starting multi-candle analysis:', {
       candlesCount: selectedCandles.length,
       options,
     });
-    
-    setChartError(null);
     
     try {
       const currentForm = getCurrentFormData();
@@ -216,16 +214,16 @@ const PriceMovers = () => {
       });
       
       const message = `✅ Multi-Candle Analyse abgeschlossen!
-
-Erfolgreich: ${result.successful_analyses}
-Fehlgeschlagen: ${result.failed_analyses}
-Gesamt: ${result.results?.length} Candles`;
+  
+  Erfolgreich: ${result.successful_analyses}
+  Fehlgeschlagen: ${result.failed_analyses}
+  Gesamt: ${result.results?.length} Candles`;
       
       alert(message);
       
     } catch (err) {
       console.error('❌ Multi-candle analysis error:', err);
-      setChartError(err.message || 'Multi-candle analysis failed');
+      alert(`Error: ${err.message || 'Multi-candle analysis failed'}`);
     }
   };
 
