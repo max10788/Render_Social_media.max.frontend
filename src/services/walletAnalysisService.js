@@ -282,15 +282,3 @@ export const getConfidenceColor = (confidence) => {
   if (confidence >= 0.4) return '#ff5722'; // Rot-Orange
   return '#f44336'; // Rot
 };
-
-export default {
-  analyzeWallet,
-  getTopMatches,
-  batchAnalyzeWallets,
-  checkWalletServiceHealth,
-  getWalletMetadata,
-  isValidWalletAddress,
-  maskWalletAddress,
-  formatConfidence,
-  getConfidenceColor,
-};
