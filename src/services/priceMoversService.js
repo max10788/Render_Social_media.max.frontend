@@ -226,15 +226,3 @@ export const testConnection = async () => {
     return false;
   }
 };
-
-// Default export with all methods
-export default {
-  quickAnalysis,
-  enhancedAnalysis,
-  analyzePriceMovers,
-  historicalAnalysis,
-  getWalletDetails,
-  compareExchanges,
-  checkHealth,
-  testConnection,
-};
