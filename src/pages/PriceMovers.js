@@ -588,7 +588,7 @@ const PriceMovers = () => {
             )}
 
             <CustomCandlestickChart
-              candleData={chartData}
+              candleData={chartData || []}
               onCandleClick={handleCandleClick}
               onMultiCandleAnalysis={handleMultiCandleAnalysis}
               candleMoversData={candleMoversData}
