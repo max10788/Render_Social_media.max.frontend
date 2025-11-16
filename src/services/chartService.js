@@ -527,18 +527,3 @@ export const prepareMultiCandleAnalysis = (selectedCandles, allCandles, config =
                    (sortedSelected.length + (includePreviousCandles ? lookBackCandles : 0)) > 50,
   };
 };
-
-export default {
-  fetchChartCandles,
-  fetchCandleMovers,
-  batchAnalyzeCandles,
-  analyzeMultipleCandles,
-  validateSelectionParams,
-  fetchAvailableTimeframes,
-  fetchAvailableSymbols,
-  calculateTimeWindow,
-  timeframeToSeconds,
-  formatCandlesForChart,
-  validateChartParams,
-  prepareMultiCandleAnalysis,
-};
