@@ -122,9 +122,15 @@ const PriceMovers = () => {
 
   useEffect(() => {
     if (chartMode === 'chart') {
-      loadChartData();
+      const currentForm = getCurrentFormData();
+      loadChartData({
+        exchange: currentForm.exchange,
+        symbol: currentForm.symbol,
+        timeframe: currentForm.timeframe,
+      });
     }
-  }, [chartMode, analysisMode, getCurrentFormData().exchange, getCurrentFormData().symbol, getCurrentFormData().timeframe]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartMode, analysisMode]);
 
   // ==================== HELPER FUNCTIONS ====================
 
