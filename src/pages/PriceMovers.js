@@ -603,7 +603,7 @@ const PriceMovers = () => {
               onCandleClick={handleCandleClick}
               onMultiCandleAnalysis={handleMultiCandleAnalysis}
               candleMoversData={candleMoversData}
-              multiCandleMoversData={multiCandleResults}
+              multiCandleMoversData={multiCandleResults || null}
               onWalletClick={handleWalletClick}
               loading={chartLoading}
               symbol={getCurrentFormData().symbol}
