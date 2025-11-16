@@ -164,11 +164,13 @@ const PriceMovers = () => {
     
     try {
       const currentForm = getCurrentFormData();
-      const response = await fetchCandleMovers(timestamp, {
+      
+      // ✅ Verwende den Hook statt direktem Service Call:
+      const response = await loadCandleMovers(timestamp, {
         exchange: currentForm.exchange,
         symbol: currentForm.symbol,
         timeframe: currentForm.timeframe,
-        top_n_wallets: currentForm.topNWallets || 10,
+        topNWallets: currentForm.topNWallets || 10,
       });
       
       setCandleMoversData(response);
