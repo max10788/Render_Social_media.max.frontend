@@ -1,9 +1,9 @@
 /**
- * Chart Service
+ * Chart Service - Minimal Version
  * 
  * Handles all Chart API calls
  */
-import apiClient from './apiClient';
+import api from '../config/api'; // ✅ FIX: Correct import!
 
 /**
  * Calculate time window for chart data
@@ -58,23 +58,18 @@ export const fetchChartCandles = async ({
     include_impact,
   });
 
-  // ✅ FIX: Alle Parameter müssen übergeben werden
-  const params = new URLSearchParams({
-    exchange,           // ← FEHLTE!
-    symbol,             // ← FEHLTE!
-    timeframe,          // ← FEHLTE!
-    start_time,
-    end_time,
-    include_impact: String(include_impact),
-  });
-
-  console.log('📊 Chart API Request:', {
-    url: `/chart/candles?${params.toString()}`,
-    params: Object.fromEntries(params),
-  });
-
   try {
-    const response = await apiClient.get(`/chart/candles?${params.toString()}`);
+    // ✅ FIX: Use correct Axios syntax with params object
+    const response = await api.get('/api/v1/chart/candles', {
+      params: {
+        exchange,
+        symbol,
+        timeframe,
+        start_time,
+        end_time,
+        include_impact,
+      },
+    });
 
     console.log('✅ Chart API Response:', {
       status: response.status,
@@ -98,16 +93,31 @@ export const fetchChartCandles = async ({
 export const fetchCandleMovers = async (timestamp, params) => {
   console.log('🎯 Fetching candle movers:', { timestamp, params });
 
-  const queryParams = new URLSearchParams({
-    exchange: params.exchange,      // ✅ 
-    symbol: params.symbol,          // ✅
-    timeframe: params.timeframe,    // ✅
-    timestamp: new Date(timestamp).toISOString(),
-    top_n_wallets: String(params.top_n_wallets || 10),
-  });
-
   try {
-    const response = await apiClient.get(`/chart/candle-movers?${queryParams.toString()}`);
+    // Convert timestamp to ISO string
+    let timestampISO;
+    if (timestamp instanceof Date) {
+      timestampISO = timestamp.toISOString();
+    } else if (typeof timestamp === 'number') {
+      const ms = timestamp > 10000000000 ? timestamp : timestamp * 1000;
+      timestampISO = new Date(ms).toISOString();
+    } else {
+      timestampISO = timestamp;
+    }
+
+    // ✅ FIX: Use correct Axios syntax with URL path + params
+    const response = await api.get(
+      `/api/v1/chart/candle/${encodeURIComponent(timestampISO)}/movers`,
+      {
+        params: {
+          exchange: params.exchange,
+          symbol: params.symbol,
+          timeframe: params.timeframe,
+          top_n_wallets: params.top_n_wallets || 10,
+        },
+      }
+    );
+
     console.log('✅ Candle movers loaded:', response.data);
     return response.data;
   } catch (error) {
