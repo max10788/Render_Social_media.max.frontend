@@ -157,32 +157,6 @@ const PriceMovers = () => {
 
   // ==================== CHART FUNCTIONS ====================
 
-  const loadChartData = async () => {
-    setChartLoading(true);
-    setChartError(null);
-    
-    try {
-      const currentForm = getCurrentFormData();
-      const { start_time, end_time } = calculateTimeWindow(currentForm.timeframe, 100);
-      
-      const response = await fetchChartCandles({
-        exchange: currentForm.exchange,
-        symbol: currentForm.symbol,
-        timeframe: currentForm.timeframe,
-        start_time,
-        end_time,
-        include_impact: false,
-      });
-      
-      setChartData(response.candles || []);
-    } catch (err) {
-      console.error('Error loading chart data:', err);
-      setChartError(err.message || 'Failed to load chart data');
-    } finally {
-      setChartLoading(false);
-    }
-  };
-
   const handleCandleClick = async (timestamp, candleData) => {
     console.log('Candle clicked:', timestamp, candleData);
     setSelectedCandleData(candleData);
