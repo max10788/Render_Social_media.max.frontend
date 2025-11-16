@@ -4,11 +4,7 @@ import { useHybridAnalysis } from '../hooks/useHybridAnalysis';
 import CustomCandlestickChart from '../components/ui/CustomCandlestickChart';
 import ExchangeSelector from '../components/ui/ExchangeSelector';
 import CorrelationDisplay from '../components/ui/CorrelationDisplay';
-import { 
-  fetchChartCandles, 
-  fetchCandleMovers, 
-  calculateTimeWindow 
-} from '../services/chartService';
+import { useChartService } from '../hooks/useChartService';
 import './PriceMovers.css';
 
 const PriceMovers = () => {
