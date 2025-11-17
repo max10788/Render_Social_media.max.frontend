@@ -3,6 +3,8 @@
  * 
  * React Hook für Chart-Funktionalität
  * Verwendet chartService für API-Calls
+ * 
+ * ✅ FIX: include_impact deaktiviert für initiales Chart-Loading
  */
 import { useState, useCallback } from 'react';
 import { 
@@ -23,6 +25,9 @@ export const useChartService = () => {
 
   /**
    * Load chart data for given exchange/symbol/timeframe
+   * 
+   * ✅ FIX: include_impact=false für schnelles initiales Loading
+   * Impact wird erst beim Candle-Click geladen via loadCandleMovers()
    */
   const loadChartData = useCallback(async ({ exchange, symbol, timeframe, candleCount = 100 }) => {
     setChartLoading(true);
@@ -34,14 +39,14 @@ export const useChartService = () => {
       // Calculate time window (returns Date objects)
       const { start_time, end_time } = calculateTimeWindow(timeframe, candleCount);
       
-      // Fetch candles
+      // Fetch candles WITHOUT impact (sehr schnell!)
       const response = await fetchChartCandles({
         exchange,
         symbol,
         timeframe,
         start_time: start_time.toISOString(),
         end_time: end_time.toISOString(),
-        include_impact: true,
+        include_impact: false, // ✅ FIX: Deaktiviert für Performance!
       });
       
       console.log('✅ Chart data loaded:', {
@@ -66,6 +71,9 @@ export const useChartService = () => {
 
   /**
    * Load movers for a specific candle
+   * 
+   * Dies ist der richtige Ort für Impact-Analyse!
+   * Wird nur beim Candle-Click aufgerufen.
    */
   const loadCandleMovers = useCallback(async (timestamp, params) => {
     try {
