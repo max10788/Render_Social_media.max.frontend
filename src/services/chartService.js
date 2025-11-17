@@ -1,17 +1,30 @@
 /**
- * chartService.js - ENHANCED VERSION with Multi-Candle Analysis
+ * chartService.js - ENHANCED VERSION with Multi-Candle Analysis + DEX Support
  * ==============
  * 
  * Service für Chart-spezifische API-Calls
- * Interagiert mit /api/v1/chart Endpoints
+ * Interagiert mit /api/v1/chart (CEX) und /api/v1/dex (DEX) Endpoints
+ * 
+ * ✅ Auto-Routing zwischen CEX und DEX basierend auf Exchange-Typ
  */
 
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 
 const CHART_API_URL = `${API_BASE_URL}/api/v1/chart`;
+const DEX_API_URL = `${API_BASE_URL}/api/v1/dex`;  // 🆕 DEX Endpoint
 
-// Axios Instance mit Interceptors
+// ==================== HELPER: DEX Detection ====================
+
+/**
+ * 🆕 Prüft ob Exchange ein DEX ist
+ */
+const isDEX = (exchange) => {
+  const dexes = ['jupiter', 'raydium', 'orca', 'uniswap', 'pancakeswap'];
+  return dexes.includes(exchange?.toLowerCase());
+};
+
+// Axios Instance für CEX mit Interceptors
 const chartApi = axios.create({
   baseURL: CHART_API_URL,
   timeout: 30000,
@@ -20,10 +33,19 @@ const chartApi = axios.create({
   },
 });
 
-// Request Interceptor
+// 🆕 Axios Instance für DEX
+const dexApi = axios.create({
+  baseURL: DEX_API_URL,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request Interceptor (CEX)
 chartApi.interceptors.request.use(
   (config) => {
-    console.log('📊 Chart API Request:', {
+    console.log('📊 CEX Chart API Request:', {
       method: config.method?.toUpperCase(),
       url: config.url,
       fullURL: `${config.baseURL}${config.url}`,
@@ -32,15 +54,32 @@ chartApi.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('❌ Chart API Request Error:', error);
+    console.error('❌ CEX Chart API Request Error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response Interceptor
+// 🆕 Request Interceptor (DEX)
+dexApi.interceptors.request.use(
+  (config) => {
+    console.log('🔗 DEX Chart API Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      fullURL: `${config.baseURL}${config.url}`,
+      params: config.params,
+    });
+    return config;
+  },
+  (error) => {
+    console.error('❌ DEX Chart API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Response Interceptor (CEX)
 chartApi.interceptors.response.use(
   (response) => {
-    console.log('✅ Chart API Response:', {
+    console.log('✅ CEX Chart API Response:', {
       status: response.status,
       url: response.config.url,
       dataKeys: response.data ? Object.keys(response.data) : [],
@@ -48,7 +87,28 @@ chartApi.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error('❌ Chart API Response Error:', {
+    console.error('❌ CEX Chart API Response Error:', {
+      message: error.message,
+      status: error.response?.status,
+      url: error.config?.url,
+      data: error.response?.data,
+    });
+    return Promise.reject(error);
+  }
+);
+
+// 🆕 Response Interceptor (DEX)
+dexApi.interceptors.response.use(
+  (response) => {
+    console.log('✅ DEX Chart API Response:', {
+      status: response.status,
+      url: response.config.url,
+      dataKeys: response.data ? Object.keys(response.data) : [],
+    });
+    return response;
+  },
+  (error) => {
+    console.error('❌ DEX Chart API Response Error:', {
       message: error.message,
       status: error.response?.status,
       url: error.config?.url,
@@ -59,7 +119,8 @@ chartApi.interceptors.response.use(
 );
 
 /**
- * Lädt Candlestick-Daten für den Chart
+ * 🔀 Lädt Candlestick-Daten für den Chart (CEX oder DEX)
+ * Auto-Routing basierend auf Exchange-Typ
  */
 export const fetchChartCandles = async (params) => {
   try {
@@ -80,26 +141,39 @@ export const fetchChartCandles = async (params) => {
       ? end_time.toISOString() 
       : end_time;
 
-    console.log('📊 Fetching chart candles:', {
-      exchange,
-      symbol,
-      timeframe,
-      start_time: startTimeISO,
-      end_time: endTimeISO,
-    });
+    // 🔀 Auto-Routing: DEX oder CEX?
+    if (isDEX(exchange)) {
+      console.log('🔗 Routing to DEX Chart:', { exchange, symbol, timeframe });
+      
+      const response = await dexApi.get('/candles', {
+        params: {
+          dex_exchange: exchange,
+          symbol,
+          timeframe,
+          start_time: startTimeISO,
+          end_time: endTimeISO,
+          include_impact,
+        },
+      });
 
-    const response = await chartApi.get('/candles', {
-      params: {
-        exchange,
-        symbol,
-        timeframe,
-        start_time: startTimeISO,
-        end_time: endTimeISO,
-        include_impact,
-      },
-    });
+      return response.data;
+      
+    } else {
+      console.log('📊 Routing to CEX Chart:', { exchange, symbol, timeframe });
+      
+      const response = await chartApi.get('/candles', {
+        params: {
+          exchange,
+          symbol,
+          timeframe,
+          start_time: startTimeISO,
+          end_time: endTimeISO,
+          include_impact,
+        },
+      });
 
-    return response.data;
+      return response.data;
+    }
   } catch (error) {
     console.error('❌ Error fetching chart candles:', error);
     throw error;
@@ -107,9 +181,8 @@ export const fetchChartCandles = async (params) => {
 };
 
 /**
- * Lädt Price Movers für eine spezifische Candle
- * 
- * WICHTIG: Backend-Route ist /candle/{timestamp}/movers (SINGULAR!)
+ * 🔀 Lädt Price Movers für eine spezifische Candle (CEX oder DEX)
+ * Auto-Routing basierend auf Exchange-Typ
  */
 export const fetchCandleMovers = async (candleTimestamp, params) => {
   try {
@@ -125,40 +198,63 @@ export const fetchCandleMovers = async (candleTimestamp, params) => {
     if (candleTimestamp instanceof Date) {
       timestampISO = candleTimestamp.toISOString();
     } else if (typeof candleTimestamp === 'string') {
-      // Bereits ein String, könnte ISO oder etwas anderes sein
       timestampISO = candleTimestamp;
     } else {
       console.error('❌ Invalid timestamp type:', typeof candleTimestamp);
       throw new Error('Invalid timestamp format');
     }
 
-    console.log('🎯 Fetching candle movers:', {
-      timestamp: timestampISO,
-      exchange,
-      symbol,
-      timeframe,
-      top_n_wallets,
-    });
+    // 🔀 Auto-Routing: DEX oder CEX?
+    if (isDEX(exchange)) {
+      console.log('🔗 Fetching DEX candle movers:', {
+        timestamp: timestampISO,
+        exchange,
+        symbol,
+      });
 
-    // WICHTIG: Backend-Route ist /candle/{timestamp}/movers (SINGULAR!)
-    const response = await chartApi.get(
-      `/candle/${encodeURIComponent(timestampISO)}/movers`,
-      {
-        params: {
-          exchange,
-          symbol,
-          timeframe,
-          top_n_wallets,
-        },
-      }
-    );
+      const response = await dexApi.get(
+        `/candle/${encodeURIComponent(timestampISO)}/movers`,
+        {
+          params: {
+            dex_exchange: exchange,
+            symbol,
+            timeframe,
+            top_n_wallets,
+          },
+        }
+      );
 
-    console.log('✅ Candle movers loaded:', {
-      top_movers_count: response.data.top_movers?.length,
-      candle: response.data.candle,
-    });
+      console.log('✅ DEX candle movers loaded (REAL WALLETS!):', {
+        top_movers_count: response.data.top_movers?.length,
+      });
 
-    return response.data;
+      return response.data;
+      
+    } else {
+      console.log('🎯 Fetching CEX candle movers:', {
+        timestamp: timestampISO,
+        exchange,
+        symbol,
+      });
+
+      const response = await chartApi.get(
+        `/candle/${encodeURIComponent(timestampISO)}/movers`,
+        {
+          params: {
+            exchange,
+            symbol,
+            timeframe,
+            top_n_wallets,
+          },
+        }
+      );
+
+      console.log('✅ CEX candle movers loaded:', {
+        top_movers_count: response.data.top_movers?.length,
+      });
+
+      return response.data;
+    }
   } catch (error) {
     console.error('❌ Error fetching candle movers:', error);
     throw error;
@@ -168,6 +264,8 @@ export const fetchCandleMovers = async (candleTimestamp, params) => {
 /**
  * Batch-Analyse für mehrere Candles
  * Optimiert für Multi-Candle Selection
+ * 
+ * ⚠️ Nur für CEX verfügbar! DEX unterstützt kein Batch-Analyze
  */
 export const batchAnalyzeCandles = async (params) => {
   try {
@@ -179,12 +277,20 @@ export const batchAnalyzeCandles = async (params) => {
       top_n_wallets = 10,
     } = params;
 
+    // 🔀 Check: Nur CEX unterstützt Batch
+    if (isDEX(exchange)) {
+      throw new Error(
+        'Batch analysis is not supported for DEX. ' +
+        'DEX uses on-chain data which is analyzed per candle.'
+      );
+    }
+
     // Konvertiere Timestamps zu ISO Strings
     const timestampsISO = candle_timestamps.map(ts => 
       ts instanceof Date ? ts.toISOString() : ts
     );
 
-    console.log('📊 Batch analyzing candles:', {
+    console.log('📊 Batch analyzing CEX candles:', {
       exchange,
       symbol,
       timeframe,
@@ -212,12 +318,9 @@ export const batchAnalyzeCandles = async (params) => {
 };
 
 /**
- * NEU: Analysiert mehrere Candles (Batch)
- * WICHTIG: Verwendet Backend /batch-analyze Endpoint
+ * Analysiert mehrere Candles (Batch)
  * 
- * Backend unterstützt NICHT:
- * - lookback_candles (muss Frontend-seitig gemacht werden)
- * - exclude_already_analyzed (muss Frontend-seitig gemacht werden)
+ * ⚠️ Nur für CEX! DEX hat kein Batch-Analyze
  */
 export const analyzeMultipleCandles = async (params) => {
   try {
@@ -229,7 +332,46 @@ export const analyzeMultipleCandles = async (params) => {
       top_n_wallets = 10,
     } = params;
 
-    console.log('🎯 Analyzing multiple candles (batch):', {
+    // 🔀 Check: Nur CEX unterstützt Batch
+    if (isDEX(exchange)) {
+      console.warn('⚠️ Multi-candle analysis for DEX: Analyzing individually...');
+      // DEX: Analysiere einzeln
+      const results = [];
+      
+      for (const timestamp of candle_timestamps) {
+        try {
+          const result = await fetchCandleMovers(timestamp, {
+            exchange,
+            symbol,
+            timeframe,
+            top_n_wallets,
+          });
+          results.push({
+            timestamp,
+            candle: result.candle,
+            top_movers: result.top_movers,
+            error: null,
+          });
+        } catch (error) {
+          results.push({
+            timestamp,
+            candle: null,
+            top_movers: [],
+            error: error.message,
+          });
+        }
+      }
+      
+      return {
+        results,
+        successful_analyses: results.filter(r => !r.error).length,
+        failed_analyses: results.filter(r => r.error).length,
+        is_dex: true,
+        note: 'DEX candles analyzed individually (no batch support)',
+      };
+    }
+
+    console.log('🎯 Analyzing multiple CEX candles (batch):', {
       exchange,
       symbol,
       timeframe,
@@ -251,7 +393,6 @@ export const analyzeMultipleCandles = async (params) => {
       ts instanceof Date ? ts.toISOString() : ts
     );
 
-    // WICHTIG: Backend Endpoint ist /batch-analyze (NICHT /multi-analyze!)
     const response = await chartApi.post('/batch-analyze', {
       exchange,
       symbol,
@@ -273,7 +414,7 @@ export const analyzeMultipleCandles = async (params) => {
 };
 
 /**
- * NEU: Validiert Selection-Parameter
+ * Validiert Selection-Parameter
  */
 export const validateSelectionParams = (selectedCandles, config = {}) => {
   const errors = [];
@@ -336,6 +477,22 @@ export const fetchAvailableTimeframes = async () => {
  */
 export const fetchAvailableSymbols = async (exchange) => {
   try {
+    // 🔀 Auto-Routing
+    if (isDEX(exchange)) {
+      // DEX hat keine /symbols endpoint, nutze hardcoded liste
+      console.warn('⚠️ DEX symbols: Using hardcoded list');
+      return {
+        success: true,
+        exchange,
+        total_symbols: 3,
+        symbols: [
+          { symbol: 'SOL/USDC', base: 'SOL', quote: 'USDC' },
+          { symbol: 'SOL/USDT', base: 'SOL', quote: 'USDT' },
+          { symbol: 'RAY/USDC', base: 'RAY', quote: 'USDC' },
+        ]
+      };
+    }
+    
     const response = await chartApi.get('/symbols', {
       params: { exchange },
     });
@@ -412,6 +569,7 @@ export const formatCandlesForChart = (candlesData) => {
     has_high_impact: candle.has_high_impact || false,
     total_impact_score: candle.total_impact_score || 0,
     top_mover_count: candle.top_mover_count || 0,
+    is_synthetic: candle.is_synthetic || false,  // DEX = always false
   }));
 };
 
@@ -457,11 +615,10 @@ export const validateChartParams = (params) => {
 };
 
 /**
- * NEU: Helper für Multi-Candle Selection
+ * Helper für Multi-Candle Selection
  * 
  * WICHTIG: Backend unterstützt keine Lookback-Logik!
- * Diese Funktion bereitet die Candles Frontend-seitig vor und fügt
- * Previous Candles zu den Timestamps hinzu.
+ * Diese Funktion bereitet die Candles Frontend-seitig vor
  */
 export const prepareMultiCandleAnalysis = (selectedCandles, allCandles, config = {}) => {
   const {
@@ -512,7 +669,6 @@ export const prepareMultiCandleAnalysis = (selectedCandles, allCandles, config =
       `⚠️ Too many candles for batch analysis (${candlesToAnalyze.length}). ` +
       `Limiting to 50 most recent candles.`
     );
-    // Nehme die letzten 50 Candles (inkl. Selected)
     candlesToAnalyze = candlesToAnalyze.slice(-50);
   }
 
@@ -527,3 +683,6 @@ export const prepareMultiCandleAnalysis = (selectedCandles, allCandles, config =
                    (sortedSelected.length + (includePreviousCandles ? lookBackCandles : 0)) > 50,
   };
 };
+
+// 🆕 Export isDEX helper
+export { isDEX };
