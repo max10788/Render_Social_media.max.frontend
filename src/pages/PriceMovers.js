@@ -587,7 +587,14 @@ const PriceMovers = () => {
                   setCexFormData(prev => ({ ...prev, timeframe: value }));
                 }
               }}
-              onRefresh={loadChartData}
+              onRefresh={() => {
+                const currentForm = getCurrentFormData();
+                loadChartData({
+                  exchange: currentForm.exchange,
+                  symbol: currentForm.symbol,
+                  timeframe: currentForm.timeframe,
+                });
+              }}
               loading={chartLoading}
             />
 
