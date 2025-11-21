@@ -9,12 +9,17 @@ const CustomCandlestickChart = ({
   onCandleClick,
   onMultiCandleAnalysis,
   candleMoversData = null,
-  multiCandleMoversData = null,  // ✅ NEU: Multi-Candle Results
+  multiCandleMoversData = null,
   onWalletClick = null,
   loading = false,
   symbol = 'BTC/USDT',
   timeframe = '5m',
   height = 500,
+  
+  // 🆕 DEX PROPS
+  isDexMode = false,           // Ist DEX-Exchange aktiv?
+  dataSource = null,           // "hybrid_cex+dex" | "cex_binance" | etc.
+  dataWarning = null,          // Warning message vom Backend
 }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
