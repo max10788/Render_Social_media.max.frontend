@@ -541,7 +541,7 @@ const PriceMovers = () => {
               <h4>Enhanced Mode Active</h4>
               <p>
                 Using Aggregated Trades for better entity detection. 
-                Only works for recent data (< 30 minutes).
+                Only works for recent data {'(< 30 minutes)'}.
                 {cexAnalysisData?.fallbackReason && (
                   <span className="fallback-notice">
                     ⚠️ Fallback to standard: {cexAnalysisData.fallbackReason}
