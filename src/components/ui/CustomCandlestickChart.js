@@ -889,7 +889,63 @@ const CustomCandlestickChart = ({
   };
 
   // Enhanced Mouse Handlers
-
+  // Mouse move handler
+  const handleMouseMove = (e) => {
+    if (!canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Update mouse position for tooltip
+    setMousePosition({ x: e.clientX, y: e.clientY });
+    
+    // Update chart mouse position for crosshair
+    setChartMousePosition({ x, y });
+    
+    // Handle dragging
+    if (isDragging) {
+      const deltaX = x - dragStart.x;
+      const candlesPerPixel = chartDataRef.current.candles.length / 
+        (dimensions.width - MARGIN.left - MARGIN.right);
+      const deltaCandles = -deltaX * candlesPerPixel / zoom;
+      
+      const now = Date.now();
+      const timeDelta = now - lastPanTime;
+      if (timeDelta > 0) {
+        const currentVelocity = (deltaCandles - lastPanPosition) / timeDelta * 16;
+        setVelocity(currentVelocity);
+      }
+      
+      setLastPanTime(now);
+      setLastPanPosition(deltaCandles);
+      
+      const newOffset = Math.max(0, dragStart.offset + deltaCandles);
+      setTargetPanOffset(newOffset);
+      setPanOffset(newOffset);
+      return;
+    }
+    
+    // Handle multi-select dragging
+    if (isSelecting && selectionStart) {
+      setSelectionEnd({ x, y });
+      return;
+    }
+    
+    // Update hovered element
+    const element = getElementAtPosition(x, y);
+    setHoveredElement(element);
+    
+    // Update hovered candle index
+    if (element?.type === 'candle') {
+      const candleIndex = chartDataRef.current.candles.findIndex(
+        c => c.timestamp === element.candle.timestamp
+      );
+      setHoveredCandleIndex(candleIndex);
+    } else {
+      setHoveredCandleIndex(null);
+    }
+  };
   // 4️⃣ UPDATE: handleClick - Block historical DEX candles
   const handleClick = (e) => {
     if (isDragging || isSelecting) return;
