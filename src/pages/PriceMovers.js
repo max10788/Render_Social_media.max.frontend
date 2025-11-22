@@ -950,7 +950,7 @@ const PriceMovers = () => {
                       <small className="form-help">
                         ✅ Better entity detection
                         <br />
-                        ⚠️ Only for recent data (< 30 min)
+                        ⚠️ Only for recent data {'(< 30 min)'}
                       </small>
                     </div>
                   )}
