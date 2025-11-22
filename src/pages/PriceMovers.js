@@ -1367,7 +1367,7 @@ const PriceMovers = () => {
                       <span className="value">${formatNumber(walletDetails.total_volume)}</span>
                     </div>
                     <div className="info-row">
-                      <span className="label">Ø Impact:</span>
+                      <span className="label">Avg Impact:</span>
                       <span className="value">{formatPercentage(walletDetails.avg_impact_score)}</span>
                     </div>
                   </div>
