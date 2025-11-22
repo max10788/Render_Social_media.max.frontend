@@ -9,13 +9,10 @@ import './PriceMovers.css';
 
 const PriceMovers = () => {
   // ==================== STATE ====================
-  
   // Analysis Mode: 'cex' | 'dex' | 'hybrid'
   const [analysisMode, setAnalysisMode] = useState('cex');
-  
   // Chart Mode: 'chart' | 'quick' | 'custom' | 'historical'
   const [chartMode, setChartMode] = useState('chart');
-  
   // Form Data for CEX
   const [cexFormData, setCexFormData] = useState({
     exchange: 'bitget',
@@ -28,7 +25,6 @@ const PriceMovers = () => {
     includeTrades: false,
     useEnhanced: true,
   });
-
   // Form Data for DEX
   const [dexFormData, setDexFormData] = useState({
     exchange: 'jupiter',
@@ -39,7 +35,6 @@ const PriceMovers = () => {
     minImpactThreshold: 0.1,
     topNWallets: 10,
   });
-
   // Hybrid Form Data
   const [hybridFormData, setHybridFormData] = useState({
     cexExchange: 'bitget',
@@ -51,7 +46,6 @@ const PriceMovers = () => {
     minImpactThreshold: 0.05,
     topNWallets: 10,
   });
-
   // Chart Data
   const {
     chartData,
@@ -59,16 +53,20 @@ const PriceMovers = () => {
     chartError,
     loadChartData,
     loadCandleMovers,
+    
+    // 🆕 DEX Metadata
+    dataSource,
+    dataQuality,
+    dataWarning,
+    isDexMode,
   } = useChartService();
   
   // Selected Candle
   const [selectedCandleData, setSelectedCandleData] = useState(null);
   const [candleMoversData, setCandleMoversData] = useState(null);
-  
   // Wallet Panel
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [showWalletPanel, setShowWalletPanel] = useState(false);
-
   // Hooks
   const {
     loading: cexLoading,
@@ -85,7 +83,6 @@ const PriceMovers = () => {
     reset: resetCex,
     isEnhancedMode,
   } = usePriceMovers();
-
   const {
     loading: hybridLoading,
     error: hybridError,
@@ -96,23 +93,19 @@ const PriceMovers = () => {
   } = useHybridAnalysis();
 
   // ==================== EFFECTS ====================
-
   useEffect(() => {
     const now = new Date();
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-    
     setCexFormData(prev => ({
       ...prev,
       startTime: fiveMinutesAgo.toISOString().slice(0, 16),
       endTime: now.toISOString().slice(0, 16),
     }));
-
     setDexFormData(prev => ({
       ...prev,
       startTime: fiveMinutesAgo.toISOString().slice(0, 16),
       endTime: now.toISOString().slice(0, 16),
     }));
-
     setHybridFormData(prev => ({
       ...prev,
       startTime: fiveMinutesAgo.toISOString().slice(0, 16),
@@ -132,7 +125,7 @@ const PriceMovers = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartMode, analysisMode]);
 
-// ==================== DEBUG ====================
+  // ==================== DEBUG ====================
   useEffect(() => {
     console.log('🐛 PriceMovers State:', {
       chartData: chartData?.length || 'null',
@@ -142,9 +135,8 @@ const PriceMovers = () => {
       chartMode,
     });
   }, [chartData, chartLoading, chartError, analysisMode, chartMode]);
-  
-  // ==================== HELPER FUNCTIONS ====================
 
+  // ==================== HELPER FUNCTIONS ====================
   const getCurrentFormData = () => {
     switch (analysisMode) {
       case 'dex':
@@ -173,14 +165,10 @@ const PriceMovers = () => {
   };
 
   // ==================== CHART FUNCTIONS ====================
-
-// ==================== CHART FUNCTIONS ====================
-
   const handleCandleClick = async (timestamp, candleData) => {
     console.log('Candle clicked:', timestamp, candleData);
     setSelectedCandleData(candleData);
     setCandleMoversData(null);
-    
     try {
       const currentForm = getCurrentFormData();
       const response = await loadCandleMovers(timestamp, {
@@ -189,21 +177,18 @@ const PriceMovers = () => {
         timeframe: currentForm.timeframe,
         topNWallets: currentForm.topNWallets || 10,
       });
-      
       setCandleMoversData(response);
-      
     } catch (err) {
       console.error('Error loading candle movers:', err);
       alert(`Error: ${err.message || 'Failed to load price movers for this candle'}`);
     }
   };
-  
+
   const handleMultiCandleAnalysis = async (selectedCandles, options) => {
     console.log('🎯 Starting multi-candle analysis:', {
       candlesCount: selectedCandles.length,
       options,
     });
-    
     try {
       const currentForm = getCurrentFormData();
       const result = await analyzeMultiCandles(
@@ -217,21 +202,16 @@ const PriceMovers = () => {
           ...options
         }
       );
-      
       console.log('✅ Multi-candle analysis complete:', {
         successful: result.successful_analyses,
         failed: result.failed_analyses,
         resultsCount: result.results?.length,
       });
-      
       const message = `✅ Multi-Candle Analyse abgeschlossen!
-  
   Erfolgreich: ${result.successful_analyses}
   Fehlgeschlagen: ${result.failed_analyses}
   Gesamt: ${result.results?.length} Candles`;
-      
       alert(message);
-      
     } catch (err) {
       console.error('❌ Multi-candle analysis error:', err);
       alert(`Error: ${err.message || 'Multi-candle analysis failed'}`);
@@ -239,7 +219,6 @@ const PriceMovers = () => {
   };
 
   // ==================== INPUT HANDLERS ====================
-
   const handleCexInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setCexFormData(prev => ({
@@ -265,7 +244,6 @@ const PriceMovers = () => {
   };
 
   // ==================== MODE SELECTION ====================
-
   const analysisModeOptions = [
     {
       id: 'cex',
@@ -338,7 +316,6 @@ const PriceMovers = () => {
   };
 
   // ==================== ANALYZE HANDLERS ====================
-
   const handleAnalyze = async (e) => {
     e.preventDefault();
     resetCex();
@@ -346,7 +323,6 @@ const PriceMovers = () => {
     setShowWalletPanel(false);
     setSelectedCandleData(null);
     setCandleMoversData(null);
-
     try {
       if (analysisMode === 'hybrid') {
         // Hybrid Analysis
@@ -363,7 +339,6 @@ const PriceMovers = () => {
       } else {
         // CEX or DEX Analysis
         const formData = analysisMode === 'dex' ? dexFormData : cexFormData;
-        
         if (chartMode === 'quick') {
           if (formData.useEnhanced) {
             console.log('🚀 Using ENHANCED MODE');
@@ -412,7 +387,6 @@ const PriceMovers = () => {
   const handleWalletClick = async (wallet) => {
     setSelectedWallet(wallet);
     setShowWalletPanel(true);
-    
     try {
       const currentForm = getCurrentFormData();
       await fetchWalletDetails(
@@ -432,7 +406,6 @@ const PriceMovers = () => {
   };
 
   // ==================== FORMATTING HELPERS ====================
-
   const formatNumber = (num, decimals = 2) => {
     if (num === null || num === undefined) return 'N/A';
     return num.toLocaleString('de-DE', { 
@@ -458,7 +431,6 @@ const PriceMovers = () => {
   };
 
   // ==================== RENDER ====================
-
   return (
     <div className="price-movers-container">
       <header className="price-movers-header">
@@ -482,7 +454,6 @@ const PriceMovers = () => {
           </div>
         </div>
       </header>
-
       <main className="main-content">
         {/* Analysis Mode Selector */}
         <section className="mode-selector">
@@ -534,6 +505,34 @@ const PriceMovers = () => {
           </div>
         </section>
 
+        {/* 🆕 DEX Warning Banner */}
+        {chartMode === 'chart' && dataWarning && (
+          <div className="dex-warning-banner">
+            <div className="banner-icon">ℹ️</div>
+            <div className="banner-content">
+              <h4>DEX Hybrid Mode Active</h4>
+              <p>{dataWarning}</p>
+              <div className="banner-details">
+                <span className="detail-item">
+                  <strong>Data Source:</strong> {dataSource}
+                </span>
+                <span className="detail-item">
+                  <strong>Quality:</strong> {dataQuality}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 🆕 DEX Live Data Badge */}
+        {chartMode === 'chart' && dataSource?.includes('helius') && (
+          <div className="dex-live-badge">
+            <span className="badge-icon">🔗</span>
+            <span className="badge-text">Live Wallet Data Available</span>
+            <span className="badge-pulse"></span>
+          </div>
+        )}
+
         {/* Enhanced Mode Banner */}
         {chartMode === 'quick' && analysisMode === 'cex' && cexFormData.useEnhanced && (
           <div className="enhanced-mode-banner">
@@ -542,7 +541,7 @@ const PriceMovers = () => {
               <h4>Enhanced Mode Active</h4>
               <p>
                 Using Aggregated Trades for better entity detection. 
-                Only works for recent data (&lt; 30 minutes).
+                Only works for recent data (< 30 minutes).
                 {cexAnalysisData?.fallbackReason && (
                   <span className="fallback-notice">
                     ⚠️ Fallback to standard: {cexAnalysisData.fallbackReason}
@@ -597,14 +596,12 @@ const PriceMovers = () => {
               }}
               loading={chartLoading}
             />
-
             {chartError && (
               <div className="error-message" role="alert">
                 <span className="error-icon">⚠️</span>
                 <span className="error-text">{chartError}</span>
               </div>
             )}
-
             <CustomCandlestickChart
               candleData={chartData || []}
               onCandleClick={handleCandleClick}
@@ -616,8 +613,12 @@ const PriceMovers = () => {
               symbol={getCurrentFormData().symbol}
               timeframe={getCurrentFormData().timeframe}
               height={500}
+              
+              // 🆕 DEX Props
+              isDexMode={isDexMode}
+              dataSource={dataSource}
+              dataWarning={dataWarning}
             />
-
             {selectedCandleData && (
               <div className="selected-candle-info">
                 <h3>🎯 Selected Candle</h3>
@@ -653,7 +654,6 @@ const PriceMovers = () => {
                 </div>
               </div>
             )}
-
             {candleMoversData && (
               <div className="candle-analysis-results analysis-results">
                 <div className="results-header">
@@ -681,7 +681,6 @@ const PriceMovers = () => {
                     </div>
                   </div>
                 </div>
-
                 <div className="top-movers">
                   <h3>
                     🏆 Top Wallets ({candleMoversData.top_movers?.length || 0})
@@ -704,11 +703,9 @@ const PriceMovers = () => {
                               {mover.wallet_type}
                             </span>
                           </div>
-                          
                           <div className="wallet-address" title={mover.wallet_id}>
                             {mover.wallet_id}
                           </div>
-                          
                           <div className="wallet-stats-grid">
                             <div className="wallet-stat">
                               <span className="label">Volume</span>
@@ -729,7 +726,6 @@ const PriceMovers = () => {
                               </span>
                             </div>
                           </div>
-                          
                           <div className="impact-score">
                             <div className="impact-label">
                               <span>Impact Score</span>
@@ -785,7 +781,6 @@ const PriceMovers = () => {
                       <option value="kraken">Kraken</option>
                     </select>
                   </div>
-
                   <div className="form-group">
                     <label htmlFor="dexExchange">
                       DEX Exchange
@@ -803,7 +798,6 @@ const PriceMovers = () => {
                       <option value="orca">Orca (Solana)</option>
                     </select>
                   </div>
-
                   <div className="form-group">
                     <label htmlFor="symbol">
                       Trading Pair
@@ -819,7 +813,6 @@ const PriceMovers = () => {
                       required
                     />
                   </div>
-
                   <div className="form-group">
                     <label htmlFor="timeframe">
                       Timeframe
@@ -841,7 +834,6 @@ const PriceMovers = () => {
                       <option value="1d">1 Day</option>
                     </select>
                   </div>
-
                   <div className="form-group">
                     <label htmlFor="topNWallets">
                       Top N Wallets
@@ -858,7 +850,6 @@ const PriceMovers = () => {
                   </div>
                 </>
               )}
-
               {/* CEX or DEX Mode: Show Single Exchange Selector */}
               {analysisMode !== 'hybrid' && (
                 <>
@@ -889,7 +880,6 @@ const PriceMovers = () => {
                       )}
                     </select>
                   </div>
-
                   <div className="form-group">
                     <label htmlFor="symbol">
                       Trading Pair
@@ -905,7 +895,6 @@ const PriceMovers = () => {
                       required
                     />
                   </div>
-
                   <div className="form-group">
                     <label htmlFor="timeframe">
                       Timeframe
@@ -927,7 +916,6 @@ const PriceMovers = () => {
                       <option value="1d">1 Day</option>
                     </select>
                   </div>
-
                   {(chartMode === 'quick' || chartMode === 'custom') && (
                     <div className="form-group">
                       <label htmlFor="topNWallets">
@@ -944,7 +932,6 @@ const PriceMovers = () => {
                       />
                     </div>
                   )}
-
                   {chartMode === 'quick' && analysisMode === 'cex' && (
                     <div className="form-group form-group-checkbox">
                       <label htmlFor="useEnhanced" className="checkbox-label">
@@ -963,13 +950,12 @@ const PriceMovers = () => {
                       <small className="form-help">
                         ✅ Better entity detection
                         <br />
-                        ⚠️ Only for recent data (&lt; 30 min)
+                        ⚠️ Only for recent data (< 30 min)
                       </small>
                     </div>
                   )}
                 </>
               )}
-
               {(chartMode === 'custom' || chartMode === 'historical') && (
                 <>
                   <div className="form-group">
@@ -998,7 +984,6 @@ const PriceMovers = () => {
                       required
                     />
                   </div>
-
                   <div className="form-group">
                     <label htmlFor="endTime">
                       End Time
@@ -1028,7 +1013,6 @@ const PriceMovers = () => {
                 </>
               )}
             </div>
-
             <div className="form-actions">
               <button
                 type="submit"
@@ -1049,7 +1033,6 @@ const PriceMovers = () => {
                   </>
                 )}
               </button>
-
               {(getCurrentAnalysisData() || getCurrentError()) && (
                 <button
                   type="button"
@@ -1086,10 +1069,8 @@ const PriceMovers = () => {
                     </span>
                   </div>
                 </div>
-
                 {/* Correlation Display */}
                 <CorrelationDisplay correlation={hybridData.correlation} />
-
                 {/* CEX Movers */}
                 <div className="top-movers">
                   <h3>🏦 CEX Top Movers ({hybridData.cex_analysis?.top_movers?.length || 0})</h3>
@@ -1107,11 +1088,9 @@ const PriceMovers = () => {
                               {mover.wallet_type}
                             </span>
                           </div>
-                          
                           <div className="wallet-address" title={mover.wallet_id}>
                             {mover.wallet_id}
                           </div>
-                          
                           <div className="wallet-stats-grid">
                             <div className="wallet-stat">
                               <span className="label">Volume</span>
@@ -1122,7 +1101,6 @@ const PriceMovers = () => {
                               <span className="value">{mover.trade_count}</span>
                             </div>
                           </div>
-                          
                           <div className="impact-score">
                             <div className="impact-label">
                               <span>Impact</span>
@@ -1146,7 +1124,6 @@ const PriceMovers = () => {
                     </div>
                   )}
                 </div>
-
                 {/* DEX Movers */}
                 <div className="top-movers">
                   <h3>🔗 DEX Top Movers ({hybridData.dex_analysis?.top_movers?.length || 0})</h3>
@@ -1169,11 +1146,9 @@ const PriceMovers = () => {
                               </span>
                             )}
                           </div>
-                          
                           <div className="wallet-address" title={mover.wallet_address || mover.wallet_id}>
                             {mover.wallet_address || mover.wallet_id}
                           </div>
-                          
                           <div className="wallet-stats-grid">
                             <div className="wallet-stat">
                               <span className="label">Volume</span>
@@ -1184,7 +1159,6 @@ const PriceMovers = () => {
                               <span className="value">{mover.trade_count}</span>
                             </div>
                           </div>
-                          
                           <div className="impact-score">
                             <div className="impact-label">
                               <span>Impact</span>
@@ -1231,7 +1205,6 @@ const PriceMovers = () => {
                     </span>
                   </div>
                 </div>
-
                 {cexAnalysisData.candle && (
                   <div className="candle-summary">
                     <h3>🕯️ Candle Data</h3>
@@ -1265,7 +1238,6 @@ const PriceMovers = () => {
                     </div>
                   </div>
                 )}
-
                 <div className="top-movers">
                   <h3>🏆 Top Price Movers ({cexAnalysisData.topMovers?.length || 0})</h3>
                   {cexAnalysisData.topMovers && cexAnalysisData.topMovers.length > 0 ? (
@@ -1287,11 +1259,9 @@ const PriceMovers = () => {
                               </span>
                             )}
                           </div>
-                          
                           <div className="wallet-address" title={mover.wallet_id}>
                             {mover.wallet_id}
                           </div>
-                          
                           <div className="wallet-stats-grid">
                             <div className="wallet-stat">
                               <span className="label">Volume</span>
@@ -1306,7 +1276,6 @@ const PriceMovers = () => {
                               <span className="value">${formatNumber(mover.avg_trade_size)}</span>
                             </div>
                           </div>
-                          
                           <div className="impact-score">
                             <div className="impact-label">
                               <span>Impact Score</span>
@@ -1387,7 +1356,6 @@ const PriceMovers = () => {
                       </div>
                     )}
                   </div>
-
                   <div className="wallet-info-section">
                     <h3>Trading Statistiken</h3>
                     <div className="info-row">
