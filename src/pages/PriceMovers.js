@@ -1272,7 +1272,7 @@ const PriceMovers = () => {
                               <span className="value">{mover.trade_count}</span>
                             </div>
                             <div className="wallet-stat">
-                              <span className="label">Ø Size</span>
+                              <span className="label">Avg Size</span>
                               <span className="value">${formatNumber(mover.avg_trade_size)}</span>
                             </div>
                           </div>
