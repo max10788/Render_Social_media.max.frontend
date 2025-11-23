@@ -1,74 +1,16 @@
 /* ============================================
-   PRICE MOVERS - REDESIGNED LAYOUT
-   Professional Trading Dashboard Style
+   PRICE MOVERS - REDESIGNED LAYOUT (FINAL)
+   Professional Trading Dashboard
    ============================================ */
 
-/* ==================== MAIN LAYOUT ==================== */
+/* Import Base Variables from existing CSS */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600;700&display=swap');
 
-.price-movers-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: linear-gradient(180deg, #0A0E14 0%, #0F1419 100%);
-}
+/* ==================== NEUE 2-SPALTEN LAYOUT STYLES ==================== */
 
-/* Header - Kompakter */
-.price-movers-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(15, 20, 25, 0.98);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0, 153, 255, 0.2);
-  padding: var(--spacing-md) var(--spacing-xl);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
-.header-content {
-  max-width: 1920px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.header-branding {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.header-icon {
-  width: 36px;
-  height: 36px;
-  background: var(--gradient-primary);
-  border-radius: var(--border-radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-}
-
-.price-movers-header h1 {
-  font-family: var(--font-heading);
-  font-size: 1.25rem;
-  font-weight: 700;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0;
-}
-
-.subtitle {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  margin-top: 2px;
-}
-
-/* Main Content - Grid Layout */
+/* Main Content bleibt gleich */
 .main-content {
-  max-width: 1920px;
+  max-width: 1920px; /* Größeres Maximum für 2-Spalten */
   margin: 0 auto;
   padding: var(--spacing-lg);
   width: 100%;
@@ -78,10 +20,10 @@
   gap: var(--spacing-lg);
 }
 
-/* ==================== MODE SELECTORS - HORIZONTAL ==================== */
+/* ==================== MODE SELECTORS - KOMPAKTER ==================== */
 
 .mode-selector {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-md); /* Reduziert von xl auf md */
 }
 
 .mode-selector-title {
@@ -96,7 +38,7 @@
 
 .mode-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(3, 1fr); /* Fixe 3 Spalten */
   gap: var(--spacing-md);
 }
 
@@ -104,17 +46,34 @@
   background: var(--gradient-card);
   border: 2px solid transparent;
   border-radius: var(--border-radius-md);
-  padding: var(--spacing-md);
+  padding: var(--spacing-md); /* Reduziert von lg auf md */
   cursor: pointer;
   transition: all var(--transition-normal);
   position: relative;
-  min-height: 80px;
+  min-height: 90px; /* Kompakter */
+}
+
+.mode-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-hover);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  pointer-events: none;
 }
 
 .mode-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px); /* Subtiler */
   box-shadow: var(--shadow-md);
   border-color: rgba(0, 153, 255, 0.3);
+}
+
+.mode-card:hover::before {
+  opacity: 1;
 }
 
 .mode-card.active {
@@ -128,24 +87,28 @@
   align-items: center;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-xs);
+  position: relative;
+  z-index: 1;
 }
 
 .mode-icon {
-  font-size: 1.5rem;
+  font-size: 1.5rem; /* Kleiner als vorher (war 48px box) */
 }
 
 .mode-card-title {
   font-family: var(--font-heading);
-  font-size: 1rem;
+  font-size: 1rem; /* Kleiner */
   font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .mode-card-description {
-  font-size: 0.75rem;
+  font-size: 0.75rem; /* Kleiner */
   color: var(--color-text-secondary);
   line-height: 1.3;
+  position: relative;
+  z-index: 1;
 }
 
 .mode-card-badge {
@@ -160,25 +123,26 @@
   font-weight: 600;
   color: var(--color-accent-blue);
   text-transform: uppercase;
+  z-index: 1;
 }
 
-/* ==================== CHART VIEW - 2 COLUMN LAYOUT ==================== */
+/* ==================== 2-SPALTEN CHART VIEW ==================== */
 
 .chart-view {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr 380px; /* 70% + 380px fixed */
   gap: var(--spacing-lg);
   min-height: 600px;
 }
 
-/* Left Column - Chart */
+/* LEFT COLUMN - Chart Section */
 .chart-main-section {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
 }
 
-/* Right Column - Top Wallets */
+/* RIGHT COLUMN - Top Wallets Panel */
 .top-wallets-panel {
   background: var(--gradient-card);
   border: 1px solid rgba(0, 153, 255, 0.2);
@@ -186,27 +150,56 @@
   padding: var(--spacing-lg);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 200px);
+  max-height: calc(100vh - 250px); /* Sticky height */
   overflow: hidden;
+  position: sticky;
+  top: 100px; /* Bleibt beim Scrollen sichtbar */
 }
 
 .top-wallets-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-bottom: var(--spacing-md);
   padding-bottom: var(--spacing-md);
   border-bottom: 2px solid rgba(0, 153, 255, 0.2);
 }
 
-.top-wallets-title {
+.symbol-price-display {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+
+.symbol-name {
   font-family: var(--font-heading);
   font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.current-price {
+  font-family: var(--font-mono);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-success);
+  line-height: 1;
+}
+
+.price-label {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.top-wallets-title {
+  font-family: var(--font-heading);
+  font-size: 1rem;
   font-weight: 700;
   color: var(--color-accent-blue);
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  margin: 0;
 }
 
 .wallet-count-badge {
@@ -216,15 +209,17 @@
   border-radius: 10px;
   font-size: 0.75rem;
   font-family: var(--font-mono);
+  font-weight: 600;
 }
 
-/* Top Wallets List */
+/* Top Wallets List - Scrollable */
 .top-wallets-list {
   flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+  padding-right: var(--spacing-xs); /* Platz für Scrollbar */
 }
 
 .top-wallet-item {
@@ -237,10 +232,27 @@
   position: relative;
 }
 
+.top-wallet-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--gradient-primary);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  border-radius: var(--border-radius-md) 0 0 var(--border-radius-md);
+}
+
 .top-wallet-item:hover {
   border-color: var(--color-accent-blue);
   background: rgba(0, 153, 255, 0.05);
   transform: translateX(4px);
+}
+
+.top-wallet-item:hover::before {
+  opacity: 1;
 }
 
 .top-wallet-item.selected {
@@ -258,7 +270,7 @@
 
 .wallet-rank-badge {
   font-family: var(--font-heading);
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 900;
   background: var(--gradient-primary);
   -webkit-background-clip: text;
@@ -268,8 +280,8 @@
 }
 
 .wallet-type-badge-small {
-  padding: 2px 8px;
-  border-radius: 8px;
+  padding: 2px 6px;
+  border-radius: 6px;
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -294,9 +306,15 @@
   border-color: rgba(156, 39, 176, 0.3);
 }
 
+.wallet-type-badge-small.unknown {
+  background: rgba(158, 158, 158, 0.15);
+  color: #9E9E9E;
+  border-color: rgba(158, 158, 158, 0.3);
+}
+
 .wallet-item-address {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-sm);
   overflow: hidden;
@@ -321,6 +339,7 @@
   font-size: 0.65rem;
   color: var(--color-text-muted);
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .wallet-stat-small .value {
@@ -336,6 +355,7 @@
   border-radius: 3px;
   overflow: hidden;
   position: relative;
+  margin-bottom: 4px;
 }
 
 .wallet-impact-fill-small {
@@ -347,11 +367,10 @@
 
 .wallet-impact-value-small {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--color-accent-blue);
   text-align: right;
-  margin-top: 2px;
 }
 
 /* Empty State */
@@ -380,6 +399,18 @@
   border-radius: var(--border-radius-lg);
   padding: var(--spacing-lg);
   margin-top: var(--spacing-lg);
+  animation: slideInFromBottom 0.5s ease-out;
+}
+
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .influence-header {
@@ -387,6 +418,8 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid rgba(0, 153, 255, 0.2);
 }
 
 .influence-title {
@@ -397,6 +430,7 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  margin: 0;
 }
 
 .influence-timeline {
@@ -407,7 +441,7 @@
 
 .influence-bar-row {
   display: grid;
-  grid-template-columns: 60px 1fr 80px 80px;
+  grid-template-columns: 60px 1fr 80px;
   gap: var(--spacing-sm);
   align-items: center;
   padding: var(--spacing-xs) 0;
@@ -421,21 +455,22 @@
 }
 
 .influence-bar-container {
-  height: 24px;
+  height: 28px;
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
   position: relative;
+  border: 1px solid rgba(0, 153, 255, 0.1);
 }
 
 .influence-bar-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: 5px;
   transition: width 0.6s ease-out;
   position: relative;
   display: flex;
   align-items: center;
-  padding-left: var(--spacing-xs);
+  padding: 0 var(--spacing-sm);
 }
 
 .influence-bar-wallet {
@@ -463,21 +498,79 @@
   font-style: italic;
 }
 
+/* ==================== DEX WARNING BANNER ==================== */
+
+.dex-warning-banner {
+  background: linear-gradient(135deg, rgba(0, 184, 212, 0.1), rgba(0, 153, 255, 0.1));
+  border: 2px solid rgba(0, 184, 212, 0.3);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+}
+
+.dex-warning-banner .banner-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.dex-warning-banner .banner-content {
+  flex: 1;
+}
+
+.dex-warning-banner h4 {
+  margin: 0 0 var(--spacing-xs) 0;
+  color: var(--color-info);
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: var(--font-heading);
+}
+
+.dex-warning-banner p {
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.banner-details {
+  display: flex;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.detail-item {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.detail-item strong {
+  color: var(--color-text-primary);
+  margin-right: var(--spacing-xs);
+}
+
 /* ==================== RESPONSIVE DESIGN ==================== */
 
 @media (max-width: 1400px) {
   .chart-view {
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr 320px; /* Schmaler */
   }
 }
 
 @media (max-width: 1200px) {
   .chart-view {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* Einspaltiges Layout */
   }
   
   .top-wallets-panel {
-    max-height: 400px;
+    max-height: 400px; /* Begrenzte Höhe */
+    position: static; /* Kein Sticky mehr */
+  }
+  
+  .mode-cards {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 }
 
@@ -490,45 +583,36 @@
     grid-template-columns: 1fr;
   }
   
+  .mode-card {
+    min-height: 70px;
+  }
+  
   .influence-bar-row {
-    grid-template-columns: 50px 1fr 70px;
+    grid-template-columns: 50px 1fr 60px;
     font-size: 0.8rem;
   }
   
   .influence-bar-wallet {
-    display: none;
+    display: none; /* Verstecke Wallet-Text auf Mobile */
+  }
+  
+  .top-wallets-panel {
+    padding: var(--spacing-md);
   }
 }
 
-/* ==================== PRICE DISPLAY ==================== */
-
-.symbol-price-display {
-  display: flex;
-  align-items: baseline;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-md);
-}
-
-.symbol-name {
-  font-family: var(--font-heading);
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.current-price {
-  font-family: var(--font-mono);
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--color-success);
-}
-
-.price-label {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-left: var(--spacing-sm);
+@media (max-width: 480px) {
+  .symbol-price-display {
+    gap: 4px;
+  }
+  
+  .current-price {
+    font-size: 1.5rem;
+  }
+  
+  .influence-bar-row {
+    grid-template-columns: 45px 1fr 55px;
+  }
 }
 
 /* ==================== SCROLLBAR STYLING ==================== */
@@ -548,9 +632,27 @@
 .influence-timeline::-webkit-scrollbar-thumb {
   background: var(--gradient-primary);
   border-radius: 3px;
+  transition: opacity var(--transition-fast);
 }
 
 .top-wallets-list::-webkit-scrollbar-thumb:hover,
 .influence-timeline::-webkit-scrollbar-thumb:hover {
   opacity: 0.8;
+}
+
+/* ==================== LOADING SPINNER (kleine Version) ==================== */
+
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 153, 255, 0.2);
+  border-top-color: var(--color-accent-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: var(--spacing-xs);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
