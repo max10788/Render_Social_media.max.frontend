@@ -125,6 +125,34 @@ const PriceMovers = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartMode, analysisMode]);
 
+  // 🆕 NEU: Reload chart when exchange, symbol or timeframe changes
+  useEffect(() => {
+    if (chartMode === 'chart') {
+      const currentForm = getCurrentFormData();
+      console.log('🔄 Chart settings changed, reloading:', {
+        exchange: currentForm.exchange,
+        symbol: currentForm.symbol,
+        timeframe: currentForm.timeframe
+      });
+      loadChartData({
+        exchange: currentForm.exchange,
+        symbol: currentForm.symbol,
+        timeframe: currentForm.timeframe,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    cexFormData.exchange,
+    cexFormData.symbol,
+    cexFormData.timeframe,
+    dexFormData.exchange,
+    dexFormData.symbol,
+    dexFormData.timeframe,
+    hybridFormData.cexExchange,
+    hybridFormData.symbol,
+    hybridFormData.timeframe,
+  ]);
+
   // ==================== DEBUG ====================
   useEffect(() => {
     console.log('🐛 PriceMovers State:', {
