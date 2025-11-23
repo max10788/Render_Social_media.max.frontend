@@ -27,7 +27,7 @@ const isDEX = (exchange) => {
 // Axios Instance für CEX mit Interceptors
 const chartApi = axios.create({
   baseURL: CHART_API_URL,
-  timeout: 30000,
+  timeout: 120000,  // ✅ 2 Minuten (120 Sekunden)
   headers: {
     'Content-Type': 'application/json',
   },
@@ -36,7 +36,7 @@ const chartApi = axios.create({
 // 🆕 Axios Instance für DEX
 const dexApi = axios.create({
   baseURL: DEX_API_URL,
-  timeout: 30000,
+  timeout: 120000,  // ✅ 2 Minuten (120 Sekunden)
   headers: {
     'Content-Type': 'application/json',
   },
