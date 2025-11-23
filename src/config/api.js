@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Base Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-cf3y.onrender.com';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-1kzq.onrender.com';
 
 // Axios Instance with Interceptors
 const api = axios.create({
