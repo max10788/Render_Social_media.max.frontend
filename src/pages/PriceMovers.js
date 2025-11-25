@@ -573,7 +573,7 @@ const PriceMovers = () => {
                     <h3>Information</h3>
                     <div className="info-row">
                       <span className="label">Wallet:</span>
-                      <span className="value">{walletDetails.wallet_id}</span>
+                      <span className="value">{walletDetails.wallet_id || walletDetails.wallet_address}</span>
                     </div>
                     <div className="info-row">
                       <span className="label">Type:</span>
@@ -581,23 +581,108 @@ const PriceMovers = () => {
                         {walletDetails.wallet_type}
                       </span>
                     </div>
+                    <div className="info-row">
+                      <span className="label">Data Source:</span>
+                      <span className="value">{walletDetails.data_source?.toUpperCase()}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Blockchain:</span>
+                      <span className="value">{walletDetails.blockchain}</span>
+                    </div>
+                    {walletDetails.explorer_info && (
+                      <div className="info-row">
+                        <span className="label">Explorer:</span>
+                        <a 
+                          href={walletDetails.explorer_info.wallet_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="value explorer-link"
+                        >
+                          View on {walletDetails.explorer_info.explorer_name} →
+                        </a>
+                      </div>
+                    )}
                   </div>
+                  
                   <div className="wallet-info-section">
-                    <h3>Stats</h3>
+                    <h3>Statistics</h3>
                     <div className="info-row">
                       <span className="label">Total Trades:</span>
-                      <span className="value">{formatNumber(walletDetails.total_trades, 0)}</span>
+                      <span className="value">
+                        {formatNumber(walletDetails.statistics?.total_trades, 0)}
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Buy Trades:</span>
+                      <span className="value">
+                        {formatNumber(walletDetails.statistics?.buy_trades, 0)}
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Sell Trades:</span>
+                      <span className="value">
+                        {formatNumber(walletDetails.statistics?.sell_trades, 0)}
+                      </span>
                     </div>
                     <div className="info-row">
                       <span className="label">Total Volume:</span>
-                      <span className="value">${formatNumber(walletDetails.total_volume)}</span>
+                      <span className="value">
+                        ${formatNumber(walletDetails.statistics?.total_volume)}
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Total Value USD:</span>
+                      <span className="value">
+                        ${formatNumber(walletDetails.statistics?.total_value_usd)}
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">Buy/Sell Ratio:</span>
+                      <span className="value">
+                        {formatNumber(walletDetails.statistics?.buy_sell_ratio, 2)}
+                      </span>
                     </div>
                   </div>
+      
+                  {walletDetails.recent_trades && walletDetails.recent_trades.length > 0 && (
+                    <div className="wallet-info-section">
+                      <h3>Recent Trades</h3>
+                      <div className="recent-trades-list">
+                        {walletDetails.recent_trades.map((trade, idx) => (
+                          <div key={idx} className="trade-item">
+                            <div className="trade-header">
+                              <span className={`trade-type ${trade.trade_type}`}>
+                                {trade.trade_type === 'buy' ? '📈 BUY' : '📉 SELL'}
+                              </span>
+                              <span className="trade-time">
+                                {new Date(trade.timestamp).toLocaleTimeString()}
+                              </span>
+                            </div>
+                            <div className="trade-details">
+                              <span>Amount: {formatNumber(trade.amount)}</span>
+                              <span>Price: ${formatNumber(trade.price)}</span>
+                              <span>Value: ${formatNumber(trade.value_usd)}</span>
+                            </div>
+                            {trade.explorer_url && (
+                              <a 
+                                href={trade.explorer_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="trade-explorer-link"
+                              >
+                                View Transaction →
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="loading-overlay">
                   <div className="loading-spinner-large"></div>
-                  <p className="loading-text">Loading...</p>
+                  <p className="loading-text">Loading wallet details...</p>
                 </div>
               )}
             </div>
