@@ -178,7 +178,8 @@ export const getWalletDetails = async (walletId, exchange, symbol = null, timeRa
     if (symbol) params.symbol = symbol;
     if (timeRangeHours) params.time_range_hours = timeRangeHours;
     
-    const response = await priceMoversApi.get(`/wallet/${walletId}`, { params });
+    // ✅ FIXED: Added /details to the path
+    const response = await priceMoversApi.get(`/wallet/${walletId}/details`, { params });
     return response.data;
   } catch (error) {
     console.error('Wallet lookup error:', error);
