@@ -656,3 +656,72 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* Explorer Link */
+.explorer-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.explorer-link:hover {
+  text-decoration: underline;
+}
+
+/* Recent Trades */
+.recent-trades-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trade-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.trade-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.trade-type {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.trade-type.buy {
+  color: #10b981;
+}
+
+.trade-type.sell {
+  color: #ef4444;
+}
+
+.trade-time {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+}
+
+.trade-details {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+}
+
+.trade-explorer-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 0.85rem;
+  display: inline-block;
+}
+
+.trade-explorer-link:hover {
+  text-decoration: underline;
+}
