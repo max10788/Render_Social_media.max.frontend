@@ -638,22 +638,51 @@ export const usePriceMovers = () => {
   /**
    * Wallet Details laden
    */
-  const fetchWalletDetails = useCallback(async (walletId, exchange, symbol, timeRangeHours = 24) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getWalletDetails(walletId, exchange, symbol, timeRangeHours);
-      setWalletDetails(data);
-      return data;
-    } catch (err) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Wallet lookup failed';
-      setError(errorMessage);
-      console.error('Wallet lookup error:', err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchWalletDetails = useCallback(
+    async (
+      walletId, 
+      exchange, 
+      symbol, 
+      timeRangeHours = 2,  // ✅ Default 2h statt 24h
+      candleTimestamp = null,  // ✅ NEU
+      timeframeMinutes = null  // ✅ NEU
+    ) => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        console.log('Fetching wallet details:', { 
+          walletId, 
+          exchange, 
+          symbol, 
+          timeRangeHours,
+          candleTimestamp,
+          timeframeMinutes 
+        });
+        
+        // ✅ Call mit neuen Parametern
+        const data = await getWalletDetails(
+          walletId, 
+          exchange, 
+          symbol, 
+          timeRangeHours,
+          candleTimestamp,
+          timeframeMinutes
+        );
+        
+        setWalletDetails(data);
+        return data;
+      } catch (err) {
+        console.error('Wallet details fetch error:', err);
+        const errorMessage = err.response?.data?.detail || err.message || 'Failed to load wallet details';
+        setError(errorMessage);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   /**
    * Exchanges vergleichen
