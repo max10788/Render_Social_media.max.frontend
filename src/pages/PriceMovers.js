@@ -213,21 +213,29 @@ const PriceMovers = () => {
     setShowWalletPanel(true);
     try {
       const currentForm = getCurrentFormData();
+      
+      // ✅ NEU: Sende Candle-Kontext mit!
+      const candleTimestamp = selectedCandleData?.timestamp || null;
+      const timeframeMinutes = {
+        '5m': 5,
+        '15m': 15,
+        '30m': 30,
+        '1h': 60,
+        '4h': 240,
+      }[currentForm.timeframe] || 30;
+      
       await fetchWalletDetails(
         wallet.wallet_id,
         currentForm.exchange,
         currentForm.symbol,
-        24
+        2,  // ✅ NUR 2 Stunden statt 24!
+        candleTimestamp,  // ✅ NEU: Candle-Zeit
+        timeframeMinutes  // ✅ NEU: Timeframe
       );
     } catch (err) {
       console.error('Wallet details error:', err);
     }
-  }, [getCurrentFormData, fetchWalletDetails]);
-
-  const closeWalletPanel = useCallback(() => {
-    setShowWalletPanel(false);
-    setSelectedWallet(null);
-  }, []);
+  }, [getCurrentFormData, fetchWalletDetails, selectedCandleData]);
 
   // ==================== MODE HANDLERS ====================
   const handleAnalysisModeSelect = useCallback((modeId) => {
