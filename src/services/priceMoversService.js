@@ -172,17 +172,51 @@ export const historicalAnalysis = async (params) => {
 /**
  * Get Wallet Details
  */
-export const getWalletDetails = async (walletId, exchange, symbol = null, timeRangeHours = 24) => {
+export const getWalletDetails = async (
+  walletId, 
+  exchange, 
+  symbol = null, 
+  timeRangeHours = 2,  // ✅ Default 2h
+  candleTimestamp = null,  // ✅ NEU
+  timeframeMinutes = null  // ✅ NEU
+) => {
   try {
-    const params = { exchange };
-    if (symbol) params.symbol = symbol;
-    if (timeRangeHours) params.time_range_hours = timeRangeHours;
+    const params = { 
+      exchange,
+      time_range_hours: timeRangeHours 
+    };
     
-    // ✅ FIXED: Added /details to the path
+    if (symbol) {
+      params.symbol = symbol;
+    }
+    
+    // ✅ NEU: Candle-Kontext mitgeben
+    if (candleTimestamp) {
+      params.candle_timestamp = candleTimestamp instanceof Date 
+        ? candleTimestamp.toISOString() 
+        : candleTimestamp;
+    }
+    
+    if (timeframeMinutes) {
+      params.timeframe_minutes = timeframeMinutes;
+    }
+    
+    console.log('🔍 Wallet details API call:', {
+      walletId: walletId.substring(0, 16) + '...',
+      params
+    });
+    
     const response = await priceMoversApi.get(`/wallet/${walletId}/details`, { params });
+    
+    console.log('✅ Wallet details received:', {
+      total_trades: response.data.statistics?.total_trades,
+      wallet_type: response.data.wallet_type,
+      data_source: response.data.data_source
+    });
+    
     return response.data;
   } catch (error) {
-    console.error('Wallet lookup error:', error);
+    console.error('❌ Wallet lookup error:', error);
     throw error;
   }
 };
