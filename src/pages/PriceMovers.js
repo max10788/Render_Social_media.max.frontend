@@ -6,6 +6,7 @@ import ExchangeSelector from '../components/ui/ExchangeSelector';
 import CorrelationDisplay from '../components/ui/CorrelationDisplay';
 import { useChartService } from '../hooks/useChartService';
 import './PriceMovers.css';
+import InfoTooltip from '../components/ui/InfoTooltip';
 
 const PriceMovers = () => {
   // ==================== STATE ====================
