@@ -1195,3 +1195,38 @@ body.chart-selecting {
   overflow: hidden;
   touch-action: none;
 }
+
+/* ==================== TOOLTIP SECTIONS ==================== */
+
+.tooltip-section {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 153, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.tooltip-section:last-child {
+  margin-bottom: 0;
+}
+
+.tooltip-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0099FF;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tooltip-row .value.small {
+  font-size: 0.75rem;
+}
+
+.tooltip-row .value.highlight {
+  color: #00E5FF;
+  font-weight: 700;
+}
