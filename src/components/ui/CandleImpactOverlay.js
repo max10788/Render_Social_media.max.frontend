@@ -7,12 +7,67 @@ const CandleImpactOverlay = ({
   candleMoversData, 
   onWalletClick,
   containerWidth,
-  containerHeight 
+  containerHeight,
+  // ✅ NEU: Konfigurierbare Farben
+  segmentColors = null, // Optional: Custom color scheme
+  showDetailedTooltip = true, // Toggle für erweiterte Tooltips
 }) => {
   const [segments, setSegments] = useState([]);
   const [hoveredSegment, setHoveredSegment] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const overlayRef = useRef(null);
+
+  // ✅ Standard-Farbschema (kann überschrieben werden)
+  const defaultSegmentColors = {
+    // Wallet-Type basierte Farben
+    whale: {
+      primary: '#FFD700',
+      gradient: ['#FFD700', '#FFA500'],
+      shadow: 'rgba(255, 215, 0, 0.4)',
+    },
+    market_maker: {
+      primary: '#00E5FF',
+      gradient: ['#00E5FF', '#0099FF'],
+      shadow: 'rgba(0, 229, 255, 0.4)',
+    },
+    bot: {
+      primary: '#FF10F0',
+      gradient: ['#FF10F0', '#AB47BC'],
+      shadow: 'rgba(255, 16, 240, 0.4)',
+    },
+    unknown: {
+      primary: '#64748b',
+      gradient: ['#64748b', '#475569'],
+      shadow: 'rgba(100, 116, 139, 0.4)',
+    },
+    // Fallback für "Andere"
+    other: {
+      primary: '#1e293b',
+      gradient: ['#1e293b', '#0f172a'],
+      shadow: 'rgba(30, 41, 59, 0.3)',
+    },
+    // Index-basierte Fallback-Farben
+    fallback: [
+      {
+        primary: '#0ea5e9',
+        gradient: ['#0ea5e9', '#0284c7'],
+        shadow: 'rgba(14, 165, 233, 0.4)',
+      },
+      {
+        primary: '#8b5cf6',
+        gradient: ['#8b5cf6', '#7c3aed'],
+        shadow: 'rgba(139, 92, 246, 0.4)',
+      },
+      {
+        primary: '#ec4899',
+        gradient: ['#ec4899', '#db2777'],
+        shadow: 'rgba(236, 72, 153, 0.4)',
+      },
+    ],
+  };
+
+  // ✅ Verwende Custom oder Default Colors
+  const colorScheme = segmentColors || defaultSegmentColors;
 
   useEffect(() => {
     if (!chartRef.current || !candleMoversData?.candle || !candleMoversData?.top_movers) {
@@ -46,14 +101,16 @@ const CandleImpactOverlay = ({
       ...top3.map((mover, idx) => ({
         wallet: mover,
         impact: mover.impact_score,
-        color: getWalletColor(mover.wallet_type, idx),
+        colors: getWalletColors(mover.wallet_type, idx, colorScheme),
         label: `#${idx + 1} ${mover.wallet_type}`,
+        rank: idx + 1,
       })),
       {
         wallet: null,
         impact: otherImpact,
-        color: '#1e293b',
+        colors: colorScheme.other || defaultSegmentColors.other,
         label: 'Andere',
+        rank: null,
       }
     ];
 
@@ -66,15 +123,17 @@ const CandleImpactOverlay = ({
         y: currentTop,
         width: width,
         height: Math.max(2, segHeight),
-        color: seg.color,
+        colors: seg.colors,
         data: seg,
+        // ✅ Zusätzliche Candle-Daten für Tooltip
+        candleData: candleData,
       };
       currentTop += segHeight;
       return element;
     });
 
     setSegments(segmentElements);
-  }, [chartRef, candleMoversData, containerWidth, containerHeight]);
+  }, [chartRef, candleMoversData, containerWidth, containerHeight, colorScheme]);
 
   const handleSegmentHover = (segment, event) => {
     if (!segment.data.wallet) return;
@@ -96,6 +155,41 @@ const CandleImpactOverlay = ({
     }
   };
 
+  // ✅ Erstelle Gradient für Segment
+  const getSegmentStyle = (segment) => {
+    const baseStyle = {
+      position: 'absolute',
+      left: `${segment.x}px`,
+      top: `${segment.y}px`,
+      width: `${segment.width}px`,
+      height: `${segment.height}px`,
+      cursor: segment.data.wallet ? 'pointer' : 'default',
+      transition: 'all 0.2s ease',
+      opacity: hoveredSegment?.id === segment.id ? 1 : 0.85,
+      borderRadius: '2px',
+      boxShadow: `inset 0 0 0 1px rgba(0, 0, 0, 0.2)`,
+    };
+
+    // Gradient Background
+    if (segment.colors.gradient && segment.colors.gradient.length > 1) {
+      baseStyle.background = `linear-gradient(180deg, ${segment.colors.gradient[0]}, ${segment.colors.gradient[1]})`;
+    } else {
+      baseStyle.backgroundColor = segment.colors.primary;
+    }
+
+    // Enhanced hover effect
+    if (hoveredSegment?.id === segment.id && segment.data.wallet) {
+      baseStyle.opacity = 1;
+      baseStyle.filter = 'brightness(1.2)';
+      baseStyle.boxShadow = `
+        inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+        0 0 12px ${segment.colors.shadow}
+      `;
+    }
+
+    return baseStyle;
+  };
+
   return (
     <>
       <div ref={overlayRef} className="candle-impact-overlay">
@@ -103,17 +197,7 @@ const CandleImpactOverlay = ({
           <div
             key={segment.id}
             className={`impact-segment ${segment.data.wallet ? 'clickable' : ''}`}
-            style={{
-              position: 'absolute',
-              left: `${segment.x}px`,
-              top: `${segment.y}px`,
-              width: `${segment.width}px`,
-              height: `${segment.height}px`,
-              backgroundColor: segment.color,
-              cursor: segment.data.wallet ? 'pointer' : 'default',
-              transition: 'opacity 0.2s',
-              opacity: hoveredSegment?.id === segment.id ? 1 : 0.85,
-            }}
+            style={getSegmentStyle(segment)}
             onMouseEnter={(e) => handleSegmentHover(segment, e)}
             onMouseMove={(e) => handleSegmentHover(segment, e)}
             onMouseLeave={handleSegmentLeave}
@@ -123,26 +207,38 @@ const CandleImpactOverlay = ({
         ))}
       </div>
 
-      {hoveredSegment && (
+      {hoveredSegment && showDetailedTooltip && (
         <CandleImpactTooltip
           segment={hoveredSegment}
           position={tooltipPosition}
-          candleData={candleMoversData?.candle}
+          candleData={hoveredSegment.candleData}
+          showDetailedInfo={true}
         />
       )}
     </>
   );
 };
 
-const getWalletColor = (walletType, index) => {
-  const colors = {
-    whale: '#818cf8',
-    market_maker: '#10b981',
-    bot: '#f59e0b',
-    unknown: '#64748b',
+// ✅ Helper: Get colors for wallet type
+const getWalletColors = (walletType, index, colorScheme) => {
+  const type = walletType?.toLowerCase();
+  
+  // Try wallet type colors
+  if (colorScheme[type]) {
+    return colorScheme[type];
+  }
+  
+  // Fallback to index-based colors
+  if (colorScheme.fallback && colorScheme.fallback[index]) {
+    return colorScheme.fallback[index];
+  }
+  
+  // Ultimate fallback
+  return {
+    primary: '#64748b',
+    gradient: ['#64748b', '#475569'],
+    shadow: 'rgba(100, 116, 139, 0.4)',
   };
-  const defaultColors = ['#0ea5e9', '#8b5cf6', '#ec4899'];
-  return colors[walletType?.toLowerCase()] || defaultColors[index] || '#64748b';
 };
 
 export default CandleImpactOverlay;
