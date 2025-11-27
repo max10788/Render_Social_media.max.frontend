@@ -491,11 +491,11 @@ const PriceMovers = () => {
                   onCandleClick={handleCandleClick}
                   onMultiCandleAnalysis={handleMultiCandleAnalysis}
                   candleMoversData={candleMoversData}
-                  multiCandleMoversData={multiCandleMoversData}
+                  multiCandleMoversData={multiCandleResults}
                   onWalletClick={handleWalletClick}
-                  loading={isLoadingChart}
-                  symbol={symbol}
-                  timeframe={timeframe}
+                  loading={chartLoading}
+                  symbol={getCurrentFormData().symbol}
+                  timeframe={getCurrentFormData().timeframe}
                   isDexMode={isDexMode}
                   dataSource={dataSource}
                   dataWarning={dataWarning}
