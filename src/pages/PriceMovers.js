@@ -9,51 +9,6 @@ import InfoTooltip from '../components/ui/InfoTooltip';
 import CanvasCandleImpactOverlay from '../components/ui/CanvasCandleImpactOverlay';
 import './PriceMovers.css';
 
-// ✅ Optional: Custom Color Configuration
-const CUSTOM_SEGMENT_COLORS = {
-  whale: {
-    primary: '#FFD700',
-    gradient: ['#FFD700', '#FF8C00'],
-    shadow: 'rgba(255, 215, 0, 0.5)',
-  },
-  market_maker: {
-    primary: '#00E5FF',
-    gradient: ['#00E5FF', '#0099FF'],
-    shadow: 'rgba(0, 229, 255, 0.5)',
-  },
-  bot: {
-    primary: '#FF10F0',
-    gradient: ['#FF10F0', '#9C27B0'],
-    shadow: 'rgba(255, 16, 240, 0.5)',
-  },
-  unknown: {
-    primary: '#718096',
-    gradient: ['#718096', '#4A5568'],
-    shadow: 'rgba(113, 128, 150, 0.4)',
-  },
-  other: {
-    primary: '#1a202c',
-    gradient: ['#1a202c', '#0f1419'],
-    shadow: 'rgba(26, 32, 44, 0.3)',
-  },
-  fallback: [
-    {
-      primary: '#06b6d4',
-      gradient: ['#06b6d4', '#0891b2'],
-      shadow: 'rgba(6, 182, 212, 0.5)',
-    },
-    {
-      primary: '#a855f7',
-      gradient: ['#a855f7', '#9333ea'],
-      shadow: 'rgba(168, 85, 247, 0.5)',
-    },
-    {
-      primary: '#f43f5e',
-      gradient: ['#f43f5e', '#e11d48'],
-      shadow: 'rgba(244, 63, 94, 0.5)',
-    },
-  ],
-};
 
 const PriceMovers = () => {
   // ==================== STATE ====================
