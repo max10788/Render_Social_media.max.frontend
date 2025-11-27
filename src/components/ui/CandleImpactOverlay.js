@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import CandleImpactTooltip from './CandleImpactTooltip';
+import CandleImpactTooltip from './CustomChartTooltip';
 import './CandleImpactOverlay.css';
 
 const CandleImpactOverlay = ({ 
