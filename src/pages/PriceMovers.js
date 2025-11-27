@@ -491,16 +491,20 @@ const PriceMovers = () => {
                   onCandleClick={handleCandleClick}
                   onMultiCandleAnalysis={handleMultiCandleAnalysis}
                   candleMoversData={candleMoversData}
-                  multiCandleMoversData={multiCandleResults || null}
+                  multiCandleMoversData={multiCandleMoversData}
                   onWalletClick={handleWalletClick}
-                  loading={chartLoading}
-                  symbol={getCurrentFormData().symbol}
-                  timeframe={getCurrentFormData().timeframe}
-                  height={500}
+                  loading={isLoadingChart}
+                  symbol={symbol}
+                  timeframe={timeframe}
                   isDexMode={isDexMode}
                   dataSource={dataSource}
                   dataWarning={dataWarning}
-                  segmentColors={customWalletColors}
+                  segmentColors={{
+                    whale: '#FFD700',
+                    market_maker: '#00E5FF',
+                    bot: '#FF10F0',
+                    unknown: '#718096',
+                  }}
                 />
                 
                 {/* ✅ NEU: CandleImpactOverlay direkt nach dem Chart */}
