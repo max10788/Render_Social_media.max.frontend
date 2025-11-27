@@ -1,3 +1,9 @@
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import CustomChartTooltip from './CustomChartTooltip';
+import CandleConfirmationModal from './CandleConfirmationModal';
+import MultiCandleSelectionModal from './MultiCandleSelectionModal';
+import './CustomCandlestickChart.css';
+
 const CustomCandlestickChart = ({
   candleData = [],
   onCandleClick,
