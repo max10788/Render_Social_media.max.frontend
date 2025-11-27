@@ -483,13 +483,6 @@ const PriceMovers = () => {
                   <span className="error-text">{chartError}</span>
                 </div>
               )}
-              
-              const customWalletColors = {
-                whale: '#FFD700',
-                market_maker: '#00E5FF',
-                bot: '#FF10F0',
-                unknown: '#718096',
-              };
 
               {/* ✅ NEU: Wrapper mit Ref um den Chart */}
               <div ref={chartContainerRef} style={{ position: 'relative', width: '100%' }}>
