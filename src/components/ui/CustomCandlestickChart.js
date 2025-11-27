@@ -92,13 +92,6 @@ const CustomCandlestickChart = ({
     EXCLUDE_ALREADY_ANALYZED: true,
   };
 
-  const WALLET_COLORS = {
-    whale: '#FFD700',
-    market_maker: '#00E5FF',
-    bot: '#FF10F0',
-    unknown: '#607D8B',
-  };
-
   // ✅ NEU: Standard oder Custom Colors
   const WALLET_COLORS = segmentColors || {
     whale: '#FFD700',
