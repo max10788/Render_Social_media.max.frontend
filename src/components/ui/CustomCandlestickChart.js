@@ -942,21 +942,20 @@ const CustomCandlestickChart = ({
     const newZoomX = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoomX * (1 + delta)));
     setTargetZoomX(newZoomX);
     
-    // Adjust pan to keep center
     const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
     const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoomX)));
     const newVisibleCandles = Math.max(10, Math.floor(chartWidth / (12 * newZoomX)));
     const centerIdx = panOffset + visibleCandles / 2;
     const newOffset = Math.max(0, centerIdx - newVisibleCandles / 2);
     setTargetPanOffset(newOffset);
-  }, [targetZoomX, zoomX, panOffset, dimensions]);
-
+  }, [targetZoomX, zoomX, panOffset, dimensions, MIN_ZOOM, MAX_ZOOM, MARGIN.left, MARGIN.right]);
+  
   // ✅ NEW: Y-Zoom Handler
   const handleZoomY = useCallback((delta) => {
     const newZoomY = Math.max(MIN_ZOOM_Y, Math.min(MAX_ZOOM_Y, targetZoomY * (1 + delta)));
     setTargetZoomY(newZoomY);
-  }, [targetZoomY]);
-
+  }, [targetZoomY, MIN_ZOOM_Y, MAX_ZOOM_Y]);
+  
   // ✅ NEW: Uniform Zoom Handler
   const handleZoomUniform = useCallback((delta) => {
     const newZoomX = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoomX * (1 + delta)));
@@ -964,14 +963,13 @@ const CustomCandlestickChart = ({
     setTargetZoomX(newZoomX);
     setTargetZoomY(newZoomY);
     
-    // Adjust pan
     const chartWidth = dimensions.width - MARGIN.left - MARGIN.right;
     const visibleCandles = Math.max(10, Math.floor(chartWidth / (12 * zoomX)));
     const newVisibleCandles = Math.max(10, Math.floor(chartWidth / (12 * newZoomX)));
     const centerIdx = panOffset + visibleCandles / 2;
     const newOffset = Math.max(0, centerIdx - newVisibleCandles / 2);
     setTargetPanOffset(newOffset);
-  }, [targetZoomX, targetZoomY, zoomX, panOffset, dimensions]);
+  }, [targetZoomX, targetZoomY, zoomX, panOffset, dimensions, MIN_ZOOM, MAX_ZOOM, MIN_ZOOM_Y, MAX_ZOOM_Y, MARGIN.left, MARGIN.right]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
