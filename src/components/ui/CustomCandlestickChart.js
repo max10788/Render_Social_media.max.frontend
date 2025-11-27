@@ -16,6 +16,10 @@ const CustomCandlestickChart = ({
   timeframe = '5m',
   height = 500,
 
+  // ✅ NEU: Hinzufügen!
+  segmentColors = null,
+}) => {  
+  
   // DEX PROPS
   isDexMode = false,
   dataSource = null,
