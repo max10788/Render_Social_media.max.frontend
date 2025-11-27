@@ -1,3 +1,5 @@
+/* ==================== OVERLAY BASE ==================== */
+
 .candle-impact-overlay {
   position: absolute;
   top: 0;
@@ -12,6 +14,28 @@
   pointer-events: auto;
   border-radius: 2px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ✅ Animated gradient overlay on hover */
+.candle-impact-overlay .impact-segment.clickable::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.3), 
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.candle-impact-overlay .impact-segment.clickable:hover::before {
+  left: 100%;
 }
 
 .candle-impact-overlay .impact-segment.clickable:hover {
@@ -19,66 +43,98 @@
   filter: brightness(1.2);
   box-shadow: 
     inset 0 0 0 1px rgba(255, 255, 255, 0.3),
-    0 0 8px rgba(0, 153, 255, 0.5);
+    0 0 12px currentColor;
+  transform: scaleX(1.05);
+  z-index: 100;
 }
+
+/* ==================== TOOLTIP STYLES ==================== */
 
 .candle-impact-tooltip {
   background: linear-gradient(145deg, rgba(26, 35, 50, 0.98), rgba(15, 20, 25, 0.98));
   border: 1px solid rgba(0, 153, 255, 0.5);
   border-radius: 12px;
   padding: 12px;
-  min-width: 280px;
+  min-width: 320px;
+  max-width: 400px;
   box-shadow: 
     0 8px 32px rgba(0, 0, 0, 0.8),
     0 0 20px rgba(0, 153, 255, 0.3);
   font-family: 'Exo 2', sans-serif;
   backdrop-filter: blur(10px);
   animation: tooltipFadeIn 0.15s ease-out;
+  user-select: none;
 }
 
 @keyframes tooltipFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-5px);
+    transform: translateY(-5px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
+
+/* ==================== TOOLTIP HEADER ==================== */
 
 .tooltip-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding-bottom: 8px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid rgba(0, 153, 255, 0.2);
+  margin-bottom: 12px;
+  border-bottom: 2px solid rgba(0, 153, 255, 0.3);
 }
 
 .tooltip-rank {
   font-family: 'Orbitron', sans-serif;
   font-size: 0.9rem;
   font-weight: 700;
-  color: #0099FF;
+  color: #00E5FF;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .tooltip-impact {
   font-family: 'Roboto Mono', monospace;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 700;
   background: linear-gradient(135deg, #0099FF, #FF0099);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-shadow: 0 0 20px rgba(0, 153, 255, 0.5);
 }
+
+/* ==================== TOOLTIP BODY ==================== */
 
 .tooltip-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
+}
+
+.tooltip-section {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 153, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.tooltip-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0099FF;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .tooltip-row {
@@ -86,16 +142,23 @@
   justify-content: space-between;
   align-items: center;
   font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
+.tooltip-row:last-child {
+  margin-bottom: 0;
 }
 
 .tooltip-row .label {
   color: #8899A6;
   font-weight: 500;
+  font-size: 0.8rem;
 }
 
 .tooltip-row .value {
   color: #E1E8ED;
   font-weight: 600;
+  text-align: right;
 }
 
 .tooltip-row .value.mono {
@@ -103,41 +166,96 @@
   font-size: 0.8rem;
 }
 
-.tooltip-footer {
-  padding-top: 8px;
-  margin-top: 8px;
-  border-top: 1px solid rgba(0, 153, 255, 0.2);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.85rem;
+.tooltip-row .value.small {
+  font-size: 0.75rem;
 }
 
-.footer-label {
-  color: #8899A6;
-  font-weight: 500;
+.tooltip-row .value.highlight {
+  color: #00E5FF;
+  font-weight: 700;
 }
 
-.footer-value {
-  color: #E1E8ED;
-  font-weight: 600;
-  font-family: 'Roboto Mono', monospace;
-}
-
-.footer-value .green {
+.tooltip-row .value.green {
   color: #00E676;
 }
 
-.footer-value .red {
+.tooltip-row .value.red {
   color: #FF3D00;
 }
 
+/* ==================== TOOLTIP FOOTER ==================== */
+
 .tooltip-hint {
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #5C6B7A;
   font-style: italic;
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid rgba(0, 153, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+  .candle-impact-tooltip {
+    min-width: 280px;
+    max-width: 320px;
+    font-size: 0.9rem;
+  }
+
+  .tooltip-rank {
+    font-size: 0.8rem;
+  }
+
+  .tooltip-impact {
+    font-size: 1rem;
+  }
+
+  .tooltip-row {
+    font-size: 0.8rem;
+  }
+}
+
+/* ==================== ANIMATIONS ==================== */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.impact-segment.clickable:hover {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ==================== UTILITY CLASSES ==================== */
+
+.tooltip-divider {
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(0, 153, 255, 0.3), 
+    transparent
+  );
+  margin: 8px 0;
+}
+
+.tooltip-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(0, 153, 255, 0.2);
+  color: #00E5FF;
+  border: 1px solid rgba(0, 153, 255, 0.4);
 }
