@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { usePriceMovers } from '../hooks/usePriceMovers';
 import { useHybridAnalysis } from '../hooks/useHybridAnalysis';
 import CustomCandlestickChart from '../components/ui/CustomCandlestickChart';
@@ -6,12 +6,62 @@ import ExchangeSelector from '../components/ui/ExchangeSelector';
 import CorrelationDisplay from '../components/ui/CorrelationDisplay';
 import { useChartService } from '../hooks/useChartService';
 import InfoTooltip from '../components/ui/InfoTooltip';
+import CandleImpactOverlay from '../components/ui/CandleImpactOverlay';
 import './PriceMovers.css';
+
+// ✅ Optional: Custom Color Configuration
+const CUSTOM_SEGMENT_COLORS = {
+  whale: {
+    primary: '#FFD700',
+    gradient: ['#FFD700', '#FF8C00'],
+    shadow: 'rgba(255, 215, 0, 0.5)',
+  },
+  market_maker: {
+    primary: '#00E5FF',
+    gradient: ['#00E5FF', '#0099FF'],
+    shadow: 'rgba(0, 229, 255, 0.5)',
+  },
+  bot: {
+    primary: '#FF10F0',
+    gradient: ['#FF10F0', '#9C27B0'],
+    shadow: 'rgba(255, 16, 240, 0.5)',
+  },
+  unknown: {
+    primary: '#718096',
+    gradient: ['#718096', '#4A5568'],
+    shadow: 'rgba(113, 128, 150, 0.4)',
+  },
+  other: {
+    primary: '#1a202c',
+    gradient: ['#1a202c', '#0f1419'],
+    shadow: 'rgba(26, 32, 44, 0.3)',
+  },
+  fallback: [
+    {
+      primary: '#06b6d4',
+      gradient: ['#06b6d4', '#0891b2'],
+      shadow: 'rgba(6, 182, 212, 0.5)',
+    },
+    {
+      primary: '#a855f7',
+      gradient: ['#a855f7', '#9333ea'],
+      shadow: 'rgba(168, 85, 247, 0.5)',
+    },
+    {
+      primary: '#f43f5e',
+      gradient: ['#f43f5e', '#e11d48'],
+      shadow: 'rgba(244, 63, 94, 0.5)',
+    },
+  ],
+};
 
 const PriceMovers = () => {
   // ==================== STATE ====================
   const [analysisMode, setAnalysisMode] = useState('cex');
   const [chartMode, setChartMode] = useState('chart');
+  
+  // ✅ NEU: Chart Container Ref für CandleImpactOverlay
+  const chartContainerRef = useRef(null);
   
   const [cexFormData, setCexFormData] = useState({
     exchange: 'bitget',
@@ -434,21 +484,37 @@ const PriceMovers = () => {
                 </div>
               )}
 
-              <CustomCandlestickChart
-                candleData={chartData || []}
-                onCandleClick={handleCandleClick}
-                onMultiCandleAnalysis={handleMultiCandleAnalysis}
-                candleMoversData={candleMoversData}
-                multiCandleMoversData={multiCandleResults || null}
-                onWalletClick={handleWalletClick}
-                loading={chartLoading}
-                symbol={getCurrentFormData().symbol}
-                timeframe={getCurrentFormData().timeframe}
-                height={500}
-                isDexMode={isDexMode}
-                dataSource={dataSource}
-                dataWarning={dataWarning}
-              />
+              {/* ✅ NEU: Wrapper mit Ref um den Chart */}
+              <div ref={chartContainerRef} style={{ position: 'relative', width: '100%' }}>
+                <CustomCandlestickChart
+                  candleData={chartData || []}
+                  onCandleClick={handleCandleClick}
+                  onMultiCandleAnalysis={handleMultiCandleAnalysis}
+                  candleMoversData={candleMoversData}
+                  multiCandleMoversData={multiCandleResults || null}
+                  onWalletClick={handleWalletClick}
+                  loading={chartLoading}
+                  symbol={getCurrentFormData().symbol}
+                  timeframe={getCurrentFormData().timeframe}
+                  height={500}
+                  isDexMode={isDexMode}
+                  dataSource={dataSource}
+                  dataWarning={dataWarning}
+                />
+                
+                {/* ✅ NEU: CandleImpactOverlay direkt nach dem Chart */}
+                {candleMoversData && chartContainerRef.current && (
+                  <CandleImpactOverlay
+                    chartRef={chartContainerRef}
+                    candleMoversData={candleMoversData}
+                    onWalletClick={handleWalletClick}
+                    containerWidth={chartContainerRef.current.clientWidth || 800}
+                    containerHeight={500}
+                    segmentColors={CUSTOM_SEGMENT_COLORS}
+                    showDetailedTooltip={true}
+                  />
+                )}
+              </div>
             </div>
 
             <div className="top-wallets-panel">
@@ -637,7 +703,8 @@ const PriceMovers = () => {
                       </div>
                       <div className="info-row">
                         <span className="label">Kauf-Trades:</span>
-                        <span className="value">{formatNumber(walletDetails.statistics?.buy_trades, 0)}</span>
+                        <span className="value">{formatNumber(walletDetails.statistics?.buy_trades,
+  0)}</span>
                       </div>
                       <div className="info-row">
                         <span className="label">Verkauf-Trades:</span>
@@ -705,7 +772,6 @@ const PriceMovers = () => {
       </main>
 
       <style jsx>{`
-        /* Identisch zu deinem ersten CSS – komplett übernommen */
         .quick-guide-banner {
           background: linear-gradient(135deg, rgba(0, 229, 255, 0.1), rgba(0, 153, 255, 0.1));
           border: 2px solid rgba(0, 229, 255, 0.3);
@@ -782,12 +848,6 @@ const PriceMovers = () => {
         .metric-explanation ul { margin: 0; padding-left: 20px; color: #8899a6; }
         .metric-explanation li { margin-bottom: 6px; line-height: 1.6; font-size: 13px; }
 
-        @media (max-width: 768px) {
-          .guide-steps { font-size: 13px; }
-          .legend-grid, .chart-instructions, .explanation-content { grid-template-columns: 1fr; }
-        }
-
-        /* Zusätzliche Klassen für Wallet Panel / Chart View – falls nicht vorhanden, ggf. in CSS-Datei ergänzen */
         .chart-view { display: flex; gap: 24px; margin-top: 20px; }
         .chart-main-section { flex: 3; }
         .top-wallets-panel { flex: 1; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 16px; height: fit-content; }
@@ -812,6 +872,11 @@ const PriceMovers = () => {
         .wallet-type-badge.whale { color: #FFC107; }
         .wallet-type-badge.market_maker { color: #2196F3; }
         .wallet-type-badge.bot { color: #AB47BC; }
+
+        @media (max-width: 768px) {
+          .guide-steps { font-size: 13px; }
+          .legend-grid, .chart-instructions, .explanation-content { grid-template-columns: 1fr; }
+        }
       `}</style>
     </div>
   );
