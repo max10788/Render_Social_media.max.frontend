@@ -6,7 +6,7 @@ import ExchangeSelector from '../components/ui/ExchangeSelector';
 import CorrelationDisplay from '../components/ui/CorrelationDisplay';
 import { useChartService } from '../hooks/useChartService';
 import InfoTooltip from '../components/ui/InfoTooltip';
-import CandleImpactOverlay from '../components/ui/CandleImpactOverlay';
+import CanvasCandleImpactOverlay from '../components/ui/CanvasCandleImpactOverlay';
 import './PriceMovers.css';
 
 // ✅ Optional: Custom Color Configuration
