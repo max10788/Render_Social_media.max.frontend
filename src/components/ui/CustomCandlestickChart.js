@@ -899,45 +899,8 @@ const CustomCandlestickChart = ({
     
     return null;
   }, [dimensions]);
-
-  // ✅ NEW: Enhanced wheel handler with region-aware zoom
-  const handleWheel = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const region = getMouseRegion(x, y);
-
-    const delta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
-    const isCtrlPressed = e.ctrlKey || e.metaKey;
-    const isShiftPressed = e.shiftKey;
-
-    if (region === 'price-scale') {
-      // ✅ Scroll auf Preis-Skala: Nur Y-Zoom
-      handleZoomY(delta);
-    } else if (region === 'time-scale') {
-      // ✅ Scroll auf Zeit-Skala: Nur X-Zoom
-      handleZoomX(delta);
-    } else if (region === 'chart') {
-      if (isCtrlPressed) {
-        // ✅ Ctrl + Scroll: Uniform Zoom (beide Achsen)
-        handleZoomUniform(delta);
-      } else if (isShiftPressed) {
-        // ✅ Shift + Scroll: Nur Y-Zoom
-        handleZoomY(delta);
-      } else {
-        // ✅ Standard Scroll: Nur X-Zoom
-        handleZoomX(delta);
-      }
-    }
-  }, [getMouseRegion, targetZoomX, targetZoomY, zoomX, panOffset, dimensions]);
-
-  // ✅ NEW: X-Zoom Handler
+  
+  // ✅ NEW: X-Zoom Handler - MUSS VOR handleWheel kommen!
   const handleZoomX = useCallback((delta) => {
     const newZoomX = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoomX * (1 + delta)));
     setTargetZoomX(newZoomX);
@@ -948,15 +911,17 @@ const CustomCandlestickChart = ({
     const centerIdx = panOffset + visibleCandles / 2;
     const newOffset = Math.max(0, centerIdx - newVisibleCandles / 2);
     setTargetPanOffset(newOffset);
-  }, [targetZoomX, zoomX, panOffset, dimensions, MIN_ZOOM, MAX_ZOOM, MARGIN.left, MARGIN.right]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetZoomX, zoomX, panOffset, dimensions]);
   
-  // ✅ NEW: Y-Zoom Handler
+  // ✅ NEW: Y-Zoom Handler - MUSS VOR handleWheel kommen!
   const handleZoomY = useCallback((delta) => {
     const newZoomY = Math.max(MIN_ZOOM_Y, Math.min(MAX_ZOOM_Y, targetZoomY * (1 + delta)));
     setTargetZoomY(newZoomY);
-  }, [targetZoomY, MIN_ZOOM_Y, MAX_ZOOM_Y]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetZoomY]);
   
-  // ✅ NEW: Uniform Zoom Handler
+  // ✅ NEW: Uniform Zoom Handler - MUSS VOR handleWheel kommen!
   const handleZoomUniform = useCallback((delta) => {
     const newZoomX = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, targetZoomX * (1 + delta)));
     const newZoomY = Math.max(MIN_ZOOM_Y, Math.min(MAX_ZOOM_Y, targetZoomY * (1 + delta)));
@@ -969,8 +934,41 @@ const CustomCandlestickChart = ({
     const centerIdx = panOffset + visibleCandles / 2;
     const newOffset = Math.max(0, centerIdx - newVisibleCandles / 2);
     setTargetPanOffset(newOffset);
-  }, [targetZoomX, targetZoomY, zoomX, panOffset, dimensions, MIN_ZOOM, MAX_ZOOM, MIN_ZOOM_Y, MAX_ZOOM_Y, MARGIN.left, MARGIN.right]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetZoomX, targetZoomY, zoomX, panOffset, dimensions]);
+  
+  // ✅ NEW: Enhanced wheel handler - KOMMT NACH den Zoom Handlers!
+  const handleWheel = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+  
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const region = getMouseRegion(x, y);
+  
+    const delta = e.deltaY > 0 ? -ZOOM_SPEED : ZOOM_SPEED;
+    const isCtrlPressed = e.ctrlKey || e.metaKey;
+    const isShiftPressed = e.shiftKey;
+  
+    if (region === 'price-scale') {
+      handleZoomY(delta);
+    } else if (region === 'time-scale') {
+      handleZoomX(delta);
+    } else if (region === 'chart') {
+      if (isCtrlPressed) {
+        handleZoomUniform(delta);
+      } else if (isShiftPressed) {
+        handleZoomY(delta);
+      } else {
+        handleZoomX(delta);
+      }
+    }
+  }, [getMouseRegion, handleZoomX, handleZoomY, handleZoomUniform]);
+  
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
