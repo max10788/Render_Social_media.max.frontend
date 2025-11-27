@@ -15,9 +15,6 @@ const PriceMovers = () => {
   const [analysisMode, setAnalysisMode] = useState('cex');
   const [chartMode, setChartMode] = useState('chart');
   
-  // ✅ NEU: Chart Container Ref für CandleImpactOverlay
-  const chartContainerRef = useRef(null);
-  
   const [cexFormData, setCexFormData] = useState({
     exchange: 'bitget',
     symbol: 'BTC/USDT',
@@ -439,8 +436,7 @@ const PriceMovers = () => {
                 </div>
               )}
 
-              {/* ✅ NEU: Wrapper mit Ref um den Chart */}
-              <div ref={chartContainerRef} style={{ position: 'relative', width: '100%' }}>
+              <div style={{ position: 'relative', width: '100%' }}>
                 <CustomCandlestickChart
                   candleData={chartData || []}
                   onCandleClick={handleCandleClick}
@@ -462,16 +458,16 @@ const PriceMovers = () => {
                   }}
                 />
                 
-                {/* ✅ NEU: CandleImpactOverlay direkt nach dem Chart */}
-                {candleMoversData && chartContainerRef.current && (
-                  <CandleImpactOverlay
-                    chartRef={chartContainerRef}
+                {candleMoversData && (
+                  <CanvasCandleImpactOverlay
                     candleMoversData={candleMoversData}
                     onWalletClick={handleWalletClick}
-                    containerWidth={chartContainerRef.current.clientWidth || 800}
-                    containerHeight={500}
-                    segmentColors={CUSTOM_SEGMENT_COLORS}
-                    showDetailedTooltip={true}
+                    segmentColors={{
+                      whale: '#FFD700',
+                      market_maker: '#00E5FF',
+                      bot: '#FF10F0',
+                      unknown: '#718096',
+                    }}
                   />
                 )}
               </div>
@@ -663,8 +659,7 @@ const PriceMovers = () => {
                       </div>
                       <div className="info-row">
                         <span className="label">Kauf-Trades:</span>
-                        <span className="value">{formatNumber(walletDetails.statistics?.buy_trades,
-  0)}</span>
+                        <span className="value">{formatNumber(walletDetails.statistics?.buy_trades, 0)}</span>
                       </div>
                       <div className="info-row">
                         <span className="label">Verkauf-Trades:</span>
