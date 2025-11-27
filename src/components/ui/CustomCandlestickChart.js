@@ -1,9 +1,3 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import CustomChartTooltip from './CustomChartTooltip';
-import CandleConfirmationModal from './CandleConfirmationModal';
-import MultiCandleSelectionModal from './MultiCandleSelectionModal';
-import './CustomCandlestickChart.css';
-
 const CustomCandlestickChart = ({
   candleData = [],
   onCandleClick,
@@ -16,14 +10,13 @@ const CustomCandlestickChart = ({
   timeframe = '5m',
   height = 500,
 
-  // ✅ NEU: Hinzufügen!
-  segmentColors = null,
-}) => {  
-  
   // DEX PROPS
   isDexMode = false,
   dataSource = null,
   dataWarning = null,
+  
+  // ✅ NEU: Konfigurierbare Segment-Farben
+  segmentColors = null,
 }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -71,7 +64,7 @@ const CustomCandlestickChart = ({
   const chartDataRef = useRef({
     candles: [],
     priceScale: { min: 0, max: 0 },
-    basePriceScale: { min: 0, max: 0 }, // ✅ NEU: Original Preis-Range
+    basePriceScale: { min: 0, max: 0 },
     timeScale: { start: 0, end: 0 },
     candleWidth: 0,
     segmentedCandle: null,
@@ -81,7 +74,7 @@ const CustomCandlestickChart = ({
   const ZOOM_SPEED = 0.15;
   const MIN_ZOOM = 0.3;
   const MAX_ZOOM = 8;
-  const MIN_ZOOM_Y = 0.5; // ✅ NEU: Limits für Y-Zoom
+  const MIN_ZOOM_Y = 0.5;
   const MAX_ZOOM_Y = 5;
   const PAN_FRICTION = 0.92;
   const ZOOM_ANIMATION_SPEED = 0.15;
@@ -96,14 +89,14 @@ const CustomCandlestickChart = ({
     EXCLUDE_ALREADY_ANALYZED: true,
   };
 
-  // ✅ NEU: Standard oder Custom Colors
+  // ✅ KORRIGIERT: Nur EINE Definition
   const WALLET_COLORS = segmentColors || {
     whale: '#FFD700',
     market_maker: '#00E5FF',
     bot: '#FF10F0',
     unknown: '#607D8B',
   };
-  
+
   const SEGMENT_COLORS = [
     '#FF6B6B',
     '#4ECDC4',
