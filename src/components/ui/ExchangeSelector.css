@@ -1,17 +1,18 @@
-/* ExchangeSelector Component Styles */
+/* ============================================
+   EXCHANGE SELECTOR - BLOOMBERG TERMINAL STYLE
+   ============================================ */
 
 .exchange-selector {
-  background: #1a1d29;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #2a2e3f;
+  background: var(--terminal-bg-panel);
+  border: var(--border-width) solid var(--terminal-border);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
 }
 
 .selector-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-sm);
   align-items: end;
 }
 
@@ -23,65 +24,73 @@
 .selector-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .selector-group label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #9ca3af;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--terminal-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .selector-group select,
 .selector-group input {
-  padding: 10px 12px;
-  background: #0f1117;
-  border: 1px solid #2a2e3f;
-  border-radius: 8px;
-  color: #e5e7eb;
-  font-size: 14px;
-  transition: all 0.2s ease;
+  padding: var(--space-sm);
+  background: var(--terminal-bg-elevated);
+  border: var(--border-width) solid var(--terminal-border);
+  border-radius: var(--border-radius);
+  color: var(--terminal-text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
 }
 
-.selector-group select:hover,
-.selector-group input:hover {
-  border-color: #3b82f6;
+.selector-group select:hover:not(:disabled),
+.selector-group input:hover:not(:disabled) {
+  border-color: var(--terminal-orange);
+  background: rgba(255, 149, 0, 0.05);
 }
 
 .selector-group select:focus,
 .selector-group input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--terminal-orange);
+  box-shadow: 0 0 0 1px var(--terminal-orange);
 }
 
 .selector-group select:disabled,
 .selector-group input:disabled {
-  opacity: 0.5;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 /* Exchange Badges */
 .exchange-badge {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--border-radius);
+  font-size: 8px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  border: var(--border-width) solid;
 }
 
 .exchange-badge.cex {
-  background: #3b82f6;
-  color: white;
+  background: rgba(0, 168, 232, 0.1);
+  color: var(--terminal-info);
+  border-color: var(--terminal-info);
 }
 
 .exchange-badge.dex {
-  background: #10b981;
-  color: white;
+  background: rgba(0, 230, 118, 0.1);
+  color: var(--terminal-success);
+  border-color: var(--terminal-success);
 }
 
 /* Hybrid Mode Divider */
@@ -89,31 +98,37 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-bottom: 8px;
+  padding-bottom: var(--space-sm);
 }
 
 .divider-icon {
-  font-size: 24px;
+  font-size: 20px;
+  color: var(--terminal-orange);
   opacity: 0.6;
 }
 
 /* Refresh Button */
 .btn-refresh {
-  padding: 10px 20px;
-  background: #3b82f6;
-  border: none;
-  border-radius: 8px;
-  color: white;
-  font-size: 14px;
-  font-weight: 500;
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: var(--border-width) solid var(--terminal-orange);
+  border-radius: var(--border-radius);
+  color: var(--terminal-orange);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .btn-refresh:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--terminal-orange);
+  color: var(--terminal-bg);
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 149, 0, 0.3);
 }
 
 .btn-refresh:active:not(:disabled) {
@@ -121,8 +136,9 @@
 }
 
 .btn-refresh:disabled {
-  opacity: 0.5;
+  opacity: 0.3;
   cursor: not-allowed;
+  transform: none;
 }
 
 /* Exchange Info Banner */
@@ -130,64 +146,88 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin-top: 16px;
-  padding: 12px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 8px;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+  padding: var(--space-sm);
+  background: rgba(255, 149, 0, 0.05);
+  border: var(--border-width) solid rgba(255, 149, 0, 0.2);
+  border-radius: var(--border-radius);
 }
 
 .info-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
 }
 
 .info-icon {
-  font-size: 16px;
+  font-size: 14px;
+  color: var(--terminal-orange);
 }
 
 .info-text {
-  font-size: 13px;
-  color: #9ca3af;
+  font-size: 9px;
+  color: var(--terminal-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
 }
 
 .info-divider {
-  color: #4b5563;
+  color: var(--terminal-border);
   font-weight: bold;
+  font-size: 12px;
 }
 
 /* Responsive */
 @media (max-width: 1200px) {
   .exchange-selector .selector-grid:has(.hybrid-cex) {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
   }
   
   .selector-divider {
     display: none;
   }
+}
+
+@media (max-width: 768px) {
+  .selector-grid,
+  .exchange-selector .selector-grid:has(.hybrid-cex) {
+    grid-template-columns: 1fr;
+  }
   
   .exchange-info-banner {
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-xs);
+    padding: var(--space-xs);
   }
   
   .info-divider {
     display: none;
   }
-}
-
-@media (max-width: 768px) {
-  .selector-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .exchange-info-banner {
-    padding: 8px;
-  }
   
   .info-text {
-    font-size: 12px;
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .exchange-selector {
+    padding: var(--space-sm);
+  }
+  
+  .selector-group label {
+    font-size: 8px;
+  }
+  
+  .selector-group select,
+  .selector-group input {
+    font-size: 10px;
+    padding: var(--space-xs);
+  }
+  
+  .btn-refresh {
+    font-size: 10px;
+    padding: var(--space-xs) var(--space-sm);
   }
 }
