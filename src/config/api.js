@@ -88,6 +88,13 @@ export const API_CONFIG = {
     HYBRID_SUPPORTED_SYMBOLS: `/api/v1/hybrid/supported-symbols`,
     HYBRID_SUPPORTED_TIMEFRAMES: `/api/v1/hybrid/supported-timeframes`,
 
+    // At the end of ENDPOINTS, before closing }
+    ORDERBOOK_HEATMAP_EXCHANGES: `/api/v1/orderbook-heatmap/exchanges`,
+    ORDERBOOK_HEATMAP_START: `/api/v1/orderbook-heatmap/start`,
+    ORDERBOOK_HEATMAP_STOP: `/api/v1/orderbook-heatmap/stop`,
+    ORDERBOOK_HEATMAP_STATUS: `/api/v1/orderbook-heatmap/status`,
+    ORDERBOOK_HEATMAP_SNAPSHOT: (symbol) => `/api/v1/orderbook-heatmap/snapshot/${symbol}`,
+
     // Other Endpoints
     DATA: `/api/data`,
     TRACK_TRANSACTION: `/api/track-transaction-chain`,
