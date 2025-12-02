@@ -15,6 +15,7 @@ import Register from './auth/Register/Register';
 import Account from './auth/Account/Account';
 import ProtectedRoute from './auth/ProtectedRoute';
 import './App.css';
+import OrderbookHeatmap from './pages/OrderbookHeatmap';
 
 console.log('🎯 App.js wird geladen');
 console.log('✅ Alle App-Imports erfolgreich');
@@ -38,6 +39,7 @@ function App() {
               <Route path="/scans" element={<ScanJobs />} />
               <Route path="/network" element={<TransactionNetworkPage />} />
               <Route path="/price-movers" element={<PriceMovers />} />
+              <Route path="/orderbook-heatmap" element={<OrderbookHeatmap />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
