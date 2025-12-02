@@ -78,6 +78,7 @@ const Navigation = () => {
     { path: '/wallets', icon: '👛', text: 'Wallet Analysis', label: 'Wallet Analysis' },
     { path: '/network', icon: '🕸️', text: 'Transaction Network', label: 'Transaction Network' },
     { path: '/price-movers', icon: '📈', text: 'Price Movers', label: 'Price Movers' },
+    { path: '/orderbook-heatmap', icon: '🔥', text: 'Orderbook Heatmap', label: 'Orderbook Heatmap' },
   ];
 
   const accountPages = currentUser ? [
