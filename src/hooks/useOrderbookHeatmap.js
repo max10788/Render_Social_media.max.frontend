@@ -1,10 +1,17 @@
 /**
- * useOrderbookHeatmap.js - Custom Hook for Orderbook Heatmap
+ * useOrderbookHeatmap.js - Enhanced Hook with Buffer + Dual WebSocket
  * 
- * Manages:
- * - API calls (start/stop/status/snapshot)
- * - WebSocket connection for live updates
- * - State management
+ * Features:
+ * - State management for all heatmap controls
+ * - Dual WebSocket connections (Heatmap + Price)
+ * - Rolling buffer management (600 snapshots max = 10 min @ 1s)
+ * - Auto-reconnect logic for both WebSockets
+ * - Cleanup on unmount
+ * - Error handling
+ * 
+ * WebSocket Architecture:
+ * 1. Heatmap WS: /ws/{symbol} → Orderbook snapshots
+ * 2. Price WS: /ws/price/{symbol} → Live price updates
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -17,29 +24,43 @@ import {
 } from '../services/orderbookHeatmapService';
 
 const useOrderbookHeatmap = () => {
-  // State
+  // ========== STATE ==========
+  
+  // Configuration state
   const [exchanges, setExchanges] = useState([]);
   const [selectedExchanges, setSelectedExchanges] = useState(['binance']);
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [priceBucketSize, setPriceBucketSize] = useState(50);
-  const [timeWindowSeconds, setTimeWindowSeconds] = useState(60);
+  const [timeWindowSeconds, setTimeWindowSeconds] = useState(300); // 5 minutes default
   
-  const [heatmapData, setHeatmapData] = useState(null);
+  // Data state
+  const [heatmapBuffer, setHeatmapBuffer] = useState([]);
+  const [currentPrice, setCurrentPrice] = useState(null);
   const [status, setStatus] = useState(null);
+  
+  // UI state
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   
+  // WebSocket state
   const [wsConnected, setWsConnected] = useState(false);
+  const [priceWsConnected, setPriceWsConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
   
-  // WebSocket Ref
+  // Refs
   const wsRef = useRef(null);
+  const priceWsRef = useRef(null);
   const reconnectTimerRef = useRef(null);
-  const snapshotIntervalRef = useRef(null);
+  const priceReconnectTimerRef = useRef(null);
+
+  // Constants
+  const MAX_BUFFER_SIZE = 600; // 10 minutes @ 1 update/second
+
+  // ========== LIFECYCLE ==========
 
   /**
-   * Load Available Exchanges on Mount
+   * Load available exchanges on mount
    */
   useEffect(() => {
     const loadExchanges = async () => {
@@ -57,24 +78,44 @@ const useOrderbookHeatmap = () => {
   }, []);
 
   /**
-   * Connect to WebSocket
+   * Cleanup on unmount
    */
-  const connectWebSocket = useCallback(() => {
+  useEffect(() => {
+    return () => {
+      disconnectWebSockets();
+      
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+      
+      if (priceReconnectTimerRef.current) {
+        clearTimeout(priceReconnectTimerRef.current);
+      }
+    };
+  }, []);
+
+  // ========== WEBSOCKET MANAGEMENT ==========
+
+  /**
+   * Connect Heatmap WebSocket
+   * Receives orderbook snapshots
+   */
+  const connectHeatmapWebSocket = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log('⚠️ WebSocket already connected');
+      console.log('⚠️ Heatmap WebSocket already connected');
       return;
     }
 
     const wsSymbol = normalizeSymbol(symbol);
     const wsUrl = `${process.env.REACT_APP_API_URL.replace('http', 'ws')}/api/v1/orderbook-heatmap/ws/${wsSymbol}`;
     
-    console.log('🔌 Connecting to WebSocket:', wsUrl);
+    console.log('🔌 Connecting Heatmap WS:', wsUrl);
 
     try {
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log('✅ WebSocket Connected');
+        console.log('✅ Heatmap WS Connected');
         setWsConnected(true);
         setError(null);
       };
@@ -84,62 +125,163 @@ const useOrderbookHeatmap = () => {
           const data = JSON.parse(event.data);
           
           if (data.type === 'heatmap_update') {
-            console.log('📊 Heatmap Update Received:', {
+            console.log('📊 Heatmap Update:', {
               symbol: data.symbol,
-              prices: data.data?.prices?.length,
+              timestamp: data.data?.timestamp,
               exchanges: data.data?.exchanges?.length,
+              prices: data.data?.prices?.length,
             });
             
-            setHeatmapData(data.data);
+            // Add to buffer (rolling window)
+            setHeatmapBuffer((prev) => {
+              const newBuffer = [...prev, data.data];
+              
+              // Keep only last MAX_BUFFER_SIZE snapshots
+              if (newBuffer.length > MAX_BUFFER_SIZE) {
+                return newBuffer.slice(-MAX_BUFFER_SIZE);
+              }
+              
+              return newBuffer;
+            });
+            
+            // Update timestamp
             setLastUpdate(new Date());
+            
+            // Extract current price if included in heatmap data
+            if (data.current_price) {
+              setCurrentPrice(data.current_price);
+              setPriceWsConnected(true); // Mark price as available
+            }
           }
         } catch (err) {
-          console.error('Error parsing WebSocket message:', err);
+          console.error('Error parsing Heatmap WS message:', err);
         }
       };
 
       ws.onerror = (error) => {
-        console.error('❌ WebSocket Error:', error);
+        console.error('❌ Heatmap WS Error:', error);
         setWsConnected(false);
-        setError('WebSocket connection error');
+        setError('Heatmap WebSocket connection error');
       };
 
       ws.onclose = () => {
-        console.log('🔌 WebSocket Disconnected');
+        console.log('🔌 Heatmap WS Closed');
         setWsConnected(false);
         
-        // Auto-reconnect if heatmap is running
+        // Auto-reconnect if still running
         if (isRunning) {
-          console.log('⏳ Reconnecting in 3s...');
+          console.log('⏳ Reconnecting Heatmap WS in 3s...');
           reconnectTimerRef.current = setTimeout(() => {
-            connectWebSocket();
+            connectHeatmapWebSocket();
           }, 3000);
         }
       };
 
       wsRef.current = ws;
     } catch (err) {
-      console.error('Failed to create WebSocket:', err);
-      setError('Failed to connect WebSocket');
+      console.error('Failed to create Heatmap WS:', err);
+      setError('Failed to connect Heatmap WebSocket');
     }
   }, [symbol, isRunning]);
 
   /**
-   * Disconnect WebSocket
+   * Connect Price WebSocket
+   * Receives live price updates
    */
-  const disconnectWebSocket = useCallback(() => {
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
+  const connectPriceWebSocket = useCallback(() => {
+    if (priceWsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('⚠️ Price WebSocket already connected');
+      return;
     }
 
+    const wsSymbol = normalizeSymbol(symbol);
+    const priceWsUrl = `${process.env.REACT_APP_API_URL.replace('http', 'ws')}/api/v1/orderbook-heatmap/ws/price/${wsSymbol}`;
+    
+    console.log('🔌 Connecting Price WS:', priceWsUrl);
+
+    try {
+      const ws = new WebSocket(priceWsUrl);
+
+      ws.onopen = () => {
+        console.log('✅ Price WS Connected');
+        setPriceWsConnected(true);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'price_update') {
+            console.log('💰 Price Update:', data.price);
+            setCurrentPrice(data.price);
+          }
+        } catch (err) {
+          console.error('Error parsing Price WS message:', err);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('❌ Price WS Error:', error);
+        setPriceWsConnected(false);
+      };
+
+      ws.onclose = () => {
+        console.log('🔌 Price WS Closed');
+        setPriceWsConnected(false);
+        
+        // Auto-reconnect if still running
+        if (isRunning) {
+          console.log('⏳ Reconnecting Price WS in 3s...');
+          priceReconnectTimerRef.current = setTimeout(() => {
+            connectPriceWebSocket();
+          }, 3000);
+        }
+      };
+
+      priceWsRef.current = ws;
+    } catch (err) {
+      console.error('Failed to create Price WS:', err);
+      // Don't set error - price WS is optional
+      console.warn('Price WebSocket unavailable, continuing without live price');
+    }
+  }, [symbol, isRunning]);
+
+  /**
+   * Disconnect both WebSockets
+   */
+  const disconnectWebSockets = useCallback(() => {
+    console.log('🔌 Disconnecting WebSockets...');
+    
+    // Clear reconnect timers
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    
+    if (priceReconnectTimerRef.current) {
+      clearTimeout(priceReconnectTimerRef.current);
+      priceReconnectTimerRef.current = null;
+    }
+
+    // Close Heatmap WebSocket
     if (wsRef.current) {
-      console.log('🔌 Closing WebSocket...');
       wsRef.current.close();
       wsRef.current = null;
     }
 
+    // Close Price WebSocket
+    if (priceWsRef.current) {
+      priceWsRef.current.close();
+      priceWsRef.current = null;
+    }
+
     setWsConnected(false);
+    setPriceWsConnected(false);
+    
+    console.log('✅ WebSockets disconnected');
   }, []);
+
+  // ========== API ACTIONS ==========
 
   /**
    * Start Heatmap
@@ -147,8 +289,17 @@ const useOrderbookHeatmap = () => {
   const handleStart = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setHeatmapBuffer([]); // Clear buffer
+    setCurrentPrice(null); // Reset price
 
     try {
+      console.log('🚀 Starting Heatmap:', {
+        symbol,
+        exchanges: selectedExchanges,
+        priceBucketSize,
+        timeWindowSeconds,
+      });
+
       const result = await startHeatmap({
         symbol,
         exchanges: selectedExchanges,
@@ -159,19 +310,9 @@ const useOrderbookHeatmap = () => {
       console.log('✅ Heatmap started:', result);
       setIsRunning(true);
       
-      // Connect WebSocket
-      connectWebSocket();
-      
-      // Start polling snapshots (fallback if WebSocket fails)
-      snapshotIntervalRef.current = setInterval(async () => {
-        try {
-          const snapshot = await getSnapshot(symbol);
-          setHeatmapData(snapshot);
-          setLastUpdate(new Date());
-        } catch (err) {
-          console.error('Snapshot polling error:', err);
-        }
-      }, 5000); // Poll every 5s as backup
+      // Connect WebSockets
+      connectHeatmapWebSocket();
+      connectPriceWebSocket();
 
     } catch (err) {
       console.error('Failed to start heatmap:', err);
@@ -179,7 +320,14 @@ const useOrderbookHeatmap = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [symbol, selectedExchanges, priceBucketSize, timeWindowSeconds, connectWebSocket]);
+  }, [
+    symbol,
+    selectedExchanges,
+    priceBucketSize,
+    timeWindowSeconds,
+    connectHeatmapWebSocket,
+    connectPriceWebSocket,
+  ]);
 
   /**
    * Stop Heatmap
@@ -189,15 +337,15 @@ const useOrderbookHeatmap = () => {
     setError(null);
 
     try {
+      console.log('🛑 Stopping Heatmap...');
+      
       await stopHeatmap();
       console.log('✅ Heatmap stopped');
       
       setIsRunning(false);
-      disconnectWebSocket();
-      
-      if (snapshotIntervalRef.current) {
-        clearInterval(snapshotIntervalRef.current);
-      }
+      disconnectWebSockets();
+      setHeatmapBuffer([]);
+      setCurrentPrice(null);
 
     } catch (err) {
       console.error('Failed to stop heatmap:', err);
@@ -205,7 +353,7 @@ const useOrderbookHeatmap = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [disconnectWebSocket]);
+  }, [disconnectWebSockets]);
 
   /**
    * Fetch Current Status
@@ -215,43 +363,38 @@ const useOrderbookHeatmap = () => {
       const result = await getStatus();
       setStatus(result);
       setIsRunning(result.is_running || false);
+      
+      console.log('📊 Status:', result);
     } catch (err) {
       console.error('Failed to fetch status:', err);
     }
   }, []);
 
-  /**
-   * Cleanup on unmount
-   */
-  useEffect(() => {
-    return () => {
-      disconnectWebSocket();
-      
-      if (snapshotIntervalRef.current) {
-        clearInterval(snapshotIntervalRef.current);
-      }
-      
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-      }
-    };
-  }, [disconnectWebSocket]);
+  // ========== RETURN ==========
 
   return {
-    // State
+    // Configuration
     exchanges,
     selectedExchanges,
     symbol,
     priceBucketSize,
     timeWindowSeconds,
-    heatmapData,
+    
+    // Data
+    heatmapBuffer,
+    currentPrice,
     status,
+    
+    // UI State
     isRunning,
     isLoading,
     error,
+    
+    // WebSocket State
     wsConnected,
+    priceWsConnected,
     lastUpdate,
-
+    
     // Actions
     setSelectedExchanges,
     setSymbol,
