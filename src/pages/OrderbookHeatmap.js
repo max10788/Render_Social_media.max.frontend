@@ -1,31 +1,37 @@
 /**
- * OrderbookHeatmap.js - Orderbook Heatmap Page
+ * OrderbookHeatmap.js - Complete Time-Series Version
  * 
- * Real-time orderbook liquidity visualization across multiple exchanges
- * Features:
- * - Multi-exchange selection
- * - D3-based heatmap (professional visualization)
- * - WebSocket live updates
- * - Interactive tooltips
+ * Real-time orderbook liquidity visualization with:
+ * - Rolling time-window heatmap (configurable duration)
+ * - Live price line (horizontal, animated pulse)
+ * - Time progress indicator (vertical "NOW" line)
+ * - Smooth color gradients with interactive tooltips
+ * - Dual WebSocket connections (heatmap + price)
+ * - Buffer management for historical data
+ * - Multi-exchange support
+ * - Responsive design
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import useOrderbookHeatmap from '../hooks/useOrderbookHeatmap';
 import './OrderbookHeatmap.css';
 
 const OrderbookHeatmap = () => {
+  // Hook state
   const {
     exchanges,
     selectedExchanges,
     symbol,
     priceBucketSize,
     timeWindowSeconds,
-    heatmapData,
+    heatmapBuffer,
+    currentPrice,
     status,
     isRunning,
     isLoading,
     error,
     wsConnected,
+    priceWsConnected,
     lastUpdate,
     setSelectedExchanges,
     setSymbol,
@@ -36,10 +42,13 @@ const OrderbookHeatmap = () => {
     fetchStatus,
   } = useOrderbookHeatmap();
 
+  // Local state
   const heatmapRef = useRef(null);
   const tooltipRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // Available symbols
+  // Configuration
   const availableSymbols = [
     'BTC/USDT',
     'ETH/USDT',
@@ -48,21 +57,43 @@ const OrderbookHeatmap = () => {
     'XRP/USDT',
   ];
 
-  // Bucket size options
   const bucketSizeOptions = [10, 25, 50, 100, 250];
 
-  // Time window options
-  const timeWindowOptions = [30, 60, 120, 300];
+  const timeWindowOptions = [
+    { value: 60, label: '1 min' },
+    { value: 180, label: '3 min' },
+    { value: 300, label: '5 min' },
+    { value: 600, label: '10 min' },
+  ];
 
   /**
-   * Fetch status on mount
+   * Fetch initial status on mount
    */
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
 
   /**
-   * Handle exchange selection
+   * Update dimensions on window resize
+   */
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (heatmapRef.current) {
+        const rect = heatmapRef.current.getBoundingClientRect();
+        setDimensions({ width: rect.width, height: rect.height });
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+
+    return () => {
+      window.removeEventListener('resize', updateDimensions);
+    };
+  }, []);
+
+  /**
+   * Handle exchange selection toggle
    */
   const toggleExchange = (exchangeName) => {
     setSelectedExchanges((prev) => {
@@ -75,56 +106,105 @@ const OrderbookHeatmap = () => {
   };
 
   /**
-   * Render D3 Heatmap
+   * Main rendering loop - updates on buffer/price changes
    */
   useEffect(() => {
-    if (!heatmapData || !heatmapRef.current) return;
-
-    const { prices, exchanges: dataExchanges, matrix, timestamp } = heatmapData;
-
-    if (!prices || !dataExchanges || !matrix || matrix.length === 0) {
-      console.warn('⚠️ Incomplete heatmap data');
+    if (!heatmapBuffer || heatmapBuffer.length === 0 || !heatmapRef.current) {
       return;
     }
 
-    // Clear previous chart
+    // Cancel previous animation frame
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    // Start continuous rendering loop
+    const renderLoop = () => {
+      renderTimeSeriesHeatmap();
+      animationFrameRef.current = requestAnimationFrame(renderLoop);
+    };
+
+    renderLoop();
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      
+      // Cleanup tooltip
+      if (tooltipRef.current) {
+        tooltipRef.current.remove();
+        tooltipRef.current = null;
+      }
+    };
+  }, [heatmapBuffer, currentPrice, selectedExchanges, dimensions]);
+
+  /**
+   * Render Time-Series Heatmap with D3
+   */
+  const renderTimeSeriesHeatmap = () => {
+    if (!heatmapRef.current || heatmapBuffer.length === 0) return;
+
+    // Clear previous visualization
     d3.select(heatmapRef.current).selectAll('*').remove();
 
-    // Dimensions
-    const margin = { top: 40, right: 100, bottom: 60, left: 80 };
-    const width = heatmapRef.current.clientWidth - margin.left - margin.right;
-    const height = 500 - margin.top - margin.bottom;
+    // Dimensions and margins
+    const margin = { top: 60, right: 120, bottom: 80, left: 100 };
+    const width = dimensions.width - margin.left - margin.right;
+    const height = 600 - margin.top - margin.bottom;
 
-    // Create SVG
+    // Create SVG container
     const svg = d3
       .select(heatmapRef.current)
       .append('svg')
-      .attr('width', width + margin.left + margin.right)
-      .attr('height', height + margin.top + margin.bottom)
+      .attr('width', dimensions.width)
+      .attr('height', 600)
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    // Scales
+    // Extract all unique price levels across all snapshots
+    const allPrices = new Set();
+    heatmapBuffer.forEach((snapshot) => {
+      if (snapshot.prices) {
+        snapshot.prices.forEach((price) => allPrices.add(price));
+      }
+    });
+    const sortedPrices = Array.from(allPrices).sort((a, b) => a - b);
+
+    // Get time range from buffer
+    const timeRange = heatmapBuffer.map((snap) => new Date(snap.timestamp));
+    const minTime = d3.min(timeRange);
+    const maxTime = d3.max(timeRange);
+
+    // Create scales
     const xScale = d3
-      .scaleBand()
-      .domain(dataExchanges)
-      .range([0, width])
-      .padding(0.1);
+      .scaleTime()
+      .domain([minTime, maxTime])
+      .range([0, width]);
 
     const yScale = d3
       .scaleBand()
-      .domain(prices.map(String))
-      .range([0, height])
-      .padding(0.05);
+      .domain(sortedPrices.map(String))
+      .range([height, 0])
+      .padding(0.02);
 
-    // Find max value for color scale
-    const maxValue = d3.max(matrix.flat()) || 1;
+    // Find max liquidity for color scale
+    const maxLiquidity = d3.max(
+      heatmapBuffer.flatMap((snap) =>
+        snap.exchanges.flatMap((ex, i) =>
+          snap.matrix[i] ? snap.matrix[i] : []
+        )
+      )
+    ) || 1;
 
-    // Color scale (blue to red)
+    // Color scale (smooth gradient)
     const colorScale = d3
       .scaleSequential()
-      .interpolator(d3.interpolateRdYlGn)
-      .domain([maxValue, 0]); // Reversed: High liquidity = green
+      .interpolator(d3.interpolateYlGnBu)
+      .domain([0, maxLiquidity]);
+
+    // Create defs for SVG filters and gradients
+    const defs = svg.append('defs');
 
     // Create tooltip
     const tooltip = d3
@@ -135,64 +215,81 @@ const OrderbookHeatmap = () => {
 
     tooltipRef.current = tooltip;
 
-    // Draw heatmap cells
-    dataExchanges.forEach((exchange, exchangeIdx) => {
-      prices.forEach((price, priceIdx) => {
-        const value = matrix[exchangeIdx][priceIdx];
+    // Draw heatmap cells for each snapshot
+    heatmapBuffer.forEach((snapshot, snapIdx) => {
+      const time = new Date(snapshot.timestamp);
+      const x = xScale(time);
+      const cellWidth = width / heatmapBuffer.length;
 
-        svg
-          .append('rect')
-          .attr('x', xScale(exchange))
-          .attr('y', yScale(String(price)))
-          .attr('width', xScale.bandwidth())
-          .attr('height', yScale.bandwidth())
-          .style('fill', value > 0 ? colorScale(value) : '#1a1a2e')
-          .style('stroke', '#0a0a15')
-          .style('stroke-width', 1)
-          .on('mouseover', function (event) {
-            tooltip.transition().duration(200).style('opacity', 0.95);
-            tooltip
-              .html(
+      snapshot.exchanges.forEach((exchange, exIdx) => {
+        const matrix = snapshot.matrix[exIdx] || [];
+
+        sortedPrices.forEach((price, priceIdx) => {
+          const liquidity = matrix[priceIdx] || 0;
+
+          svg
+            .append('rect')
+            .attr('x', x)
+            .attr('y', yScale(String(price)))
+            .attr('width', cellWidth)
+            .attr('height', yScale.bandwidth())
+            .style('fill', liquidity > 0 ? colorScale(liquidity) : '#0a0a15')
+            .style('stroke', 'none')
+            .style('opacity', 0.85)
+            .on('mouseover', function (event) {
+              // Show tooltip
+              tooltip.transition().duration(100).style('opacity', 0.95);
+              tooltip
+                .html(
+                  `
+                  <strong>${exchange}</strong><br/>
+                  Time: ${time.toLocaleTimeString()}<br/>
+                  Price: $${price.toLocaleString()}<br/>
+                  Liquidity: ${liquidity.toFixed(2)} BTC
                 `
-                <strong>${exchange}</strong><br/>
-                Price: $${price.toLocaleString()}<br/>
-                Liquidity: ${value.toFixed(2)} BTC
-              `
-              )
-              .style('left', event.pageX + 10 + 'px')
-              .style('top', event.pageY - 28 + 'px');
+                )
+                .style('left', event.pageX + 10 + 'px')
+                .style('top', event.pageY - 28 + 'px');
 
-            d3.select(this)
-              .style('stroke', '#7e58f5')
-              .style('stroke-width', 2)
-              .style('opacity', 0.8);
-          })
-          .on('mouseout', function () {
-            tooltip.transition().duration(500).style('opacity', 0);
+              // Highlight cell
+              d3.select(this)
+                .style('opacity', 1)
+                .style('stroke', '#7e58f5')
+                .style('stroke-width', 2);
+            })
+            .on('mouseout', function () {
+              // Hide tooltip
+              tooltip.transition().duration(300).style('opacity', 0);
 
-            d3.select(this)
-              .style('stroke', '#0a0a15')
-              .style('stroke-width', 1)
-              .style('opacity', 1);
-          });
+              // Remove highlight
+              d3.select(this).style('opacity', 0.85).style('stroke', 'none');
+            });
+        });
       });
     });
 
-    // X-Axis (Exchanges)
+    // X-Axis (Time)
+    const xAxis = d3
+      .axisBottom(xScale)
+      .ticks(8)
+      .tickFormat(d3.timeFormat('%H:%M:%S'));
+
     svg
       .append('g')
       .attr('transform', `translate(0,${height})`)
-      .call(d3.axisBottom(xScale))
+      .call(xAxis)
       .selectAll('text')
       .style('fill', '#94a3b8')
-      .style('font-size', '12px');
+      .style('font-size', '11px')
+      .attr('transform', 'rotate(-45)')
+      .style('text-anchor', 'end');
 
-    // Y-Axis (Price)
-    const yAxisTicks = prices.filter((_, i) => i % 5 === 0); // Show every 5th price
+    // Y-Axis (Price) - Show every 5th price level
+    const yAxisTicks = sortedPrices.filter((_, i) => i % 5 === 0);
     const yAxisScale = d3
       .scaleBand()
       .domain(yAxisTicks.map(String))
-      .range([0, height]);
+      .range([height, 0]);
 
     svg
       .append('g')
@@ -209,40 +306,113 @@ const OrderbookHeatmap = () => {
     svg
       .append('text')
       .attr('x', width / 2)
-      .attr('y', height + 45)
+      .attr('y', height + 70)
       .attr('text-anchor', 'middle')
       .style('fill', '#cbd5e1')
       .style('font-size', '14px')
-      .text('Exchange');
+      .text('Time');
 
     svg
       .append('text')
       .attr('transform', 'rotate(-90)')
       .attr('x', -height / 2)
-      .attr('y', -60)
+      .attr('y', -70)
       .attr('text-anchor', 'middle')
       .style('fill', '#cbd5e1')
       .style('font-size', '14px')
       .text('Price (USD)');
 
-    // Title
+    // Chart Title
     svg
       .append('text')
       .attr('x', width / 2)
-      .attr('y', -15)
+      .attr('y', -35)
       .attr('text-anchor', 'middle')
       .style('fill', '#e2e8f0')
-      .style('font-size', '16px')
+      .style('font-size', '18px')
       .style('font-weight', 'bold')
-      .text(`${symbol} Orderbook Liquidity`);
+      .text(`${symbol} Orderbook Liquidity - Time Series`);
 
-    // Color Legend
+    // === CURRENT PRICE LINE (Horizontal, Animated) ===
+    if (currentPrice && sortedPrices.includes(currentPrice)) {
+      const priceY = yScale(String(currentPrice)) + yScale.bandwidth() / 2;
+
+      // Dashed line
+      const priceLine = svg
+        .append('line')
+        .attr('x1', 0)
+        .attr('x2', width)
+        .attr('y1', priceY)
+        .attr('y2', priceY)
+        .style('stroke', '#ef4444')
+        .style('stroke-width', 2)
+        .style('stroke-dasharray', '5,5')
+        .style('opacity', 0.9);
+
+      // Pulse animation
+      const pulse = () => {
+        priceLine
+          .transition()
+          .duration(1000)
+          .ease(d3.easeSinInOut)
+          .style('opacity', 0.5)
+          .transition()
+          .duration(1000)
+          .style('opacity', 0.9)
+          .on('end', pulse);
+      };
+      pulse();
+
+      // Price label on right
+      svg
+        .append('text')
+        .attr('x', width + 10)
+        .attr('y', priceY + 5)
+        .style('fill', '#ef4444')
+        .style('font-size', '12px')
+        .style('font-weight', 'bold')
+        .text(`$${currentPrice.toLocaleString()}`);
+
+      // Price indicator circle
+      svg
+        .append('circle')
+        .attr('cx', width + 5)
+        .attr('cy', priceY)
+        .attr('r', 4)
+        .style('fill', '#ef4444')
+        .style('opacity', 0.8);
+    }
+
+    // === NOW LINE (Vertical) ===
+    const nowX = xScale(maxTime);
+
+    svg
+      .append('line')
+      .attr('x1', nowX)
+      .attr('x2', nowX)
+      .attr('y1', 0)
+      .attr('y2', height)
+      .style('stroke', '#10b981')
+      .style('stroke-width', 2)
+      .style('opacity', 0.8);
+
+    svg
+      .append('text')
+      .attr('x', nowX)
+      .attr('y', -10)
+      .attr('text-anchor', 'middle')
+      .style('fill', '#10b981')
+      .style('font-size', '12px')
+      .style('font-weight', 'bold')
+      .text('NOW');
+
+    // === COLOR LEGEND ===
     const legendWidth = 20;
     const legendHeight = height;
 
     const legendScale = d3
       .scaleLinear()
-      .domain([0, maxValue])
+      .domain([0, maxLiquidity])
       .range([legendHeight, 0]);
 
     const legendAxis = d3
@@ -252,10 +422,9 @@ const OrderbookHeatmap = () => {
 
     const legend = svg
       .append('g')
-      .attr('transform', `translate(${width + 20}, 0)`);
+      .attr('transform', `translate(${width + 30}, 0)`);
 
-    // Legend gradient
-    const defs = svg.append('defs');
+    // Gradient for legend
     const linearGradient = defs
       .append('linearGradient')
       .attr('id', 'legend-gradient')
@@ -272,7 +441,7 @@ const OrderbookHeatmap = () => {
     linearGradient
       .append('stop')
       .attr('offset', '100%')
-      .attr('stop-color', colorScale(maxValue));
+      .attr('stop-color', colorScale(maxLiquidity));
 
     legend
       .append('rect')
@@ -280,34 +449,48 @@ const OrderbookHeatmap = () => {
       .attr('height', legendHeight)
       .style('fill', 'url(#legend-gradient)');
 
-    legend.append('g').attr('transform', `translate(${legendWidth}, 0)`).call(legendAxis);
+    legend
+      .append('g')
+      .attr('transform', `translate(${legendWidth}, 0)`)
+      .call(legendAxis)
+      .selectAll('text')
+      .style('fill', '#94a3b8')
+      .style('font-size', '10px');
 
-    // Cleanup
-    return () => {
-      if (tooltipRef.current) {
-        tooltipRef.current.remove();
-      }
-    };
-  }, [heatmapData, symbol]);
+    legend
+      .append('text')
+      .attr('x', legendWidth / 2)
+      .attr('y', -10)
+      .attr('text-anchor', 'middle')
+      .style('fill', '#cbd5e1')
+      .style('font-size', '11px')
+      .text('BTC');
+  };
 
   /**
-   * Calculate statistics
+   * Calculate statistics from buffer
    */
   const calculateStats = () => {
-    if (!heatmapData || !heatmapData.matrix) {
-      return { totalLiquidity: 0, avgSpread: 0, priceRange: 0 };
+    if (!heatmapBuffer || heatmapBuffer.length === 0) {
+      return { totalLiquidity: 0, timeRange: 0, dataPoints: 0 };
     }
 
-    const { prices, matrix } = heatmapData;
+    const latestSnapshot = heatmapBuffer[heatmapBuffer.length - 1];
+    const totalLiquidity = latestSnapshot.matrix
+      .flat()
+      .reduce((sum, val) => sum + val, 0);
 
-    const totalLiquidity = matrix.flat().reduce((sum, val) => sum + val, 0);
-    const priceRange = prices.length > 0 ? prices[prices.length - 1] - prices[0] : 0;
-    const avgSpread = priceRange / (prices.length || 1);
+    const timeRange =
+      heatmapBuffer.length > 1
+        ? (new Date(heatmapBuffer[heatmapBuffer.length - 1].timestamp) -
+            new Date(heatmapBuffer[0].timestamp)) /
+          1000
+        : 0;
 
     return {
       totalLiquidity: totalLiquidity.toFixed(2),
-      avgSpread: avgSpread.toFixed(2),
-      priceRange: priceRange.toFixed(2),
+      timeRange: Math.round(timeRange),
+      dataPoints: heatmapBuffer.length,
     };
   };
 
@@ -318,9 +501,9 @@ const OrderbookHeatmap = () => {
       {/* Header */}
       <div className="hero">
         <div className="hero-content">
-          <h1 className="hero-title">📊 Orderbook Heatmap</h1>
+          <h1 className="hero-title">📊 Orderbook Heatmap - Live Time Series</h1>
           <p className="hero-subtitle">
-            Real-time liquidity visualization across multiple exchanges
+            Real-time liquidity visualization with price tracking across multiple exchanges
           </p>
 
           {/* Status Indicators */}
@@ -329,11 +512,19 @@ const OrderbookHeatmap = () => {
               {isRunning ? '🟢 Running' : '🔴 Stopped'}
             </div>
             <div className={`status-badge ${wsConnected ? 'connected' : 'disconnected'}`}>
-              {wsConnected ? '🔗 WebSocket Connected' : '⚠️ WebSocket Disconnected'}
+              {wsConnected ? '🔗 Heatmap WS' : '⚠️ Heatmap WS'}
             </div>
+            <div className={`status-badge ${priceWsConnected ? 'connected' : 'disconnected'}`}>
+              {priceWsConnected ? '💰 Price WS' : '⚠️ Price WS'}
+            </div>
+            {currentPrice && (
+              <div className="status-badge price-badge">
+                💵 ${currentPrice.toLocaleString()}
+              </div>
+            )}
             {lastUpdate && (
               <div className="status-badge last-update">
-                🕐 Last Update: {lastUpdate.toLocaleTimeString()}
+                🕐 {lastUpdate.toLocaleTimeString()}
               </div>
             )}
           </div>
@@ -407,9 +598,9 @@ const OrderbookHeatmap = () => {
             onChange={(e) => setTimeWindowSeconds(Number(e.target.value))}
             disabled={isRunning}
           >
-            {timeWindowOptions.map((seconds) => (
-              <option key={seconds} value={seconds}>
-                {seconds}s
+            {timeWindowOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -436,33 +627,33 @@ const OrderbookHeatmap = () => {
       {/* Heatmap Visualization */}
       <div className="heatmap-container">
         <div ref={heatmapRef} className="heatmap-canvas"></div>
-        {!heatmapData && isRunning && (
+        {!heatmapBuffer && isRunning && (
           <div className="heatmap-placeholder">
             <div className="spinner"></div>
-            <p>Waiting for data...</p>
+            <p>Collecting data...</p>
           </div>
         )}
-        {!heatmapData && !isRunning && (
+        {!heatmapBuffer && !isRunning && (
           <div className="heatmap-placeholder">
-            <p>👆 Start the heatmap to see live data</p>
+            <p>👆 Start the heatmap to see live time-series data</p>
           </div>
         )}
       </div>
 
       {/* Statistics Panel */}
-      {heatmapData && (
+      {heatmapBuffer && heatmapBuffer.length > 0 && (
         <div className="stats-panel">
           <div className="stat-card">
             <div className="stat-label">Total Liquidity</div>
             <div className="stat-value">{stats.totalLiquidity} BTC</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Price Range</div>
-            <div className="stat-value">${stats.priceRange}</div>
+            <div className="stat-label">Time Range</div>
+            <div className="stat-value">{stats.timeRange}s</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Avg Spread</div>
-            <div className="stat-value">${stats.avgSpread}</div>
+            <div className="stat-label">Data Points</div>
+            <div className="stat-value">{stats.dataPoints}</div>
           </div>
         </div>
       )}
