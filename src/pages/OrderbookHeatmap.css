@@ -372,11 +372,12 @@
   font-size: var(--text-sm);
   color: var(--color-text-primary);
   pointer-events: none;
-  z-index: 1000;
+  z-index: 10000;
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(10px);
   line-height: 1.5;
   max-width: 300px;
+  white-space: nowrap;
 }
 
 .heatmap-tooltip strong {
