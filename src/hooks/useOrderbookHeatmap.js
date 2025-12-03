@@ -36,6 +36,7 @@ const useOrderbookHeatmap = () => {
   // Data state
   const [heatmapBuffer, setHeatmapBuffer] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]); // NEW: Track price over time
   const [status, setStatus] = useState(null);
   
   // UI state
@@ -248,6 +249,24 @@ const useOrderbookHeatmap = () => {
           if (data.type === 'price_update') {
             console.log('💰 Price Update:', data.price);
             setCurrentPrice(data.price);
+            
+            // Add to price history
+            setPriceHistory((prev) => {
+              const newHistory = [
+                ...prev,
+                {
+                  price: data.price,
+                  timestamp: data.timestamp || new Date().toISOString()
+                }
+              ];
+              
+              // Keep only last 600 points (same as heatmap buffer)
+              if (newHistory.length > MAX_BUFFER_SIZE) {
+                return newHistory.slice(-MAX_BUFFER_SIZE);
+              }
+              
+              return newHistory;
+            });
           }
         } catch (err) {
           console.error('Error parsing Price WS message:', err);
@@ -325,6 +344,7 @@ const useOrderbookHeatmap = () => {
     setError(null);
     setHeatmapBuffer([]); // Clear buffer
     setCurrentPrice(null); // Reset price
+    setPriceHistory([]); // Clear price history
 
     try {
       console.log('🚀 Starting Heatmap:', {
@@ -380,6 +400,7 @@ const useOrderbookHeatmap = () => {
       disconnectWebSockets();
       setHeatmapBuffer([]);
       setCurrentPrice(null);
+      setPriceHistory([]);
 
     } catch (err) {
       console.error('Failed to stop heatmap:', err);
@@ -417,6 +438,7 @@ const useOrderbookHeatmap = () => {
     // Data
     heatmapBuffer,
     currentPrice,
+    priceHistory,
     status,
     
     // UI State
