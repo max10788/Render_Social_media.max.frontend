@@ -131,11 +131,9 @@ const OrderbookHeatmap = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
       
-      // Cleanup tooltip
-      if (tooltipRef.current) {
-        tooltipRef.current.remove();
-        tooltipRef.current = null;
-      }
+      // Cleanup ALL tooltips from body
+      d3.selectAll('.heatmap-tooltip').remove();
+      tooltipRef.current = null;
     };
   }, [heatmapBuffer, currentPrice, selectedExchanges, dimensions]);
 
@@ -206,12 +204,15 @@ const OrderbookHeatmap = () => {
     // Create defs for SVG filters and gradients
     const defs = svg.append('defs');
 
-    // Create tooltip
-    const tooltip = d3
-      .select('body')
-      .append('div')
-      .attr('class', 'heatmap-tooltip')
-      .style('opacity', 0);
+    // Create/get tooltip - SINGLE INSTANCE
+    let tooltip = d3.select('body').select('.heatmap-tooltip');
+    if (tooltip.empty()) {
+      tooltip = d3
+        .select('body')
+        .append('div')
+        .attr('class', 'heatmap-tooltip')
+        .style('opacity', 0);
+    }
 
     tooltipRef.current = tooltip;
 
@@ -237,9 +238,15 @@ const OrderbookHeatmap = () => {
             .style('stroke', 'none')
             .style('opacity', 0.85)
             .on('mouseover', function (event) {
+              // Highlight cell
+              d3.select(this)
+                .style('opacity', 1)
+                .style('stroke', '#7e58f5')
+                .style('stroke-width', 2);
+              
               // Show tooltip
-              tooltip.transition().duration(100).style('opacity', 0.95);
               tooltip
+                .style('opacity', 0.95)
                 .html(
                   `
                   <strong>${exchange}</strong><br/>
@@ -248,21 +255,23 @@ const OrderbookHeatmap = () => {
                   Liquidity: ${liquidity.toFixed(2)} BTC
                 `
                 )
-                .style('left', event.pageX + 10 + 'px')
-                .style('top', event.pageY - 28 + 'px');
-
-              // Highlight cell
-              d3.select(this)
-                .style('opacity', 1)
-                .style('stroke', '#7e58f5')
-                .style('stroke-width', 2);
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mousemove', function(event) {
+              // Update tooltip position on move
+              tooltip
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 28) + 'px');
             })
             .on('mouseout', function () {
-              // Hide tooltip
-              tooltip.transition().duration(300).style('opacity', 0);
-
               // Remove highlight
-              d3.select(this).style('opacity', 0.85).style('stroke', 'none');
+              d3.select(this)
+                .style('opacity', 0.85)
+                .style('stroke', 'none');
+              
+              // Hide tooltip
+              tooltip.style('opacity', 0);
             });
         });
       });
