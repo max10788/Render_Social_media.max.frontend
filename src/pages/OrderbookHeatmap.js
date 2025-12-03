@@ -173,11 +173,19 @@ const OrderbookHeatmap = () => {
     const timeRange = heatmapBuffer.map((snap) => new Date(snap.timestamp));
     const minTime = d3.min(timeRange);
     const maxTime = d3.max(timeRange);
+    
+    // Add padding to time domain if few snapshots (prevents invisible cells)
+    const timePadding = heatmapBuffer.length < 10 
+      ? (maxTime - minTime) || 10000  // 10 seconds padding if same timestamp
+      : 0;
+    
+    const paddedMinTime = new Date(minTime.getTime() - timePadding);
+    const paddedMaxTime = new Date(maxTime.getTime() + timePadding);
 
     // Create scales
     const xScale = d3
       .scaleTime()
-      .domain([minTime, maxTime])
+      .domain([paddedMinTime, paddedMaxTime])
       .range([0, width]);
 
     const yScale = d3
@@ -216,11 +224,15 @@ const OrderbookHeatmap = () => {
 
     tooltipRef.current = tooltip;
 
+    // Calculate cell width with minimum
+    const calculatedCellWidth = width / Math.max(heatmapBuffer.length, 10);
+    const minCellWidth = 20; // Minimum 20px wide
+    const cellWidth = Math.max(calculatedCellWidth, minCellWidth);
+
     // Draw heatmap cells for each snapshot
     heatmapBuffer.forEach((snapshot, snapIdx) => {
       const time = new Date(snapshot.timestamp);
-      const x = xScale(time);
-      const cellWidth = width / heatmapBuffer.length;
+      const x = xScale(time) - cellWidth / 2; // Center cells on timestamp
 
       snapshot.exchanges.forEach((exchange, exIdx) => {
         const matrix = snapshot.matrix[exIdx] || [];
@@ -230,7 +242,7 @@ const OrderbookHeatmap = () => {
 
           svg
             .append('rect')
-            .attr('x', x)
+            .attr('x', Math.max(0, x)) // Don't go negative
             .attr('y', yScale(String(price)))
             .attr('width', cellWidth)
             .attr('height', yScale.bandwidth())
