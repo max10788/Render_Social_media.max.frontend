@@ -26,6 +26,7 @@ const OrderbookHeatmap = () => {
     timeWindowSeconds,
     heatmapBuffer,
     currentPrice,
+    priceHistory,
     status,
     isRunning,
     isLoading,
@@ -135,7 +136,7 @@ const OrderbookHeatmap = () => {
       d3.selectAll('.heatmap-tooltip').remove();
       tooltipRef.current = null;
     };
-  }, [heatmapBuffer, currentPrice, selectedExchanges, dimensions]);
+  }, [heatmapBuffer, currentPrice, priceHistory, selectedExchanges, dimensions, timeWindowSeconds]);
 
   /**
    * Render Time-Series Heatmap with D3
@@ -174,18 +175,16 @@ const OrderbookHeatmap = () => {
     const minTime = d3.min(timeRange);
     const maxTime = d3.max(timeRange);
     
-    // Add padding to time domain if few snapshots (prevents invisible cells)
-    const timePadding = heatmapBuffer.length < 10 
-      ? (maxTime - minTime) || 10000  // 10 seconds padding if same timestamp
-      : 0;
-    
-    const paddedMinTime = new Date(minTime.getTime() - timePadding);
-    const paddedMaxTime = new Date(maxTime.getTime() + timePadding);
+    // Use current time as maxTime for frozen NOW line
+    const now = new Date();
+    const timeWindowMs = timeWindowSeconds * 1000;
+    const displayMinTime = new Date(now.getTime() - timeWindowMs);
+    const displayMaxTime = now;
 
-    // Create scales
+    // Create scales - time flows left to right
     const xScale = d3
       .scaleTime()
-      .domain([paddedMinTime, paddedMaxTime])
+      .domain([displayMinTime, displayMaxTime])
       .range([0, width]);
 
     const yScale = d3
@@ -225,68 +224,66 @@ const OrderbookHeatmap = () => {
     tooltipRef.current = tooltip;
 
     // Calculate cell width with minimum
-    const calculatedCellWidth = width / Math.max(heatmapBuffer.length, 10);
-    const minCellWidth = 20; // Minimum 20px wide
-    const cellWidth = Math.max(calculatedCellWidth, minCellWidth);
+    const minCellWidth = 20;
+    const cellWidth = Math.max(width / 60, minCellWidth); // Assume ~60 snapshots visible
 
     // Draw heatmap cells for each snapshot
     heatmapBuffer.forEach((snapshot, snapIdx) => {
       const time = new Date(snapshot.timestamp);
-      const x = xScale(time) - cellWidth / 2; // Center cells on timestamp
+      
+      // Only render if within time window
+      if (time >= displayMinTime && time <= displayMaxTime) {
+        const x = xScale(time) - cellWidth / 2;
 
-      snapshot.exchanges.forEach((exchange, exIdx) => {
-        const matrix = snapshot.matrix[exIdx] || [];
+        snapshot.exchanges.forEach((exchange, exIdx) => {
+          const matrix = snapshot.matrix[exIdx] || [];
 
-        sortedPrices.forEach((price, priceIdx) => {
-          const liquidity = matrix[priceIdx] || 0;
+          sortedPrices.forEach((price, priceIdx) => {
+            const liquidity = matrix[priceIdx] || 0;
 
-          svg
-            .append('rect')
-            .attr('x', Math.max(0, x)) // Don't go negative
-            .attr('y', yScale(String(price)))
-            .attr('width', cellWidth)
-            .attr('height', yScale.bandwidth())
-            .style('fill', liquidity > 0 ? colorScale(liquidity) : '#0a0a15')
-            .style('stroke', 'none')
-            .style('opacity', 0.85)
-            .on('mouseover', function (event) {
-              // Highlight cell
-              d3.select(this)
-                .style('opacity', 1)
-                .style('stroke', '#7e58f5')
-                .style('stroke-width', 2);
-              
-              // Show tooltip
-              tooltip
-                .style('opacity', 0.95)
-                .html(
+            svg
+              .append('rect')
+              .attr('x', Math.max(0, x))
+              .attr('y', yScale(String(price)))
+              .attr('width', cellWidth)
+              .attr('height', yScale.bandwidth())
+              .style('fill', liquidity > 0 ? colorScale(liquidity) : '#0a0a15')
+              .style('stroke', 'none')
+              .style('opacity', 0.85)
+              .on('mouseover', function (event) {
+                d3.select(this)
+                  .style('opacity', 1)
+                  .style('stroke', '#7e58f5')
+                  .style('stroke-width', 2);
+                
+                tooltip
+                  .style('opacity', 0.95)
+                  .html(
+                    `
+                    <strong>${exchange}</strong><br/>
+                    Time: ${time.toLocaleTimeString()}<br/>
+                    Price: $${price.toLocaleString()}<br/>
+                    Liquidity: ${liquidity.toFixed(2)} BTC
                   `
-                  <strong>${exchange}</strong><br/>
-                  Time: ${time.toLocaleTimeString()}<br/>
-                  Price: $${price.toLocaleString()}<br/>
-                  Liquidity: ${liquidity.toFixed(2)} BTC
-                `
-                )
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px');
-            })
-            .on('mousemove', function(event) {
-              // Update tooltip position on move
-              tooltip
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px');
-            })
-            .on('mouseout', function () {
-              // Remove highlight
-              d3.select(this)
-                .style('opacity', 0.85)
-                .style('stroke', 'none');
-              
-              // Hide tooltip
-              tooltip.style('opacity', 0);
-            });
+                  )
+                  .style('left', (event.pageX + 10) + 'px')
+                  .style('top', (event.pageY - 28) + 'px');
+              })
+              .on('mousemove', function(event) {
+                tooltip
+                  .style('left', (event.pageX + 10) + 'px')
+                  .style('top', (event.pageY - 28) + 'px');
+              })
+              .on('mouseout', function () {
+                d3.select(this)
+                  .style('opacity', 0.85)
+                  .style('stroke', 'none');
+                
+                tooltip.style('opacity', 0);
+              });
+          });
         });
-      });
+      }
     });
 
     // X-Axis (Time)
@@ -404,73 +401,85 @@ const OrderbookHeatmap = () => {
         .style('opacity', 0.8);
     }
 
-    // === CURRENT PRICE LINE (Horizontal, Animated) ===
-    if (currentPrice && sortedPrices.length > 0) {
-      // Find Y position even if price is not in sortedPrices
+    // === CURRENT PRICE LINE CHART (Time-Series) ===
+    if (priceHistory && priceHistory.length > 0 && sortedPrices.length > 0) {
       const minPrice = d3.min(sortedPrices);
       const maxPrice = d3.max(sortedPrices);
       
-      // Check if current price is within visible range
-      if (currentPrice >= minPrice && currentPrice <= maxPrice) {
-        // Create continuous scale for price positioning
-        const priceYScale = d3
-          .scaleLinear()
-          .domain([minPrice, maxPrice])
-          .range([height, 0]);
+      // Create continuous scale for price positioning
+      const priceYScale = d3
+        .scaleLinear()
+        .domain([minPrice, maxPrice])
+        .range([height, 0]);
+      
+      // Filter price history to visible time window
+      const visiblePriceHistory = priceHistory.filter(p => {
+        const t = new Date(p.timestamp);
+        return t >= displayMinTime && t <= displayMaxTime && p.price >= minPrice && p.price <= maxPrice;
+      });
+      
+      if (visiblePriceHistory.length > 0) {
+        // Create line generator
+        const lineGenerator = d3
+          .line()
+          .x(d => xScale(new Date(d.timestamp)))
+          .y(d => priceYScale(d.price))
+          .curve(d3.curveMonotoneX); // Smooth curve
         
-        const priceY = priceYScale(currentPrice);
-
-        // Dashed line
-        const priceLine = svg
-          .append('line')
-          .attr('x1', 0)
-          .attr('x2', width)
-          .attr('y1', priceY)
-          .attr('y2', priceY)
+        // Draw price line
+        const pricePath = svg
+          .append('path')
+          .datum(visiblePriceHistory)
+          .attr('d', lineGenerator)
+          .style('fill', 'none')
           .style('stroke', '#ef4444')
-          .style('stroke-width', 2)
-          .style('stroke-dasharray', '5,5')
+          .style('stroke-width', 3)
           .style('opacity', 0.9);
-
+        
         // Pulse animation
         const pulse = () => {
-          priceLine
+          pricePath
             .transition()
             .duration(1000)
             .ease(d3.easeSinInOut)
-            .style('opacity', 0.5)
+            .style('opacity', 0.6)
             .transition()
             .duration(1000)
             .style('opacity', 0.9)
             .on('end', pulse);
         };
         pulse();
-
-        // Price label on right
+        
+        // Draw current price point (latest)
+        const latestPrice = visiblePriceHistory[visiblePriceHistory.length - 1];
+        const latestX = xScale(new Date(latestPrice.timestamp));
+        const latestY = priceYScale(latestPrice.price);
+        
+        // Price circle at NOW
+        svg
+          .append('circle')
+          .attr('cx', latestX)
+          .attr('cy', latestY)
+          .attr('r', 5)
+          .style('fill', '#ef4444')
+          .style('stroke', '#fff')
+          .style('stroke-width', 2)
+          .style('opacity', 1);
+        
+        // Price label
         svg
           .append('text')
           .attr('x', width + 10)
-          .attr('y', priceY + 5)
+          .attr('y', latestY + 5)
           .style('fill', '#ef4444')
           .style('font-size', '12px')
           .style('font-weight', 'bold')
-          .text(`$${currentPrice.toLocaleString()}`);
-
-        // Price indicator circle
-        svg
-          .append('circle')
-          .attr('cx', width + 5)
-          .attr('cy', priceY)
-          .attr('r', 4)
-          .style('fill', '#ef4444')
-          .style('opacity', 0.8);
+          .text(`$${latestPrice.price.toLocaleString()}`);
       }
     }
 
-    // === NOW LINE (Vertical) ===
-    const latestSnapshot = heatmapBuffer[heatmapBuffer.length - 1];
-    const latestTime = new Date(latestSnapshot.timestamp);
-    const nowX = xScale(latestTime);
+    // === NOW LINE (Vertical) - FROZEN ON RIGHT ===
+    const nowX = xScale(displayMaxTime);
 
     svg
       .append('line')
