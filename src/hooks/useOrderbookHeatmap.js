@@ -124,17 +124,48 @@ const useOrderbookHeatmap = () => {
         try {
           const data = JSON.parse(event.data);
           
+          console.log('📦 Heatmap WS Raw Message:', data);
+          
           if (data.type === 'heatmap_update') {
             console.log('📊 Heatmap Update:', {
               symbol: data.symbol,
               timestamp: data.data?.timestamp,
               exchanges: data.data?.exchanges?.length,
               prices: data.data?.prices?.length,
+              matrix: data.data?.matrix?.length,
+              full_data: data.data
             });
+            
+            // Validate data structure
+            if (!data.data) {
+              console.error('❌ Missing data.data in heatmap update');
+              return;
+            }
+            
+            if (!data.data.prices || !Array.isArray(data.data.prices)) {
+              console.error('❌ Missing or invalid data.data.prices');
+              return;
+            }
+            
+            if (!data.data.exchanges || !Array.isArray(data.data.exchanges)) {
+              console.error('❌ Missing or invalid data.data.exchanges');
+              return;
+            }
+            
+            if (!data.data.matrix || !Array.isArray(data.data.matrix)) {
+              console.error('❌ Missing or invalid data.data.matrix');
+              return;
+            }
             
             // Add to buffer (rolling window)
             setHeatmapBuffer((prev) => {
               const newBuffer = [...prev, data.data];
+              
+              console.log('📊 Buffer updated:', {
+                old_size: prev.length,
+                new_size: newBuffer.length,
+                will_prune: newBuffer.length > MAX_BUFFER_SIZE
+              });
               
               // Keep only last MAX_BUFFER_SIZE snapshots
               if (newBuffer.length > MAX_BUFFER_SIZE) {
@@ -152,9 +183,12 @@ const useOrderbookHeatmap = () => {
               setCurrentPrice(data.current_price);
               setPriceWsConnected(true); // Mark price as available
             }
+          } else {
+            console.warn('⚠️ Unknown message type:', data.type);
           }
         } catch (err) {
-          console.error('Error parsing Heatmap WS message:', err);
+          console.error('❌ Error parsing Heatmap WS message:', err);
+          console.error('Raw event data:', event.data);
         }
       };
 
