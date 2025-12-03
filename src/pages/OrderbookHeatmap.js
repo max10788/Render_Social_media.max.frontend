@@ -404,8 +404,73 @@ const OrderbookHeatmap = () => {
         .style('opacity', 0.8);
     }
 
+    // === CURRENT PRICE LINE (Horizontal, Animated) ===
+    if (currentPrice && sortedPrices.length > 0) {
+      // Find Y position even if price is not in sortedPrices
+      const minPrice = d3.min(sortedPrices);
+      const maxPrice = d3.max(sortedPrices);
+      
+      // Check if current price is within visible range
+      if (currentPrice >= minPrice && currentPrice <= maxPrice) {
+        // Create continuous scale for price positioning
+        const priceYScale = d3
+          .scaleLinear()
+          .domain([minPrice, maxPrice])
+          .range([height, 0]);
+        
+        const priceY = priceYScale(currentPrice);
+
+        // Dashed line
+        const priceLine = svg
+          .append('line')
+          .attr('x1', 0)
+          .attr('x2', width)
+          .attr('y1', priceY)
+          .attr('y2', priceY)
+          .style('stroke', '#ef4444')
+          .style('stroke-width', 2)
+          .style('stroke-dasharray', '5,5')
+          .style('opacity', 0.9);
+
+        // Pulse animation
+        const pulse = () => {
+          priceLine
+            .transition()
+            .duration(1000)
+            .ease(d3.easeSinInOut)
+            .style('opacity', 0.5)
+            .transition()
+            .duration(1000)
+            .style('opacity', 0.9)
+            .on('end', pulse);
+        };
+        pulse();
+
+        // Price label on right
+        svg
+          .append('text')
+          .attr('x', width + 10)
+          .attr('y', priceY + 5)
+          .style('fill', '#ef4444')
+          .style('font-size', '12px')
+          .style('font-weight', 'bold')
+          .text(`$${currentPrice.toLocaleString()}`);
+
+        // Price indicator circle
+        svg
+          .append('circle')
+          .attr('cx', width + 5)
+          .attr('cy', priceY)
+          .attr('r', 4)
+          .style('fill', '#ef4444')
+          .style('opacity', 0.8);
+      }
+    }
+
     // === NOW LINE (Vertical) ===
-    const nowX = xScale(maxTime);
+    const latestSnapshot = heatmapBuffer[heatmapBuffer.length - 1];
+    const latestTime = new Date(latestSnapshot.timestamp);
+    const nowX = xScale(latestTime);
 
     svg
       .append('line')
