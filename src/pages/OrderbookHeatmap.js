@@ -238,23 +238,26 @@ const OrderbookHeatmap = () => {
       return;
     }
 
+
     // Get time range from buffer
     const timeRange = heatmapBuffer.map((snap) => new Date(snap.timestamp));
     const minTime = d3.min(timeRange);
     const maxTime = d3.max(timeRange);
     
-    // Use current time as maxTime for frozen NOW line
-    const now = new Date();
+    // ✅ FIX: Always use data range, not browser time!
     const timeWindowMs = timeWindowSeconds * 1000;
-    const displayMinTime = new Date(now.getTime() - timeWindowMs);
-    const displayMaxTime = now;
+    const displayMaxTime = maxTime; // Use latest data timestamp
+    const displayMinTime = new Date(maxTime.getTime() - timeWindowMs);
 
     console.log('⏰ TIME RANGE:', {
-      dataRange: [minTime, maxTime],
-      displayRange: [displayMinTime, displayMaxTime],
-      timeWindowSeconds
+      dataMinTime: minTime,
+      dataMaxTime: maxTime,
+      displayMinTime: displayMinTime,
+      displayMaxTime: displayMaxTime,
+      timeWindowSeconds,
+      dataSpanSeconds: (maxTime - minTime) / 1000
     });
-
+    
     // Create scales - time flows left to right
     const xScale = d3
       .scaleTime()
