@@ -238,7 +238,6 @@ const OrderbookHeatmap = () => {
       return;
     }
 
-
     // Get time range from buffer
     const timeRange = heatmapBuffer.map((snap) => new Date(snap.timestamp));
     const minTime = d3.min(timeRange);
@@ -265,16 +264,38 @@ const OrderbookHeatmap = () => {
       .range([0, width]);
 
     // ============================================================================
-    // FIX 2: Use scaleLinear for Y-axis (not scaleBand)
+    // FIX 2: Calculate symmetrical price range around current price
     // ============================================================================
-    const minPrice = d3.min(sortedPrices);
-    const maxPrice = d3.max(sortedPrices);
-    const priceRange = maxPrice - minPrice;
-    const pricePadding = priceRange * 0.05; // 5% padding
+    let displayMinPrice, displayMaxPrice;
+    
+    if (currentPrice) {
+      const minPrice = d3.min(sortedPrices);
+      const maxPrice = d3.max(sortedPrices);
+      
+      const priceSpread = Math.max(
+        maxPrice - currentPrice,    // Abstand nach oben
+        currentPrice - minPrice     // Abstand nach unten
+      );
+      
+      const halfRange = Math.max(priceSpread * 1.5, currentPrice * 0.05);
+      
+      displayMinPrice = currentPrice - halfRange;  // ⬇️ Gleichmäßig unten
+      displayMaxPrice = currentPrice + halfRange;  // ⬆️ Gleichmäßig oben
+    } else {
+      // Fallback if no current price
+      const minPrice = d3.min(sortedPrices);
+      const maxPrice = d3.max(sortedPrices);
+      const priceRange = maxPrice - minPrice;
+      const pricePadding = priceRange * 0.05;
+      
+      displayMinPrice = minPrice - pricePadding;
+      displayMaxPrice = maxPrice + pricePadding;
+    }
 
+    // Create Y scale with symmetrical range
     const yScale = d3
       .scaleLinear()
-      .domain([minPrice - pricePadding, maxPrice + pricePadding])
+      .domain([displayMinPrice, displayMaxPrice])
       .range([height, 0]);
 
     // ============================================================================
@@ -314,6 +335,43 @@ const OrderbookHeatmap = () => {
     // Create defs for SVG filters and gradients
     const defs = svg.append('defs');
 
+    // Create Gaussian blur filter for glow effect
+    const glowFilter = defs
+      .append('filter')
+      .attr('id', 'glow')
+      .attr('x', '-50%')
+      .attr('y', '-50%')
+      .attr('width', '200%')
+      .attr('height', '200%');
+
+    glowFilter
+      .append('feGaussianBlur')
+      .attr('in', 'SourceAlpha')
+      .attr('stdDeviation', 4)
+      .attr('result', 'blur');
+
+    glowFilter
+      .append('feFlood')
+      .attr('flood-color', '#ef4444')
+      .attr('flood-opacity', 0.8)
+      .attr('result', 'glowColor');
+
+    glowFilter
+      .append('feComposite')
+      .attr('in', 'glowColor')
+      .attr('in2', 'blur')
+      .attr('operator', 'in')
+      .attr('result', 'glow');
+
+    glowFilter
+      .append('feMerge')
+      .append('feMergeNode')
+      .attr('in', 'glow');
+
+    glowFilter
+      .append('feMergeNode')
+      .attr('in', 'SourceGraphic');
+
     // Create/get tooltip - SINGLE INSTANCE
     let tooltip = d3.select('body').select('.heatmap-tooltip');
     if (tooltip.empty()) {
@@ -343,6 +401,12 @@ const OrderbookHeatmap = () => {
           const matrix = snapshot.matrix[exIdx] || [];
 
           sortedPrices.forEach((price, priceIdx) => {
+            // Intelligent culling - only render if within display range
+            if (price < displayMinPrice || price > displayMaxPrice) {
+              cellsOffscreen++;
+              return;
+            }
+            
             const liquidity = matrix[priceIdx] || 0;
             const y = yScale(price) - cellHeight / 2;
 
@@ -480,26 +544,18 @@ const OrderbookHeatmap = () => {
       .text(`${symbol} Orderbook Liquidity - Time Series`);
 
     // === CURRENT PRICE LINE CHART (Time-Series) ===
-    if (priceHistory && priceHistory.length > 0 && sortedPrices.length > 0) {
-      const minPrice = d3.min(sortedPrices);
-      const maxPrice = d3.max(sortedPrices);
-      
-      // Create continuous scale for price positioning
-      const priceYScale = d3
-        .scaleLinear()
-        .domain([minPrice, maxPrice])
-        .range([height, 0]);
-      
+    if (priceHistory && priceHistory.length > 0) {
       // Filter price history to visible time window
       const visiblePriceHistory = priceHistory.filter(p => {
         const t = new Date(p.timestamp);
-        return t >= displayMinTime && t <= displayMaxTime && p.price >= minPrice && p.price <= maxPrice;
+        return t >= displayMinTime && t <= displayMaxTime && 
+               p.price >= displayMinPrice && p.price <= displayMaxPrice;
       });
       
       console.log('📈 PRICE LINE:', {
         totalPoints: priceHistory.length,
         visiblePoints: visiblePriceHistory.length,
-        priceRange: [minPrice, maxPrice]
+        priceRange: [displayMinPrice, displayMaxPrice]
       });
       
       if (visiblePriceHistory.length > 0) {
@@ -507,7 +563,7 @@ const OrderbookHeatmap = () => {
         const lineGenerator = d3
           .line()
           .x(d => xScale(new Date(d.timestamp)))
-          .y(d => priceYScale(d.price))
+          .y(d => yScale(d.price))
           .curve(d3.curveMonotoneX);
         
         // Draw price line
@@ -537,18 +593,19 @@ const OrderbookHeatmap = () => {
         // Draw current price point (latest)
         const latestPrice = visiblePriceHistory[visiblePriceHistory.length - 1];
         const latestX = xScale(new Date(latestPrice.timestamp));
-        const latestY = priceYScale(latestPrice.price);
+        const latestY = yScale(latestPrice.price);
         
-        // Price circle at NOW
+        // Price circle at NOW with glow effect
         svg
           .append('circle')
           .attr('cx', latestX)
           .attr('cy', latestY)
-          .attr('r', 5)
+          .attr('r', 6)  // Increased from 5px
           .style('fill', '#ef4444')
           .style('stroke', '#fff')
           .style('stroke-width', 2)
-          .style('opacity', 1);
+          .style('opacity', 1)
+          .style('filter', 'url(#glow)');  // Glow effect
         
         // Price label
         svg
@@ -560,6 +617,23 @@ const OrderbookHeatmap = () => {
           .style('font-weight', 'bold')
           .text(`$${latestPrice.price.toLocaleString()}`);
       }
+    }
+
+    // === HORIZONTAL PRICE LINE ===
+    if (currentPrice && currentPrice >= displayMinPrice && currentPrice <= displayMaxPrice) {
+      const currentPriceY = yScale(currentPrice);
+      
+      // Horizontal dashed line at current price
+      svg
+        .append('line')
+        .attr('x1', 0)
+        .attr('x2', width)
+        .attr('y1', currentPriceY)
+        .attr('y2', currentPriceY)
+        .style('stroke', '#ef4444')
+        .style('stroke-width', 1)
+        .style('stroke-dasharray', '5,5')
+        .style('opacity', 0.7);
     }
 
     // === NOW LINE (Vertical) - FROZEN ON RIGHT ===
