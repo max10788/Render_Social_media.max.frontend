@@ -1,5 +1,6 @@
+```javascript
 /**
- * OrderbookHeatmap.js - Complete Time-Series Version WITH FIXES
+ * OrderbookHeatmap.js - Complete Time-Series Version WITH FIXES & Y-AXIS ZOOM
  * 
  * Real-time orderbook liquidity visualization with:
  * - Rolling time-window heatmap (configurable duration)
@@ -10,6 +11,9 @@
  * - Buffer management for historical data
  * - Multi-exchange support
  * - Responsive design
+ * - Price-centered display with intelligent culling
+ * - Horizontal price line and glow effect
+ * - Y-axis zoom with mouse wheel
  * 
  * FIXES APPLIED:
  * - ✅ Minimum 20 price levels (interpolation fix)
@@ -56,6 +60,9 @@ const OrderbookHeatmap = () => {
   const tooltipRef = useRef(null);
   const animationFrameRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  
+  // ✅ NEW: Y-axis zoom state (1.0 = 100% default zoom)
+  const [priceZoom, setPriceZoom] = useState(1.0);
 
   // Configuration
   const availableSymbols = [
@@ -100,6 +107,24 @@ const OrderbookHeatmap = () => {
       window.removeEventListener('resize', updateDimensions);
     };
   }, []);
+
+  // ✅ NEW: Wheel event handler for Y-axis zoom
+  useEffect(() => {
+    const container = heatmapRef.current;
+    if (!container) return;
+
+    const handleWheel = (event) => {
+      event.preventDefault();
+      
+      const delta = -event.deltaY * 0.001; // Scroll sensitivity
+      const newZoom = Math.max(0.1, Math.min(10, priceZoom + delta));
+      
+      setPriceZoom(newZoom);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [priceZoom]);
 
   /**
    * Handle exchange selection toggle
@@ -149,7 +174,7 @@ const OrderbookHeatmap = () => {
       d3.selectAll('.heatmap-tooltip').remove();
       tooltipRef.current = null;
     };
-  }, [heatmapBuffer, currentPrice, priceHistory, selectedExchanges, dimensions, timeWindowSeconds]);
+  }, [heatmapBuffer, currentPrice, priceHistory, selectedExchanges, dimensions, timeWindowSeconds, priceZoom]);
 
   /**
    * Render Time-Series Heatmap with D3 - WITH CRITICAL FIXES
@@ -277,7 +302,7 @@ const OrderbookHeatmap = () => {
         currentPrice - minPrice     // Abstand nach unten
       );
       
-      const halfRange = Math.max(priceSpread * 1.5, currentPrice * 0.05);
+      const halfRange = Math.max(priceSpread * 1.5, currentPrice * 0.05) / priceZoom; // ✅ Apply zoom
       
       displayMinPrice = currentPrice - halfRange;  // ⬇️ Gleichmäßig unten
       displayMaxPrice = currentPrice + halfRange;  // ⬆️ Gleichmäßig oben
@@ -286,7 +311,7 @@ const OrderbookHeatmap = () => {
       const minPrice = d3.min(sortedPrices);
       const maxPrice = d3.max(sortedPrices);
       const priceRange = maxPrice - minPrice;
-      const pricePadding = priceRange * 0.05;
+      const pricePadding = priceRange * 0.05 / priceZoom; // ✅ Apply zoom
       
       displayMinPrice = minPrice - pricePadding;
       displayMaxPrice = maxPrice + pricePadding;
@@ -530,7 +555,7 @@ const OrderbookHeatmap = () => {
       .attr('text-anchor', 'middle')
       .style('fill', '#cbd5e1')
       .style('font-size', '14px')
-      .text('Price (USD)');
+      .text(`Price (USD) - Zoom: ${priceZoom.toFixed(1)}x`); // ✅ Show zoom level
 
     // Chart Title
     svg
@@ -782,6 +807,10 @@ const OrderbookHeatmap = () => {
                 🕐 {lastUpdate.toLocaleTimeString()}
               </div>
             )}
+            {/* ✅ NEW: Zoom indicator */}
+            <div className="status-badge zoom-badge">
+              🔍 {priceZoom.toFixed(1)}x
+            </div>
           </div>
         </div>
       </div>
@@ -876,6 +905,10 @@ const OrderbookHeatmap = () => {
           >
             {isLoading ? '⏳ Stopping...' : '⏹️ Stop'}
           </button>
+          {/* ✅ NEW: Reset zoom button */}
+          <button className="btn btn-secondary" onClick={() => setPriceZoom(1.0)} disabled={priceZoom === 1.0}>
+            🔍 Reset Zoom
+          </button>
         </div>
       </div>
 
@@ -891,6 +924,9 @@ const OrderbookHeatmap = () => {
         {!heatmapBuffer && !isRunning && (
           <div className="heatmap-placeholder">
             <p>👆 Start the heatmap to see live time-series data</p>
+            <p style={{fontSize: '12px', marginTop: '10px', color: '#94a3b8'}}>
+              💡 Tip: Scroll on the chart to zoom the price axis
+            </p>
           </div>
         )}
       </div>
@@ -917,3 +953,4 @@ const OrderbookHeatmap = () => {
 };
 
 export default OrderbookHeatmap;
+```
