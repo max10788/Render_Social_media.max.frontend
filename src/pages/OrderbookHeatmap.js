@@ -1,4 +1,4 @@
-```javascript
+
 /**
  * OrderbookHeatmap.js - Complete Time-Series Version WITH FIXES & Y-AXIS ZOOM
  * 
@@ -953,4 +953,3 @@ const OrderbookHeatmap = () => {
 };
 
 export default OrderbookHeatmap;
-```
