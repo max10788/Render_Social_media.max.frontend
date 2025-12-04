@@ -104,8 +104,8 @@ const OrderbookHeatmap = () => {
     const handleWheel = (event) => {
       event.preventDefault();
       
-      const delta = -event.deltaY * 0.001;
-      const newZoom = Math.max(0.1, Math.min(10, priceZoom + delta));
+      const delta = -event.deltaY * 0.002; // Increased sensitivity
+      const newZoom = Math.max(0.01, Math.min(100, priceZoom + delta)); // Much wider range: 0.01x to 100x
       
       setPriceZoom(newZoom);
     };
