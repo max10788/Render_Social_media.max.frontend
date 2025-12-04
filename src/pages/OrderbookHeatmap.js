@@ -392,15 +392,18 @@ const OrderbookHeatmap = () => {
 
             chartGroup
               .append('rect')
-              .attr('x', Math.max(0, x))
-              .attr('y', Math.max(0, y))
-              .attr('width', cellWidth)
-              .attr('height', cellHeight)
+              .attr('x', x) // No Math.max - let cells overlap
+              .attr('y', y)
+              .attr('width', cellWidth + 1) // +1 to prevent gaps
+              .attr('height', cellHeight + 1) // +1 to prevent gaps
               .style('fill', bookmapColorScale(liquidity))
-              .style('stroke', 'none')
-              .style('opacity', 0.9) // Higher opacity
+              .style('stroke', liquidity > 0 ? '#1e293b' : 'none') // White/gray outline for cells with liquidity
+              .style('stroke-width', 0.5)
+              .style('opacity', 1) // Full opacity
               .on('mouseover', function (event) {
-                d3.select(this).style('stroke', '#7e58f5').style('stroke-width', 1);
+                d3.select(this)
+                  .style('stroke', '#7e58f5')
+                  .style('stroke-width', 2);
                 
                 tooltip
                   .style('opacity', 0.95)
@@ -419,7 +422,9 @@ const OrderbookHeatmap = () => {
                   .style('top', (event.pageY - 28) + 'px');
               })
               .on('mouseout', function () {
-                d3.select(this).style('stroke', 'none');
+                d3.select(this)
+                  .style('stroke', liquidity > 0 ? '#1e293b' : 'none')
+                  .style('stroke-width', 0.5);
                 tooltip.style('opacity', 0);
               });
 
@@ -602,11 +607,12 @@ const OrderbookHeatmap = () => {
       .text(`${symbol} Orderbook Depth - Bookmap Style`);
 
     // ============================================================================
-    // CURRENT PRICE LINE (Horizontal)
+    // CURRENT PRICE LINE (Horizontal) - ALWAYS VISIBLE
     // ============================================================================
     if (currentPrice && currentPrice >= displayMinPrice && currentPrice <= displayMaxPrice) {
       const priceY = yScale(currentPrice);
       
+      // Horizontal line
       chartGroup
         .append('line')
         .attr('x1', 0)
@@ -615,28 +621,32 @@ const OrderbookHeatmap = () => {
         .attr('y2', priceY)
         .style('stroke', '#ef4444')
         .style('stroke-width', 2)
-        .style('stroke-dasharray', '5,5')
-        .style('opacity', 0.8);
-
-      // Price label on right
-      svg
-        .append('rect')
-        .attr('x', margin.left + width + 5)
-        .attr('y', margin.top + priceY - 12)
-        .attr('width', 90)
-        .attr('height', 24)
-        .attr('rx', 4)
-        .style('fill', '#ef4444')
+        .style('stroke-dasharray', '8,4')
         .style('opacity', 0.9);
 
+      // Price label background (right side)
+      svg
+        .append('rect')
+        .attr('x', margin.left + width + 2)
+        .attr('y', margin.top + priceY - 14)
+        .attr('width', 95)
+        .attr('height', 28)
+        .attr('rx', 4)
+        .style('fill', '#ef4444')
+        .style('stroke', '#fff')
+        .style('stroke-width', 1.5)
+        .style('opacity', 1);
+
+      // Price text
       svg
         .append('text')
         .attr('x', margin.left + width + 50)
         .attr('y', margin.top + priceY + 5)
         .attr('text-anchor', 'middle')
-        .style('fill', '#fff')
-        .style('font-size', '11px')
+        .style('fill', '#ffffff')
+        .style('font-size', '13px')
         .style('font-weight', 'bold')
+        .style('text-shadow', '0 0 4px rgba(0,0,0,0.5)')
         .text(`$${currentPrice.toLocaleString()}`);
     }
 
