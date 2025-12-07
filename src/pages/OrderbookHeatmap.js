@@ -2,7 +2,7 @@
  * OrderbookHeatmap.js - BOOKMAP TRADING SOFTWARE STYLE + DEX INTEGRATION
  * 
  * Professional orderbook liquidity visualization with:
- * - CEX: Binance, Bitget, Kraken orderbooks
+ * - CEX: Binance, Bitget, Kraken orderbooks (MULTI-HEATMAP: Combined + Individual)
  * - DEX: Uniswap v3 pool liquidity (Ethereum, Polygon, Arbitrum, etc.)
  * - Candlestick chart overlay (OHLC)
  * - Custom color gradient (Dark Blue → Cyan → Yellow → Orange → Red)
@@ -190,6 +190,41 @@ const OrderbookHeatmap = () => {
   };
 
   /**
+   * Calculate volume bars from price history
+   */
+  const calculateVolumeBars = (priceData, timeInterval = 60000) => {
+    if (!priceData || priceData.length === 0) return [];
+
+    const bars = [];
+    let currentBar = null;
+
+    priceData.forEach((point) => {
+      const timestamp = new Date(point.timestamp).getTime();
+
+      if (!currentBar || timestamp - currentBar.startTime >= timeInterval) {
+        if (currentBar) {
+          bars.push(currentBar);
+        }
+
+        currentBar = {
+          startTime: timestamp,
+          timestamp: point.timestamp,
+          volume: 0,
+        };
+      }
+
+      // Accumulate volume (simple count for now)
+      currentBar.volume += 1;
+    });
+
+    if (currentBar) {
+      bars.push(currentBar);
+    }
+
+    return bars;
+  };
+
+  /**
    * Calculate OHLC candlesticks from price history
    */
   const calculateCandlesticks = (priceData, timeInterval = 5000) => {
@@ -306,6 +341,9 @@ const OrderbookHeatmap = () => {
       .attr('width', dimensions.width)
       .attr('height', totalHeight + margin.top + margin.bottom)
       .style('background', '#050510');
+
+    // Defs for gradients
+    const defs = svg.append('defs');
   
     // ============================================================================
     // PRICE LEVELS PREPARATION
@@ -765,197 +803,6 @@ const OrderbookHeatmap = () => {
     }
   
     console.log(`✅ Multi-heatmap render complete: ${numHeatmaps} heatmaps`);
-  };
-
-    // X-Axis
-    const xAxis = d3
-      .axisBottom(xScale)
-      .ticks(10)
-      .tickFormat(d3.timeFormat('%H:%M:%S'));
-
-    svg
-      .append('g')
-      .attr('transform', `translate(${margin.left},${margin.top + chartHeight + volumeHeight})`)
-      .call(xAxis)
-      .selectAll('text')
-      .style('fill', '#64748b')
-      .style('font-size', '10px')
-      .attr('transform', 'rotate(-45)')
-      .style('text-anchor', 'end');
-
-    // Y-Axis
-    const yAxis = d3
-      .axisLeft(yScale)
-      .ticks(15)
-      .tickFormat((d) => `$${Math.round(d).toLocaleString()}`);
-
-    svg
-      .append('g')
-      .attr('transform', `translate(${margin.left},${margin.top})`)
-      .call(yAxis)
-      .selectAll('text')
-      .style('fill', '#64748b')
-      .style('font-size', '10px');
-
-    // Labels
-    svg
-      .append('text')
-      .attr('x', margin.left + width / 2)
-      .attr('y', margin.top + height + 70)
-      .attr('text-anchor', 'middle')
-      .style('fill', '#94a3b8')
-      .style('font-size', '12px')
-      .text('Time');
-
-    svg
-      .append('text')
-      .attr('transform', 'rotate(-90)')
-      .attr('x', -(margin.top + chartHeight / 2))
-      .attr('y', 20)
-      .attr('text-anchor', 'middle')
-      .style('fill', '#94a3b8')
-      .style('font-size', '12px')
-      .text(`Price (USD) - Zoom: ${priceZoom.toFixed(1)}x`);
-
-    // Title
-    svg
-      .append('text')
-      .attr('x', margin.left + width / 2)
-      .attr('y', 25)
-      .attr('text-anchor', 'middle')
-      .style('fill', '#e2e8f0')
-      .style('font-size', '16px')
-      .style('font-weight', '600')
-      .text(`${symbol} Orderbook Depth - ${mode.toUpperCase()} Mode`);
-
-    // Current Price Line
-    if (currentPrice && currentPrice >= displayMinPrice && currentPrice <= displayMaxPrice) {
-      const priceY = yScale(currentPrice);
-      
-      chartGroup
-        .append('line')
-        .attr('x1', 0)
-        .attr('x2', width)
-        .attr('y1', priceY)
-        .attr('y2', priceY)
-        .style('stroke', '#ef4444')
-        .style('stroke-width', 2)
-        .style('stroke-dasharray', '8,4')
-        .style('opacity', 0.9);
-
-      svg
-        .append('rect')
-        .attr('x', margin.left + width + 2)
-        .attr('y', margin.top + priceY - 14)
-        .attr('width', 95)
-        .attr('height', 28)
-        .attr('rx', 4)
-        .style('fill', '#ef4444')
-        .style('stroke', '#fff')
-        .style('stroke-width', 1.5)
-        .style('opacity', 1);
-
-      svg
-        .append('text')
-        .attr('x', margin.left + width + 50)
-        .attr('y', margin.top + priceY + 5)
-        .attr('text-anchor', 'middle')
-        .style('fill', '#ffffff')
-        .style('font-size', '13px')
-        .style('font-weight', 'bold')
-        .style('text-shadow', '0 0 4px rgba(0,0,0,0.5)')
-        .text(`$${currentPrice.toLocaleString()}`);
-    }
-
-    // NOW Line
-    const nowX = xScale(displayMaxTime);
-
-    chartGroup
-      .append('line')
-      .attr('x1', nowX)
-      .attr('x2', nowX)
-      .attr('y1', 0)
-      .attr('y2', chartHeight)
-      .style('stroke', '#10b981')
-      .style('stroke-width', 2)
-      .style('opacity', 0.6);
-
-    svg
-      .append('text')
-      .attr('x', margin.left + nowX)
-      .attr('y', margin.top - 5)
-      .attr('text-anchor', 'middle')
-      .style('fill', '#10b981')
-      .style('font-size', '10px')
-      .style('font-weight', 'bold')
-      .text('NOW');
-
-    // Color Legend
-    const legendWidth = 20;
-    const legendHeight = chartHeight;
-    const legendX = margin.left + width + 30;
-
-    const legendScale = d3
-      .scaleLinear()
-      .domain([0, maxLiquidity])
-      .range([legendHeight, 0]);
-
-    const legendAxis = d3
-      .axisRight(legendScale)
-      .ticks(5)
-      .tickFormat((d) => d.toFixed(1));
-
-    const legend = svg
-      .append('g')
-      .attr('transform', `translate(${legendX},${margin.top})`);
-
-    const legendGradient = defs
-      .append('linearGradient')
-      .attr('id', 'bookmap-legend-gradient')
-      .attr('x1', '0%')
-      .attr('y1', '100%')
-      .attr('x2', '0%')
-      .attr('y2', '0%');
-
-    const gradientStops = [
-      { offset: '0%', color: '#050510' },
-      { offset: '15%', color: '#1e3a5f' },
-      { offset: '35%', color: '#2563eb' },
-      { offset: '55%', color: '#0ea5e9' },
-      { offset: '70%', color: '#fbbf24' },
-      { offset: '85%', color: '#f97316' },
-      { offset: '100%', color: '#ef4444' },
-    ];
-
-    gradientStops.forEach(stop => {
-      legendGradient
-        .append('stop')
-        .attr('offset', stop.offset)
-        .attr('stop-color', stop.color);
-    });
-
-    legend
-      .append('rect')
-      .attr('width', legendWidth)
-      .attr('height', legendHeight)
-      .style('fill', 'url(#bookmap-legend-gradient)');
-
-    legend
-      .append('g')
-      .attr('transform', `translate(${legendWidth}, 0)`)
-      .call(legendAxis)
-      .selectAll('text')
-      .style('fill', '#64748b')
-      .style('font-size', '9px');
-
-    legend
-      .append('text')
-      .attr('x', legendWidth / 2)
-      .attr('y', -10)
-      .attr('text-anchor', 'middle')
-      .style('fill', '#94a3b8')
-      .style('font-size', '10px')
-      .text(mode === 'dex' ? 'Tokens' : 'BTC');
   };
 
   /**
