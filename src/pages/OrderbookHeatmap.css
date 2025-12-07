@@ -518,3 +518,285 @@
     transform: none;
   }
 }
+
+/* ============================================================================
+   DEX INTEGRATION CSS - Füge diese Styles zu OrderbookHeatmap.css hinzu
+   ============================================================================ */
+
+/* Mode Selector */
+.mode-selector {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  justify-content: center;
+}
+
+.mode-btn {
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border: 2px solid #334155;
+  background: #1e293b;
+  color: #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mode-btn:hover {
+  background: #334155;
+  border-color: #475569;
+  transform: translateY(-2px);
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #7e58f5 0%, #5b3ec9 100%);
+  border-color: #7e58f5;
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(126, 88, 245, 0.4);
+}
+
+.status-badge.mode-badge {
+  background: linear-gradient(135deg, #7e58f5 0%, #5b3ec9 100%);
+  font-weight: 600;
+}
+
+/* DEX Panel */
+.dex-panel {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 24px;
+  margin: 24px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.dex-panel-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dex-search-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dex-search-controls .control-group {
+  margin: 0;
+}
+
+.dex-search-controls .btn {
+  grid-column: span 2;
+  margin-top: 24px;
+}
+
+/* Pool Results */
+.pool-results {
+  margin-top: 24px;
+}
+
+.pool-results h4 {
+  color: #cbd5e1;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.pool-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* Pool Card */
+.pool-card {
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+  border: 2px solid #475569;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pool-card:hover {
+  border-color: #7e58f5;
+  background: linear-gradient(135deg, #3f4d66 0%, #2a3548 100%);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(126, 88, 245, 0.3);
+}
+
+.pool-card.selected {
+  border-color: #7e58f5;
+  background: linear-gradient(135deg, #7e58f5 0%, #5b3ec9 100%);
+  box-shadow: 0 8px 32px rgba(126, 88, 245, 0.5);
+}
+
+.pool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.pool-pair {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.pool-card.selected .pool-pair {
+  color: #ffffff;
+}
+
+.pool-fee {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.pool-card.selected .pool-fee {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.pool-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pool-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pool-card.selected .stat-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.stat-value {
+  font-size: 13px;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.pool-card.selected .stat-value {
+  color: #ffffff;
+}
+
+.pool-address {
+  font-size: 11px;
+  color: #64748b;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pool-card.selected .pool-address {
+  color: rgba(255, 255, 255, 0.6);
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Selected Pool Details */
+.selected-pool-details {
+  margin-top: 24px;
+  padding: 20px;
+  background: linear-gradient(135deg, #7e58f5 0%, #5b3ec9 100%);
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 20px rgba(126, 88, 245, 0.4);
+}
+
+.selected-pool-details h4 {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #10b981;
+  color: #ffffff;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.6);
+}
+
+.btn-success:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dex-search-controls {
+    grid-template-columns: 1fr;
+  }
+  
+  .dex-search-controls .btn {
+    grid-column: span 1;
+  }
+  
+  .pool-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .selected-pool-details {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .mode-selector {
+    flex-direction: column;
+  }
+  
+  .mode-btn {
+    width: 100%;
+  }
+}
+
+/* Animations */
+@keyframes poolCardPulse {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(126, 88, 245, 0.3);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(126, 88, 245, 0.6);
+  }
+}
+
+.pool-card.selected {
+  animation: poolCardPulse 2s ease-in-out infinite;
+}
