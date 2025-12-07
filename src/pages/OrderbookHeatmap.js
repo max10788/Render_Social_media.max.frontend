@@ -418,67 +418,100 @@ const OrderbookHeatmap = () => {
     }
     tooltipRef.current = tooltip;
 
-    // Draw heatmap cells
+    // ============================================================================
+    // OPTION 1: KOMBINIERTE MULTI-CEX HEATMAP
+    // ============================================================================
+    // Draw heatmap cells - KOMBINIERT von allen Exchanges
     heatmapBuffer.forEach((snapshot) => {
       const time = new Date(snapshot.timestamp);
       
       if (time >= displayMinTime && time <= displayMaxTime) {
         const x = xScale(time) - cellWidth / 2;
-
-        snapshot.exchanges.forEach((exchange, exIdx) => {
-          const matrix = snapshot.matrix[exIdx] || [];
-
-          sortedPrices.forEach((price, priceIdx) => {
-            if (price < displayMinPrice || price > displayMaxPrice) return;
+        
+        // ✅ KOMBINIERE LIQUIDITÄT VON ALLEN EXCHANGES
+        sortedPrices.forEach((price, priceIdx) => {
+          if (price < displayMinPrice || price > displayMaxPrice) return;
+          
+          // Summiere Liquidität von allen Exchanges
+          let combinedLiquidity = 0;
+          const liquidityBreakdown = {}; // Für Tooltip-Details
+          
+          snapshot.exchanges.forEach((exchange, exIdx) => {
+            const matrix = snapshot.matrix[exIdx] || [];
+            const exchangeLiquidity = matrix[priceIdx] || 0;
             
-            const liquidity = matrix[priceIdx] || 0;
-            const y = yScale(price) - cellHeight / 2;
-
-            if (x < -cellWidth || x > width + cellWidth || y < -cellHeight || y > chartHeight + cellHeight) {
-              return;
+            combinedLiquidity += exchangeLiquidity;
+            
+            // Speichere für Tooltip (nur wenn > 0)
+            if (exchangeLiquidity > 0) {
+              liquidityBreakdown[exchange] = exchangeLiquidity;
             }
-
-            chartGroup
-              .append('rect')
-              .attr('x', x)
-              .attr('y', y)
-              .attr('width', cellWidth + 1)
-              .attr('height', cellHeight + 1)
-              .style('fill', bookmapColorScale(liquidity))
-              .style('stroke', liquidity > 0 ? '#1e293b' : 'none')
-              .style('stroke-width', 0.5)
-              .style('opacity', 1)
-              .on('mouseover', function (event) {
-                d3.select(this)
-                  .style('stroke', '#7e58f5')
-                  .style('stroke-width', 2);
-                
-                tooltip
-                  .style('opacity', 0.95)
-                  .html(`
-                    <strong>${exchange}</strong><br/>
-                    Time: ${time.toLocaleTimeString()}<br/>
-                    Price: $${price.toLocaleString()}<br/>
-                    Liquidity: ${liquidity.toFixed(2)} ${mode === 'dex' ? 'Tokens' : 'BTC'}
-                  `)
-                  .style('left', (event.pageX + 10) + 'px')
-                  .style('top', (event.pageY - 28) + 'px');
-              })
-              .on('mousemove', function(event) {
-                tooltip
-                  .style('left', (event.pageX + 10) + 'px')
-                  .style('top', (event.pageY - 28) + 'px');
-              })
-              .on('mouseout', function () {
-                d3.select(this)
-                  .style('stroke', liquidity > 0 ? '#1e293b' : 'none')
-                  .style('stroke-width', 0.5);
-                tooltip.style('opacity', 0);
-              });
           });
+          
+          // Berechne Position
+          const y = yScale(price) - cellHeight / 2;
+          
+          // Culling (skip if outside viewport)
+          if (x < -cellWidth || x > width + cellWidth || y < -cellHeight || y > chartHeight + cellHeight) {
+            return;
+          }
+          
+          // ✅ ZEICHNE EINE ZELLE MIT KOMBINIERTER LIQUIDITÄT
+          chartGroup
+            .append('rect')
+            .attr('x', x)
+            .attr('y', y)
+            .attr('width', cellWidth + 1)
+            .attr('height', cellHeight + 1)
+            .style('fill', bookmapColorScale(combinedLiquidity))
+            .style('stroke', combinedLiquidity > 0 ? '#1e293b' : 'none')
+            .style('stroke-width', 0.5)
+            .style('opacity', 1)
+            .on('mouseover', function (event) {
+              d3.select(this)
+                .style('stroke', '#7e58f5')
+                .style('stroke-width', 2);
+              
+              // ✅ TOOLTIP MIT BREAKDOWN ALLER EXCHANGES
+              const breakdownHtml = Object.entries(liquidityBreakdown)
+                .map(([exchange, liq]) => {
+                  const percentage = ((liq / combinedLiquidity) * 100).toFixed(1);
+                  return `<span style="color: #64748b;">${exchange}:</span> ${liq.toFixed(2)} (${percentage}%)`;
+                })
+                .join('<br/>');
+              
+              tooltip
+                .style('opacity', 0.95)
+                .html(`
+                  <strong style="color: #7e58f5;">Combined Liquidity</strong><br/>
+                  <div style="border-bottom: 1px solid #334155; margin: 4px 0;"></div>
+                  Time: ${time.toLocaleTimeString()}<br/>
+                  Price: $${price.toLocaleString()}<br/>
+                  <strong>Total: ${combinedLiquidity.toFixed(2)} ${mode === 'dex' ? 'Tokens' : 'BTC'}</strong><br/>
+                  <div style="border-bottom: 1px solid #334155; margin: 4px 0;"></div>
+                  <div style="font-size: 11px;">
+                    ${breakdownHtml}
+                  </div>
+                `)
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mousemove', function(event) {
+              tooltip
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', function () {
+              d3.select(this)
+                .style('stroke', combinedLiquidity > 0 ? '#1e293b' : 'none')
+                .style('stroke-width', 0.5);
+              tooltip.style('opacity', 0);
+            });
         });
       }
     });
+    
+    console.log('✅ Combined multi-CEX heatmap rendered');
 
     // Candlestick chart overlay
     if (priceHistory && priceHistory.length > 5) {
