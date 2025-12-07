@@ -95,6 +95,13 @@ export const API_CONFIG = {
     ORDERBOOK_HEATMAP_STATUS: `/api/v1/orderbook-heatmap/status`,
     ORDERBOOK_HEATMAP_SNAPSHOT: (symbol) => `/api/v1/orderbook-heatmap/snapshot/${symbol}`,
 
+    // 🆕 DEX POOLS ENDPOINTS - NEU HINZUFÜGEN:
+    DEX_POOLS: (network, token0, token1) => `/api/v1/orderbook-heatmap/dex/pools/${network}/${token0}/${token1}`,
+    DEX_POOL_LIQUIDITY: (poolAddress) => `/api/v1/orderbook-heatmap/dex/liquidity/${poolAddress}`,
+    DEX_VIRTUAL_ORDERBOOK: (poolAddress) => `/api/v1/orderbook-heatmap/dex/virtual-orderbook/${poolAddress}`,
+    DEX_HEATMAP_START: `/api/v1/orderbook-heatmap/heatmap/start-dex`,
+    DEX_TVL_HISTORY: (poolAddress) => `/api/v1/orderbook-heatmap/dex/tvl-history/${poolAddress}`,
+
     // Other Endpoints
     DATA: `/api/data`,
     TRACK_TRANSACTION: `/api/track-transaction-chain`,
