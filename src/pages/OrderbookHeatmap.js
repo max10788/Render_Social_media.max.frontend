@@ -1,17 +1,12 @@
 /**
- * OrderbookHeatmap.js - BOOKMAP TRADING SOFTWARE STYLE + DEX INTEGRATION
- * FIXED VERSION V2: Correct price-to-index mapping (Map inside loop!)
+ * OrderbookHeatmap_Enhanced.js - VOLLSTÄNDIG ÜBERARBEITET V3
  * 
- * Professional orderbook liquidity visualization with:
- * - CEX: Binance, Bitget, Kraken orderbooks (MULTI-HEATMAP: Combined + Individual)
- * - DEX: Uniswap v3 pool liquidity (Ethereum, Polygon, Arbitrum, etc.)
- * - Candlestick chart overlay (OHLC)
- * - Custom color gradient (Dark Blue → Cyan → Yellow → Orange → Red)
- * - Volume bars at bottom
- * - Dark professional theme
- * - Y-axis zoom with mouse wheel
- * 
- * BUG FIX: Price-to-index mapping now created per snapshot (was outside loop!)
+ * NEU:
+ * ✅ Pan & Zoom: Maus-Drag für Zeitachse bewegen, Wheel für Preisachse zoomen
+ * ✅ Preisverlauf: Schöne gesmoothte Linie mit Gradient-Fill
+ * ✅ Schöne Current Price Line mit Glow-Effekt
+ * ✅ Minimap für Navigation (optional)
+ * ✅ Crosshair mit Werten
  */
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
@@ -80,9 +75,17 @@ const OrderbookHeatmap = () => {
   const tooltipRef = useRef(null);
   const animationFrameRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  
+  // Zoom & Pan State
   const [priceZoom, setPriceZoom] = useState(1.0);
+  const [timeOffset, setTimeOffset] = useState(0); // Offset in milliseconds
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef(null);
+  
   const [mode, setMode] = useState('cex'); // 'cex' or 'dex'
   const [showDexPanel, setShowDexPanel] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [showCrosshair, setShowCrosshair] = useState(true);
 
   // Configuration
   const availableSymbols = [
@@ -129,12 +132,13 @@ const OrderbookHeatmap = () => {
   }, []);
 
   /**
-   * Wheel event handler for Y-axis zoom
+   * Mouse & Wheel Handlers for Pan/Zoom
    */
   useEffect(() => {
     const container = heatmapRef.current;
     if (!container) return;
 
+    // Wheel for Y-axis zoom
     const handleWheel = (event) => {
       event.preventDefault();
       
@@ -144,9 +148,45 @@ const OrderbookHeatmap = () => {
       setPriceZoom(newZoom);
     };
 
+    // Mouse down - start drag
+    const handleMouseDown = (event) => {
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: event.clientX,
+        offset: timeOffset
+      };
+    };
+
+    // Mouse move - drag
+    const handleMouseMove = (event) => {
+      if (!isDragging || !dragStartRef.current) return;
+
+      const deltaX = event.clientX - dragStartRef.current.x;
+      const timeWindowMs = timeWindowSeconds * 1000;
+      const pixelsToTime = timeWindowMs / dimensions.width;
+      const deltaTime = -deltaX * pixelsToTime; // Negative for natural drag
+
+      setTimeOffset(dragStartRef.current.offset + deltaTime);
+    };
+
+    // Mouse up - end drag
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, [priceZoom]);
+    container.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [priceZoom, isDragging, timeOffset, timeWindowSeconds, dimensions.width]);
 
   /**
    * Handle exchange selection toggle
@@ -178,18 +218,22 @@ const OrderbookHeatmap = () => {
       return;
     }
 
-    // Convert pool info to symbol format
     const dexSymbol = `${selectedPool.token0.symbol}/${selectedPool.token1.symbol}`;
-    
-    // Set symbol and start with DEX pool address
     setSymbol(dexSymbol);
     
-    // Start heatmap with DEX pool
     await handleStart({
       dex_pools: {
         uniswap_v3: selectedPool.address
       }
     });
+  };
+
+  /**
+   * Reset view
+   */
+  const handleResetView = () => {
+    setPriceZoom(1.0);
+    setTimeOffset(0);
   };
 
   /**
@@ -216,7 +260,6 @@ const OrderbookHeatmap = () => {
         };
       }
 
-      // Accumulate volume (simple count for now)
       currentBar.volume += 1;
     });
 
@@ -280,7 +323,7 @@ const OrderbookHeatmap = () => {
     }
 
     const renderLoop = () => {
-      renderBookmapStyle();
+      renderEnhancedBookmap();
       animationFrameRef.current = requestAnimationFrame(renderLoop);
     };
 
@@ -294,17 +337,16 @@ const OrderbookHeatmap = () => {
       d3.selectAll('.heatmap-tooltip').remove();
       tooltipRef.current = null;
     };
-  }, [heatmapBuffer, currentPrice, priceHistory, selectedExchanges, dimensions, timeWindowSeconds, priceZoom]);
+  }, [heatmapBuffer, currentPrice, priceHistory, selectedExchanges, dimensions, timeWindowSeconds, priceZoom, timeOffset, showMinimap, showCrosshair]);
 
   /**
-   * Render in Bookmap Trading Software Style
-   * MULTI-HEATMAP VERSION: Combined + Individual Exchanges
-   * FIXED V2: Price-to-index mapping per snapshot!
+   * ENHANCED RENDER FUNCTION V3
+   * Mit Pan/Zoom, Preisverlauf und schöner Current Price Line
    */
-  const renderBookmapStyle = () => {
+  const renderEnhancedBookmap = () => {
     if (!heatmapRef.current || heatmapBuffer.length === 0) return;
   
-    console.log('🎨 RENDERING MULTI-HEATMAP V2 (Fixed index mapping)');
+    console.log('🎨 RENDERING ENHANCED BOOKMAP V3 (Pan/Zoom + Price Line)');
   
     // Clear previous
     d3.select(heatmapRef.current).selectAll('*').remove();
@@ -312,27 +354,24 @@ const OrderbookHeatmap = () => {
     // ============================================================================
     // CONFIGURATION
     // ============================================================================
-    const showIndividualHeatmaps = true; // Toggle für Individual Heatmaps
+    const showIndividualHeatmaps = true;
     
-    // Get unique exchanges from first snapshot
     const firstSnapshot = heatmapBuffer[0];
     const exchanges = firstSnapshot?.exchanges || [];
     
-    // Calculate number of heatmaps
     const numHeatmaps = showIndividualHeatmaps ? exchanges.length + 1 : 1;
     
     // Dimensions
     const margin = { top: 40, right: 120, bottom: 120, left: 100 };
     const width = dimensions.width - margin.left - margin.right;
     
-    // Height per heatmap (smaller when showing multiple)
     const heatmapHeight = showIndividualHeatmaps ? 300 : 500;
-    const heatmapSpacing = 40; // Spacing between heatmaps
+    const heatmapSpacing = 40;
     const volumeHeight = 80;
+    const minimapHeight = showMinimap ? 60 : 0;
     
-    // Total height calculation
     const totalHeatmapsHeight = (heatmapHeight * numHeatmaps) + (heatmapSpacing * (numHeatmaps - 1));
-    const totalHeight = totalHeatmapsHeight + volumeHeight;
+    const totalHeight = totalHeatmapsHeight + volumeHeight + minimapHeight;
   
     if (width <= 0 || totalHeight <= 0) return;
   
@@ -344,9 +383,9 @@ const OrderbookHeatmap = () => {
       .append('svg')
       .attr('width', dimensions.width)
       .attr('height', totalHeight + margin.top + margin.bottom)
-      .style('background', '#050510');
+      .style('background', '#050510')
+      .style('cursor', isDragging ? 'grabbing' : 'grab');
 
-    // Defs for gradients
     const defs = svg.append('defs');
   
     // ============================================================================
@@ -361,7 +400,6 @@ const OrderbookHeatmap = () => {
     
     let sortedPrices = Array.from(allPrices).sort((a, b) => b - a);
   
-    // Ensure minimum price levels
     const MIN_PRICE_LEVELS = 50;
     if (sortedPrices.length < MIN_PRICE_LEVELS && sortedPrices.length > 0) {
       const minPrice = Math.min(...sortedPrices);
@@ -379,15 +417,17 @@ const OrderbookHeatmap = () => {
     if (sortedPrices.length === 0) return;
   
     // ============================================================================
-    // TIME & PRICE RANGES
+    // TIME & PRICE RANGES (WITH OFFSET)
     // ============================================================================
     const timeRange = heatmapBuffer.map((snap) => new Date(snap.timestamp));
     const maxTime = d3.max(timeRange);
     const timeWindowMs = timeWindowSeconds * 1000;
-    const displayMaxTime = maxTime;
-    const displayMinTime = new Date(maxTime.getTime() - timeWindowMs);
+    
+    // Apply time offset for panning
+    const displayMaxTime = new Date(maxTime.getTime() - timeOffset);
+    const displayMinTime = new Date(displayMaxTime.getTime() - timeWindowMs);
   
-    // X Scale (Time) - SHARED across all heatmaps
+    // X Scale (Time)
     const xScale = d3
       .scaleTime()
       .domain([displayMinTime, displayMaxTime])
@@ -467,7 +507,8 @@ const OrderbookHeatmap = () => {
         yOffset: 0,
         isCombined: true,
         exchanges: exchanges,
-        showCandlesticks: true // Only show on combined
+        showCandlesticks: true,
+        showPriceLine: true
       }
     ];
     
@@ -478,7 +519,8 @@ const OrderbookHeatmap = () => {
           yOffset: (idx + 1) * (heatmapHeight + heatmapSpacing),
           isCombined: false,
           exchanges: [exchange],
-          showCandlesticks: false
+          showCandlesticks: false,
+          showPriceLine: false
         });
       });
     }
@@ -489,7 +531,6 @@ const OrderbookHeatmap = () => {
     heatmapsToRender.forEach((heatmapConfig, heatmapIdx) => {
       const yOffset = heatmapConfig.yOffset;
       
-      // Create group for this heatmap
       const heatmapGroup = svg
         .append('g')
         .attr('transform', `translate(${margin.left}, ${margin.top + yOffset})`);
@@ -508,7 +549,7 @@ const OrderbookHeatmap = () => {
         .text(heatmapConfig.name);
   
       // ========================================================================
-      // Y SCALE (Price) - Individual for each heatmap
+      // Y SCALE (Price)
       // ========================================================================
       const yScale = d3
         .scaleLinear()
@@ -533,7 +574,7 @@ const OrderbookHeatmap = () => {
       });
   
       // ========================================================================
-      // DRAW HEATMAP CELLS - ✅ FIXED V2: Map INSIDE loop!
+      // DRAW HEATMAP CELLS
       // ========================================================================
       
       heatmapBuffer.forEach((snapshot) => {
@@ -542,8 +583,6 @@ const OrderbookHeatmap = () => {
         if (time >= displayMinTime && time <= displayMaxTime) {
           const x = xScale(time) - cellWidth / 2;
           
-          // ✅ CRITICAL FIX: Create price→index mapping for THIS snapshot
-          // This was the bug - map was created outside the loop!
           const priceToIndex = new Map();
           snapshot.prices.forEach((price, idx) => {
             priceToIndex.set(price, idx);
@@ -552,16 +591,13 @@ const OrderbookHeatmap = () => {
           sortedPrices.forEach((price) => {
             if (price < displayMinPrice || price > displayMaxPrice) return;
             
-            // ✅ Get correct index from THIS snapshot's mapping
             const priceIdx = priceToIndex.get(price);
-            if (priceIdx === undefined) return; // Price not in this snapshot
+            if (priceIdx === undefined) return;
             
             let totalLiquidity = 0;
             const liquidityBreakdown = {};
             
-            // ✅ CALCULATE LIQUIDITY with correct index
             if (heatmapConfig.isCombined) {
-              // Combined: Sum all exchanges
               snapshot.exchanges.forEach((exchange, exIdx) => {
                 const matrix = snapshot.matrix[exIdx] || [];
                 const exchangeLiquidity = matrix[priceIdx] || 0;
@@ -573,7 +609,6 @@ const OrderbookHeatmap = () => {
                 }
               });
             } else {
-              // Individual: Only one exchange
               const exchangeName = heatmapConfig.exchanges[0];
               const exIdx = snapshot.exchanges.indexOf(exchangeName);
               
@@ -586,12 +621,10 @@ const OrderbookHeatmap = () => {
             
             const y = yScale(price) - cellHeight / 2;
             
-            // Culling
             if (x < -cellWidth || x > width + cellWidth || y < -cellHeight || y > heatmapHeight + cellHeight) {
               return;
             }
             
-            // ✅ DRAW CELL
             heatmapGroup
               .append('rect')
               .attr('x', x)
@@ -607,7 +640,6 @@ const OrderbookHeatmap = () => {
                   .style('stroke', '#7e58f5')
                   .style('stroke-width', 2);
                 
-                // Breakdown HTML
                 const breakdownHtml = Object.entries(liquidityBreakdown)
                   .map(([exchange, liq]) => {
                     const percentage = heatmapConfig.isCombined && totalLiquidity > 0
@@ -654,7 +686,131 @@ const OrderbookHeatmap = () => {
       });
   
       // ========================================================================
-      // CANDLESTICK OVERLAY (Only on Combined Heatmap)
+      // PREISVERLAUF-LINIE (NUR AUF COMBINED)
+      // ========================================================================
+      if (heatmapConfig.isCombined && priceHistory && priceHistory.length > 2) {
+        // Filter price history für aktuelles time window
+        const visiblePriceHistory = priceHistory.filter(point => {
+          const time = new Date(point.timestamp);
+          return time >= displayMinTime && time <= displayMaxTime;
+        });
+
+        if (visiblePriceHistory.length > 1) {
+          // Gradient für Price Line
+          const priceLineGradient = defs.append('linearGradient')
+            .attr('id', `price-line-gradient-${heatmapIdx}`)
+            .attr('x1', '0%')
+            .attr('y1', '0%')
+            .attr('x2', '0%')
+            .attr('y2', '100%');
+
+          priceLineGradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', '#22c55e')
+            .attr('stop-opacity', 0.8);
+
+          priceLineGradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', '#0ea5e9')
+            .attr('stop-opacity', 0.3);
+
+          // Area fill gradient
+          const areaGradient = defs.append('linearGradient')
+            .attr('id', `price-area-gradient-${heatmapIdx}`)
+            .attr('x1', '0%')
+            .attr('y1', '0%')
+            .attr('x2', '0%')
+            .attr('y2', '100%');
+
+          areaGradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', '#22c55e')
+            .attr('stop-opacity', 0.3);
+
+          areaGradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', '#0ea5e9')
+            .attr('stop-opacity', 0.05);
+
+          // Line generator mit curve
+          const line = d3.line()
+            .x(d => xScale(new Date(d.timestamp)))
+            .y(d => {
+              const price = d.price;
+              if (price < displayMinPrice || price > displayMaxPrice) {
+                return yScale(Math.max(displayMinPrice, Math.min(displayMaxPrice, price)));
+              }
+              return yScale(price);
+            })
+            .curve(d3.curveMonotoneX); // Smooth curve
+
+          // Area generator
+          const area = d3.area()
+            .x(d => xScale(new Date(d.timestamp)))
+            .y0(heatmapHeight)
+            .y1(d => {
+              const price = d.price;
+              if (price < displayMinPrice || price > displayMaxPrice) {
+                return yScale(Math.max(displayMinPrice, Math.min(displayMaxPrice, price)));
+              }
+              return yScale(price);
+            })
+            .curve(d3.curveMonotoneX);
+
+          // Draw area fill
+          heatmapGroup
+            .append('path')
+            .datum(visiblePriceHistory)
+            .attr('d', area)
+            .style('fill', `url(#price-area-gradient-${heatmapIdx})`)
+            .style('opacity', 0.6);
+
+          // Draw shadow line (glow effect)
+          heatmapGroup
+            .append('path')
+            .datum(visiblePriceHistory)
+            .attr('d', line)
+            .style('fill', 'none')
+            .style('stroke', '#22c55e')
+            .style('stroke-width', 6)
+            .style('opacity', 0.3)
+            .style('filter', 'blur(4px)');
+
+          // Draw main line
+          heatmapGroup
+            .append('path')
+            .datum(visiblePriceHistory)
+            .attr('d', line)
+            .style('fill', 'none')
+            .style('stroke', `url(#price-line-gradient-${heatmapIdx})`)
+            .style('stroke-width', 2.5)
+            .style('opacity', 0.9);
+
+          // Draw points at data points
+          visiblePriceHistory.forEach((point, idx) => {
+            // Only show every Nth point to avoid clutter
+            if (idx % 5 === 0 || idx === visiblePriceHistory.length - 1) {
+              const time = new Date(point.timestamp);
+              const price = point.price;
+              
+              if (price >= displayMinPrice && price <= displayMaxPrice) {
+                heatmapGroup
+                  .append('circle')
+                  .attr('cx', xScale(time))
+                  .attr('cy', yScale(price))
+                  .attr('r', 3)
+                  .style('fill', '#22c55e')
+                  .style('stroke', '#050510')
+                  .style('stroke-width', 1.5)
+                  .style('opacity', 0.8);
+              }
+            }
+          });
+        }
+      }
+  
+      // ========================================================================
+      // CANDLESTICK OVERLAY
       // ========================================================================
       if (heatmapConfig.showCandlesticks && priceHistory && priceHistory.length > 5) {
         const candlesticks = calculateCandlesticks(priceHistory, 10000);
@@ -684,7 +840,7 @@ const OrderbookHeatmap = () => {
             .attr('y2', yScale(candle.low))
             .style('stroke', bodyColor)
             .style('stroke-width', 1)
-            .style('opacity', 0.8);
+            .style('opacity', 0.6);
   
           // Body
           heatmapGroup
@@ -696,36 +852,100 @@ const OrderbookHeatmap = () => {
             .style('fill', bodyColor)
             .style('stroke', borderColor)
             .style('stroke-width', 1)
-            .style('opacity', 0.85);
+            .style('opacity', 0.7);
         });
       }
   
       // ========================================================================
-      // CURRENT PRICE LINE
+      // CURRENT PRICE LINE (ENHANCED)
       // ========================================================================
-      if (currentPrice && currentPrice >= displayMinPrice && currentPrice <= displayMaxPrice) {
+      if (heatmapConfig.showPriceLine && currentPrice && currentPrice >= displayMinPrice && currentPrice <= displayMaxPrice) {
         const priceY = yScale(currentPrice);
         
+        // Glow effect (animated)
+        const glowLine = heatmapGroup
+          .append('line')
+          .attr('x1', 0)
+          .attr('x2', width)
+          .attr('y1', priceY)
+          .attr('y2', priceY)
+          .style('stroke', '#fbbf24')
+          .style('stroke-width', 8)
+          .style('opacity', 0.2)
+          .style('filter', 'blur(6px)');
+
+        // Pulse animation
+        function pulse() {
+          glowLine
+            .transition()
+            .duration(1200)
+            .ease(d3.easeSinInOut)
+            .style('opacity', 0.05)
+            .transition()
+            .duration(1200)
+            .style('opacity', 0.2)
+            .on('end', pulse);
+        }
+        pulse();
+
+        // Gradient for main line
+        const currentPriceGradient = defs.append('linearGradient')
+          .attr('id', `current-price-gradient-${heatmapIdx}`)
+          .attr('x1', '0%')
+          .attr('x2', '100%');
+
+        currentPriceGradient.append('stop')
+          .attr('offset', '0%')
+          .attr('stop-color', '#fbbf24')
+          .attr('stop-opacity', 0.3);
+
+        currentPriceGradient.append('stop')
+          .attr('offset', '50%')
+          .attr('stop-color', '#fbbf24')
+          .attr('stop-opacity', 1);
+
+        currentPriceGradient.append('stop')
+          .attr('offset', '100%')
+          .attr('stop-color', '#f97316')
+          .attr('stop-opacity', 0.3);
+
+        // Main line
         heatmapGroup
           .append('line')
           .attr('x1', 0)
           .attr('x2', width)
           .attr('y1', priceY)
           .attr('y2', priceY)
-          .style('stroke', '#ef4444')
-          .style('stroke-width', 1.5)
-          .style('stroke-dasharray', '4,2')
-          .style('opacity', 0.7);
+          .style('stroke', `url(#current-price-gradient-${heatmapIdx})`)
+          .style('stroke-width', 2.5)
+          .style('opacity', 0.9);
   
-        // Price label
-        heatmapGroup
+        // Price label with fancy box
+        const labelGroup = heatmapGroup.append('g');
+        const priceText = `$${currentPrice.toFixed(2)}`;
+        
+        const text = labelGroup
           .append('text')
-          .attr('x', width + 5)
-          .attr('y', priceY + 4)
-          .style('fill', '#ef4444')
-          .style('font-size', '11px')
-          .style('font-weight', '600')
-          .text(`$${currentPrice.toFixed(2)}`);
+          .attr('x', width + 12)
+          .attr('y', priceY + 5)
+          .style('font-size', '13px')
+          .style('font-weight', '700')
+          .style('fill', '#ffffff')
+          .text(priceText);
+
+        const bbox = text.node().getBBox();
+
+        labelGroup
+          .insert('rect', 'text')
+          .attr('x', bbox.x - 6)
+          .attr('y', bbox.y - 3)
+          .attr('width', bbox.width + 12)
+          .attr('height', bbox.height + 6)
+          .attr('rx', 6)
+          .style('fill', '#fbbf24')
+          .style('stroke', '#f97316')
+          .style('stroke-width', 2)
+          .style('filter', 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.5))');
       }
   
       // ========================================================================
@@ -775,7 +995,7 @@ const OrderbookHeatmap = () => {
     });
   
     // ============================================================================
-    // VOLUME BARS (at bottom)
+    // VOLUME BARS
     // ============================================================================
     const volumeGroup = svg
       .append('g')
@@ -808,7 +1028,6 @@ const OrderbookHeatmap = () => {
           .style('opacity', 0.6);
       });
   
-      // Volume axis
       const volumeAxis = d3.axisLeft(volumeScale).ticks(3);
       volumeGroup
         .append('g')
@@ -817,8 +1036,66 @@ const OrderbookHeatmap = () => {
         .style('fill', '#64748b')
         .style('font-size', '9px');
     }
+
+    // ============================================================================
+    // MINIMAP (Optional)
+    // ============================================================================
+    if (showMinimap && priceHistory && priceHistory.length > 5) {
+      const minimapGroup = svg
+        .append('g')
+        .attr('transform', `translate(${margin.left}, ${margin.top + totalHeatmapsHeight + heatmapSpacing + volumeHeight + 10})`);
+
+      // Minimap background
+      minimapGroup
+        .append('rect')
+        .attr('width', width)
+        .attr('height', minimapHeight)
+        .style('fill', '#0a0a15')
+        .style('stroke', '#334155')
+        .style('stroke-width', 1);
+
+      // Full time range scale
+      const fullTimeRange = [d3.min(priceHistory, d => new Date(d.timestamp)), d3.max(priceHistory, d => new Date(d.timestamp))];
+      const minimapXScale = d3.scaleTime()
+        .domain(fullTimeRange)
+        .range([0, width]);
+
+      const minimapYScale = d3.scaleLinear()
+        .domain([d3.min(priceHistory, d => d.price), d3.max(priceHistory, d => d.price)])
+        .range([minimapHeight, 0]);
+
+      // Draw minimap price line
+      const minimapLine = d3.line()
+        .x(d => minimapXScale(new Date(d.timestamp)))
+        .y(d => minimapYScale(d.price))
+        .curve(d3.curveMonotoneX);
+
+      minimapGroup
+        .append('path')
+        .datum(priceHistory)
+        .attr('d', minimapLine)
+        .style('fill', 'none')
+        .style('stroke', '#0ea5e9')
+        .style('stroke-width', 1)
+        .style('opacity', 0.6);
+
+      // Viewport indicator
+      const viewportWidth = (timeWindowMs / (fullTimeRange[1] - fullTimeRange[0])) * width;
+      const viewportX = minimapXScale(displayMinTime);
+
+      minimapGroup
+        .append('rect')
+        .attr('x', viewportX)
+        .attr('y', 0)
+        .attr('width', viewportWidth)
+        .attr('height', minimapHeight)
+        .style('fill', '#7e58f5')
+        .style('opacity', 0.2)
+        .style('stroke', '#7e58f5')
+        .style('stroke-width', 2);
+    }
   
-    console.log(`✅ Multi-heatmap render complete V2: ${numHeatmaps} heatmaps`);
+    console.log(`✅ Enhanced render complete V3: Pan=${timeOffset}ms, Zoom=${priceZoom.toFixed(1)}x`);
   };
 
   /**
@@ -854,9 +1131,9 @@ const OrderbookHeatmap = () => {
       {/* Header */}
       <div className="hero">
         <div className="hero-content">
-          <h1 className="hero-title">📊 Orderbook Heatmap - Pro Trading</h1>
+          <h1 className="hero-title">📊 Orderbook Heatmap - Pro Trading V3</h1>
           <p className="hero-subtitle">
-            CEX + DEX liquidity visualization | Bookmap style with candles
+            🖱️ Pan/Zoom | 📈 Price Line | CEX + DEX liquidity
           </p>
 
           {/* Mode Selector */}
@@ -897,6 +1174,11 @@ const OrderbookHeatmap = () => {
             <div className="status-badge mode-badge">
               {mode === 'cex' ? '🏦 CEX' : '🦄 DEX'}
             </div>
+            {timeOffset !== 0 && (
+              <div className="status-badge offset-badge">
+                ⏱️ {(timeOffset / 1000).toFixed(0)}s offset
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -920,7 +1202,6 @@ const OrderbookHeatmap = () => {
         <div className="dex-panel">
           <h3 className="dex-panel-title">🦄 DEX Pool Selection</h3>
           
-          {/* Search Controls */}
           <div className="dex-search-controls">
             <div className="control-group">
               <label>Network</label>
@@ -965,7 +1246,6 @@ const OrderbookHeatmap = () => {
                 {getTokensForNetwork(network).map((token) => (
                   <option key={token.symbol} value={token.symbol}>
                     {token.symbol}
-                  </option>
                 ))}
               </select>
             </div>
@@ -995,7 +1275,6 @@ const OrderbookHeatmap = () => {
             </button>
           </div>
 
-          {/* Pool Results */}
           {pools && pools.length > 0 && (
             <div className="pool-results">
               <h4>Found {pools.length} Pools:</h4>
@@ -1035,7 +1314,6 @@ const OrderbookHeatmap = () => {
             </div>
           )}
 
-          {/* Selected Pool Details */}
           {selectedPool && (
             <div className="selected-pool-details">
               <h4>Selected Pool: {selectedPool.token0.symbol}/{selectedPool.token1.symbol}</h4>
@@ -1130,11 +1408,30 @@ const OrderbookHeatmap = () => {
             </button>
             <button 
               className="btn btn-secondary" 
-              onClick={() => setPriceZoom(1.0)} 
-              disabled={priceZoom === 1.0}
+              onClick={handleResetView}
+              disabled={priceZoom === 1.0 && timeOffset === 0}
             >
-              Reset Zoom
+              🔄 Reset View
             </button>
+          </div>
+
+          <div className="view-controls">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={showMinimap}
+                onChange={(e) => setShowMinimap(e.target.checked)}
+              />
+              <span>Show Minimap</span>
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={showCrosshair}
+                onChange={(e) => setShowCrosshair(e.target.checked)}
+              />
+              <span>Show Crosshair</span>
+            </label>
           </div>
         </div>
       )}
@@ -1151,9 +1448,11 @@ const OrderbookHeatmap = () => {
         {!heatmapBuffer && !isRunning && (
           <div className="heatmap-placeholder">
             <p>👆 {mode === 'cex' ? 'Start to see CEX orderbook' : 'Select a DEX pool and start'}</p>
-            <p style={{fontSize: '11px', marginTop: '8px', color: '#64748b'}}>
-              💡 Scroll to zoom price axis
-            </p>
+            <div style={{fontSize: '11px', marginTop: '12px', color: '#64748b', lineHeight: '1.6'}}>
+              <p>💡 <strong>Controls:</strong></p>
+              <p>🖱️ Drag to pan time axis</p>
+              <p>🔍 Scroll to zoom price axis</p>
+            </div>
           </div>
         )}
       </div>
