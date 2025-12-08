@@ -529,26 +529,37 @@ const OrderbookHeatmap = () => {
       });
   
       // ========================================================================
-      // DRAW HEATMAP CELLS
+      // DRAW HEATMAP CELLS - FIXED INDEX MAPPING
       // ========================================================================
+      
+      // ✅ CREATE PRICE→INDEX MAPPING from snapshot
+      const priceToIndex = new Map();
+      snapshot.prices.forEach((price, idx) => {
+        priceToIndex.set(price, idx);
+      });
+      
       heatmapBuffer.forEach((snapshot) => {
         const time = new Date(snapshot.timestamp);
         
         if (time >= displayMinTime && time <= displayMaxTime) {
           const x = xScale(time) - cellWidth / 2;
           
-          sortedPrices.forEach((price, priceIdx) => {
+          sortedPrices.forEach((price) => {
             if (price < displayMinPrice || price > displayMaxPrice) return;
+            
+            // ✅ FIX: Get correct index from snapshot
+            const priceIdx = priceToIndex.get(price);
+            if (priceIdx === undefined) return; // Price not in this snapshot
             
             let totalLiquidity = 0;
             const liquidityBreakdown = {};
             
-            // ✅ CALCULATE LIQUIDITY
+            // ✅ CALCULATE LIQUIDITY with correct index
             if (heatmapConfig.isCombined) {
               // Combined: Sum all exchanges
               snapshot.exchanges.forEach((exchange, exIdx) => {
                 const matrix = snapshot.matrix[exIdx] || [];
-                const exchangeLiquidity = matrix[priceIdx] || 0;
+                const exchangeLiquidity = matrix[priceIdx] || 0; // ✅ Correct index!
                 
                 totalLiquidity += exchangeLiquidity;
                 
@@ -563,7 +574,7 @@ const OrderbookHeatmap = () => {
               
               if (exIdx !== -1) {
                 const matrix = snapshot.matrix[exIdx] || [];
-                totalLiquidity = matrix[priceIdx] || 0;
+                totalLiquidity = matrix[priceIdx] || 0; // ✅ Correct index!
                 liquidityBreakdown[exchangeName] = totalLiquidity;
               }
             }
@@ -575,7 +586,7 @@ const OrderbookHeatmap = () => {
               return;
             }
             
-            // ✅ DRAW CELL
+            // ✅ DRAW CELL (rest stays the same)
             heatmapGroup
               .append('rect')
               .attr('x', x)
