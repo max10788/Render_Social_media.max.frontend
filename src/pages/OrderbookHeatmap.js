@@ -1,5 +1,6 @@
 /**
  * OrderbookHeatmap.js - BOOKMAP TRADING SOFTWARE STYLE + DEX INTEGRATION
+ * FIXED VERSION V2: Correct price-to-index mapping (Map inside loop!)
  * 
  * Professional orderbook liquidity visualization with:
  * - CEX: Binance, Bitget, Kraken orderbooks (MULTI-HEATMAP: Combined + Individual)
@@ -9,6 +10,8 @@
  * - Volume bars at bottom
  * - Dark professional theme
  * - Y-axis zoom with mouse wheel
+ * 
+ * BUG FIX: Price-to-index mapping now created per snapshot (was outside loop!)
  */
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
@@ -296,11 +299,12 @@ const OrderbookHeatmap = () => {
   /**
    * Render in Bookmap Trading Software Style
    * MULTI-HEATMAP VERSION: Combined + Individual Exchanges
+   * FIXED V2: Price-to-index mapping per snapshot!
    */
   const renderBookmapStyle = () => {
     if (!heatmapRef.current || heatmapBuffer.length === 0) return;
   
-    console.log('🎨 RENDERING MULTI-HEATMAP (Combined + Individual)');
+    console.log('🎨 RENDERING MULTI-HEATMAP V2 (Fixed index mapping)');
   
     // Clear previous
     d3.select(heatmapRef.current).selectAll('*').remove();
@@ -529,14 +533,8 @@ const OrderbookHeatmap = () => {
       });
   
       // ========================================================================
-      // DRAW HEATMAP CELLS - FIXED INDEX MAPPING
+      // DRAW HEATMAP CELLS - ✅ FIXED V2: Map INSIDE loop!
       // ========================================================================
-      
-      // ✅ CREATE PRICE→INDEX MAPPING from snapshot
-      const priceToIndex = new Map();
-      snapshot.prices.forEach((price, idx) => {
-        priceToIndex.set(price, idx);
-      });
       
       heatmapBuffer.forEach((snapshot) => {
         const time = new Date(snapshot.timestamp);
@@ -544,10 +542,17 @@ const OrderbookHeatmap = () => {
         if (time >= displayMinTime && time <= displayMaxTime) {
           const x = xScale(time) - cellWidth / 2;
           
+          // ✅ CRITICAL FIX: Create price→index mapping for THIS snapshot
+          // This was the bug - map was created outside the loop!
+          const priceToIndex = new Map();
+          snapshot.prices.forEach((price, idx) => {
+            priceToIndex.set(price, idx);
+          });
+          
           sortedPrices.forEach((price) => {
             if (price < displayMinPrice || price > displayMaxPrice) return;
             
-            // ✅ FIX: Get correct index from snapshot
+            // ✅ Get correct index from THIS snapshot's mapping
             const priceIdx = priceToIndex.get(price);
             if (priceIdx === undefined) return; // Price not in this snapshot
             
@@ -559,7 +564,7 @@ const OrderbookHeatmap = () => {
               // Combined: Sum all exchanges
               snapshot.exchanges.forEach((exchange, exIdx) => {
                 const matrix = snapshot.matrix[exIdx] || [];
-                const exchangeLiquidity = matrix[priceIdx] || 0; // ✅ Correct index!
+                const exchangeLiquidity = matrix[priceIdx] || 0;
                 
                 totalLiquidity += exchangeLiquidity;
                 
@@ -574,7 +579,7 @@ const OrderbookHeatmap = () => {
               
               if (exIdx !== -1) {
                 const matrix = snapshot.matrix[exIdx] || [];
-                totalLiquidity = matrix[priceIdx] || 0; // ✅ Correct index!
+                totalLiquidity = matrix[priceIdx] || 0;
                 liquidityBreakdown[exchangeName] = totalLiquidity;
               }
             }
@@ -586,7 +591,7 @@ const OrderbookHeatmap = () => {
               return;
             }
             
-            // ✅ DRAW CELL (rest stays the same)
+            // ✅ DRAW CELL
             heatmapGroup
               .append('rect')
               .attr('x', x)
@@ -813,7 +818,7 @@ const OrderbookHeatmap = () => {
         .style('font-size', '9px');
     }
   
-    console.log(`✅ Multi-heatmap render complete: ${numHeatmaps} heatmaps`);
+    console.log(`✅ Multi-heatmap render complete V2: ${numHeatmaps} heatmaps`);
   };
 
   /**
