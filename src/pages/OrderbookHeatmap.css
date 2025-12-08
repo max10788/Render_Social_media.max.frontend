@@ -800,3 +800,285 @@
 .pool-card.selected {
   animation: poolCardPulse 2s ease-in-out infinite;
 }
+
+/* ============================================================================
+   LAYOUT SELECTOR STYLES - Add to OrderbookHeatmap.css
+   ============================================================================ */
+
+.layout-selector {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(30, 41, 59, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.layout-selector .control-label {
+  display: block;
+  margin-bottom: 12px;
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.layout-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.layout-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 2px solid rgba(100, 116, 139, 0.3);
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 70px;
+}
+
+.layout-btn:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: #7e58f5;
+  color: #e2e8f0;
+  transform: translateY(-2px);
+}
+
+.layout-btn.active {
+  background: linear-gradient(135deg, rgba(126, 88, 245, 0.2), rgba(99, 102, 241, 0.2));
+  border-color: #7e58f5;
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(126, 88, 245, 0.3);
+}
+
+.layout-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.layout-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.layout-name {
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.layout-hint {
+  margin: 8px 0 0 0;
+  padding: 8px 12px;
+  background: rgba(126, 88, 245, 0.1);
+  border-left: 3px solid #7e58f5;
+  border-radius: 4px;
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .layout-buttons {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+  
+  .layout-btn {
+    padding: 10px 12px;
+    min-height: 60px;
+  }
+  
+  .layout-icon {
+    font-size: 20px;
+  }
+  
+  .layout-name {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .layout-buttons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Enhanced status badges for layout info */
+.status-badge.layout-badge {
+  background: linear-gradient(135deg, rgba(126, 88, 245, 0.2), rgba(99, 102, 241, 0.2));
+  border-color: rgba(126, 88, 245, 0.4);
+}
+
+.status-badge.offset-badge {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+/* Enhanced stat cards */
+.stat-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 150px;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  border-color: #7e58f5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(126, 88, 245, 0.2);
+}
+
+.stat-label {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* View controls styling */
+.view-controls {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
+}
+
+.checkbox-label:hover {
+  color: #ffffff;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #7e58f5;
+}
+
+/* Control actions enhancements */
+.control-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.btn {
+  flex: 1;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #7e58f5, #6366f1);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6d47e4, #5254e0);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(126, 88, 245, 0.4);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.btn-secondary {
+  background: rgba(100, 116, 139, 0.2);
+  color: #cbd5e1;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(100, 116, 139, 0.3);
+  border-color: rgba(100, 116, 139, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Heatmap canvas cursor */
+.heatmap-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.05;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(126, 88, 245, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(126, 88, 245, 0.4);
+  }
+}
+
+.layout-btn.active {
+  animation: glow 2s ease-in-out infinite;
+}
