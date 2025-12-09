@@ -905,6 +905,145 @@ const OrderbookHeatmap = () => {
           <span>{error}</span>
         </div>
       )}
+      {dexError && mode === 'dex' && (
+        <div className="error-banner">
+          <span className="error-icon">⚠️</span>
+          <span>DEX: {dexError}</span>
+        </div>
+      )}
+
+      {/* DEX Pool Selection Panel */}
+      {mode === 'dex' && showDexPanel && (
+        <div className="dex-panel">
+          <h3 className="dex-panel-title">🦄 DEX Pool Selection</h3>
+          
+          <div className="dex-search-controls">
+            <div className="control-group">
+              <label>Network</label>
+              <select
+                className="control-select"
+                value={network}
+                onChange={(e) => setNetwork(e.target.value)}
+                disabled={isDexLoading}
+              >
+                {AVAILABLE_NETWORKS.map((net) => (
+                  <option key={net.value} value={net.value}>
+                    {net.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="control-group">
+              <label>Token 0</label>
+              <select
+                className="control-select"
+                value={token0}
+                onChange={(e) => setToken0(e.target.value)}
+                disabled={isDexLoading}
+              >
+                {getTokensForNetwork(network).map((token) => (
+                  <option key={token.symbol} value={token.symbol}>
+                    {token.symbol}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="control-group">
+              <label>Token 1</label>
+              <select
+                className="control-select"
+                value={token1}
+                onChange={(e) => setToken1(e.target.value)}
+                disabled={isDexLoading}
+              >
+                {getTokensForNetwork(network).map((token) => (
+                  <option key={token.symbol} value={token.symbol}>
+                    {token.symbol}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="control-group">
+              <label>Fee Tier</label>
+              <select
+                className="control-select"
+                value={feeTier || ''}
+                onChange={(e) => setFeeTier(e.target.value ? Number(e.target.value) : null)}
+                disabled={isDexLoading}
+              >
+                {FEE_TIERS.map((tier) => (
+                  <option key={tier.value || 'all'} value={tier.value || ''}>
+                    {tier.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              className="btn btn-primary"
+              onClick={searchPools}
+              disabled={isDexLoading}
+            >
+              {isDexLoading ? '⏳' : '🔍'} Search Pools
+            </button>
+          </div>
+
+          {pools && pools.length > 0 && (
+            <div className="pool-results">
+              <h4>Found {pools.length} Pools:</h4>
+              <div className="pool-list">
+                {pools.map((pool) => (
+                  <div
+                    key={pool.address}
+                    className={`pool-card ${selectedPool?.address === pool.address ? 'selected' : ''}`}
+                    onClick={() => selectPool(pool)}
+                  >
+                    <div className="pool-header">
+                      <span className="pool-pair">
+                        {pool.token0.symbol}/{pool.token1.symbol}
+                      </span>
+                      <span className="pool-fee">{pool.fee_tier / 10000}%</span>
+                    </div>
+                    <div className="pool-stats">
+                      <div className="pool-stat">
+                        <span className="stat-label">TVL:</span>
+                        <span className="stat-value">{formatNumber(pool.tvl_usd)}</span>
+                      </div>
+                      <div className="pool-stat">
+                        <span className="stat-label">24h Vol:</span>
+                        <span className="stat-value">{formatNumber(pool.volume_24h)}</span>
+                      </div>
+                      <div className="pool-stat">
+                        <span className="stat-label">Price:</span>
+                        <span className="stat-value">${pool.current_price.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="pool-address">
+                      {formatAddress(pool.address)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {selectedPool && (
+            <div className="selected-pool-details">
+              <h4>Selected Pool: {selectedPool.token0.symbol}/{selectedPool.token1.symbol}</h4>
+              <button
+                className="btn btn-success"
+                onClick={handleStartWithDex}
+                disabled={isRunning}
+              >
+                ▶️ Start with this Pool
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {mode === 'cex' && (
         <div className="controls-panel">
@@ -985,15 +1124,19 @@ const OrderbookHeatmap = () => {
               🔄 Reset View
             </button>
           </div>
-
-          <div className="view-controls">
-            <label className="checkbox-label">
-              <input type="checkbox" checked={showMinimap} onChange={(e) => setShowMinimap(e.target.checked)} />
-              <span>Show Minimap</span>
-            </label>
-          </div>
         </div>
       )}
+
+      {/* View Controls - Available in both CEX and DEX modes */}
+      <div className="view-controls-global">
+        <label className="checkbox-label">
+          <input type="checkbox" checked={showMinimap} onChange={(e) => setShowMinimap(e.target.checked)} />
+          <span>📍 Show Minimap</span>
+        </label>
+        <button className="btn btn-secondary btn-sm" onClick={handleResetView} disabled={priceZoom === 1.0 && timeOffset === 0}>
+          🔄 Reset View
+        </button>
+      </div>
 
       <div className="heatmap-container">
         <div ref={heatmapRef} className="heatmap-canvas"></div>
