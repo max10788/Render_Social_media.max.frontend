@@ -1090,90 +1090,318 @@ const OrderbookHeatmap = () => {
         </div>
       )}
 
-      {mode === 'cex' && (
-        <div className="controls-panel">
-          {/* LAYOUT SELECTOR */}
-          <div className="layout-selector">
-            <label className="control-label">📐 Layout Mode</label>
-            <div className="layout-buttons">
-              {availableLayouts.map(([key, layout]) => (
-                <button
-                  key={key}
-                  className={`layout-btn ${layoutMode === key ? 'active' : ''}`}
-                  onClick={() => setLayoutMode(key)}
-                  title={layout.description}
+/* BLOOMBERG TERMINAL STYLE - PROFESSIONAL CONFIGURATION PANEL */
+
+{mode === 'cex' && (
+  <div className="bloomberg-terminal">
+    {/* MAIN CONTROL GRID */}
+    <div className="terminal-grid">
+      
+      {/* LEFT COLUMN - PRIMARY CONTROLS */}
+      <div className="terminal-column terminal-primary">
+        
+        {/* LAYOUT CONFIGURATION */}
+        <div className="terminal-section">
+          <div 
+            className="section-header"
+            onClick={() => toggleSection('layout')}
+          >
+            <div className="header-left">
+              <Layers className="section-icon" size={18} />
+              <span className="section-title">LAYOUT CONFIGURATION</span>
+              <span className="section-badge">{LAYOUTS[layoutMode]?.icon}</span>
+            </div>
+            {expandedSections.layout ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </div>
+          
+          {expandedSections.layout && (
+            <div className="section-content">
+              <div className="layout-grid">
+                {availableLayouts.map(([key, layout]) => (
+                  <button
+                    key={key}
+                    className={`terminal-btn layout-card ${layoutMode === key ? 'active' : ''}`}
+                    onClick={() => setLayoutMode(key)}
+                    disabled={isRunning}
+                    title={layout.description}
+                  >
+                    <span className="card-icon">{layout.icon}</span>
+                    <span className="card-label">{layout.name.replace(/[📊⊞⊡⊟⫴◉]/g, '').trim()}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="layout-info">
+                <Info size={14} />
+                <span>{LAYOUTS[layoutMode]?.description}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* SYMBOL & INSTRUMENT */}
+        <div className="terminal-section">
+          <div 
+            className="section-header"
+            onClick={() => toggleSection('symbol')}
+          >
+            <div className="header-left">
+              <TrendingUp className="section-icon" size={18} />
+              <span className="section-title">INSTRUMENT</span>
+            </div>
+            {expandedSections.symbol ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </div>
+          
+          {expandedSections.symbol && (
+            <div className="section-content">
+              <div className="terminal-input-group">
+                <label className="terminal-label">
+                  <DollarSign size={14} />
+                  <span>SYMBOL</span>
+                </label>
+                <select 
+                  className="terminal-select"
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value)}
                   disabled={isRunning}
                 >
-                  <span className="layout-icon">{layout.icon}</span>
-                  <span className="layout-name">{layout.name}</span>
-                </button>
-              ))}
+                  {availableSymbols.map((sym) => (
+                    <option key={sym} value={sym}>{sym}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <p className="layout-hint">
-              💡 {LAYOUTS[layoutMode]?.description || 'Select a layout'}
-            </p>
-          </div>
+          )}
+        </div>
 
-          <div className="control-group">
-            <label className="control-label">Symbol</label>
-            <select className="control-select" value={symbol} onChange={(e) => setSymbol(e.target.value)} disabled={isRunning}>
-              {availableSymbols.map((sym) => (
-                <option key={sym} value={sym}>{sym}</option>
-              ))}
-            </select>
+        {/* EXCHANGE SELECTION */}
+        <div className="terminal-section">
+          <div 
+            className="section-header"
+            onClick={() => toggleSection('exchanges')}
+          >
+            <div className="header-left">
+              <BarChart3 className="section-icon" size={18} />
+              <span className="section-title">EXCHANGES</span>
+              <span className="section-badge">{selectedExchanges.length}/{exchanges.length}</span>
+            </div>
+            {expandedSections.exchanges ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
           </div>
-
-          <div className="control-group">
-            <label className="control-label">Exchanges ({selectedExchanges.length} selected)</label>
-            <div className="exchange-checkboxes">
-              {exchanges.map((exchange) => (
-                <label key={exchange.name} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={selectedExchanges.includes(exchange.name)}
-                    onChange={() => toggleExchange(exchange.name)}
+          
+          {expandedSections.exchanges && (
+            <div className="section-content">
+              <div className="exchange-grid">
+                {exchanges.map((exchange) => (
+                  <button
+                    key={exchange.name}
+                    className={`terminal-btn exchange-btn ${
+                      selectedExchanges.includes(exchange.name) ? 'active' : ''
+                    }`}
+                    onClick={() => toggleExchange(exchange.name)}
                     disabled={isRunning}
+                  >
+                    <Activity size={14} />
+                    <span>{exchange.name.toUpperCase()}</span>
+                    {selectedExchanges.includes(exchange.name) && (
+                      <span className="check-mark">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN - PARAMETERS & CONTROLS */}
+      <div className="terminal-column terminal-secondary">
+        
+        {/* ANALYSIS PARAMETERS */}
+        <div className="terminal-section">
+          <div 
+            className="section-header"
+            onClick={() => toggleSection('parameters')}
+          >
+            <div className="header-left">
+              <Settings className="section-icon" size={18} />
+              <span className="section-title">PARAMETERS</span>
+            </div>
+            {expandedSections.parameters ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </div>
+          
+          {expandedSections.parameters && (
+            <div className="section-content">
+              <div className="param-grid">
+                <div className="terminal-input-group">
+                  <label className="terminal-label">
+                    <Grid3x3 size={14} />
+                    <span>BUCKET SIZE</span>
+                  </label>
+                  <select 
+                    className="terminal-select"
+                    value={priceBucketSize}
+                    onChange={(e) => setPriceBucketSize(Number(e.target.value))}
+                    disabled={isRunning}
+                  >
+                    {bucketSizeOptions.map((size) => (
+                      <option key={size} value={size}>${size}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="terminal-input-group">
+                  <label className="terminal-label">
+                    <Clock size={14} />
+                    <span>TIME WINDOW</span>
+                  </label>
+                  <select 
+                    className="terminal-select"
+                    value={timeWindowSeconds}
+                    onChange={(e) => setTimeWindowSeconds(Number(e.target.value))}
+                    disabled={isRunning}
+                  >
+                    {timeWindowOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ADVANCED SETTINGS */}
+        <div className="terminal-section">
+          <div 
+            className="section-header"
+            onClick={() => toggleSection('advanced')}
+          >
+            <div className="header-left">
+              <Zap className="section-icon" size={18} />
+              <span className="section-title">ADVANCED</span>
+            </div>
+            {expandedSections.advanced ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </div>
+          
+          {expandedSections.advanced && (
+            <div className="section-content">
+              <div className="toggle-group">
+                <label className="terminal-toggle">
+                  <input 
+                    type="checkbox" 
+                    checked={showMinimap} 
+                    onChange={(e) => setShowMinimap(e.target.checked)} 
                   />
-                  <span>{exchange.name}</span>
+                  <span className="toggle-slider"></span>
+                  <span className="toggle-label">
+                    {showMinimap ? <Eye size={14} /> : <EyeOff size={14} />}
+                    Show Minimap
+                  </span>
                 </label>
-              ))}
+              </div>
+
+              <div className="stat-row">
+                <div className="stat-item">
+                  <Maximize2 size={14} />
+                  <span>Zoom: {priceZoom.toFixed(2)}x</span>
+                </div>
+                {timeOffset !== 0 && (
+                  <div className="stat-item">
+                    <Clock size={14} />
+                    <span>Offset: {(timeOffset / 1000).toFixed(0)}s</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* EXECUTION CONTROLS */}
+        <div className="terminal-section execution-section">
+          <div className="section-header">
+            <div className="header-left">
+              <Activity className="section-icon pulse" size={18} />
+              <span className="section-title">EXECUTION</span>
+              <span className={`status-dot ${isRunning ? 'running' : 'stopped'}`}></span>
             </div>
           </div>
+          
+          <div className="section-content">
+            <div className="execution-grid">
+              <button
+                className={`terminal-btn exec-btn start ${isRunning ? 'disabled' : ''}`}
+                onClick={handleStart}
+                disabled={isRunning || isLoading || selectedExchanges.length === 0}
+              >
+                <Play size={16} />
+                <span>START ANALYSIS</span>
+              </button>
+              
+              <button
+                className={`terminal-btn exec-btn stop ${!isRunning ? 'disabled' : ''}`}
+                onClick={handleStop}
+                disabled={!isRunning || isLoading}
+              >
+                <Square size={16} />
+                <span>STOP</span>
+              </button>
 
-          <div className="control-group">
-            <label className="control-label">Bucket</label>
-            <select className="control-select" value={priceBucketSize} onChange={(e) => setPriceBucketSize(Number(e.target.value))} disabled={isRunning}>
-              {bucketSizeOptions.map((size) => (
-                <option key={size} value={size}>${size}</option>
-              ))}
-            </select>
-          </div>
+              <button
+                className="terminal-btn exec-btn reset"
+                onClick={handleResetView}
+                disabled={priceZoom === 1.0 && timeOffset === 0}
+              >
+                <RefreshCw size={16} />
+                <span>RESET VIEW</span>
+              </button>
+            </div>
 
-          <div className="control-group">
-            <label className="control-label">Window</label>
-            <select className="control-select" value={timeWindowSeconds} onChange={(e) => setTimeWindowSeconds(Number(e.target.value))} disabled={isRunning}>
-              {timeWindowOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="control-actions">
-            <button className="btn btn-primary" onClick={handleStart} disabled={isRunning || isLoading || selectedExchanges.length === 0}>
-              {isLoading ? '⏳' : '▶️'} Start
-            </button>
-            <button className="btn btn-danger" onClick={handleStop} disabled={!isRunning || isLoading}>
-              {isLoading ? '⏳' : '⏹️'} Stop
-            </button>
-            <button className="btn btn-secondary" onClick={handleResetView} disabled={priceZoom === 1.0 && timeOffset === 0}>
-              🔄 Reset View
-            </button>
+            {/* Connection Status */}
+            <div className="connection-status">
+              <div className={`conn-item ${wsConnected ? 'connected' : 'disconnected'}`}>
+                <span className="conn-dot"></span>
+                <span>Data Feed</span>
+              </div>
+              <div className={`conn-item ${priceWsConnected ? 'connected' : 'disconnected'}`}>
+                <span className="conn-dot"></span>
+                <span>Price Stream</span>
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
+    </div>
 
-      {/* View Controls - Available in both CEX and DEX modes */}
-      <div className="view-controls-global">
+    {/* QUICK STATS BAR */}
+    <div className="terminal-stats-bar">
+      <div className="stat-group">
+        <TrendingUp size={16} />
+        <span className="stat-label">Current Price</span>
+        <span className="stat-value">${currentPrice?.toLocaleString() || '--'}</span>
+      </div>
+      <div className="stat-separator"></div>
+      <div className="stat-group">
+        <BarChart3 size={16} />
+        <span className="stat-label">Layout</span>
+        <span className="stat-value">{LAYOUTS[layoutMode]?.name.replace(/[📊⊞⊡⊟⫴◉]/g, '').trim()}</span>
+      </div>
+      <div className="stat-separator"></div>
+      <div className="stat-group">
+        <Activity size={16} />
+        <span className="stat-label">Exchanges</span>
+        <span className="stat-value">{selectedExchanges.length}</span>
+      </div>
+      <div className="stat-separator"></div>
+      <div className="stat-group">
+        <Clock size={16} />
+        <span className="stat-label">Window</span>
+        <span className="stat-value">
+          {timeWindowOptions.find(opt => opt.value === timeWindowSeconds)?.label || '--'}
+        </span>
+      </div>
+    </div>
+  </div>
+)}
+
         <label className="checkbox-label">
           <input type="checkbox" checked={showMinimap} onChange={(e) => setShowMinimap(e.target.checked)} />
           <span>📍 Show Minimap</span>
