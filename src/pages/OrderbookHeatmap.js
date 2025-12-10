@@ -109,6 +109,9 @@ const OrderbookHeatmap = () => {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef(null);
   
+  // Price Range Control (prevents auto-zoom)
+  const [priceRangePercent, setPriceRangePercent] = useState(2.0); // 2% default (1% up, 1% down)
+  
   const [mode, setMode] = useState('cex');
   const [showDexPanel, setShowDexPanel] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
@@ -513,7 +516,7 @@ const OrderbookHeatmap = () => {
       d3.selectAll('.heatmap-tooltip').remove();
       tooltipRef.current = null;
     };
-  }, [heatmapBuffer, currentPrice, priceHistory, selectedExchanges, dimensions, timeWindowSeconds, priceZoom, timeOffset, showMinimap, layoutMode]);
+  }, [heatmapBuffer, currentPrice, priceHistory, selectedExchanges, dimensions, timeWindowSeconds, priceZoom, timeOffset, showMinimap, layoutMode, priceRangePercent]);
 
   /**
    * MULTI-LAYOUT RENDER FUNCTION V4
@@ -588,15 +591,15 @@ const OrderbookHeatmap = () => {
     const displayMaxTime = new Date(maxTime.getTime() - timeOffset);
     const displayMinTime = new Date(displayMaxTime.getTime() - timeWindowMs);
   
+    // FIXED: Use constant percentage range to prevent auto-zoom
     let displayMinPrice, displayMaxPrice;
     if (currentPrice) {
-      const minPrice = d3.min(sortedPrices);
-      const maxPrice = d3.max(sortedPrices);
-      const priceSpread = Math.max(maxPrice - currentPrice, currentPrice - minPrice);
-      const halfRange = Math.max(priceSpread * 1.2, currentPrice * 0.03) / priceZoom;
-      displayMinPrice = currentPrice - halfRange;
-      displayMaxPrice = currentPrice + halfRange;
+      // Fixed range based on priceRangePercent setting (default 2% = 1% up, 1% down)
+      const fixedRange = currentPrice * (priceRangePercent / 100) / priceZoom;
+      displayMinPrice = currentPrice - fixedRange;
+      displayMaxPrice = currentPrice + fixedRange;
     } else {
+      // Fallback if no current price: use data range
       const minPrice = d3.min(sortedPrices);
       const maxPrice = d3.max(sortedPrices);
       const priceRange = maxPrice - minPrice;
@@ -1299,7 +1302,30 @@ const OrderbookHeatmap = () => {
                 </label>
               </div>
 
-              <div className="stat-row">
+              {/* Price Range Control */}
+              <div className="terminal-input-group" style={{marginTop: '12px'}}>
+                <label className="terminal-label">
+                  <Maximize2 size={14} />
+                  <span>PRICE RANGE</span>
+                </label>
+                <select 
+                  className="terminal-select"
+                  value={priceRangePercent}
+                  onChange={(e) => setPriceRangePercent(Number(e.target.value))}
+                >
+                  <option value={0.5}>0.5% (Tight)</option>
+                  <option value={1.0}>1.0%</option>
+                  <option value={2.0}>2.0% (Default)</option>
+                  <option value={3.0}>3.0%</option>
+                  <option value={5.0}>5.0%</option>
+                  <option value={10.0}>10.0% (Wide)</option>
+                </select>
+                <div style={{fontSize: '10px', color: '#64748b', marginTop: '4px'}}>
+                  Controls visible price range around current price
+                </div>
+              </div>
+
+              <div className="stat-row" style={{marginTop: '12px'}}>
                 <div className="stat-item">
                   <Maximize2 size={14} />
                   <span>Zoom: {priceZoom.toFixed(2)}x</span>
