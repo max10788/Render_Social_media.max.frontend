@@ -16,6 +16,10 @@ import * as d3 from 'd3';
 import useOrderbookHeatmap from '../hooks/useOrderbookHeatmap';
 import useDexPools from '../hooks/useDexPools';
 import './OrderbookHeatmap.css';
+import { 
+  Layers, ChevronDown, ChevronRight, Info, 
+  DollarSign, Grid3x3, Zap, Eye, EyeOff, Maximize2 
+} from 'lucide-react';
 
 const OrderbookHeatmap = () => {
   // ========== HOOKS ==========
