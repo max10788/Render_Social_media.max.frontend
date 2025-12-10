@@ -13,13 +13,35 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { 
+  TrendingUp, 
+  BarChart3, 
+  Settings, 
+  Layers, 
+  Clock, 
+  DollarSign,
+  Activity,
+  Zap,
+  RefreshCw,
+  Play,
+  Square,
+  Grid3x3,
+  Maximize2,
+  Minimize2,
+  Search,
+  Filter,
+  Download,
+  Upload,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronRight,
+  Info,
+  AlertCircle
+} from 'lucide-react';
 import useOrderbookHeatmap from '../hooks/useOrderbookHeatmap';
 import useDexPools from '../hooks/useDexPools';
 import './OrderbookHeatmap.css';
-import { 
-  Layers, ChevronDown, ChevronRight, Info, 
-  DollarSign, Grid3x3, Zap, Eye, EyeOff, Maximize2 
-} from 'lucide-react';
 
 const OrderbookHeatmap = () => {
   // ========== HOOKS ==========
@@ -93,6 +115,15 @@ const OrderbookHeatmap = () => {
   
   // ========== LAYOUT SYSTEM ==========
   const [layoutMode, setLayoutMode] = useState('combined_stacked'); // NEW!
+  
+  // ========== BLOOMBERG STYLE PANELS ==========
+  const [expandedSections, setExpandedSections] = useState({
+    layout: true,
+    symbol: true,
+    exchanges: true,
+    parameters: true,
+    advanced: false,
+  });
 
   // Available layouts
   const LAYOUTS = {
@@ -401,6 +432,16 @@ const OrderbookHeatmap = () => {
   const handleResetView = () => {
     setPriceZoom(1.0);
     setTimeOffset(0);
+  };
+
+  /**
+   * Toggle section expand/collapse (Bloomberg style)
+   */
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   };
 
   const calculateVolumeBars = (priceData, timeInterval = 60000) => {
