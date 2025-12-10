@@ -1402,6 +1402,8 @@ const OrderbookHeatmap = () => {
   </div>
 )}
 
+      {/* View Controls - Available in both CEX and DEX modes */}
+      <div className="view-controls-global">
         <label className="checkbox-label">
           <input type="checkbox" checked={showMinimap} onChange={(e) => setShowMinimap(e.target.checked)} />
           <span>📍 Show Minimap</span>
