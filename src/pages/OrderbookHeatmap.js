@@ -25,7 +25,7 @@ import {
   RefreshCw,
   Play,
   Square,
-  Grid2X2,
+  LayoutGrid,
   Maximize2,
   Minimize2,
   Search,
@@ -1233,7 +1233,7 @@ const OrderbookHeatmap = () => {
               <div className="param-grid">
                 <div className="terminal-input-group">
                   <label className="terminal-label">
-                    <Grid2X2 size={14} />
+                    <LayoutGrid size={14} />
                     <span>BUCKET SIZE</span>
                   </label>
                   <select 
