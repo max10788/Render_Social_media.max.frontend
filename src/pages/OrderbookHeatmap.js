@@ -418,6 +418,24 @@ const OrderbookHeatmap = () => {
   };
 
   const handleModeSwitch = (newMode) => {
+    // Warn if switching modes while analysis is running
+    if (isRunning && mode !== newMode) {
+      const confirmSwitch = window.confirm(
+        `⚠️ Analysis is currently running in ${mode.toUpperCase()} mode.\n\n` +
+        `Switching to ${newMode.toUpperCase()} mode will stop the current analysis.\n\n` +
+        `Do you want to continue?`
+      );
+      
+      if (!confirmSwitch) {
+        return; // User cancelled
+      }
+      
+      // Stop current analysis
+      handleStop().then(() => {
+        console.log(`✅ Stopped ${mode.toUpperCase()} mode, switching to ${newMode.toUpperCase()}`);
+      });
+    }
+    
     setMode(newMode);
     setShowDexPanel(newMode === 'dex');
     // Clear local error when switching modes
@@ -434,13 +452,26 @@ const OrderbookHeatmap = () => {
     }
     
     try {
+      // CRITICAL: Stop any existing aggregator first
+      if (isRunning) {
+        console.log('🛑 Stopping existing aggregator before starting DEX...');
+        await handleStop();
+        // Wait a moment for cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
       const dexSymbol = `${selectedPool.token0.symbol}/${selectedPool.token1.symbol}`;
       setSymbol(dexSymbol);
+      
+      // Start with ONLY the DEX exchange
       await handleStart({
+        exchanges: ['uniswap_v3'],  // Only DEX, no CEX
         dex_pools: {
           uniswap_v3: selectedPool.address
         }
       });
+      
+      console.log('✅ DEX pool started successfully');
     } catch (err) {
       console.error('Failed to start DEX analysis:', err);
       setLocalError(`Failed to start DEX analysis: ${err.message}`);
@@ -1130,13 +1161,36 @@ const OrderbookHeatmap = () => {
           {selectedPool && (
             <div className="selected-pool-details">
               <h4>Selected Pool: {selectedPool.token0.symbol}/{selectedPool.token1.symbol}</h4>
-              <button
-                className="btn btn-success"
-                onClick={handleStartWithDex}
-                disabled={isRunning}
-              >
-                ▶️ Start with this Pool
-              </button>
+              <div style={{display: 'flex', gap: '12px', marginTop: '12px'}}>
+                <button
+                  className="btn btn-success"
+                  onClick={handleStartWithDex}
+                  disabled={isRunning}
+                >
+                  ▶️ Start with this Pool
+                </button>
+                {isRunning && (
+                  <button
+                    className="btn btn-danger"
+                    onClick={handleStop}
+                  >
+                    ⏹️ Stop Analysis
+                  </button>
+                )}
+              </div>
+              {isRunning && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '8px 12px',
+                  background: 'rgba(34, 197, 94, 0.1)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  color: '#22c55e'
+                }}>
+                  ✅ Analysis running for {selectedPool.token0.symbol}/{selectedPool.token1.symbol}
+                </div>
+              )}
             </div>
           )}
         </div>
