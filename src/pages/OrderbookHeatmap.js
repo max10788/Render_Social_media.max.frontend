@@ -457,24 +457,15 @@ const OrderbookHeatmap = () => {
         console.log('🛑 Stopping existing aggregator before starting DEX...');
         await handleStop();
         // Wait a moment for cleanup
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
       const dexSymbol = `${selectedPool.token0.symbol}/${selectedPool.token1.symbol}`;
       console.log(`🦄 Starting DEX pool: ${dexSymbol}`);
       console.log(`📍 Pool address: ${selectedPool.address}`);
       
-      // CRITICAL: Update selectedExchanges to ONLY include uniswap_v3
-      setSelectedExchanges(['uniswap_v3']);
-      
-      // Update symbol
-      setSymbol(dexSymbol);
-      
-      // Wait for state to update
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Start with ONLY the DEX exchange - pass explicit config
-      const startConfig = {
+      // CRITICAL: Call API directly to ensure correct parameters
+      const startPayload = {
         symbol: dexSymbol,
         exchanges: ['uniswap_v3'],  // Only DEX, no CEX
         price_bucket_size: priceBucketSize,
@@ -484,12 +475,35 @@ const OrderbookHeatmap = () => {
         }
       };
       
-      console.log('📤 Starting with config:', startConfig);
-      await handleStart(startConfig);
+      console.log('📤 Sending start request:', JSON.stringify(startPayload, null, 2));
+      
+      // Make direct API call
+      const response = await fetch('/api/v1/orderbook-heatmap/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(startPayload)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to start heatmap');
+      }
+      
+      const data = await response.json();
+      console.log('✅ Backend response:', data);
+      
+      // Update local state
+      setSelectedExchanges(['uniswap_v3']);
+      setSymbol(dexSymbol);
+      
+      // Trigger a status refresh to update UI
+      await fetchStatus();
       
       console.log('✅ DEX pool started successfully');
     } catch (err) {
-      console.error('Failed to start DEX analysis:', err);
+      console.error('❌ Failed to start DEX analysis:', err);
       setLocalError(`Failed to start DEX analysis: ${err.message}`);
     }
   };
