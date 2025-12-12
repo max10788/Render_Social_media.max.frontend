@@ -461,15 +461,31 @@ const OrderbookHeatmap = () => {
       }
       
       const dexSymbol = `${selectedPool.token0.symbol}/${selectedPool.token1.symbol}`;
+      console.log(`🦄 Starting DEX pool: ${dexSymbol}`);
+      console.log(`📍 Pool address: ${selectedPool.address}`);
+      
+      // CRITICAL: Update selectedExchanges to ONLY include uniswap_v3
+      setSelectedExchanges(['uniswap_v3']);
+      
+      // Update symbol
       setSymbol(dexSymbol);
       
-      // Start with ONLY the DEX exchange
-      await handleStart({
+      // Wait for state to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Start with ONLY the DEX exchange - pass explicit config
+      const startConfig = {
+        symbol: dexSymbol,
         exchanges: ['uniswap_v3'],  // Only DEX, no CEX
+        price_bucket_size: priceBucketSize,
+        time_window_seconds: timeWindowSeconds,
         dex_pools: {
           uniswap_v3: selectedPool.address
         }
-      });
+      };
+      
+      console.log('📤 Starting with config:', startConfig);
+      await handleStart(startConfig);
       
       console.log('✅ DEX pool started successfully');
     } catch (err) {
