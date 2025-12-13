@@ -140,6 +140,15 @@ export const API_ENDPOINTS = {
   HYBRID_SUPPORTED_DEX: `${API_BASE_URL}/api/v1/hybrid/supported-dex`,
   HYBRID_SUPPORTED_SYMBOLS: `${API_BASE_URL}/api/v1/hybrid/supported-symbols`,
   HYBRID_SUPPORTED_TIMEFRAMES: `${API_BASE_URL}/api/v1/hybrid/supported-timeframes`,
+
+  // 🆕 ICEBERG ORDERS ENDPOINTS - NEU HINZUFÜGEN:
+  ICEBERG_ORDERS: `/api/iceberg-orders`,
+  ICEBERG_ORDERS_HISTORY: `/api/iceberg-orders/history`,
+  ICEBERG_ORDERS_ANALYZE_DEPTH: `/api/iceberg-orders/analyze-depth`,
+  ICEBERG_ORDERS_STATS: `/api/iceberg-orders/stats`,
+  ICEBERG_ORDERS_EXCHANGES: (exchange) => `/api/iceberg-orders/exchanges/${exchange}/symbols`,
+  ICEBERG_ORDERS_WS: `/api/iceberg-orders/ws`,
+  
 };
 
 export const ERROR_CODES = {
