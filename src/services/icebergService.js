@@ -6,12 +6,6 @@ import { API_BASE_URL } from '../config/api';
 
 /**
  * Fetch iceberg orders for a specific symbol and exchange
- * @param {Object} params - Request parameters
- * @param {string} params.exchange - Exchange name (e.g., 'binance', 'coinbase')
- * @param {string} params.symbol - Trading pair symbol (e.g., 'BTC/USDT')
- * @param {string} params.timeframe - Timeframe for analysis (e.g., '5m', '1h', '1d')
- * @param {number} params.threshold - Detection threshold (0-1)
- * @returns {Promise<Object>} Iceberg order data
  */
 export const getIcebergOrders = async ({ exchange, symbol, timeframe, threshold }) => {
   try {
@@ -21,8 +15,8 @@ export const getIcebergOrders = async ({ exchange, symbol, timeframe, threshold 
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        credentials: 'include'
+        }
+        // credentials: 'include' ENTFERNT!
       }
     );
 
@@ -40,19 +34,16 @@ export const getIcebergOrders = async ({ exchange, symbol, timeframe, threshold 
 
 /**
  * Fetch available trading symbols for a specific exchange
- * @param {string} exchange - Exchange name
- * @returns {Promise<Array<string>>} List of available symbols
  */
 export const getAvailableSymbols = async (exchange) => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/exchanges/${exchange}/symbols`,
+      `${API_BASE_URL}/iceberg-orders/exchanges/${exchange}/symbols`,
       {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        credentials: 'include'
+        }
       }
     );
 
@@ -70,12 +61,6 @@ export const getAvailableSymbols = async (exchange) => {
 
 /**
  * Fetch historical iceberg order data
- * @param {Object} params - Request parameters
- * @param {string} params.exchange - Exchange name
- * @param {string} params.symbol - Trading pair symbol
- * @param {string} params.startDate - Start date (ISO string)
- * @param {string} params.endDate - End date (ISO string)
- * @returns {Promise<Object>} Historical iceberg data
  */
 export const getHistoricalIcebergData = async ({ exchange, symbol, startDate, endDate }) => {
   try {
@@ -85,8 +70,7 @@ export const getHistoricalIcebergData = async ({ exchange, symbol, startDate, en
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        credentials: 'include'
+        }
       }
     );
 
@@ -104,16 +88,9 @@ export const getHistoricalIcebergData = async ({ exchange, symbol, startDate, en
 
 /**
  * Subscribe to real-time iceberg order updates via WebSocket
- * @param {Object} params - Subscription parameters
- * @param {string} params.exchange - Exchange name
- * @param {string} params.symbol - Trading pair symbol
- * @param {Function} params.onUpdate - Callback for updates
- * @returns {Function} Unsubscribe function
  */
 export const subscribeToIcebergUpdates = ({ exchange, symbol, onUpdate }) => {
-  // This would typically use WebSocket
-  // Implementation depends on your WebSocket setup
-  const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/iceberg-orders`;
+  const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/iceberg-orders/ws`;
   let ws;
 
   try {
@@ -159,11 +136,6 @@ export const subscribeToIcebergUpdates = ({ exchange, symbol, onUpdate }) => {
 
 /**
  * Analyze order book depth to detect potential icebergs
- * @param {Object} params - Analysis parameters
- * @param {string} params.exchange - Exchange name
- * @param {string} params.symbol - Trading pair symbol
- * @param {number} params.depth - Order book depth to analyze
- * @returns {Promise<Object>} Analysis results
  */
 export const analyzeOrderBookDepth = async ({ exchange, symbol, depth = 100 }) => {
   try {
@@ -173,8 +145,7 @@ export const analyzeOrderBookDepth = async ({ exchange, symbol, depth = 100 }) =
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        credentials: 'include'
+        }
       }
     );
 
@@ -192,10 +163,6 @@ export const analyzeOrderBookDepth = async ({ exchange, symbol, depth = 100 }) =
 
 /**
  * Get iceberg detection statistics
- * @param {Object} params - Request parameters
- * @param {string} params.exchange - Exchange name
- * @param {string} params.period - Time period (e.g., '24h', '7d', '30d')
- * @returns {Promise<Object>} Statistics data
  */
 export const getIcebergStats = async ({ exchange, period = '24h' }) => {
   try {
@@ -205,8 +172,7 @@ export const getIcebergStats = async ({ exchange, period = '24h' }) => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        credentials: 'include'
+        }
       }
     );
 
