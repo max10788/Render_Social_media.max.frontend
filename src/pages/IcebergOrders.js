@@ -1,121 +1,80 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import './IcebergOrders.css';
-import ExchangeSelector from '../components/ui/ExchangeSelector';
-import InfoTooltip from '../components/ui/InfoTooltip';
+import React, { useState, useEffect } from 'react';
 import useIcebergOrders from '../hooks/useIcebergOrders';
+import IcebergCandleChart from '../components/IcebergCandleChart';
+import './IcebergOrders.css';
 
 const IcebergOrders = () => {
   const [selectedExchange, setSelectedExchange] = useState('binance');
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
-  const [timeframe, setTimeframe] = useState('1h');
-  const [threshold, setThreshold] = useState(0.05); // 5% threshold
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  
-  const {
-    icebergData,
-    loading,
-    error,
-    fetchIcebergOrders,
-    symbols
-  } = useIcebergOrders(selectedExchange);
+  const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
+  const [threshold, setThreshold] = useState(0.05);
+  const [isScanning, setIsScanning] = useState(false);
+
+  const { icebergData, loading, error, fetchIcebergOrders, symbols } = useIcebergOrders(selectedExchange);
+
+  const exchanges = [
+    { value: 'binance', label: 'Binance' },
+    { value: 'coinbase', label: 'Coinbase' },
+    { value: 'kraken', label: 'Kraken' }
+  ];
+
+  const timeframes = [
+    { value: '1m', label: '1 Minute' },
+    { value: '5m', label: '5 Minutes' },
+    { value: '15m', label: '15 Minutes' },
+    { value: '1h', label: '1 Hour' },
+    { value: '4h', label: '4 Hours' },
+    { value: '1d', label: '1 Day' }
+  ];
+
+  const handleStartScan = async () => {
+    setIsScanning(true);
+    await fetchIcebergOrders(selectedSymbol, selectedTimeframe, threshold);
+    setIsScanning(false);
+  };
 
   useEffect(() => {
-    if (selectedSymbol) {
-      fetchIcebergOrders(selectedSymbol, timeframe, threshold);
-    }
-  }, [selectedSymbol, timeframe, threshold, selectedExchange, fetchIcebergOrders]);
-
-  useEffect(() => {
-    if (!autoRefresh) return;
-    
-    const interval = setInterval(() => {
-      if (selectedSymbol) {
-        fetchIcebergOrders(selectedSymbol, timeframe, threshold);
-      }
-    }, 30000); // Refresh every 30 seconds
-    
-    return () => clearInterval(interval);
-  }, [autoRefresh, selectedSymbol, timeframe, threshold, fetchIcebergOrders]);
-
-  const handleSymbolChange = (e) => {
-    setSelectedSymbol(e.target.value);
-  };
-
-  const handleThresholdChange = (e) => {
-    setThreshold(parseFloat(e.target.value) / 100);
-  };
-
-  const formatNumber = (num) => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(2) + 'M';
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(2) + 'K';
-    }
-    return num.toFixed(2);
-  };
-
-  const getIcebergType = (order) => {
-    if (order.hiddenVolume > order.visibleVolume * 3) {
-      return 'large';
-    } else if (order.hiddenVolume > order.visibleVolume) {
-      return 'medium';
-    }
-    return 'small';
-  };
-
-  const renderIcebergIndicator = (order) => {
-    const type = getIcebergType(order);
-    const hiddenPercentage = (order.hiddenVolume / (order.hiddenVolume + order.visibleVolume)) * 100;
-    
-    return (
-      <div className={`iceberg-indicator iceberg-${type}`}>
-        <div className="iceberg-visual">
-          <div className="visible-portion" style={{ height: `${100 - hiddenPercentage}%` }}>
-            <span className="portion-label">Visible</span>
-          </div>
-          <div className="hidden-portion" style={{ height: `${hiddenPercentage}%` }}>
-            <span className="portion-label">Hidden</span>
-          </div>
-        </div>
-        <div className="iceberg-stats">
-          <div className="stat">
-            <span className="stat-label">Visible:</span>
-            <span className="stat-value">{formatNumber(order.visibleVolume)}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Hidden:</span>
-            <span className="stat-value">{formatNumber(order.hiddenVolume)}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Ratio:</span>
-            <span className="stat-value">{(order.hiddenVolume / order.visibleVolume).toFixed(2)}x</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
+    // Auto-start initial scan
+    handleStartScan();
+  }, []);
 
   return (
     <div className="iceberg-orders-page">
+      {/* Header */}
       <div className="page-header">
-        <h1>
-          Iceberg Orders Detection
-          <InfoTooltip text="Detect and analyze hidden iceberg orders on centralized and decentralized exchanges" />
-        </h1>
+        <div className="header-content">
+          <h1 className="page-title">
+            <span className="title-icon">🧊</span>
+            Iceberg Orders Detection
+          </h1>
+          <p className="page-description">
+            Detect hidden large orders (icebergs) on cryptocurrency exchanges
+          </p>
+        </div>
       </div>
 
+      {/* Controls */}
       <div className="controls-panel">
         <div className="control-group">
           <label>Exchange</label>
-          <ExchangeSelector
-            selectedExchange={selectedExchange}
-            onExchangeChange={setSelectedExchange}
-          />
+          <select 
+            value={selectedExchange} 
+            onChange={(e) => setSelectedExchange(e.target.value)}
+            className="control-select"
+          >
+            {exchanges.map(ex => (
+              <option key={ex.value} value={ex.value}>{ex.label}</option>
+            ))}
+          </select>
         </div>
 
         <div className="control-group">
-          <label>Trading Pair</label>
-          <select value={selectedSymbol} onChange={handleSymbolChange}>
+          <label>Symbol</label>
+          <select 
+            value={selectedSymbol} 
+            onChange={(e) => setSelectedSymbol(e.target.value)}
+            className="control-select"
+          >
             {symbols.map(symbol => (
               <option key={symbol} value={symbol}>{symbol}</option>
             ))}
@@ -124,156 +83,224 @@ const IcebergOrders = () => {
 
         <div className="control-group">
           <label>Timeframe</label>
-          <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)}>
-            <option value="5m">5 Minutes</option>
-            <option value="15m">15 Minutes</option>
-            <option value="1h">1 Hour</option>
-            <option value="4h">4 Hours</option>
-            <option value="1d">1 Day</option>
+          <select 
+            value={selectedTimeframe} 
+            onChange={(e) => setSelectedTimeframe(e.target.value)}
+            className="control-select"
+          >
+            {timeframes.map(tf => (
+              <option key={tf.value} value={tf.value}>{tf.label}</option>
+            ))}
           </select>
         </div>
 
         <div className="control-group">
-          <label>Detection Threshold (%)</label>
+          <label>Threshold: {(threshold * 100).toFixed(0)}%</label>
           <input
             type="range"
-            min="1"
-            max="20"
-            value={threshold * 100}
-            onChange={handleThresholdChange}
+            min="0.01"
+            max="0.2"
+            step="0.01"
+            value={threshold}
+            onChange={(e) => setThreshold(parseFloat(e.target.value))}
+            className="control-slider"
           />
-          <span className="threshold-value">{(threshold * 100).toFixed(0)}%</span>
         </div>
 
-        <div className="control-group">
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-            />
-            Auto-refresh (30s)
-          </label>
-        </div>
+        <button 
+          onClick={handleStartScan}
+          disabled={loading || isScanning}
+          className="scan-button"
+        >
+          {loading || isScanning ? (
+            <>
+              <span className="spinner"></span>
+              Scanning...
+            </>
+          ) : (
+            <>
+              <span>🔍</span>
+              Start Scan
+            </>
+          )}
+        </button>
       </div>
 
-      {loading && (
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Scanning for iceberg orders...</p>
-        </div>
-      )}
-
+      {/* Error Display */}
       {error && (
-        <div className="error-container">
-          <p>Error: {error}</p>
+        <div className="error-banner">
+          <span className="error-icon">⚠️</span>
+          <span>{error}</span>
         </div>
       )}
 
-      {!loading && !error && icebergData && (
-        <>
-          <div className="summary-cards">
-            <div className="summary-card">
-              <h3>Total Detected</h3>
-              <div className="card-value">{icebergData.totalDetected || 0}</div>
-            </div>
-            <div className="summary-card">
-              <h3>Buy Orders</h3>
-              <div className="card-value buy">{icebergData.buyOrders || 0}</div>
-            </div>
-            <div className="summary-card">
-              <h3>Sell Orders</h3>
-              <div className="card-value sell">{icebergData.sellOrders || 0}</div>
-            </div>
-            <div className="summary-card">
-              <h3>Total Hidden Volume</h3>
-              <div className="card-value">
-                {formatNumber(icebergData.totalHiddenVolume || 0)}
-              </div>
+      {/* Statistics Cards */}
+      {icebergData && (
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon">🎯</div>
+            <div className="stat-content">
+              <div className="stat-value">{icebergData.totalDetected}</div>
+              <div className="stat-label">Total Detected</div>
             </div>
           </div>
 
-          <div className="orders-grid">
-            <div className="buy-orders">
-              <h2 className="section-title buy">Buy Iceberg Orders</h2>
-              <div className="orders-list">
-                {icebergData.buyIcebergs && icebergData.buyIcebergs.length > 0 ? (
-                  icebergData.buyIcebergs.map((order, idx) => (
-                    <div key={idx} className="order-card buy-order">
-                      <div className="order-header">
-                        <span className="order-price">${order.price.toFixed(2)}</span>
-                        <span className="order-time">
-                          {new Date(order.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      {renderIcebergIndicator(order)}
-                      <div className="order-confidence">
-                        <span>Confidence:</span>
-                        <div className="confidence-bar">
-                          <div 
-                            className="confidence-fill"
-                            style={{ width: `${order.confidence * 100}%` }}
-                          ></div>
-                        </div>
-                        <span>{(order.confidence * 100).toFixed(0)}%</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="no-orders">No buy iceberg orders detected</div>
-                )}
-              </div>
-            </div>
-
-            <div className="sell-orders">
-              <h2 className="section-title sell">Sell Iceberg Orders</h2>
-              <div className="orders-list">
-                {icebergData.sellIcebergs && icebergData.sellIcebergs.length > 0 ? (
-                  icebergData.sellIcebergs.map((order, idx) => (
-                    <div key={idx} className="order-card sell-order">
-                      <div className="order-header">
-                        <span className="order-price">${order.price.toFixed(2)}</span>
-                        <span className="order-time">
-                          {new Date(order.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      {renderIcebergIndicator(order)}
-                      <div className="order-confidence">
-                        <span>Confidence:</span>
-                        <div className="confidence-bar">
-                          <div 
-                            className="confidence-fill"
-                            style={{ width: `${order.confidence * 100}%` }}
-                          ></div>
-                        </div>
-                        <span>{(order.confidence * 100).toFixed(0)}%</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="no-orders">No sell iceberg orders detected</div>
-                )}
-              </div>
+          <div className="stat-card buy">
+            <div className="stat-icon">📈</div>
+            <div className="stat-content">
+              <div className="stat-value">{icebergData.buyOrders}</div>
+              <div className="stat-label">Buy Icebergs</div>
             </div>
           </div>
 
-          <div className="detection-timeline">
-            <h2>Detection Timeline</h2>
-            <div className="timeline-chart">
-              {icebergData.timeline && icebergData.timeline.map((point, idx) => (
-                <div key={idx} className="timeline-point" style={{ left: `${(idx / icebergData.timeline.length) * 100}%` }}>
-                  <div className={`point-marker ${point.side}`}></div>
-                  <div className="point-tooltip">
-                    <div>{point.side}</div>
-                    <div>{formatNumber(point.volume)}</div>
-                    <div>{new Date(point.timestamp).toLocaleTimeString()}</div>
-                  </div>
-                </div>
-              ))}
+          <div className="stat-card sell">
+            <div className="stat-icon">📉</div>
+            <div className="stat-content">
+              <div className="stat-value">{icebergData.sellOrders}</div>
+              <div className="stat-label">Sell Icebergs</div>
             </div>
           </div>
-        </>
+
+          <div className="stat-card">
+            <div className="stat-icon">💰</div>
+            <div className="stat-content">
+              <div className="stat-value">
+                {icebergData.totalHiddenVolume.toFixed(2)}
+              </div>
+              <div className="stat-label">Hidden Volume</div>
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* Main Chart */}
+      <IcebergCandleChart 
+        icebergData={icebergData}
+        symbol={selectedSymbol}
+        timeframe={selectedTimeframe}
+      />
+
+      {/* Detected Orders List */}
+      {icebergData && icebergData.totalDetected > 0 && (
+        <div className="detected-orders-section">
+          <h2 className="section-title">Detected Iceberg Orders</h2>
+          
+          <div className="orders-grid">
+            {/* Buy Orders */}
+            {icebergData.buyIcebergs.length > 0 && (
+              <div className="orders-column buy">
+                <h3 className="column-title">
+                  <span className="title-icon">📈</span>
+                  Buy Icebergs ({icebergData.buyIcebergs.length})
+                </h3>
+                <div className="orders-list">
+                  {icebergData.buyIcebergs.map((order, idx) => (
+                    <div key={idx} className="order-card buy">
+                      <div className="order-header">
+                        <span className="order-price">${order.price?.toFixed(2) || 'N/A'}</span>
+                        <span className="order-confidence">
+                          {((order.confidence || 0) * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="order-details">
+                        <div className="detail-row">
+                          <span className="detail-label">Visible:</span>
+                          <span className="detail-value">{(order.visibleVolume || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="detail-label">Hidden:</span>
+                          <span className="detail-value highlight">{(order.hiddenVolume || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="detail-label">Total:</span>
+                          <span className="detail-value total">
+                            {((order.visibleVolume || 0) + (order.hiddenVolume || 0)).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sell Orders */}
+            {icebergData.sellIcebergs.length > 0 && (
+              <div className="orders-column sell">
+                <h3 className="column-title">
+                  <span className="title-icon">📉</span>
+                  Sell Icebergs ({icebergData.sellIcebergs.length})
+                </h3>
+                <div className="orders-list">
+                  {icebergData.sellIcebergs.map((order, idx) => (
+                    <div key={idx} className="order-card sell">
+                      <div className="order-header">
+                        <span className="order-price">${order.price?.toFixed(2) || 'N/A'}</span>
+                        <span className="order-confidence">
+                          {((order.confidence || 0) * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="order-details">
+                        <div className="detail-row">
+                          <span className="detail-label">Visible:</span>
+                          <span className="detail-value">{(order.visibleVolume || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="detail-label">Hidden:</span>
+                          <span className="detail-value highlight">{(order.hiddenVolume || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="detail-label">Total:</span>
+                          <span className="detail-value total">
+                            {((order.visibleVolume || 0) + (order.hiddenVolume || 0)).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Info Section */}
+      <div className="info-section">
+        <h3>ℹ️ About Iceberg Orders</h3>
+        <p>
+          Iceberg orders are large orders that are split into smaller visible portions to hide the true order size.
+          This tool detects potential iceberg orders by analyzing orderbook depth, trade flow, and volume patterns.
+        </p>
+        <div className="info-grid">
+          <div className="info-card">
+            <h4>🔍 Detection Methods</h4>
+            <ul>
+              <li>Trade flow analysis</li>
+              <li>Order refill patterns</li>
+              <li>Volume anomaly detection</li>
+            </ul>
+          </div>
+          <div className="info-card">
+            <h4>📊 How to Use</h4>
+            <ul>
+              <li>Select exchange and symbol</li>
+              <li>Adjust detection threshold</li>
+              <li>Hover over candles with 🧊 markers</li>
+              <li>View horizontal bars showing order execution</li>
+            </ul>
+          </div>
+          <div className="info-card">
+            <h4>⚡ Features</h4>
+            <ul>
+              <li>Real-time detection</li>
+              <li>Interactive candlestick chart</li>
+              <li>Execution tracking</li>
+              <li>Confidence scoring</li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
