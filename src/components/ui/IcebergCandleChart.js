@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart } from 'lightweight-charts';
-import { getCandleData } from '../services/candleService';
+import { getCandleData } from '../../services/candleService';
 import './IcebergCandleChart.css';
 
 const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binance' }) => {
