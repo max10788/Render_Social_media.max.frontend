@@ -10,12 +10,13 @@ import WalletAnalyses from './pages/WalletAnalyses';
 import ScanJobs from './pages/ScanJobs';
 import TransactionNetworkPage from './components/ui/TransactionNetworkPage';
 import PriceMovers from './pages/PriceMovers';
+import OrderbookHeatmap from './pages/OrderbookHeatmap';
+import IcebergOrders from './pages/IcebergOrders';  // ← NEU
 import Login from './auth/Login/Login';
 import Register from './auth/Register/Register';
 import Account from './auth/Account/Account';
 import ProtectedRoute from './auth/ProtectedRoute';
 import './App.css';
-import OrderbookHeatmap from './pages/OrderbookHeatmap';
 
 console.log('🎯 App.js wird geladen');
 console.log('✅ Alle App-Imports erfolgreich');
@@ -40,6 +41,7 @@ function App() {
               <Route path="/network" element={<TransactionNetworkPage />} />
               <Route path="/price-movers" element={<PriceMovers />} />
               <Route path="/orderbook-heatmap" element={<OrderbookHeatmap />} />
+              <Route path="/iceberg-orders" element={<IcebergOrders />} />  {/* ← NEU */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
@@ -61,5 +63,4 @@ function App() {
 }
 
 console.log('✅ App-Komponente definiert');
-
 export default App;
