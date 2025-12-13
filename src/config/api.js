@@ -102,6 +102,14 @@ export const API_CONFIG = {
     DEX_HEATMAP_START: `/api/v1/orderbook-heatmap/heatmap/start-dex`,
     DEX_TVL_HISTORY: (poolAddress) => `/api/v1/orderbook-heatmap/dex/tvl-history/${poolAddress}`,
 
+    // 🆕 ICEBERG ORDERS ENDPOINTS - NEU HINZUFÜGEN:
+    ICEBERG_ORDERS: `/api/iceberg-orders`,
+    ICEBERG_ORDERS_HISTORY: `/api/iceberg-orders/history`,
+    ICEBERG_ORDERS_ANALYZE_DEPTH: `/api/iceberg-orders/analyze-depth`,
+    ICEBERG_ORDERS_STATS: `/api/iceberg-orders/stats`,
+    ICEBERG_ORDERS_EXCHANGES: (exchange) => `/api/iceberg-orders/exchanges/${exchange}/symbols`,
+    ICEBERG_ORDERS_WS: `/api/iceberg-orders/ws`,
+    
     // Other Endpoints
     DATA: `/api/data`,
     TRACK_TRANSACTION: `/api/track-transaction-chain`,
