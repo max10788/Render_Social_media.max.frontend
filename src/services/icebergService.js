@@ -1,12 +1,5 @@
 import { API_BASE_URL } from '../config/api';
 
-/**
- * Service for detecting and analyzing iceberg orders on exchanges
- */
-
-/**
- * Fetch iceberg orders for a specific symbol and exchange
- */
 export const getIcebergOrders = async ({ exchange, symbol, timeframe, threshold }) => {
   try {
     const response = await fetch(
@@ -16,7 +9,6 @@ export const getIcebergOrders = async ({ exchange, symbol, timeframe, threshold 
         headers: {
           'Content-Type': 'application/json',
         }
-        // credentials: 'include' ENTFERNT!
       }
     );
 
@@ -32,9 +24,6 @@ export const getIcebergOrders = async ({ exchange, symbol, timeframe, threshold 
   }
 };
 
-/**
- * Fetch available trading symbols for a specific exchange
- */
 export const getAvailableSymbols = async (exchange) => {
   try {
     const response = await fetch(
@@ -59,9 +48,6 @@ export const getAvailableSymbols = async (exchange) => {
   }
 };
 
-/**
- * Fetch historical iceberg order data
- */
 export const getHistoricalIcebergData = async ({ exchange, symbol, startDate, endDate }) => {
   try {
     const response = await fetch(
@@ -86,9 +72,6 @@ export const getHistoricalIcebergData = async ({ exchange, symbol, startDate, en
   }
 };
 
-/**
- * Subscribe to real-time iceberg order updates via WebSocket
- */
 export const subscribeToIcebergUpdates = ({ exchange, symbol, onUpdate }) => {
   const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/iceberg-orders/ws`;
   let ws;
@@ -121,7 +104,6 @@ export const subscribeToIcebergUpdates = ({ exchange, symbol, onUpdate }) => {
     console.error('Error setting up WebSocket:', error);
   }
 
-  // Return unsubscribe function
   return () => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
@@ -134,9 +116,6 @@ export const subscribeToIcebergUpdates = ({ exchange, symbol, onUpdate }) => {
   };
 };
 
-/**
- * Analyze order book depth to detect potential icebergs
- */
 export const analyzeOrderBookDepth = async ({ exchange, symbol, depth = 100 }) => {
   try {
     const response = await fetch(
@@ -161,9 +140,6 @@ export const analyzeOrderBookDepth = async ({ exchange, symbol, depth = 100 }) =
   }
 };
 
-/**
- * Get iceberg detection statistics
- */
 export const getIcebergStats = async ({ exchange, period = '24h' }) => {
   try {
     const response = await fetch(
