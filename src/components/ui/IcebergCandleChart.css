@@ -27,6 +27,7 @@
   display: flex;
   gap: 1.5rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .legend-item {
@@ -35,6 +36,11 @@
   gap: 0.5rem;
   color: #d1d5db;
   font-size: 0.875rem;
+}
+
+.legend-item.hint {
+  color: #f59e0b;
+  font-weight: 500;
 }
 
 .legend-color {
@@ -64,6 +70,7 @@
   width: 100%;
   height: 500px;
   position: relative;
+  cursor: pointer;
 }
 
 /* Loading State */
@@ -97,28 +104,85 @@
 /* Orderbook Extension Overlay */
 .orderbook-extension-overlay {
   position: fixed;
-  top: 50%;
-  right: 2rem;
-  transform: translateY(-50%);
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  max-width: 500px;
+  gap: 0.75rem;
   animation: slideIn 0.3s ease-out;
+}
+
+.orderbook-extension-overlay.hover {
+  top: 2rem;
+  right: 2rem;
+  max-width: 300px;
+}
+
+.orderbook-extension-overlay.clicked {
+  top: 50%;
+  right: 2rem;
+  transform: translateY(-50%);
+  max-width: 500px;
 }
 
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(-50%) translateX(50px);
+    transform: translateX(50px);
   }
   to {
     opacity: 1;
-    transform: translateY(-50%) translateX(0);
+    transform: translateX(0);
   }
 }
 
+/* Extension Hint */
+.extension-hint {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid #f59e0b;
+  color: #f59e0b;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Compact Order (Hover) */
+.extension-order-compact {
+  background: rgba(17, 24, 39, 0.95);
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px solid #374151;
+  backdrop-filter: blur(10px);
+}
+
+.extension-order-compact.buy {
+  border-left: 3px solid #10b981;
+}
+
+.extension-order-compact.sell {
+  border-left: 3px solid #ef4444;
+}
+
+.compact-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.compact-price {
+  color: #f9fafb;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.compact-volume {
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+/* Full Extension Order (Click) */
 .extension-order {
   background: rgba(17, 24, 39, 0.98);
   border-radius: 12px;
@@ -134,6 +198,42 @@
 
 .extension-order.sell {
   border-left: 4px solid #ef4444;
+}
+
+.extension-header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #374151;
+}
+
+.extension-header-main h4 {
+  color: #f9fafb;
+  font-size: 1rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.close-button {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.125rem;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  background: rgba(239, 68, 68, 0.3);
+  transform: scale(1.1);
 }
 
 .extension-header {
@@ -316,7 +416,8 @@
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .orderbook-extension-overlay {
+  .orderbook-extension-overlay.hover,
+  .orderbook-extension-overlay.clicked {
     position: fixed;
     top: auto;
     bottom: 2rem;
@@ -351,7 +452,8 @@
     flex-wrap: wrap;
   }
   
-  .orderbook-extension-overlay {
+  .orderbook-extension-overlay.hover,
+  .orderbook-extension-overlay.clicked {
     bottom: 1rem;
     right: 0.5rem;
     left: 0.5rem;
