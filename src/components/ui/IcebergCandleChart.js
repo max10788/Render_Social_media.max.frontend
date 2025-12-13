@@ -8,9 +8,11 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const [hoveredCandle, setHoveredCandle] = useState(null);
+  const [clickedCandle, setClickedCandle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartData, setChartData] = useState(null);
+  const priceLineRefs = useRef([]);
 
   // Fetch real candle data and merge with iceberg data
   useEffect(() => {
@@ -41,11 +43,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
           startTime,
           endTime
         });
-        
-        // ← DEBUG: Zeig die Response
-        console.log('🔍 Candle Response:', candleResponse);
-        console.log('🔍 Candles Array:', candleResponse.candles);
-        
+
         const realCandles = candleResponse.candles || [];
 
         if (realCandles.length === 0) {
@@ -158,6 +156,41 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     return bestMatch;
   };
 
+  // Add price lines for clicked candle's icebergs
+  const addPriceLines = (candleTime) => {
+    if (!candleSeriesRef.current || !chartData) return;
+
+    // Remove old price lines
+    priceLineRefs.current.forEach(line => {
+      try {
+        candleSeriesRef.current.removePriceLine(line);
+      } catch (e) {
+        // Line might already be removed
+      }
+    });
+    priceLineRefs.current = [];
+
+    const icebergs = chartData.icebergMarkers[candleTime];
+    if (!icebergs || icebergs.length === 0) return;
+
+    // Add price line for each iceberg
+    icebergs.forEach((iceberg, idx) => {
+      const isBuy = iceberg.side === 'buy';
+      const totalVolume = iceberg.visibleVolume + iceberg.hiddenVolume;
+
+      const priceLine = candleSeriesRef.current.createPriceLine({
+        price: iceberg.price,
+        color: isBuy ? '#10b981' : '#ef4444',
+        lineWidth: 2,
+        lineStyle: 2, // Dashed
+        axisLabelVisible: true,
+        title: `${isBuy ? '🟢 BUY' : '🔴 SELL'} ${totalVolume.toFixed(2)}`,
+      });
+
+      priceLineRefs.current.push(priceLine);
+    });
+  };
+
   // Create/update chart
   useEffect(() => {
     if (!chartContainerRef.current || !chartData) return;
@@ -218,7 +251,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     });
     candleSeries.setMarkers(markers);
 
-    // Subscribe to crosshair move
+    // Subscribe to crosshair move (Hover)
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.point) {
         setHoveredCandle(null);
@@ -238,6 +271,30 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
       }
     });
 
+    // Subscribe to click events
+    chart.subscribeClick((param) => {
+      if (!param.time) return;
+
+      const icebergs = chartData.icebergMarkers[param.time];
+      if (icebergs && icebergs.length > 0) {
+        console.log('🎯 Clicked candle with icebergs:', param.time, icebergs);
+        setClickedCandle({
+          time: param.time,
+          orders: icebergs
+        });
+        addPriceLines(param.time);
+      } else {
+        // Clear lines if clicked on candle without icebergs
+        setClickedCandle(null);
+        priceLineRefs.current.forEach(line => {
+          try {
+            candleSeriesRef.current.removePriceLine(line);
+          } catch (e) {}
+        });
+        priceLineRefs.current = [];
+      }
+    });
+
     // Handle resize
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -252,17 +309,73 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
+      
+      // Remove price lines
+      priceLineRefs.current.forEach(line => {
+        try {
+          candleSeriesRef.current.removePriceLine(line);
+        } catch (e) {}
+      });
+      priceLineRefs.current = [];
+      
       chart.remove();
     };
   }, [chartData]);
 
-  // Orderbook Extension Overlay
+  // Orderbook Extension Overlay (for hover)
   const OrderbookExtension = () => {
     if (!hoveredCandle || !hoveredCandle.orders) return null;
 
     return (
-      <div className="orderbook-extension-overlay">
+      <div className="orderbook-extension-overlay hover">
+        <div className="extension-hint">
+          💡 Click candle to show price levels
+        </div>
         {hoveredCandle.orders.map((order, idx) => {
+          const isBuy = order.side === 'buy';
+          const totalVolume = order.visibleVolume + order.hiddenVolume;
+
+          return (
+            <div key={idx} className={`extension-order-compact ${isBuy ? 'buy' : 'sell'}`}>
+              <div className="compact-header">
+                <span className={`side-badge ${isBuy ? 'buy' : 'sell'}`}>
+                  {isBuy ? 'BUY' : 'SELL'}
+                </span>
+                <span className="compact-price">${order.price.toFixed(2)}</span>
+                <span className="compact-volume">{totalVolume.toFixed(2)}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Clicked Candle Details (full extension)
+  const ClickedCandleDetails = () => {
+    if (!clickedCandle || !clickedCandle.orders) return null;
+
+    return (
+      <div className="orderbook-extension-overlay clicked">
+        <div className="extension-header-main">
+          <h4>📍 Price Levels - {clickedCandle.orders.length} Iceberg(s)</h4>
+          <button 
+            className="close-button"
+            onClick={() => {
+              setClickedCandle(null);
+              priceLineRefs.current.forEach(line => {
+                try {
+                  candleSeriesRef.current.removePriceLine(line);
+                } catch (e) {}
+              });
+              priceLineRefs.current = [];
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {clickedCandle.orders.map((order, idx) => {
           const isBuy = order.side === 'buy';
           const totalVolume = order.visibleVolume + order.hiddenVolume;
           const executedPercent = (order.executedVolume / totalVolume) * 100;
@@ -403,6 +516,9 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
             <span className="legend-marker">🧊</span>
             Iceberg Detected ({Object.keys(chartData.icebergMarkers).length} candles)
           </span>
+          <span className="legend-item hint">
+            💡 Click candle with 🧊 to show price levels
+          </span>
         </div>
       </div>
 
@@ -415,8 +531,11 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
 
       <div ref={chartContainerRef} className="chart-container" />
 
-      {/* Orderbook Extension Overlay */}
-      {hoveredCandle && <OrderbookExtension />}
+      {/* Hover Extension (compact) */}
+      {hoveredCandle && !clickedCandle && <OrderbookExtension />}
+
+      {/* Clicked Extension (full details) */}
+      {clickedCandle && <ClickedCandleDetails />}
     </div>
   );
 };
