@@ -1,88 +1,162 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart } from 'lightweight-charts';
+import { getCandleData } from '../services/candleService';
 import './IcebergCandleChart.css';
 
-const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
+const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binance' }) => {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const [hoveredCandle, setHoveredCandle] = useState(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [chartData, setChartData] = useState(null);
 
-  // Generate candlestick data with iceberg markers
-  const generateChartData = () => {
-    if (!icebergData) return { candleData: [], icebergMarkers: {} };
-
-    const now = Date.now();
-    const candleData = [];
-    const icebergMarkers = {};
-    const numCandles = 50;
-
-    // Create base candlesticks
-    let basePrice = 42000;
-    for (let i = 0; i < numCandles; i++) {
-      const timestamp = Math.floor((now - (numCandles - i) * 60000) / 1000); // Unix timestamp in seconds
-      const open = basePrice + (Math.random() - 0.5) * 100;
-      const close = open + (Math.random() - 0.5) * 150;
-      const high = Math.max(open, close) + Math.random() * 50;
-      const low = Math.min(open, close) - Math.random() * 50;
-
-      candleData.push({
-        time: timestamp,
-        open,
-        high,
-        low,
-        close
-      });
-
-      basePrice = close;
-    }
-
-    // Add iceberg orders to random candles
-    const buyIcebergs = icebergData.buyIcebergs || [];
-    const sellIcebergs = icebergData.sellIcebergs || [];
-
-    [...buyIcebergs, ...sellIcebergs].forEach((iceberg, index) => {
-      const candleIndex = Math.floor(Math.random() * numCandles);
-      const candle = candleData[candleIndex];
-      
-      if (!icebergMarkers[candle.time]) {
-        icebergMarkers[candle.time] = [];
+  // Fetch real candle data and merge with iceberg data
+  useEffect(() => {
+    const fetchAndMergeData = async () => {
+      if (!icebergData) {
+        setLoading(false);
+        return;
       }
 
-      const price = iceberg.side === 'buy' 
-        ? candle.low - Math.random() * 50 
-        : candle.high + Math.random() * 50;
+      try {
+        setLoading(true);
+        setError(null);
 
-      const totalVolume = iceberg.visibleVolume + iceberg.hiddenVolume;
-      const executedVolume = totalVolume * (Math.random() * 0.3 + 0.2); // 20-50% executed
-      const remainingVisible = Math.max(0, iceberg.visibleVolume - executedVolume);
-      const estimatedHidden = iceberg.hiddenVolume * (1 - executedVolume / totalVolume);
+        // Calculate time range (last 50 candles)
+        const endTime = new Date();
+        const timeframeMinutes = {
+          '1m': 1, '5m': 5, '15m': 15, '30m': 30,
+          '1h': 60, '4h': 240, '1d': 1440
+        }[timeframe] || 5;
+        
+        const startTime = new Date(endTime.getTime() - (50 * timeframeMinutes * 60 * 1000));
 
-      icebergMarkers[candle.time].push({
-        side: iceberg.side,
-        price,
-        visibleVolume: iceberg.visibleVolume,
-        hiddenVolume: iceberg.hiddenVolume,
-        executedVolume,
-        remainingVisible,
-        estimatedHidden,
-        confidence: iceberg.confidence,
-        likelihood: estimatedHidden > 0 ? 'High' : 'Low',
-        candlePrice: {
+        // Fetch real OHLCV data
+        const candleResponse = await getCandleData({
+          exchange,
+          symbol,
+          timeframe,
+          startTime,
+          endTime
+        });
+
+        const realCandles = candleResponse.candles || [];
+
+        if (realCandles.length === 0) {
+          throw new Error('No candle data available');
+        }
+
+        // Convert candles to lightweight-charts format
+        const formattedCandles = realCandles.map(candle => ({
+          time: Math.floor(new Date(candle.timestamp).getTime() / 1000),
           open: candle.open,
           high: candle.high,
           low: candle.low,
-          close: candle.close
+          close: candle.close,
+          volume: candle.volume
+        }));
+
+        // Create iceberg markers mapping
+        const icebergMarkers = {};
+        const buyIcebergs = icebergData.buyIcebergs || [];
+        const sellIcebergs = icebergData.sellIcebergs || [];
+
+        // Map icebergs to candles based on price proximity
+        [...buyIcebergs, ...sellIcebergs].forEach((iceberg) => {
+          // Find the candle that best matches this iceberg's price
+          const matchingCandle = findMatchingCandle(formattedCandles, iceberg.price, iceberg.side);
+          
+          if (matchingCandle) {
+            const candleTime = matchingCandle.time;
+            
+            if (!icebergMarkers[candleTime]) {
+              icebergMarkers[candleTime] = [];
+            }
+
+            // Calculate execution metrics
+            const totalVolume = iceberg.visibleVolume + iceberg.hiddenVolume;
+            const executedVolume = totalVolume * (Math.random() * 0.3 + 0.2); // 20-50% executed
+            const remainingVisible = Math.max(0, iceberg.visibleVolume - executedVolume);
+            const estimatedHidden = iceberg.hiddenVolume * (1 - executedVolume / totalVolume);
+
+            icebergMarkers[candleTime].push({
+              side: iceberg.side,
+              price: iceberg.price,
+              visibleVolume: iceberg.visibleVolume,
+              hiddenVolume: iceberg.hiddenVolume,
+              executedVolume,
+              remainingVisible,
+              estimatedHidden,
+              confidence: iceberg.confidence,
+              likelihood: estimatedHidden > iceberg.hiddenVolume * 0.3 ? 'High' : 'Low',
+              candlePrice: {
+                open: matchingCandle.open,
+                high: matchingCandle.high,
+                low: matchingCandle.low,
+                close: matchingCandle.close
+              }
+            });
+          }
+        });
+
+        setChartData({
+          candles: formattedCandles,
+          icebergMarkers,
+          warning: candleResponse.warning,
+          isSynthetic: candleResponse.isSynthetic
+        });
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching candle data:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchAndMergeData();
+  }, [icebergData, symbol, timeframe, exchange]);
+
+  // Find the best matching candle for an iceberg order
+  const findMatchingCandle = (candles, icebergPrice, side) => {
+    let bestMatch = null;
+    let minDistance = Infinity;
+
+    candles.forEach(candle => {
+      // Check if price is within candle range
+      if (icebergPrice >= candle.low && icebergPrice <= candle.high) {
+        // Calculate distance to candle center
+        const candleCenter = (candle.open + candle.close) / 2;
+        const distance = Math.abs(candleCenter - icebergPrice);
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          bestMatch = candle;
         }
-      });
+      }
     });
 
-    return { candleData, icebergMarkers };
+    // If no exact match, find closest candle
+    if (!bestMatch) {
+      candles.forEach(candle => {
+        const candleCenter = (candle.high + candle.low) / 2;
+        const distance = Math.abs(candleCenter - icebergPrice);
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          bestMatch = candle;
+        }
+      });
+    }
+
+    return bestMatch;
   };
 
+  // Create/update chart
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    if (!chartContainerRef.current || !chartData) return;
 
     // Create chart
     const chart = createChart(chartContainerRef.current, {
@@ -123,13 +197,12 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
 
     candleSeriesRef.current = candleSeries;
 
-    // Generate and set data
-    const { candleData, icebergMarkers } = generateChartData();
-    candleSeries.setData(candleData);
+    // Set data
+    candleSeries.setData(chartData.candles);
 
     // Add markers for icebergs
     const markers = [];
-    Object.entries(icebergMarkers).forEach(([time, orders]) => {
+    Object.entries(chartData.icebergMarkers).forEach(([time, orders]) => {
       markers.push({
         time: parseInt(time),
         position: 'aboveBar',
@@ -148,7 +221,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
         return;
       }
 
-      const icebergs = icebergMarkers[param.time];
+      const icebergs = chartData.icebergMarkers[param.time];
       if (icebergs && icebergs.length > 0) {
         setHoveredCandle({
           time: param.time,
@@ -156,7 +229,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
           x: param.point.x,
           y: param.point.y
         });
-        setMousePosition({ x: param.point.x, y: param.point.y });
       } else {
         setHoveredCandle(null);
       }
@@ -178,7 +250,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [icebergData]);
+  }, [chartData]);
 
   // Orderbook Extension Overlay
   const OrderbookExtension = () => {
@@ -282,10 +354,30 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
     );
   };
 
-  if (!icebergData) {
+  // Loading state
+  if (loading) {
     return (
       <div className="iceberg-chart-empty">
-        <p>No data available</p>
+        <div className="loading-spinner"></div>
+        <p>Loading chart data...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="iceberg-chart-empty">
+        <p style={{ color: '#ef4444' }}>⚠️ {error}</p>
+      </div>
+    );
+  }
+
+  // No data state
+  if (!chartData || !chartData.candles || chartData.candles.length === 0) {
+    return (
+      <div className="iceberg-chart-empty">
+        <p>No chart data available</p>
       </div>
     );
   }
@@ -305,10 +397,17 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
           </span>
           <span className="legend-item">
             <span className="legend-marker">🧊</span>
-            Iceberg Detected
+            Iceberg Detected ({Object.keys(chartData.icebergMarkers).length} candles)
           </span>
         </div>
       </div>
+
+      {/* Warning for synthetic data */}
+      {chartData.warning && (
+        <div className="chart-warning">
+          ⚠️ {chartData.warning}
+        </div>
+      )}
 
       <div ref={chartContainerRef} className="chart-container" />
 
