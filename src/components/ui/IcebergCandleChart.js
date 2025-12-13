@@ -1,50 +1,38 @@
-import React, { useState, useMemo } from 'react';
-import {
-  ComposedChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-  ReferenceLine
-} from 'recharts';
+import React, { useEffect, useRef, useState } from 'react';
+import { createChart } from 'lightweight-charts';
 import './IcebergCandleChart.css';
 
 const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
+  const chartContainerRef = useRef(null);
+  const chartRef = useRef(null);
+  const candleSeriesRef = useRef(null);
   const [hoveredCandle, setHoveredCandle] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  // Generate mock candlestick data with iceberg markers
-  const chartData = useMemo(() => {
-    if (!icebergData) return [];
+  // Generate candlestick data with iceberg markers
+  const generateChartData = () => {
+    if (!icebergData) return { candleData: [], icebergMarkers: {} };
 
     const now = Date.now();
-    const candles = [];
+    const candleData = [];
+    const icebergMarkers = {};
     const numCandles = 50;
 
     // Create base candlesticks
     let basePrice = 42000;
     for (let i = 0; i < numCandles; i++) {
-      const timestamp = now - (numCandles - i) * 60000; // 1 minute candles
+      const timestamp = Math.floor((now - (numCandles - i) * 60000) / 1000); // Unix timestamp in seconds
       const open = basePrice + (Math.random() - 0.5) * 100;
       const close = open + (Math.random() - 0.5) * 150;
       const high = Math.max(open, close) + Math.random() * 50;
       const low = Math.min(open, close) - Math.random() * 50;
 
-      candles.push({
-        timestamp,
-        time: new Date(timestamp).toLocaleTimeString(),
+      candleData.push({
+        time: timestamp,
         open,
         high,
         low,
-        close,
-        volume: Math.random() * 100 + 50,
-        hasIceberg: false,
-        icebergOrders: []
+        close
       });
 
       basePrice = close;
@@ -56,11 +44,10 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
 
     [...buyIcebergs, ...sellIcebergs].forEach((iceberg, index) => {
       const candleIndex = Math.floor(Math.random() * numCandles);
-      const candle = candles[candleIndex];
+      const candle = candleData[candleIndex];
       
-      if (!candle.hasIceberg) {
-        candle.hasIceberg = true;
-        candle.icebergOrders = [];
+      if (!icebergMarkers[candle.time]) {
+        icebergMarkers[candle.time] = [];
       }
 
       const price = iceberg.side === 'buy' 
@@ -72,7 +59,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
       const remainingVisible = Math.max(0, iceberg.visibleVolume - executedVolume);
       const estimatedHidden = iceberg.hiddenVolume * (1 - executedVolume / totalVolume);
 
-      candle.icebergOrders.push({
+      icebergMarkers[candle.time].push({
         side: iceberg.side,
         price,
         visibleVolume: iceberg.visibleVolume,
@@ -81,138 +68,125 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
         remainingVisible,
         estimatedHidden,
         confidence: iceberg.confidence,
-        likelihood: estimatedHidden > 0 ? 'High' : 'Low'
+        likelihood: estimatedHidden > 0 ? 'High' : 'Low',
+        candlePrice: {
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close
+        }
       });
     });
 
-    return candles;
+    return { candleData, icebergMarkers };
+  };
+
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+
+    // Create chart
+    const chart = createChart(chartContainerRef.current, {
+      width: chartContainerRef.current.clientWidth,
+      height: 500,
+      layout: {
+        background: { color: '#1f2937' },
+        textColor: '#9ca3af',
+      },
+      grid: {
+        vertLines: { color: '#374151' },
+        horzLines: { color: '#374151' },
+      },
+      crosshair: {
+        mode: 1,
+      },
+      rightPriceScale: {
+        borderColor: '#374151',
+      },
+      timeScale: {
+        borderColor: '#374151',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+    });
+
+    chartRef.current = chart;
+
+    // Create candlestick series
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderUpColor: '#059669',
+      borderDownColor: '#dc2626',
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
+    });
+
+    candleSeriesRef.current = candleSeries;
+
+    // Generate and set data
+    const { candleData, icebergMarkers } = generateChartData();
+    candleSeries.setData(candleData);
+
+    // Add markers for icebergs
+    const markers = [];
+    Object.entries(icebergMarkers).forEach(([time, orders]) => {
+      markers.push({
+        time: parseInt(time),
+        position: 'aboveBar',
+        color: '#f59e0b',
+        shape: 'circle',
+        text: '🧊',
+        size: 1,
+      });
+    });
+    candleSeries.setMarkers(markers);
+
+    // Subscribe to crosshair move
+    chart.subscribeCrosshairMove((param) => {
+      if (!param.time || !param.point) {
+        setHoveredCandle(null);
+        return;
+      }
+
+      const icebergs = icebergMarkers[param.time];
+      if (icebergs && icebergs.length > 0) {
+        setHoveredCandle({
+          time: param.time,
+          orders: icebergs,
+          x: param.point.x,
+          y: param.point.y
+        });
+        setMousePosition({ x: param.point.x, y: param.point.y });
+      } else {
+        setHoveredCandle(null);
+      }
+    });
+
+    // Handle resize
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+    };
   }, [icebergData]);
-
-  // Custom Candlestick renderer
-  const CustomCandlestick = (props) => {
-    const { x, y, width, height, index } = props;
-    const candle = chartData[index];
-    
-    if (!candle) return null;
-
-    const isGreen = candle.close > candle.open;
-    const bodyHeight = Math.abs(candle.close - candle.open) / (candle.high - candle.low) * height;
-    const bodyY = isGreen 
-      ? y + (candle.high - candle.close) / (candle.high - candle.low) * height
-      : y + (candle.high - candle.open) / (candle.high - candle.low) * height;
-
-    const wickTop = y;
-    const wickBottom = y + height;
-    const bodyTop = bodyY;
-    const bodyBottom = bodyY + bodyHeight;
-
-    const hasIceberg = candle.hasIceberg;
-    const isHovered = hoveredCandle?.index === index;
-
-    return (
-      <g
-        onMouseEnter={(e) => {
-          setHoveredCandle({ index, candle });
-          setMousePosition({ x: e.clientX, y: e.clientY });
-        }}
-        onMouseLeave={() => setHoveredCandle(null)}
-        style={{ cursor: hasIceberg ? 'pointer' : 'default' }}
-      >
-        {/* Wick (Schatten) */}
-        <line
-          x1={x + width / 2}
-          y1={wickTop}
-          x2={x + width / 2}
-          y2={wickBottom}
-          stroke={isGreen ? '#10b981' : '#ef4444'}
-          strokeWidth={1}
-        />
-
-        {/* Body */}
-        <rect
-          x={x}
-          y={bodyTop}
-          width={width}
-          height={Math.max(bodyHeight, 1)}
-          fill={isGreen ? '#10b981' : '#ef4444'}
-          stroke={isGreen ? '#059669' : '#dc2626'}
-          strokeWidth={1}
-          opacity={isHovered ? 0.8 : 1}
-        />
-
-        {/* Iceberg Marker */}
-        {hasIceberg && (
-          <circle
-            cx={x + width / 2}
-            cy={y - 5}
-            r={3}
-            fill="#f59e0b"
-            stroke="#fff"
-            strokeWidth={1}
-            className="iceberg-marker"
-          />
-        )}
-
-        {/* Hover Highlight */}
-        {isHovered && (
-          <rect
-            x={x - 2}
-            y={y - 2}
-            width={width + 4}
-            height={height + 4}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            opacity={0.5}
-          />
-        )}
-      </g>
-    );
-  };
-
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload }) => {
-    if (!active || !payload || !payload[0]) return null;
-
-    const data = payload[0].payload;
-    const isGreen = data.close > data.open;
-
-    return (
-      <div className="iceberg-chart-tooltip">
-        <div className="tooltip-header">
-          <strong>{data.time}</strong>
-        </div>
-        <div className="tooltip-body">
-          <div className={`tooltip-price ${isGreen ? 'green' : 'red'}`}>
-            <span>O: {data.open.toFixed(2)}</span>
-            <span>H: {data.high.toFixed(2)}</span>
-            <span>L: {data.low.toFixed(2)}</span>
-            <span>C: {data.close.toFixed(2)}</span>
-          </div>
-          <div className="tooltip-volume">
-            Vol: {data.volume.toFixed(2)}
-          </div>
-          {data.hasIceberg && (
-            <div className="tooltip-iceberg">
-              <div className="iceberg-badge">
-                🧊 {data.icebergOrders.length} Iceberg Order(s) Detected
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   // Orderbook Extension Overlay
   const OrderbookExtension = () => {
-    if (!hoveredCandle || !hoveredCandle.candle.hasIceberg) return null;
-
-    const { candle } = hoveredCandle;
+    if (!hoveredCandle || !hoveredCandle.orders) return null;
 
     return (
       <div className="orderbook-extension-overlay">
-        {candle.icebergOrders.map((order, idx) => {
+        {hoveredCandle.orders.map((order, idx) => {
           const isBuy = order.side === 'buy';
           const totalVolume = order.visibleVolume + order.hiddenVolume;
           const executedPercent = (order.executedVolume / totalVolume) * 100;
@@ -229,6 +203,17 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
                 <span className="confidence">
                   {(order.confidence * 100).toFixed(0)}% confidence
                 </span>
+              </div>
+
+              <div className="candle-info">
+                <div className="candle-prices">
+                  <span className={order.candlePrice.close > order.candlePrice.open ? 'green' : 'red'}>
+                    O: {order.candlePrice.open.toFixed(2)} | 
+                    H: {order.candlePrice.high.toFixed(2)} | 
+                    L: {order.candlePrice.low.toFixed(2)} | 
+                    C: {order.candlePrice.close.toFixed(2)}
+                  </span>
+                </div>
               </div>
 
               <div className="extension-bars">
@@ -297,7 +282,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
     );
   };
 
-  if (!chartData || chartData.length === 0) {
+  if (!icebergData) {
     return (
       <div className="iceberg-chart-empty">
         <p>No data available</p>
@@ -312,11 +297,11 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
         <div className="chart-legend">
           <span className="legend-item">
             <span className="legend-color" style={{ backgroundColor: '#10b981' }}></span>
-            Buy
+            Buy / Bullish
           </span>
           <span className="legend-item">
             <span className="legend-color" style={{ backgroundColor: '#ef4444' }}></span>
-            Sell
+            Sell / Bearish
           </span>
           <span className="legend-item">
             <span className="legend-marker">🧊</span>
@@ -325,40 +310,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe }) => {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={500}>
-        <ComposedChart
-          data={chartData}
-          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis 
-            dataKey="time" 
-            stroke="#9ca3af"
-            tick={{ fill: '#9ca3af' }}
-          />
-          <YAxis 
-            domain={['dataMin - 100', 'dataMax + 100']}
-            stroke="#9ca3af"
-            tick={{ fill: '#9ca3af' }}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          
-          {/* Candlesticks */}
-          <Bar
-            dataKey="high"
-            shape={<CustomCandlestick />}
-            isAnimationActive={false}
-          />
-
-          {/* Volume bars at bottom */}
-          <Bar 
-            dataKey="volume" 
-            fill="#6b7280" 
-            opacity={0.3}
-            yAxisId="volume"
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      <div ref={chartContainerRef} className="chart-container" />
 
       {/* Orderbook Extension Overlay */}
       {hoveredCandle && <OrderbookExtension />}
