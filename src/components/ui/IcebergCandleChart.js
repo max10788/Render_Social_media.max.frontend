@@ -41,7 +41,13 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
           startTime,
           endTime
         });
-
+        
+        // ← DEBUG: Zeig die Response
+        console.log('🔍 Candle Response:', candleResponse);
+        console.log('🔍 Candles Array:', candleResponse.candles);
+        
+        const realCandles = candleResponse.candles || [];
+        
         const realCandles = candleResponse.candles || [];
 
         if (realCandles.length === 0) {
