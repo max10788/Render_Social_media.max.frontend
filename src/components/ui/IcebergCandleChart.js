@@ -47,8 +47,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
         console.log('🔍 Candles Array:', candleResponse.candles);
         
         const realCandles = candleResponse.candles || [];
-        
-        const realCandles = candleResponse.candles || [];
 
         if (realCandles.length === 0) {
           throw new Error('No candle data available');
