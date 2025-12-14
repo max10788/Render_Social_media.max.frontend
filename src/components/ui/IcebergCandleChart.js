@@ -178,17 +178,24 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
       const isBuy = iceberg.side === 'buy';
       const totalVolume = iceberg.visibleVolume + iceberg.hiddenVolume;
 
-      const priceLine = candleSeriesRef.current.createPriceLine({
-        price: iceberg.price,
-        color: isBuy ? '#10b981' : '#ef4444',
-        lineWidth: 2,
-        lineStyle: 2, // Dashed
-        axisLabelVisible: true,
-        title: `${isBuy ? '🟢 BUY' : '🔴 SELL'} ${totalVolume.toFixed(2)}`,
-      });
+      try {
+        const priceLine = candleSeriesRef.current.createPriceLine({
+          price: iceberg.price,
+          color: isBuy ? '#10b981' : '#ef4444',
+          lineWidth: 2,
+          lineStyle: 2, // LineStyle.Dashed
+          axisLabelVisible: true,
+          title: `${isBuy ? 'BUY' : 'SELL'} ${totalVolume.toFixed(1)}`,
+        });
 
-      priceLineRefs.current.push(priceLine);
+        priceLineRefs.current.push(priceLine);
+        console.log(`✅ Price line added: ${isBuy ? 'BUY' : 'SELL'} @ $${iceberg.price.toFixed(2)}`);
+      } catch (e) {
+        console.error('❌ Failed to create price line:', e);
+      }
     });
+
+    console.log(`📍 Total price lines: ${priceLineRefs.current.length}`);
   };
 
   // Create/update chart
