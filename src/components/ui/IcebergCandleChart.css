@@ -115,13 +115,13 @@
 
 .orderbook-extension-overlay.hover {
   top: 6rem;
-  right: 1.5rem;
+  left: 1.5rem;
   max-width: 280px;
 }
 
 .orderbook-extension-overlay.clicked {
   top: 6rem;
-  right: 1.5rem;
+  left: 1.5rem;
   max-width: 420px;
   max-height: calc(100vh - 8rem);
 }
@@ -129,7 +129,7 @@
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateX(50px);
+    transform: translateX(-50px);
   }
   to {
     opacity: 1;
@@ -442,8 +442,8 @@
     position: fixed;
     top: auto;
     bottom: 2rem;
-    right: 1rem;
     left: 1rem;
+    right: 1rem;
     transform: none;
     max-width: none;
   }
@@ -476,8 +476,8 @@
   .orderbook-extension-overlay.hover,
   .orderbook-extension-overlay.clicked {
     bottom: 1rem;
-    right: 0.5rem;
     left: 0.5rem;
+    right: 0.5rem;
   }
   
   .extension-bars {
