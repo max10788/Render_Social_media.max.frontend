@@ -202,7 +202,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
   useEffect(() => {
     if (!chartContainerRef.current || !chartData) return;
 
-    // Create chart
+    // Create chart with vertical zoom enabled on price axis
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 500,
@@ -219,11 +219,34 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
       },
       rightPriceScale: {
         borderColor: '#374151',
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
       },
       timeScale: {
         borderColor: '#374151',
         timeVisible: true,
         secondsVisible: false,
+      },
+      // Enable vertical zoom on price axis
+      handleScale: {
+        axisPressedMouseMove: {
+          time: false,  // Disable horizontal zoom when dragging time axis
+          price: true,  // Enable vertical zoom when dragging price axis
+        },
+        axisDoubleClickReset: {
+          time: true,   // Double-click on time axis resets horizontal zoom
+          price: true,  // Double-click on price axis resets vertical zoom
+        },
+        mouseWheel: true,  // Enable mouse wheel zoom
+        pinch: true,       // Enable pinch zoom on touch devices
+      },
+      handleScroll: {
+        mouseWheel: true,         // Enable scrolling with mouse wheel
+        pressedMouseMove: true,   // Enable scrolling by dragging
+        horzTouchDrag: true,      // Enable horizontal touch drag
+        vertTouchDrag: true,      // Enable vertical touch drag
       },
     });
 
@@ -524,7 +547,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
             Iceberg Detected ({Object.keys(chartData.icebergMarkers).length} candles)
           </span>
           <span className="legend-item hint">
-            💡 Click candle with 🧊 to show price levels
+            💡 Click candle with 🧊 to show price levels | Scroll over Y-axis to zoom vertically
           </span>
         </div>
       </div>
