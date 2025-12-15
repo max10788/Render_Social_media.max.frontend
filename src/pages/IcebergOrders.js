@@ -10,6 +10,7 @@ const IcebergOrders = () => {
   const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
   const [threshold, setThreshold] = useState(0.05);
   const [isScanning, setIsScanning] = useState(false);
+  const [activeTab, setActiveTab] = useState('chart'); // 'chart' oder 'analysis'
 
   const { icebergData, loading, error, fetchIcebergOrders, symbols } = useIcebergOrders(selectedExchange);
 
@@ -174,95 +175,127 @@ const IcebergOrders = () => {
         </div>
       )}
 
-      {/* Main Chart */}
-      <IcebergCandleChart 
-        icebergData={icebergData}
-        symbol={selectedSymbol}
-        timeframe={selectedTimeframe}
-      />
+      {/* Tab Navigation */}
+      {icebergData && (
+        <div className="tab-navigation">
+          <button 
+            className={`tab-button ${activeTab === 'chart' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chart')}
+          >
+            <span className="tab-icon">📊</span>
+            Chart Ansicht
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'analysis' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analysis')}
+          >
+            <span className="tab-icon">🔬</span>
+            Preis-Level Analyse
+          </button>
+        </div>
+      )}
 
-      {/* Detected Orders List */}
-      {icebergData && icebergData.totalDetected > 0 && (
-        <div className="detected-orders-section">
-          <h2 className="section-title">Detected Iceberg Orders</h2>
-          
-          <div className="orders-grid">
-            {/* Buy Orders */}
-            {icebergData.buyIcebergs.length > 0 && (
-              <div className="orders-column buy">
-                <h3 className="column-title">
-                  <span className="title-icon">📈</span>
-                  Buy Icebergs ({icebergData.buyIcebergs.length})
-                </h3>
-                <div className="orders-list">
-                  {icebergData.buyIcebergs.map((order, idx) => (
-                    <div key={idx} className="order-card buy">
-                      <div className="order-header">
-                        <span className="order-price">${order.price?.toFixed(2) || 'N/A'}</span>
-                        <span className="order-confidence">
-                          {((order.confidence || 0) * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                      <div className="order-details">
-                        <div className="detail-row">
-                          <span className="detail-label">Visible:</span>
-                          <span className="detail-value">{(order.visibleVolume || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="detail-row">
-                          <span className="detail-label">Hidden:</span>
-                          <span className="detail-value highlight">{(order.hiddenVolume || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="detail-row">
-                          <span className="detail-label">Total:</span>
-                          <span className="detail-value total">
-                            {((order.visibleVolume || 0) + (order.hiddenVolume || 0)).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+      {/* Tab Content */}
+      {icebergData && (
+        <div className="tab-content">
+          {activeTab === 'chart' ? (
+            <>
+              {/* Main Chart */}
+              <IcebergCandleChart 
+                icebergData={icebergData}
+                symbol={selectedSymbol}
+                timeframe={selectedTimeframe}
+              />
 
-            {/* Sell Orders */}
-            {icebergData.sellIcebergs.length > 0 && (
-              <div className="orders-column sell">
-                <h3 className="column-title">
-                  <span className="title-icon">📉</span>
-                  Sell Icebergs ({icebergData.sellIcebergs.length})
-                </h3>
-                <div className="orders-list">
-                  {icebergData.sellIcebergs.map((order, idx) => (
-                    <div key={idx} className="order-card sell">
-                      <div className="order-header">
-                        <span className="order-price">${order.price?.toFixed(2) || 'N/A'}</span>
-                        <span className="order-confidence">
-                          {((order.confidence || 0) * 100).toFixed(0)}%
-                        </span>
+              {/* Detected Orders List */}
+              {icebergData.totalDetected > 0 && (
+                <div className="detected-orders-section">
+                  <h2 className="section-title">Detected Iceberg Orders</h2>
+                  
+                  <div className="orders-grid">
+                    {/* Buy Orders */}
+                    {icebergData.buyIcebergs.length > 0 && (
+                      <div className="orders-column buy">
+                        <h3 className="column-title">
+                          <span className="title-icon">📈</span>
+                          Buy Icebergs ({icebergData.buyIcebergs.length})
+                        </h3>
+                        <div className="orders-list">
+                          {icebergData.buyIcebergs.map((order, idx) => (
+                            <div key={idx} className="order-card buy">
+                              <div className="order-header">
+                                <span className="order-price">${order.price?.toFixed(2) || 'N/A'}</span>
+                                <span className="order-confidence">
+                                  {((order.confidence || 0) * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                              <div className="order-details">
+                                <div className="detail-row">
+                                  <span className="detail-label">Visible:</span>
+                                  <span className="detail-value">{(order.visibleVolume || 0).toFixed(2)}</span>
+                                </div>
+                                <div className="detail-row">
+                                  <span className="detail-label">Hidden:</span>
+                                  <span className="detail-value highlight">{(order.hiddenVolume || 0).toFixed(2)}</span>
+                                </div>
+                                <div className="detail-row">
+                                  <span className="detail-label">Total:</span>
+                                  <span className="detail-value total">
+                                    {((order.visibleVolume || 0) + (order.hiddenVolume || 0)).toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="order-details">
-                        <div className="detail-row">
-                          <span className="detail-label">Visible:</span>
-                          <span className="detail-value">{(order.visibleVolume || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="detail-row">
-                          <span className="detail-label">Hidden:</span>
-                          <span className="detail-value highlight">{(order.hiddenVolume || 0).toFixed(2)}</span>
-                        </div>
-                        <div className="detail-row">
-                          <span className="detail-label">Total:</span>
-                          <span className="detail-value total">
-                            {((order.visibleVolume || 0) + (order.hiddenVolume || 0)).toFixed(2)}
-                          </span>
+                    )}
+
+                    {/* Sell Orders */}
+                    {icebergData.sellIcebergs.length > 0 && (
+                      <div className="orders-column sell">
+                        <h3 className="column-title">
+                          <span className="title-icon">📉</span>
+                          Sell Icebergs ({icebergData.sellIcebergs.length})
+                        </h3>
+                        <div className="orders-list">
+                          {icebergData.sellIcebergs.map((order, idx) => (
+                            <div key={idx} className="order-card sell">
+                              <div className="order-header">
+                                <span className="order-price">${order.price?.toFixed(2) || 'N/A'}</span>
+                                <span className="order-confidence">
+                                  {((order.confidence || 0) * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                              <div className="order-details">
+                                <div className="detail-row">
+                                  <span className="detail-label">Visible:</span>
+                                  <span className="detail-value">{(order.visibleVolume || 0).toFixed(2)}</span>
+                                </div>
+                                <div className="detail-row">
+                                  <span className="detail-label">Hidden:</span>
+                                  <span className="detail-value highlight">{(order.hiddenVolume || 0).toFixed(2)}</span>
+                                </div>
+                                <div className="detail-row">
+                                  <span className="detail-label">Total:</span>
+                                  <span className="detail-value total">
+                                    {((order.visibleVolume || 0) + (order.hiddenVolume || 0)).toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </>
+          ) : (
+            /* Analysis Tab */
+            <IcebergAnalysisTab icebergData={icebergData} />
+          )}
         </div>
       )}
 
@@ -287,8 +320,8 @@ const IcebergOrders = () => {
             <ul>
               <li>Select exchange and symbol</li>
               <li>Adjust detection threshold</li>
-              <li>Hover over candles with 🧊 markers</li>
-              <li>View horizontal bars showing order execution</li>
+              <li>Switch between Chart and Analysis tabs</li>
+              <li>View price-level hotspots and pending orders</li>
             </ul>
           </div>
           <div className="info-card">
@@ -296,7 +329,8 @@ const IcebergOrders = () => {
             <ul>
               <li>Real-time detection</li>
               <li>Interactive candlestick chart</li>
-              <li>Execution tracking</li>
+              <li>Price-level aggregation</li>
+              <li>Support/Resistance identification</li>
               <li>Confidence scoring</li>
             </ul>
           </div>
