@@ -2,179 +2,295 @@ import React, { useMemo } from 'react';
 import './IcebergAnalysisTab.css';
 
 const IcebergAnalysisTab = ({ icebergData }) => {
-  // Cluster icebergs by price levels
+  // Berechne Preis-Level-Aggregation
   const priceLevelAnalysis = useMemo(() => {
-    if (!icebergData?.buyIcebergs && !icebergData?.sellIcebergs) {
+    if (!icebergData || !icebergData.buyIcebergs || !icebergData.sellIcebergs) {
       return { levels: [], maxVolume: 0 };
     }
 
-    const allIcebergs = [
-      ...(icebergData.buyIcebergs || []),
-      ...(icebergData.sellIcebergs || [])
-    ];
-
-    // Group by price (rounded to 2 decimals)
-    const priceGroups = {};
+    const allOrders = [...icebergData.buyIcebergs, ...icebergData.sellIcebergs];
     
-    allIcebergs.forEach(iceberg => {
-      const price = Math.round(iceberg.price * 100) / 100;
+    // Gruppiere nach Preis (gerundet auf nächste 10er oder 100er je nach Wert)
+    const priceMap = new Map();
+    
+    allOrders.forEach(order => {
+      const price = order.price || 0;
+      const roundedPrice = Math.round(price / 10) * 10; // Runde auf 10er
       
-      if (!priceGroups[price]) {
-        priceGroups[price] = {
-          price,
-          buyOrders: [],
-          sellOrders: [],
-          totalVisible: 0,
-          totalHidden: 0,
+      if (!priceMap.has(roundedPrice)) {
+        priceMap.set(roundedPrice, {
+          price: roundedPrice,
+          buyVolume: 0,
+          sellVolume: 0,
+          buyCount: 0,
+          sellCount: 0,
           totalVolume: 0,
-          avgConfidence: 0,
-          orderCount: 0
-        };
+          orders: [],
+          avgConfidence: 0
+        });
       }
-
-      const visible = iceberg.visible_volume || iceberg.visibleVolume || 0;
-      const hidden = iceberg.hidden_volume || iceberg.hiddenVolume || 0;
       
-      if (iceberg.side === 'buy') {
-        priceGroups[price].buyOrders.push(iceberg);
+      const level = priceMap.get(roundedPrice);
+      const volume = (order.visibleVolume || 0) + (order.hiddenVolume || 0);
+      const confidence = order.confidence || 0;
+      
+      if (order.side === 'buy') {
+        level.buyVolume += volume;
+        level.buyCount++;
       } else {
-        priceGroups[price].sellOrders.push(iceberg);
+        level.sellVolume += volume;
+        level.sellCount++;
       }
-
-      priceGroups[price].totalVisible += visible;
-      priceGroups[price].totalHidden += hidden;
-      priceGroups[price].totalVolume += visible + hidden;
-      priceGroups[price].avgConfidence += iceberg.confidence;
-      priceGroups[price].orderCount += 1;
+      
+      level.totalVolume += volume;
+      level.orders.push(order);
+      level.avgConfidence += confidence;
     });
 
-    // Calculate averages and sort
-    const levels = Object.values(priceGroups).map(level => ({
-      ...level,
-      avgConfidence: level.avgConfidence / level.orderCount,
-      estimatedRemaining: level.totalHidden * 0.6, // Estimate 60% still pending
-      likelihood: level.avgConfidence > 0.8 ? 'High' : level.avgConfidence > 0.6 ? 'Medium' : 'Low'
-    })).sort((a, b) => b.totalVolume - a.totalVolume);
+    // Berechne durchschnittliche Confidence
+    priceMap.forEach(level => {
+      level.avgConfidence = level.avgConfidence / level.orders.length;
+    });
 
-    const maxVolume = Math.max(...levels.map(l => l.totalVolume));
+    // Sortiere nach Gesamtvolumen
+    const levels = Array.from(priceMap.values())
+      .sort((a, b) => b.totalVolume - a.totalVolume);
+
+    const maxVolume = levels.length > 0 ? levels[0].totalVolume : 1;
 
     return { levels, maxVolume };
   }, [icebergData]);
 
-  const topLevels = priceLevelAnalysis.levels.slice(0, 10);
+  // Berechne Statistiken
+  const statistics = useMemo(() => {
+    if (!priceLevelAnalysis.levels.length) {
+      return null;
+    }
 
-  if (!icebergData || topLevels.length === 0) {
+    const levels = priceLevelAnalysis.levels;
+    const topLevel = levels[0];
+    
+    // Support/Resistance Levels (basierend auf Buy/Sell Dominanz)
+    const supportLevels = levels
+      .filter(l => l.buyVolume > l.sellVolume * 1.5)
+      .slice(0, 3);
+    
+    const resistanceLevels = levels
+      .filter(l => l.sellVolume > l.buyVolume * 1.5)
+      .slice(0, 3);
+
+    // Berechne "ausstehende" Orders (hohe Confidence = noch aktiv)
+    const pendingOrders = levels.reduce((sum, level) => 
+      sum + level.orders.filter(o => o.confidence > 0.8).length, 0
+    );
+
+    const completedOrders = levels.reduce((sum, level) => 
+      sum + level.orders.filter(o => o.confidence <= 0.8).length, 0
+    );
+
+    return {
+      topLevel,
+      supportLevels,
+      resistanceLevels,
+      pendingOrders,
+      completedOrders,
+      totalLevels: levels.length
+    };
+  }, [priceLevelAnalysis]);
+
+  if (!icebergData || !priceLevelAnalysis.levels.length) {
     return (
-      <div className="iceberg-analysis-empty">
-        <p>No iceberg data available</p>
+      <div className="analysis-tab-empty">
+        <div className="empty-icon">📊</div>
+        <p>Keine Daten für die Analyse verfügbar</p>
+        <p className="empty-hint">Starte einen Scan, um Iceberg Orders zu erkennen</p>
       </div>
     );
   }
 
   return (
-    <div className="iceberg-analysis-tab">
-      {/* Summary Cards */}
-      <div className="analysis-summary">
-        <div className="summary-card">
-          <div className="card-label">Total Price Levels</div>
-          <div className="card-value">{priceLevelAnalysis.levels.length}</div>
-        </div>
-        <div className="summary-card">
-          <div className="card-label">Total Volume</div>
-          <div className="card-value">
-            {priceLevelAnalysis.levels.reduce((sum, l) => sum + l.totalVolume, 0).toFixed(2)}
+    <div className="analysis-tab">
+      {/* Statistik Cards */}
+      <div className="analysis-stats">
+        <div className="analysis-stat-card primary">
+          <div className="stat-icon">🎯</div>
+          <div className="stat-content">
+            <div className="stat-label">Hotspot Preis-Level</div>
+            <div className="stat-value">${statistics.topLevel.price.toFixed(2)}</div>
+            <div className="stat-sub">
+              {statistics.topLevel.orders.length} Orders · 
+              {statistics.topLevel.totalVolume.toFixed(2)} Volume
+            </div>
           </div>
         </div>
-        <div className="summary-card">
-          <div className="card-label">Est. Remaining</div>
-          <div className="card-value highlight">
-            {priceLevelAnalysis.levels.reduce((sum, l) => sum + l.estimatedRemaining, 0).toFixed(2)}
+
+        <div className="analysis-stat-card">
+          <div className="stat-icon">⏳</div>
+          <div className="stat-content">
+            <div className="stat-label">Ausstehende Orders</div>
+            <div className="stat-value">{statistics.pendingOrders}</div>
+            <div className="stat-sub">
+              Hohe Confidence (&gt;80%)
+            </div>
+          </div>
+        </div>
+
+        <div className="analysis-stat-card">
+          <div className="stat-icon">✅</div>
+          <div className="stat-content">
+            <div className="stat-label">Abgeschlossene Orders</div>
+            <div className="stat-value">{statistics.completedOrders}</div>
+            <div className="stat-sub">
+              Niedrige Confidence (≤80%)
+            </div>
+          </div>
+        </div>
+
+        <div className="analysis-stat-card">
+          <div className="stat-icon">📍</div>
+          <div className="stat-content">
+            <div className="stat-label">Preis-Levels</div>
+            <div className="stat-value">{statistics.totalLevels}</div>
+            <div className="stat-sub">
+              Aktive Levels erkannt
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Top Price Levels */}
+      {/* Support & Resistance */}
+      <div className="sr-levels-section">
+        <div className="sr-column">
+          <h3 className="sr-title support">
+            <span>📈</span>
+            Support Levels (Buy Dominanz)
+          </h3>
+          {statistics.supportLevels.length > 0 ? (
+            <div className="sr-levels">
+              {statistics.supportLevels.map((level, idx) => (
+                <div key={idx} className="sr-level support">
+                  <div className="sr-level-header">
+                    <span className="sr-price">${level.price.toFixed(2)}</span>
+                    <span className="sr-count">{level.buyCount} Orders</span>
+                  </div>
+                  <div className="sr-volume-bar">
+                    <div 
+                      className="sr-volume-fill support"
+                      style={{ width: `${(level.buyVolume / priceLevelAnalysis.maxVolume) * 100}%` }}
+                    />
+                  </div>
+                  <div className="sr-details">
+                    <span>Buy: {level.buyVolume.toFixed(2)}</span>
+                    <span>Confidence: {(level.avgConfidence * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="sr-empty">Keine starken Support-Levels</div>
+          )}
+        </div>
+
+        <div className="sr-column">
+          <h3 className="sr-title resistance">
+            <span>📉</span>
+            Resistance Levels (Sell Dominanz)
+          </h3>
+          {statistics.resistanceLevels.length > 0 ? (
+            <div className="sr-levels">
+              {statistics.resistanceLevels.map((level, idx) => (
+                <div key={idx} className="sr-level resistance">
+                  <div className="sr-level-header">
+                    <span className="sr-price">${level.price.toFixed(2)}</span>
+                    <span className="sr-count">{level.sellCount} Orders</span>
+                  </div>
+                  <div className="sr-volume-bar">
+                    <div 
+                      className="sr-volume-fill resistance"
+                      style={{ width: `${(level.sellVolume / priceLevelAnalysis.maxVolume) * 100}%` }}
+                    />
+                  </div>
+                  <div className="sr-details">
+                    <span>Sell: {level.sellVolume.toFixed(2)}</span>
+                    <span>Confidence: {(level.avgConfidence * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="sr-empty">Keine starken Resistance-Levels</div>
+          )}
+        </div>
+      </div>
+
+      {/* Alle Preis-Levels */}
       <div className="price-levels-section">
-        <h3>🎯 Top 10 Price Levels (by volume)</h3>
-        
-        <div className="levels-container">
-          {topLevels.map((level, idx) => {
-            const volumePercent = (level.totalVolume / priceLevelAnalysis.maxVolume) * 100;
-            const remainingPercent = (level.estimatedRemaining / level.totalVolume) * 100;
+        <h3 className="section-title">
+          <span>💎</span>
+          Alle Preis-Levels (Top {Math.min(10, priceLevelAnalysis.levels.length)})
+        </h3>
+        <div className="price-levels-list">
+          {priceLevelAnalysis.levels.slice(0, 10).map((level, idx) => {
+            const buyPercentage = (level.buyVolume / level.totalVolume) * 100;
+            const sellPercentage = (level.sellVolume / level.totalVolume) * 100;
+            const pending = level.orders.filter(o => o.confidence > 0.8).length;
+            const completed = level.orders.length - pending;
 
             return (
-              <div key={level.price} className="price-level-card">
-                {/* Header */}
+              <div key={idx} className="price-level-card">
                 <div className="level-header">
-                  <span className="level-rank">#{idx + 1}</span>
-                  <span className="level-price">${level.price.toFixed(2)}</span>
-                  <span className={`level-likelihood ${level.likelihood.toLowerCase()}`}>
-                    {level.likelihood} confidence
-                  </span>
-                </div>
-
-                {/* Order Distribution */}
-                <div className="order-distribution">
-                  <div className="dist-item buy">
-                    <span className="dist-label">Buy Orders</span>
-                    <span className="dist-value">{level.buyOrders.length}</span>
-                  </div>
-                  <div className="dist-item sell">
-                    <span className="dist-label">Sell Orders</span>
-                    <span className="dist-value">{level.sellOrders.length}</span>
-                  </div>
-                  <div className="dist-item total">
-                    <span className="dist-label">Total</span>
-                    <span className="dist-value">{level.orderCount}</span>
+                  <div className="level-rank">#{idx + 1}</div>
+                  <div className="level-price">${level.price.toFixed(2)}</div>
+                  <div className="level-badge">
+                    {level.orders.length} Orders
                   </div>
                 </div>
 
-                {/* Volume Bar */}
-                <div className="volume-visualization">
-                  <div className="volume-label">Total Volume</div>
-                  <div className="volume-bar-container">
+                <div className="level-volume-section">
+                  <div className="volume-label">
+                    Gesamtvolumen: <strong>{level.totalVolume.toFixed(2)}</strong>
+                  </div>
+                  <div className="volume-split-bar">
                     <div 
-                      className="volume-bar"
-                      style={{ width: `${volumePercent}%` }}
+                      className="volume-split buy"
+                      style={{ width: `${buyPercentage}%` }}
+                      title={`Buy: ${level.buyVolume.toFixed(2)}`}
                     >
-                      <span className="volume-text">{level.totalVolume.toFixed(2)}</span>
+                      {buyPercentage > 15 && `${buyPercentage.toFixed(0)}%`}
+                    </div>
+                    <div 
+                      className="volume-split sell"
+                      style={{ width: `${sellPercentage}%` }}
+                      title={`Sell: ${level.sellVolume.toFixed(2)}`}
+                    >
+                      {sellPercentage > 15 && `${sellPercentage.toFixed(0)}%`}
                     </div>
                   </div>
-                </div>
-
-                {/* Breakdown */}
-                <div className="volume-breakdown">
-                  <div className="breakdown-row">
-                    <span className="breakdown-label">Visible:</span>
-                    <span className="breakdown-value">{level.totalVisible.toFixed(2)}</span>
-                  </div>
-                  <div className="breakdown-row">
-                    <span className="breakdown-label">Hidden:</span>
-                    <span className="breakdown-value highlight">{level.totalHidden.toFixed(2)}</span>
-                  </div>
-                  <div className="breakdown-row important">
-                    <span className="breakdown-label">Est. Remaining:</span>
-                    <span className="breakdown-value pending">
-                      {level.estimatedRemaining.toFixed(2)}
-                      <span className="breakdown-percent">({remainingPercent.toFixed(0)}%)</span>
+                  <div className="volume-legend">
+                    <span className="legend-buy">
+                      Buy: {level.buyVolume.toFixed(2)} ({level.buyCount})
+                    </span>
+                    <span className="legend-sell">
+                      Sell: {level.sellVolume.toFixed(2)} ({level.sellCount})
                     </span>
                   </div>
                 </div>
 
-                {/* Confidence */}
-                <div className="confidence-bar-container">
-                  <div className="confidence-label">
-                    Avg Confidence: {(level.avgConfidence * 100).toFixed(1)}%
+                <div className="level-status">
+                  <div className="status-item pending">
+                    <span className="status-icon">⏳</span>
+                    <span className="status-label">Ausstehend:</span>
+                    <span className="status-value">{pending}</span>
                   </div>
-                  <div className="confidence-bar">
-                    <div 
-                      className="confidence-fill"
-                      style={{ 
-                        width: `${level.avgConfidence * 100}%`,
-                        backgroundColor: level.avgConfidence > 0.8 ? '#10b981' : 
-                                       level.avgConfidence > 0.6 ? '#f59e0b' : '#ef4444'
-                      }}
-                    />
+                  <div className="status-item completed">
+                    <span className="status-icon">✓</span>
+                    <span className="status-label">Abgeschlossen:</span>
+                    <span className="status-value">{completed}</span>
+                  </div>
+                  <div className="status-item confidence">
+                    <span className="status-icon">📊</span>
+                    <span className="status-label">Ø Confidence:</span>
+                    <span className="status-value">{(level.avgConfidence * 100).toFixed(0)}%</span>
                   </div>
                 </div>
               </div>
@@ -183,52 +299,22 @@ const IcebergAnalysisTab = ({ icebergData }) => {
         </div>
       </div>
 
-      {/* Analysis Insights */}
-      <div className="analysis-insights">
-        <h3>📊 Key Insights</h3>
-        <div className="insights-grid">
-          <div className="insight-card">
-            <div className="insight-icon">🔥</div>
-            <div className="insight-content">
-              <div className="insight-title">Hottest Level</div>
-              <div className="insight-value">
-                ${topLevels[0]?.price.toFixed(2)}
-              </div>
-              <div className="insight-detail">
-                {topLevels[0]?.orderCount} orders, {topLevels[0]?.totalVolume.toFixed(2)} volume
-              </div>
-            </div>
-          </div>
-
-          <div className="insight-card">
-            <div className="insight-icon">⏳</div>
-            <div className="insight-content">
-              <div className="insight-title">Most Pending</div>
-              <div className="insight-value">
-                {priceLevelAnalysis.levels
-                  .sort((a, b) => b.estimatedRemaining - a.estimatedRemaining)[0]
-                  ?.estimatedRemaining.toFixed(2)}
-              </div>
-              <div className="insight-detail">
-                at ${priceLevelAnalysis.levels
-                  .sort((a, b) => b.estimatedRemaining - a.estimatedRemaining)[0]
-                  ?.price.toFixed(2)}
-              </div>
-            </div>
-          </div>
-
-          <div className="insight-card">
-            <div className="insight-icon">⚖️</div>
-            <div className="insight-content">
-              <div className="insight-title">Buy/Sell Ratio</div>
-              <div className="insight-value">
-                {(icebergData.buyOrders / Math.max(icebergData.sellOrders, 1)).toFixed(2)}
-              </div>
-              <div className="insight-detail">
-                {icebergData.buyOrders} buy / {icebergData.sellOrders} sell
-              </div>
-            </div>
-          </div>
+      {/* Info Box */}
+      <div className="analysis-info">
+        <h4>ℹ️ Analyse-Erklärung</h4>
+        <div className="info-content">
+          <p>
+            <strong>Preis-Levels:</strong> Orders werden zu Preis-Clustern gruppiert (±$10). 
+            Je höher das Volumen an einem Level, desto wichtiger ist es für den Markt.
+          </p>
+          <p>
+            <strong>Ausstehende vs. Abgeschlossen:</strong> Orders mit hoher Confidence (&gt;80%) 
+            sind wahrscheinlich noch aktiv, während niedrige Confidence auf bereits ausgeführte Orders hindeutet.
+          </p>
+          <p>
+            <strong>Support/Resistance:</strong> Levels mit starker Buy-Dominanz bilden Support-Zonen, 
+            während Sell-Dominanz auf Resistance-Zonen hindeutet.
+          </p>
         </div>
       </div>
     </div>
