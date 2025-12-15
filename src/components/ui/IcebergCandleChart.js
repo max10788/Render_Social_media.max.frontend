@@ -86,8 +86,8 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
             icebergMarkers[candleTime].push({
               side: iceberg.side,
               price: iceberg.price,
-              visibleVolume: iceberg.visibleVolume,
-              hiddenVolume: iceberg.hiddenVolume,
+              visibleVolume: iceberg.visible_volume || iceberg.visibleVolume || 0,  // ← Fix
+              hiddenVolume: iceberg.hidden_volume || iceberg.hiddenVolume || 0,      // ← Fix
               executedVolume,
               remainingVisible,
               estimatedHidden,
