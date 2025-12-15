@@ -49,7 +49,7 @@ const useIcebergOrders = (exchange = 'binance') => {
     } finally {
       setLoading(false);
     }
-  }, [exchange]);
+  }, [exchange, timeframe]);
 
   const loadSymbols = useCallback(async () => {
     try {
