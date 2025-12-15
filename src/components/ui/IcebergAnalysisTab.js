@@ -98,7 +98,7 @@ const IcebergAnalysisTab = ({ icebergData }) => {
         <div className="empty-content">
           <div className="empty-icon">📊</div>
           <h3>Keine Analyse-Daten verfügbar</h3>
-          <p>Starte einen Scan um Iceberg Orders zu erkennen</p>
+          <p>Starten Sie einen Scan, um Iceberg Orders zu erkennen</p>
         </div>
       </div>
     );
@@ -141,7 +141,7 @@ const IcebergAnalysisTab = ({ icebergData }) => {
         </div>
       </div>
 
-      {/* Support & Resistance - Compact Grid */}
+      {/* Support & Resistance Grid */}
       <div className="sr-grid">
         {/* Support */}
         <div className="sr-panel support" style={{ '--delay': '0.5s' }}>
