@@ -202,7 +202,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
   useEffect(() => {
     if (!chartContainerRef.current || !chartData) return;
 
-    // Create chart with vertical zoom enabled on price axis
+    // Create chart
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 500,
@@ -229,28 +229,28 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
         timeVisible: true,
         secondsVisible: false,
       },
-      // Enable vertical zoom on price axis
-      handleScale: {
-        axisPressedMouseMove: {
-          time: false,  // Disable horizontal zoom when dragging time axis
-          price: true,  // Enable vertical zoom when dragging price axis
-        },
-        axisDoubleClickReset: {
-          time: true,   // Double-click on time axis resets horizontal zoom
-          price: true,  // Double-click on price axis resets vertical zoom
-        },
-        mouseWheel: true,  // Enable mouse wheel zoom
-        pinch: true,       // Enable pinch zoom on touch devices
-      },
-      handleScroll: {
-        mouseWheel: true,         // Enable scrolling with mouse wheel
-        pressedMouseMove: true,   // Enable scrolling by dragging
-        horzTouchDrag: true,      // Enable horizontal touch drag
-        vertTouchDrag: true,      // Enable vertical touch drag
-      },
     });
 
     chartRef.current = chart;
+
+    // Enable vertical price scaling with mouse wheel over price axis
+    // This is done after chart creation for better compatibility
+    try {
+      chart.applyOptions({
+        handleScale: {
+          axisPressedMouseMove: {
+            time: false,
+            price: true,
+          },
+        },
+        handleScroll: {
+          mouseWheel: true,
+          pressedMouseMove: true,
+        },
+      });
+    } catch (error) {
+      console.log('⚠️ Advanced scaling options not available in this version of lightweight-charts');
+    }
 
     // Create candlestick series
     const candleSeries = chart.addCandlestickSeries({
@@ -266,6 +266,47 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
 
     // Set data
     candleSeries.setData(chartData.candles);
+
+    // Custom mouse wheel handler for vertical zoom on price axis  
+    const handleMouseWheel = (e) => {
+      if (!candleSeriesRef.current) return;
+      
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const width = rect.width;
+      
+      // Check if mouse is over the price scale (right 60-80px)
+      if (x > width - 80) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        try {
+          const priceScale = candleSeriesRef.current.priceScale();
+          const currentOptions = priceScale.options();
+          
+          // Calculate zoom (increase/decrease auto scale margins)
+          const delta = e.deltaY > 0 ? 0.02 : -0.02;
+          const newTop = Math.max(0.05, Math.min(0.4, (currentOptions.scaleMargins?.top || 0.1) + delta));
+          const newBottom = Math.max(0.05, Math.min(0.4, (currentOptions.scaleMargins?.bottom || 0.1) + delta));
+          
+          // Apply new scale margins for zoom effect
+          priceScale.applyOptions({
+            scaleMargins: {
+              top: newTop,
+              bottom: newBottom,
+            },
+          });
+        } catch (err) {
+          console.log('⚠️ Vertical zoom not available:', err.message);
+        }
+      }
+    };
+
+    // Add wheel event listener to chart container
+    const chartElement = chartContainerRef.current;
+    if (chartElement) {
+      chartElement.addEventListener('wheel', handleMouseWheel, { passive: false });
+    }
 
     // Add markers for icebergs
     const markers = [];
@@ -339,6 +380,11 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
+      
+      // Remove wheel event listener
+      if (chartElement) {
+        chartElement.removeEventListener('wheel', handleMouseWheel);
+      }
       
       // Remove price lines
       priceLineRefs.current.forEach(line => {
