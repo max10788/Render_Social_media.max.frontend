@@ -19,7 +19,6 @@ const useIcebergOrders = (exchange = 'binance') => {
   const fetchIcebergOrders = useCallback(async (symbol, timeframe, threshold) => {
     setLoading(true);
     setError(null);
-
     try {
       const data = await getIcebergOrders({
         exchange,
@@ -27,29 +26,28 @@ const useIcebergOrders = (exchange = 'binance') => {
         timeframe,
         threshold
       });
-
-      // Process and categorize the data
+      
+      // Process and categorize with SNAKE_CASE fix
       const processedData = {
         totalDetected: data.icebergs?.length || 0,
         buyIcebergs: data.icebergs?.filter(order => order.side === 'buy') || [],
         sellIcebergs: data.icebergs?.filter(order => order.side === 'sell') || [],
         buyOrders: data.icebergs?.filter(order => order.side === 'buy').length || 0,
         sellOrders: data.icebergs?.filter(order => order.side === 'sell').length || 0,
-        totalHiddenVolume: data.icebergs?.reduce((sum, order) => sum + order.hiddenVolume, 0) || 0,
+        totalHiddenVolume: data.icebergs?.reduce((sum, order) => 
+          sum + (order.hidden_volume || order.hiddenVolume || 0), 0  // ← Fix snake_case
+        ) || 0,
         timeline: data.timeline || []
       };
-
       setIcebergData(processedData);
     } catch (err) {
       console.error('Error fetching iceberg orders:', err);
       setError(err.message || 'Failed to fetch iceberg orders');
-      
-      // Set mock data for development/testing
       setIcebergData(generateMockData());
     } finally {
       setLoading(false);
     }
-  }, [exchange, timeframe]);
+  }, [exchange]);  // ← OHNE timeframe
 
   const loadSymbols = useCallback(async () => {
     try {
