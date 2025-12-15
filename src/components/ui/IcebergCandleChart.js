@@ -91,7 +91,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
               side: iceberg.side,
               price: iceberg.price,
               visibleVolume: visibleVol,
-              hiddenVolume: hiddenVol
+              hiddenVolume: hiddenVol,
               executedVolume,
               remainingVisible,
               estimatedHidden,
