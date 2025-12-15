@@ -77,17 +77,21 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
               icebergMarkers[candleTime] = [];
             }
 
-            // Calculate execution metrics
-            const totalVolume = iceberg.visibleVolume + iceberg.hiddenVolume;
-            const executedVolume = totalVolume * (Math.random() * 0.3 + 0.2); // 20-50% executed
-            const remainingVisible = Math.max(0, iceberg.visibleVolume - executedVolume);
-            const estimatedHidden = iceberg.hiddenVolume * (1 - executedVolume / totalVolume);
+            // Extract volumes with fallback FIRST (handles both snake_case and camelCase)
+            const visibleVol = iceberg.visible_volume || iceberg.visibleVolume || 0;
+            const hiddenVol = iceberg.hidden_volume || iceberg.hiddenVolume || 0;
+            
+            // Now calculate execution metrics with valid numbers
+            const totalVolume = visibleVol + hiddenVol;
+            const executedVolume = totalVolume > 0 ? totalVolume * (Math.random() * 0.3 + 0.2) : 0; // 20-50% executed
+            const remainingVisible = Math.max(0, visibleVol - executedVolume);
+            const estimatedHidden = totalVolume > 0 ? hiddenVol * (1 - executedVolume / totalVolume) : 0;
 
             icebergMarkers[candleTime].push({
               side: iceberg.side,
               price: iceberg.price,
-              visibleVolume: iceberg.visible_volume || iceberg.visibleVolume || 0,  // ← Fix
-              hiddenVolume: iceberg.hidden_volume || iceberg.hiddenVolume || 0,      // ← Fix
+              visibleVolume: visibleVol,
+              hiddenVolume: hiddenVol
               executedVolume,
               remainingVisible,
               estimatedHidden,
