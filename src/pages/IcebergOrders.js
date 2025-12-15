@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import useIcebergOrders from '../hooks/useIcebergOrders';
 import IcebergCandleChart from '../components/ui/IcebergCandleChart';
+import IcebergAnalysisTab from '../components/ui/IcebergAnalysisTab';
 import './IcebergOrders.css';
 
 const IcebergOrders = () => {
