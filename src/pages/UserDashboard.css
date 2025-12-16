@@ -169,6 +169,28 @@
 
 .section-content {
   padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Custom scrollbar for section content */
+.section-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.section-content::-webkit-scrollbar-track {
+  background: #0f172a;
+  border-radius: 3px;
+  margin: 4px 0;
+}
+
+.section-content::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+.section-content::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
 /* ========================================
