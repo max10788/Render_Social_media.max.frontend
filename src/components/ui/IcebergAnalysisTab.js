@@ -633,7 +633,7 @@ const IcebergAnalysisTab = ({ icebergData }) => {
               <strong>Resistance Zones:</strong> Price levels with dominant sell-side activity indicating potential selling pressure and downward resistance.
             </div>
             <div className="info-item">
-              <strong>Strength Indicators:</strong> Strong (>80%), Medium (50-80%), Weak (<50%) based on volume concentration.
+              <strong>Strength Indicators:</strong> Strong (&gt;80%), Medium (50-80%), Weak (&lt;50%) based on volume concentration.
             </div>
             <div className="info-item">
               <strong>Pressure Bar:</strong> Visual representation of buy/sell imbalance at each price level.
