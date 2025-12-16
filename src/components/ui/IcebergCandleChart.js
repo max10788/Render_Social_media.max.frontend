@@ -65,8 +65,10 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
         const buyIcebergs = icebergData.buyIcebergs || [];
         const sellIcebergs = icebergData.sellIcebergs || [];
 
-        // Map icebergs to candles based on price proximity
-        [...buyIcebergs, ...sellIcebergs].forEach((iceberg) => {
+        console.log(`📊 Processing Icebergs: ${buyIcebergs.length} buy, ${sellIcebergs.length} sell`);
+
+        // Map ALL icebergs to candles based on price proximity
+        [...buyIcebergs, ...sellIcebergs].forEach((iceberg, idx) => {
           // Find the candle that best matches this iceberg's price
           const matchingCandle = findMatchingCandle(formattedCandles, iceberg.price, iceberg.side);
           
@@ -77,13 +79,13 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
               icebergMarkers[candleTime] = [];
             }
 
-            // Extract volumes with fallback FIRST (handles both snake_case and camelCase)
+            // Extract volumes with fallback (handles both snake_case and camelCase)
             const visibleVol = iceberg.visible_volume || iceberg.visibleVolume || 0;
             const hiddenVol = iceberg.hidden_volume || iceberg.hiddenVolume || 0;
             
-            // Now calculate execution metrics with valid numbers
+            // Calculate execution metrics
             const totalVolume = visibleVol + hiddenVol;
-            const executedVolume = totalVolume > 0 ? totalVolume * (Math.random() * 0.3 + 0.2) : 0; // 20-50% executed
+            const executedVolume = totalVolume > 0 ? totalVolume * (Math.random() * 0.3 + 0.2) : 0;
             const remainingVisible = Math.max(0, visibleVol - executedVolume);
             const estimatedHidden = totalVolume > 0 ? hiddenVol * (1 - executedVolume / totalVolume) : 0;
 
@@ -104,8 +106,19 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
                 close: matchingCandle.close
               }
             });
+
+            // Log every 10th iceberg
+            if (idx % 10 === 0) {
+              console.log(`✅ Mapped iceberg ${idx + 1}/${buyIcebergs.length + sellIcebergs.length} to candle ${candleTime}`);
+            }
+          } else {
+            console.warn(`⚠️ No matching candle found for iceberg at price ${iceberg.price}`);
           }
         });
+
+        // Log final statistics
+        const totalMapped = Object.values(icebergMarkers).reduce((sum, arr) => sum + arr.length, 0);
+        console.log(`📍 Mapped ${totalMapped} icebergs across ${Object.keys(icebergMarkers).length} candles`);
 
         setChartData({
           candles: formattedCandles,
@@ -177,6 +190,8 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     const icebergs = chartData.icebergMarkers[candleTime];
     if (!icebergs || icebergs.length === 0) return;
 
+    console.log(`📍 Adding ${icebergs.length} price lines for candle ${candleTime}`);
+
     // Add price line for each iceberg
     icebergs.forEach((iceberg, idx) => {
       const isBuy = iceberg.side === 'buy';
@@ -193,13 +208,12 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
         });
 
         priceLineRefs.current.push(priceLine);
-        console.log(`✅ Price line added: ${isBuy ? 'BUY' : 'SELL'} @ $${iceberg.price.toFixed(2)}`);
       } catch (e) {
         console.error('❌ Failed to create price line:', e);
       }
     });
 
-    console.log(`📍 Total price lines: ${priceLineRefs.current.length}`);
+    console.log(`✅ Total price lines added: ${priceLineRefs.current.length}`);
   };
 
   // Create/update chart
@@ -237,8 +251,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
 
     chartRef.current = chart;
 
-    // Enable vertical price scaling with mouse wheel over price axis
-    // This is done after chart creation for better compatibility
+    // Enable vertical price scaling
     try {
       chart.applyOptions({
         handleScale: {
@@ -253,7 +266,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
         },
       });
     } catch (error) {
-      console.log('⚠️ Advanced scaling options not available in this version of lightweight-charts');
+      console.log('⚠️ Advanced scaling options not available');
     }
 
     // Create candlestick series
@@ -271,7 +284,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     // Set data
     candleSeries.setData(chartData.candles);
 
-    // Custom mouse wheel handler for vertical zoom on price axis  
+    // Custom mouse wheel handler for vertical zoom
     const handleMouseWheel = (e) => {
       if (!candleSeriesRef.current) return;
       
@@ -279,7 +292,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
       const x = e.clientX - rect.left;
       const width = rect.width;
       
-      // Check if mouse is over the price scale (right 60-80px)
+      // Check if mouse is over the price scale
       if (x > width - 80) {
         e.preventDefault();
         e.stopPropagation();
@@ -288,12 +301,10 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
           const priceScale = candleSeriesRef.current.priceScale();
           const currentOptions = priceScale.options();
           
-          // Calculate zoom (increase/decrease auto scale margins)
           const delta = e.deltaY > 0 ? 0.02 : -0.02;
           const newTop = Math.max(0.05, Math.min(0.4, (currentOptions.scaleMargins?.top || 0.1) + delta));
           const newBottom = Math.max(0.05, Math.min(0.4, (currentOptions.scaleMargins?.bottom || 0.1) + delta));
           
-          // Apply new scale margins for zoom effect
           priceScale.applyOptions({
             scaleMargins: {
               top: newTop,
@@ -306,7 +317,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
       }
     };
 
-    // Add wheel event listener to chart container
     const chartElement = chartContainerRef.current;
     if (chartElement) {
       chartElement.addEventListener('wheel', handleMouseWheel, { passive: false });
@@ -320,7 +330,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
         position: 'aboveBar',
         color: '#f59e0b',
         shape: 'circle',
-        text: '🧊',
+        text: `🧊 ${orders.length}`,
         size: 1,
       });
     });
@@ -352,10 +362,10 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
 
       const icebergs = chartData.icebergMarkers[param.time];
       if (icebergs && icebergs.length > 0) {
-        console.log('🎯 Clicked candle with icebergs:', param.time, icebergs);
+        console.log(`🎯 Clicked candle with ${icebergs.length} icebergs at time ${param.time}`);
         setClickedCandle({
           time: param.time,
-          orders: icebergs
+          orders: icebergs  // WICHTIG: Alle Orders werden hier gesetzt
         });
         addPriceLines(param.time);
       } else {
@@ -385,12 +395,10 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     return () => {
       window.removeEventListener('resize', handleResize);
       
-      // Remove wheel event listener
       if (chartElement) {
         chartElement.removeEventListener('wheel', handleMouseWheel);
       }
       
-      // Remove price lines
       priceLineRefs.current.forEach(line => {
         try {
           candleSeriesRef.current.removePriceLine(line);
@@ -406,12 +414,16 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
   const OrderbookExtension = () => {
     if (!hoveredCandle || !hoveredCandle.orders) return null;
 
+    // Show only first 3 in hover preview
+    const previewOrders = hoveredCandle.orders.slice(0, 3);
+    const hasMore = hoveredCandle.orders.length > 3;
+
     return (
       <div className="orderbook-extension-overlay hover">
         <div className="extension-hint">
-          💡 Click candle to show price levels
+          💡 Click candle to show all {hoveredCandle.orders.length} icebergs
         </div>
-        {hoveredCandle.orders.map((order, idx) => {
+        {previewOrders.map((order, idx) => {
           const isBuy = order.side === 'buy';
           const totalVolume = order.visibleVolume + order.hiddenVolume;
 
@@ -427,18 +439,27 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
             </div>
           );
         })}
+        {hasMore && (
+          <div className="extension-more">
+            +{hoveredCandle.orders.length - 3} more icebergs
+          </div>
+        )}
       </div>
     );
   };
 
-  // Clicked Candle Details (full extension)
+  // Clicked Candle Details (full extension with ALL orders)
   const ClickedCandleDetails = () => {
     if (!clickedCandle || !clickedCandle.orders) return null;
 
+    const totalOrders = clickedCandle.orders.length;
+    console.log(`🎨 Rendering ${totalOrders} icebergs in overlay`);
+
     return (
       <div className="orderbook-extension-overlay clicked">
+        {/* FIXED HEADER */}
         <div className="extension-header-main">
-          <h4>📍 Price Levels - {clickedCandle.orders.length} Iceberg(s)</h4>
+          <h4>📍 Price Levels - {totalOrders} Iceberg{totalOrders !== 1 ? 's' : ''}</h4>
           <button 
             className="close-button"
             onClick={() => {
@@ -455,98 +476,112 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
           </button>
         </div>
 
-        {clickedCandle.orders.map((order, idx) => {
-          const isBuy = order.side === 'buy';
-          const totalVolume = order.visibleVolume + order.hiddenVolume;
-          const executedPercent = (order.executedVolume / totalVolume) * 100;
-          const visiblePercent = (order.remainingVisible / totalVolume) * 100;
-          const hiddenPercent = (order.estimatedHidden / totalVolume) * 100;
+        {/* SCROLLABLE CONTENT - RENDERS ALL ORDERS */}
+        <div className="extension-orders-container">
+          {clickedCandle.orders.map((order, idx) => {
+            const isBuy = order.side === 'buy';
+            const totalVolume = order.visibleVolume + order.hiddenVolume;
+            const executedPercent = (order.executedVolume / totalVolume) * 100;
+            const visiblePercent = (order.remainingVisible / totalVolume) * 100;
+            const hiddenPercent = (order.estimatedHidden / totalVolume) * 100;
 
-          return (
-            <div key={idx} className={`extension-order ${isBuy ? 'buy' : 'sell'}`}>
-              <div className="extension-header">
-                <span className={`side-badge ${isBuy ? 'buy' : 'sell'}`}>
-                  {isBuy ? 'BUY' : 'SELL'}
-                </span>
-                <span className="price">${order.price.toFixed(2)}</span>
-                <span className="confidence">
-                  {(order.confidence * 100).toFixed(0)}% confidence
-                </span>
-              </div>
-
-              <div className="candle-info">
-                <div className="candle-prices">
-                  <span className={order.candlePrice.close > order.candlePrice.open ? 'green' : 'red'}>
-                    O: {order.candlePrice.open.toFixed(2)} | 
-                    H: {order.candlePrice.high.toFixed(2)} | 
-                    L: {order.candlePrice.low.toFixed(2)} | 
-                    C: {order.candlePrice.close.toFixed(2)}
+            return (
+              <div key={idx} className={`extension-order ${isBuy ? 'buy' : 'sell'}`}>
+                <div className="extension-header">
+                  <span className={`side-badge ${isBuy ? 'buy' : 'sell'}`}>
+                    {isBuy ? 'BUY' : 'SELL'} #{idx + 1}
+                  </span>
+                  <span className="price">${order.price.toFixed(2)}</span>
+                  <span className="confidence">
+                    {(order.confidence * 100).toFixed(0)}%
                   </span>
                 </div>
+
+                <div className="candle-info">
+                  <div className="candle-prices">
+                    <span className={order.candlePrice.close > order.candlePrice.open ? 'green' : 'red'}>
+                      O: {order.candlePrice.open.toFixed(2)} | 
+                      H: {order.candlePrice.high.toFixed(2)} | 
+                      L: {order.candlePrice.low.toFixed(2)} | 
+                      C: {order.candlePrice.close.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="extension-bars">
+                  {/* Executed Volume */}
+                  <div className="bar-row">
+                    <span className="bar-label">Executed:</span>
+                    <div className="bar-container">
+                      <div 
+                        className="bar executed"
+                        style={{ width: `${executedPercent}%` }}
+                      >
+                        {executedPercent > 15 && (
+                          <span className="bar-value">{order.executedVolume.toFixed(2)}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Remaining Visible */}
+                  <div className="bar-row">
+                    <span className="bar-label">Visible:</span>
+                    <div className="bar-container">
+                      <div 
+                        className="bar visible"
+                        style={{ width: `${visiblePercent}%` }}
+                      >
+                        {visiblePercent > 15 && (
+                          <span className="bar-value">{order.remainingVisible.toFixed(2)}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Estimated Hidden */}
+                  <div className="bar-row">
+                    <span className="bar-label">Hidden (est):</span>
+                    <div className="bar-container">
+                      <div 
+                        className="bar hidden"
+                        style={{ width: `${hiddenPercent}%` }}
+                      >
+                        {hiddenPercent > 15 && (
+                          <span className="bar-value">{order.estimatedHidden.toFixed(2)}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  <div className="bar-row total">
+                    <span className="bar-label">Total:</span>
+                    <div className="bar-container">
+                      <div className="bar total-bar" style={{ width: '100%' }}>
+                        <span className="bar-value">{totalVolume.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="extension-footer">
+                  <div className="likelihood">
+                    <span className="likelihood-label">More hidden likely:</span>
+                    <span className={`likelihood-value ${order.likelihood.toLowerCase()}`}>
+                      {order.likelihood}
+                    </span>
+                  </div>
+                </div>
               </div>
-
-              <div className="extension-bars">
-                {/* Executed Volume */}
-                <div className="bar-row">
-                  <span className="bar-label">Executed:</span>
-                  <div className="bar-container">
-                    <div 
-                      className="bar executed"
-                      style={{ width: `${executedPercent}%` }}
-                    >
-                      <span className="bar-value">{order.executedVolume.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Remaining Visible */}
-                <div className="bar-row">
-                  <span className="bar-label">Visible:</span>
-                  <div className="bar-container">
-                    <div 
-                      className="bar visible"
-                      style={{ width: `${visiblePercent}%` }}
-                    >
-                      <span className="bar-value">{order.remainingVisible.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Estimated Hidden */}
-                <div className="bar-row">
-                  <span className="bar-label">Hidden (est):</span>
-                  <div className="bar-container">
-                    <div 
-                      className="bar hidden"
-                      style={{ width: `${hiddenPercent}%` }}
-                    >
-                      <span className="bar-value">{order.estimatedHidden.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Total */}
-                <div className="bar-row total">
-                  <span className="bar-label">Total:</span>
-                  <div className="bar-container">
-                    <div className="bar total-bar" style={{ width: '100%' }}>
-                      <span className="bar-value">{totalVolume.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="extension-footer">
-                <div className="likelihood">
-                  <span className="likelihood-label">More hidden likely:</span>
-                  <span className={`likelihood-value ${order.likelihood.toLowerCase()}`}>
-                    {order.likelihood}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+          
+          {/* Footer mit Total Count */}
+          <div className="extension-footer-summary">
+            Showing all {totalOrders} icebergs
+          </div>
+        </div>
       </div>
     );
   };
@@ -594,10 +629,10 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
           </span>
           <span className="legend-item">
             <span className="legend-marker">🧊</span>
-            Iceberg Detected ({Object.keys(chartData.icebergMarkers).length} candles)
+            {Object.keys(chartData.icebergMarkers).length} candles with icebergs
           </span>
           <span className="legend-item hint">
-            💡 Click candle with 🧊 to show price levels | Scroll over Y-axis to zoom vertically
+            💡 Click 🧊 to show all price levels | Scroll Y-axis to zoom
           </span>
         </div>
       </div>
@@ -611,10 +646,10 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
 
       <div ref={chartContainerRef} className="chart-container" />
 
-      {/* Hover Extension (compact) */}
+      {/* Hover Extension (compact preview) */}
       {hoveredCandle && !clickedCandle && <OrderbookExtension />}
 
-      {/* Clicked Extension (full details) */}
+      {/* Clicked Extension (full list with scroll) */}
       {clickedCandle && <ClickedCandleDetails />}
     </div>
   );
