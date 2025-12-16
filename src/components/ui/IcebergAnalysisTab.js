@@ -267,7 +267,7 @@ const IcebergAnalysisTab = ({ icebergData }) => {
                 <div className="stat-label">Market Sentiment</div>
                 <div className="stat-value">{statistics.marketSentiment}</div>
                 <div className="stat-sub">
-                  Ratio: {statistics.buySelllRatio.toFixed(2)} | 
+                  Ratio: {statistics.buySelllRatio.toFixed(2)} {' | '} 
                   Pressure: {(statistics.netPressure * 100).toFixed(1)}%
                 </div>
               </div>
