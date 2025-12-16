@@ -101,48 +101,45 @@
 
 /* ========================================
    ORDERBOOK EXTENSION OVERLAY
-   IMPROVED VERSION WITH SCROLL
+   BELOW CHART VERSION WITH SCROLL
    ======================================== */
 .orderbook-extension-overlay {
-  position: fixed;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(15, 23, 42, 0.98);
-  border: 2px solid #7e58f5;
+  background: linear-gradient(135deg, #1a1a2e, #0f172a);
+  border: 2px solid #334155;
   border-radius: 12px;
-  max-width: 420px;
-  max-height: 85vh;
-  box-shadow: 0 10px 40px rgba(126, 88, 245, 0.3), 0 0 0 1px rgba(126, 88, 245, 0.1);
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-  animation: slideIn 0.3s ease;
+  margin-top: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-@keyframes slideIn {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(-50%) translateX(30px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
-    transform: translateY(-50%) translateX(0);
+    transform: translateY(0);
   }
 }
 
 /* Hover state - compact version */
 .orderbook-extension-overlay.hover {
   padding: 16px;
-  border-color: #334155;
-  max-height: 300px;
+  border-color: #475569;
+  max-height: 200px;
+  overflow: hidden;
 }
 
 /* Clicked state - full version with scroll */
 .orderbook-extension-overlay.clicked {
   padding: 0;
   border-color: #7e58f5;
+  max-height: 600px;
+  box-shadow: 0 4px 20px rgba(126, 88, 245, 0.3);
 }
 
 /* ========================================
@@ -193,33 +190,33 @@
 }
 
 /* ========================================
-   SCROLLABLE CONTENT AREA
+   SCROLLABLE CONTENT AREA (BELOW CHART)
    ======================================== */
-.orderbook-extension-overlay.clicked > div:not(.extension-header-main) {
+.extension-orders-container {
   overflow-y: auto;
   padding: 20px;
-  max-height: calc(85vh - 60px);
+  max-height: 500px;
 }
 
 /* Custom scrollbar for overlay content */
-.orderbook-extension-overlay.clicked > div:not(.extension-header-main)::-webkit-scrollbar {
+.extension-orders-container::-webkit-scrollbar {
   width: 8px;
 }
 
-.orderbook-extension-overlay.clicked > div:not(.extension-header-main)::-webkit-scrollbar-track {
+.extension-orders-container::-webkit-scrollbar-track {
   background: #0f172a;
   border-radius: 4px;
   margin: 8px 0;
 }
 
-.orderbook-extension-overlay.clicked > div:not(.extension-header-main)::-webkit-scrollbar-thumb {
-  background: #334155;
+.extension-orders-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #7e58f5, #6366f1);
   border-radius: 4px;
   border: 2px solid #0f172a;
 }
 
-.orderbook-extension-overlay.clicked > div:not(.extension-header-main)::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+.extension-orders-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #9333ea, #7e58f5);
 }
 
 /* ========================================
@@ -234,6 +231,33 @@
   border-radius: 6px;
   margin-bottom: 12px;
   font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Scroll indicator */
+.scroll-indicator {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(126, 88, 245, 0.9);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  animation: bounce 2s infinite;
+  z-index: 5;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-5px); }
 }
 
 /* ========================================
@@ -501,31 +525,21 @@
    ======================================== */
 @media (max-width: 1400px) {
   .orderbook-extension-overlay {
-    right: 12px;
-    max-width: 360px;
+    max-width: 100%;
+  }
+  
+  .extension-orders-container {
+    max-height: 450px;
   }
 }
 
 @media (max-width: 1024px) {
-  .orderbook-extension-overlay {
-    right: 12px;
-    left: 12px;
-    max-width: none;
-    top: auto;
-    bottom: 20px;
-    transform: none;
-    max-height: 50vh;
+  .orderbook-extension-overlay.clicked {
+    max-height: 500px;
   }
-
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  
+  .extension-orders-container {
+    max-height: 400px;
   }
 }
 
