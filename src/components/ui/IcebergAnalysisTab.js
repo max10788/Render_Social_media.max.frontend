@@ -1,280 +1,319 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
+import { TrendingUp, TrendingDown, Activity, Target, BarChart3 } from 'lucide-react';
 import './IcebergAnalysisTab.css';
 
 const IcebergAnalysisTab = ({ icebergData }) => {
-  const [hoveredLevel, setHoveredLevel] = useState(null);
-  
-  // Berechne Preis-Level-Aggregation
+  // Aggregate icebergs by price level
   const priceLevelAnalysis = useMemo(() => {
     if (!icebergData || !icebergData.buyIcebergs || !icebergData.sellIcebergs) {
-      return { levels: [], maxVolume: 0 };
+      return [];
     }
 
-    const allOrders = [...icebergData.buyIcebergs, ...icebergData.sellIcebergs];
+    const allIcebergs = [...icebergData.buyIcebergs, ...icebergData.sellIcebergs];
     const priceMap = new Map();
-    
-    allOrders.forEach(order => {
-      const price = order.price || 0;
-      const roundedPrice = Math.round(price / 10) * 10;
+
+    allIcebergs.forEach(iceberg => {
+      const price = iceberg.price;
+      const side = iceberg.side;
       
-      if (!priceMap.has(roundedPrice)) {
-        priceMap.set(roundedPrice, {
-          price: roundedPrice,
+      if (!priceMap.has(price)) {
+        priceMap.set(price, {
+          price,
           buyVolume: 0,
           sellVolume: 0,
+          totalVolume: 0,
           buyCount: 0,
           sellCount: 0,
-          totalVolume: 0,
-          orders: [],
-          avgConfidence: 0
+          totalCount: 0,
+          avgConfidence: 0,
+          confidenceSum: 0,
+          pendingOrders: [],
         });
       }
-      
-      const level = priceMap.get(roundedPrice);
-      const volume = (order.visibleVolume || 0) + (order.hiddenVolume || 0);
-      const confidence = order.confidence || 0;
-      
-      if (order.side === 'buy') {
-        level.buyVolume += volume;
-        level.buyCount++;
+
+      const level = priceMap.get(price);
+      const visibleVol = iceberg.visible_volume || iceberg.visibleVolume || 0;
+      const hiddenVol = iceberg.hidden_volume || iceberg.hiddenVolume || 0;
+      const totalVol = visibleVol + hiddenVol;
+
+      if (side === 'buy') {
+        level.buyVolume += totalVol;
+        level.buyCount += 1;
       } else {
-        level.sellVolume += volume;
-        level.sellCount++;
+        level.sellVolume += totalVol;
+        level.sellCount += 1;
       }
-      
-      level.totalVolume += volume;
-      level.orders.push(order);
-      level.avgConfidence += confidence;
+
+      level.totalVolume += totalVol;
+      level.totalCount += 1;
+      level.confidenceSum += (iceberg.confidence || 0);
+      level.pendingOrders.push({
+        side,
+        visibleVolume: visibleVol,
+        hiddenVolume: hiddenVol,
+        confidence: iceberg.confidence || 0,
+      });
     });
 
-    priceMap.forEach(level => {
-      level.avgConfidence = level.avgConfidence / level.orders.length;
-    });
+    // Calculate averages and sort
+    const levels = Array.from(priceMap.values()).map(level => ({
+      ...level,
+      avgConfidence: level.confidenceSum / level.totalCount,
+      dominantSide: level.buyVolume > level.sellVolume ? 'buy' : 'sell',
+    }));
 
-    const levels = Array.from(priceMap.values())
-      .sort((a, b) => b.totalVolume - a.totalVolume);
+    // Sort by total volume (descending)
+    levels.sort((a, b) => b.totalVolume - a.totalVolume);
 
-    const maxVolume = levels.length > 0 ? levels[0].totalVolume : 1;
-
-    return { levels, maxVolume };
+    return levels;
   }, [icebergData]);
 
-  // Berechne Statistiken
-  const statistics = useMemo(() => {
-    if (!priceLevelAnalysis.levels.length) return null;
+  // Identify support and resistance levels
+  const { supportLevels, resistanceLevels } = useMemo(() => {
+    const support = [];
+    const resistance = [];
 
-    const levels = priceLevelAnalysis.levels;
-    const topLevel = levels[0];
-    
-    const supportLevels = levels
-      .filter(l => l.buyVolume > l.sellVolume * 1.5)
-      .slice(0, 3);
-    
-    const resistanceLevels = levels
-      .filter(l => l.sellVolume > l.buyVolume * 1.5)
-      .slice(0, 3);
+    priceLevelAnalysis.forEach(level => {
+      if (level.dominantSide === 'buy') {
+        support.push(level);
+      } else {
+        resistance.push(level);
+      }
+    });
 
-    const pendingOrders = levels.reduce((sum, level) => 
-      sum + level.orders.filter(o => o.confidence > 0.8).length, 0
-    );
-
-    const completedOrders = levels.reduce((sum, level) => 
-      sum + level.orders.filter(o => o.confidence <= 0.8).length, 0
-    );
+    // Sort by volume
+    support.sort((a, b) => b.buyVolume - a.buyVolume);
+    resistance.sort((a, b) => b.sellVolume - a.sellVolume);
 
     return {
-      topLevel,
-      supportLevels,
-      resistanceLevels,
-      pendingOrders,
-      completedOrders,
-      totalLevels: levels.length
+      supportLevels: support.slice(0, 5),
+      resistanceLevels: resistance.slice(0, 5),
     };
   }, [priceLevelAnalysis]);
 
-  if (!icebergData || !priceLevelAnalysis.levels.length) {
+  // Calculate statistics
+  const statistics = useMemo(() => {
+    if (!icebergData) return null;
+
+    const totalBuyVolume = icebergData.buyIcebergs?.reduce(
+      (sum, order) => sum + (order.visible_volume || order.visibleVolume || 0) + (order.hidden_volume || order.hiddenVolume || 0),
+      0
+    ) || 0;
+
+    const totalSellVolume = icebergData.sellIcebergs?.reduce(
+      (sum, order) => sum + (order.visible_volume || order.visibleVolume || 0) + (order.hidden_volume || order.hiddenVolume || 0),
+      0
+    ) || 0;
+
+    const avgBuyConfidence = icebergData.buyIcebergs?.length > 0
+      ? icebergData.buyIcebergs.reduce((sum, o) => sum + (o.confidence || 0), 0) / icebergData.buyIcebergs.length
+      : 0;
+
+    const avgSellConfidence = icebergData.sellIcebergs?.length > 0
+      ? icebergData.sellIcebergs.reduce((sum, o) => sum + (o.confidence || 0), 0) / icebergData.sellIcebergs.length
+      : 0;
+
+    return {
+      totalBuyVolume,
+      totalSellVolume,
+      avgBuyConfidence,
+      avgSellConfidence,
+      buySelllRatio: totalSellVolume > 0 ? totalBuyVolume / totalSellVolume : 0,
+      uniquePriceLevels: priceLevelAnalysis.length,
+    };
+  }, [icebergData, priceLevelAnalysis]);
+
+  if (!icebergData || priceLevelAnalysis.length === 0) {
     return (
-      <div className="analysis-empty">
-        <div className="empty-content">
-          <div className="empty-icon">📊</div>
-          <h3>Keine Analyse-Daten verfügbar</h3>
-          <p>Starten Sie einen Scan, um Iceberg Orders zu erkennen</p>
-        </div>
+      <div className="analysis-tab-empty">
+        <div className="empty-icon">📊</div>
+        <p>No price level data available</p>
+        <p className="empty-hint">Run a scan to detect iceberg orders</p>
       </div>
     );
   }
 
   return (
-    <div className="analysis-container">
-      {/* Quick Stats */}
-      <div className="quick-stats">
-        <div className="stat-item primary" style={{ '--delay': '0.1s' }}>
-          <div className="stat-icon">🎯</div>
-          <div className="stat-info">
-            <span className="stat-value">${statistics.topLevel.price.toFixed(0)}</span>
-            <span className="stat-label">Top Hotspot</span>
-          </div>
-        </div>
-        
-        <div className="stat-item" style={{ '--delay': '0.2s' }}>
-          <div className="stat-icon pending">⏳</div>
-          <div className="stat-info">
-            <span className="stat-value">{statistics.pendingOrders}</span>
-            <span className="stat-label">Ausstehend</span>
-          </div>
-        </div>
-        
-        <div className="stat-item" style={{ '--delay': '0.3s' }}>
-          <div className="stat-icon completed">✓</div>
-          <div className="stat-info">
-            <span className="stat-value">{statistics.completedOrders}</span>
-            <span className="stat-label">Abgeschlossen</span>
-          </div>
-        </div>
-        
-        <div className="stat-item" style={{ '--delay': '0.4s' }}>
-          <div className="stat-icon">📍</div>
-          <div className="stat-info">
-            <span className="stat-value">{statistics.totalLevels}</span>
-            <span className="stat-label">Preis-Levels</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Support & Resistance Grid */}
-      <div className="sr-grid">
-        {/* Support */}
-        <div className="sr-panel support" style={{ '--delay': '0.5s' }}>
-          <div className="sr-header">
-            <span className="sr-icon">📈</span>
-            <h3>Support Levels</h3>
-            <span className="sr-badge">{statistics.supportLevels.length}</span>
-          </div>
-          {statistics.supportLevels.length > 0 ? (
-            <div className="sr-list">
-              {statistics.supportLevels.map((level, idx) => (
-                <div key={idx} className="sr-item" style={{ '--item-delay': `${0.6 + idx * 0.1}s` }}>
-                  <div className="sr-price-row">
-                    <span className="price">${level.price.toFixed(0)}</span>
-                    <span className="count">{level.buyCount}x</span>
-                  </div>
-                  <div className="sr-bar">
-                    <div 
-                      className="sr-fill"
-                      style={{ width: `${(level.buyVolume / priceLevelAnalysis.maxVolume) * 100}%` }}
-                    />
-                  </div>
-                  <div className="sr-meta">
-                    <span>{level.buyVolume.toFixed(1)} Vol</span>
-                    <span>{(level.avgConfidence * 100).toFixed(0)}%</span>
-                  </div>
-                </div>
-              ))}
+    <div className="analysis-tab">
+      {/* Statistics Overview */}
+      {statistics && (
+        <div className="analysis-stats">
+          <div className="analysis-stat-card primary">
+            <div className="stat-icon">🎯</div>
+            <div className="stat-content">
+              <div className="stat-label">Unique Price Levels</div>
+              <div className="stat-value">{statistics.uniquePriceLevels}</div>
             </div>
-          ) : (
-            <div className="sr-empty">Keine starken Support-Levels erkannt</div>
-          )}
-        </div>
-
-        {/* Resistance */}
-        <div className="sr-panel resistance" style={{ '--delay': '0.6s' }}>
-          <div className="sr-header">
-            <span className="sr-icon">📉</span>
-            <h3>Resistance Levels</h3>
-            <span className="sr-badge">{statistics.resistanceLevels.length}</span>
           </div>
-          {statistics.resistanceLevels.length > 0 ? (
-            <div className="sr-list">
-              {statistics.resistanceLevels.map((level, idx) => (
-                <div key={idx} className="sr-item" style={{ '--item-delay': `${0.7 + idx * 0.1}s` }}>
-                  <div className="sr-price-row">
-                    <span className="price">${level.price.toFixed(0)}</span>
-                    <span className="count">{level.sellCount}x</span>
-                  </div>
-                  <div className="sr-bar">
-                    <div 
-                      className="sr-fill"
-                      style={{ width: `${(level.sellVolume / priceLevelAnalysis.maxVolume) * 100}%` }}
-                    />
-                  </div>
-                  <div className="sr-meta">
-                    <span>{level.sellVolume.toFixed(1)} Vol</span>
-                    <span>{(level.avgConfidence * 100).toFixed(0)}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="sr-empty">Keine starken Resistance-Levels erkannt</div>
-          )}
-        </div>
-      </div>
 
-      {/* Price Levels Heatmap */}
-      <div className="levels-section" style={{ '--delay': '0.7s' }}>
-        <div className="section-header">
-          <h3>
-            <span>💎</span>
-            Top Preis-Levels
+          <div className="analysis-stat-card">
+            <div className="stat-icon">📈</div>
+            <div className="stat-content">
+              <div className="stat-label">Total Buy Volume</div>
+              <div className="stat-value">{statistics.totalBuyVolume.toFixed(2)}</div>
+              <div className="stat-sub">Avg Confidence: {(statistics.avgBuyConfidence * 100).toFixed(0)}%</div>
+            </div>
+          </div>
+
+          <div className="analysis-stat-card">
+            <div className="stat-icon">📉</div>
+            <div className="stat-content">
+              <div className="stat-label">Total Sell Volume</div>
+              <div className="stat-value">{statistics.totalSellVolume.toFixed(2)}</div>
+              <div className="stat-sub">Avg Confidence: {(statistics.avgSellConfidence * 100).toFixed(0)}%</div>
+            </div>
+          </div>
+
+          <div className="analysis-stat-card">
+            <div className="stat-icon">⚖️</div>
+            <div className="stat-content">
+              <div className="stat-label">Buy/Sell Ratio</div>
+              <div className="stat-value">{statistics.buySelllRatio.toFixed(2)}</div>
+              <div className="stat-sub">
+                {statistics.buySelllRatio > 1 ? 'Bullish' : statistics.buySelllRatio < 1 ? 'Bearish' : 'Neutral'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Support & Resistance Levels */}
+      <div className="sr-levels-section">
+        {/* Support Levels */}
+        <div className="sr-column">
+          <h3 className="sr-title support">
+            <TrendingUp size={20} />
+            <span>Support Levels</span>
           </h3>
-          <span className="levels-count">Top {Math.min(10, priceLevelAnalysis.levels.length)}</span>
+          <div className="sr-levels">
+            {supportLevels.length > 0 ? (
+              supportLevels.map((level, idx) => {
+                const maxVolume = Math.max(...supportLevels.map(l => l.buyVolume));
+                const percentage = (level.buyVolume / maxVolume) * 100;
+
+                return (
+                  <div key={idx} className="sr-level support">
+                    <div className="sr-level-header">
+                      <span className="sr-price">${level.price.toFixed(2)}</span>
+                      <span className="sr-count">{level.buyCount} order{level.buyCount > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="sr-volume-bar">
+                      <div
+                        className="sr-volume-fill support"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <div className="sr-details">
+                      <span>Volume: {level.buyVolume.toFixed(2)}</span>
+                      <span>Confidence: {(level.avgConfidence * 100).toFixed(0)}%</span>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="sr-empty">No support levels detected</div>
+            )}
+          </div>
         </div>
-        
-        <div className="levels-grid">
-          {priceLevelAnalysis.levels.slice(0, 10).map((level, idx) => {
+
+        {/* Resistance Levels */}
+        <div className="sr-column">
+          <h3 className="sr-title resistance">
+            <TrendingDown size={20} />
+            <span>Resistance Levels</span>
+          </h3>
+          <div className="sr-levels">
+            {resistanceLevels.length > 0 ? (
+              resistanceLevels.map((level, idx) => {
+                const maxVolume = Math.max(...resistanceLevels.map(l => l.sellVolume));
+                const percentage = (level.sellVolume / maxVolume) * 100;
+
+                return (
+                  <div key={idx} className="sr-level resistance">
+                    <div className="sr-level-header">
+                      <span className="sr-price">${level.price.toFixed(2)}</span>
+                      <span className="sr-count">{level.sellCount} order{level.sellCount > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="sr-volume-bar">
+                      <div
+                        className="sr-volume-fill resistance"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <div className="sr-details">
+                      <span>Volume: {level.sellVolume.toFixed(2)}</span>
+                      <span>Confidence: {(level.avgConfidence * 100).toFixed(0)}%</span>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="sr-empty">No resistance levels detected</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* All Price Levels */}
+      <div className="price-levels-section">
+        <h2 className="section-title">
+          <BarChart3 size={20} />
+          <span>All Price Levels</span>
+        </h2>
+        <div className="price-levels-list">
+          {priceLevelAnalysis.slice(0, 10).map((level, idx) => {
             const buyPercent = (level.buyVolume / level.totalVolume) * 100;
-            const sellPercent = 100 - buyPercent;
-            const pending = level.orders.filter(o => o.confidence > 0.8).length;
-            const isHovered = hoveredLevel === idx;
+            const sellPercent = (level.sellVolume / level.totalVolume) * 100;
 
             return (
-              <div 
-                key={idx} 
-                className={`level-card ${isHovered ? 'hovered' : ''}`}
-                style={{ '--card-delay': `${0.8 + idx * 0.05}s` }}
-                onMouseEnter={() => setHoveredLevel(idx)}
-                onMouseLeave={() => setHoveredLevel(null)}
-              >
-                <div className="level-top">
+              <div key={idx} className="price-level-card">
+                <div className="level-header">
                   <div className="level-rank">#{idx + 1}</div>
-                  <div className="level-price-group">
-                    <span className="level-price">${level.price.toFixed(0)}</span>
-                    <span className="level-total">{level.orders.length} Orders</span>
-                  </div>
-                  <div className="level-volume">{level.totalVolume.toFixed(1)}</div>
+                  <div className="level-price">${level.price.toFixed(2)}</div>
+                  <div className="level-badge">{level.totalCount} order{level.totalCount > 1 ? 's' : ''}</div>
                 </div>
 
-                <div className="level-split">
-                  <div 
-                    className="split-bar buy"
-                    style={{ width: `${buyPercent}%` }}
-                  >
-                    {buyPercent > 20 && <span>{buyPercent.toFixed(0)}%</span>}
+                <div className="level-volume-section">
+                  <div className="volume-label">
+                    Total Volume: <strong>{level.totalVolume.toFixed(2)}</strong>
                   </div>
-                  <div 
-                    className="split-bar sell"
-                    style={{ width: `${sellPercent}%` }}
-                  >
-                    {sellPercent > 20 && <span>{sellPercent.toFixed(0)}%</span>}
+                  <div className="volume-split-bar">
+                    {level.buyVolume > 0 && (
+                      <div className="volume-split buy" style={{ width: `${buyPercent}%` }}>
+                        {buyPercent > 15 && `${buyPercent.toFixed(0)}%`}
+                      </div>
+                    )}
+                    {level.sellVolume > 0 && (
+                      <div className="volume-split sell" style={{ width: `${sellPercent}%` }}>
+                        {sellPercent > 15 && `${sellPercent.toFixed(0)}%`}
+                      </div>
+                    )}
+                  </div>
+                  <div className="volume-legend">
+                    <span className="legend-buy">Buy: {level.buyVolume.toFixed(2)}</span>
+                    <span className="legend-sell">Sell: {level.sellVolume.toFixed(2)}</span>
                   </div>
                 </div>
 
-                <div className="level-bottom">
-                  <div className="level-stat">
-                    <span className="stat-icon buy-icon">↑</span>
-                    <span>{level.buyCount}</span>
+                <div className="level-status">
+                  <div className="status-item pending">
+                    <span className="status-icon">⏳</span>
+                    <span className="status-label">Pending:</span>
+                    <span className="status-value">{level.pendingOrders.length}</span>
                   </div>
-                  <div className="level-stat">
-                    <span className="stat-icon sell-icon">↓</span>
-                    <span>{level.sellCount}</span>
+                  <div className="status-item confidence">
+                    <span className="status-icon">🎯</span>
+                    <span className="status-label">Confidence:</span>
+                    <span className="status-value">{(level.avgConfidence * 100).toFixed(0)}%</span>
                   </div>
-                  <div className="level-stat">
-                    <span className="stat-icon pending-icon">⏳</span>
-                    <span>{pending}</span>
-                  </div>
-                  <div className="level-stat">
-                    <span className="stat-icon conf-icon">📊</span>
-                    <span>{(level.avgConfidence * 100).toFixed(0)}%</span>
+                  <div className="status-item">
+                    <span className="status-icon">
+                      {level.dominantSide === 'buy' ? '📈' : '📉'}
+                    </span>
+                    <span className="status-label">Type:</span>
+                    <span className="status-value">
+                      {level.dominantSide === 'buy' ? 'Support' : 'Resistance'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -283,13 +322,25 @@ const IcebergAnalysisTab = ({ icebergData }) => {
         </div>
       </div>
 
-      {/* Compact Info */}
-      <div className="info-box" style={{ '--delay': '1s' }}>
-        <div className="info-icon">💡</div>
+      {/* Analysis Information */}
+      <div className="analysis-info">
+        <h4>
+          <Activity size={18} />
+          <span>About Price-Level Analysis</span>
+        </h4>
         <div className="info-content">
-          <strong>Analyse-Erklärung:</strong> Orders werden zu Preis-Clustern (±$10) gruppiert. 
-          Confidence &gt;80% = ausstehend, ≤80% = abgeschlossen. 
-          Support = Buy-Dominanz, Resistance = Sell-Dominanz (1.5x Faktor).
+          <p>
+            <strong>Support Levels:</strong> Price points where buy-side iceberg orders are concentrated, 
+            indicating potential buying pressure and support.
+          </p>
+          <p>
+            <strong>Resistance Levels:</strong> Price points where sell-side iceberg orders are concentrated, 
+            indicating potential selling pressure and resistance.
+          </p>
+          <p>
+            <strong>Volume Analysis:</strong> Higher volume at a price level indicates stronger conviction 
+            and potential for significant price action at that level.
+          </p>
         </div>
       </div>
     </div>
