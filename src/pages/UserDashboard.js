@@ -22,7 +22,7 @@ import {
 import useIcebergOrders from '../hooks/useIcebergOrders';
 import IcebergCandleChart from '../components/ui/IcebergCandleChart';
 import IcebergAnalysisTab from '../components/ui/IcebergAnalysisTab';
-import './Dashboard.css';
+import './UserDashboard.css';
 
 const Dashboard = () => {
   // ==================== TOOL SELECTION ====================
