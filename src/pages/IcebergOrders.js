@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import useIcebergOrders from '../hooks/useIcebergOrders';
 import IcebergCandleChart from '../components/ui/IcebergCandleChart';
 import IcebergAnalysisTab from '../components/ui/IcebergAnalysisTab';
+import ParentOrdersTab from '../components/ui/ParentOrdersTab';
 import './IcebergOrders.css';
 
 const IcebergOrders = () => {
@@ -9,8 +10,10 @@ const IcebergOrders = () => {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
   const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
   const [threshold, setThreshold] = useState(0.05);
+  const [enableClustering, setEnableClustering] = useState(true);
+  const [adaptiveClustering, setAdaptiveClustering] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
-  const [activeTab, setActiveTab] = useState('chart'); // 'chart' oder 'analysis'
+  const [activeTab, setActiveTab] = useState('chart'); // 'chart', 'analysis', 'parents'
 
   const { icebergData, loading, error, fetchIcebergOrders, symbols } = useIcebergOrders(selectedExchange);
 
@@ -31,7 +34,13 @@ const IcebergOrders = () => {
 
   const handleStartScan = async () => {
     setIsScanning(true);
-    await fetchIcebergOrders(selectedSymbol, selectedTimeframe, threshold);
+    await fetchIcebergOrders(
+      selectedSymbol, 
+      selectedTimeframe, 
+      threshold,
+      enableClustering,
+      adaptiveClustering
+    );
     setIsScanning(false);
   };
 
@@ -48,9 +57,12 @@ const IcebergOrders = () => {
           <h1 className="page-title">
             <span className="title-icon">🧊</span>
             Iceberg Orders Detection
+            {enableClustering && (
+              <span className="feature-badge">🔗 Clustering Enabled</span>
+            )}
           </h1>
           <p className="page-description">
-            Detect hidden large orders (icebergs) on cryptocurrency exchanges
+            Detect hidden large orders (icebergs) and identify parent order patterns
           </p>
         </div>
       </div>
@@ -108,6 +120,32 @@ const IcebergOrders = () => {
             className="control-slider"
           />
         </div>
+
+        <div className="control-group checkbox-group">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={enableClustering}
+              onChange={(e) => setEnableClustering(e.target.checked)}
+              className="control-checkbox"
+            />
+            <span>Enable Clustering</span>
+          </label>
+        </div>
+
+        {enableClustering && (
+          <div className="control-group checkbox-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={adaptiveClustering}
+                onChange={(e) => setAdaptiveClustering(e.target.checked)}
+                className="control-checkbox"
+              />
+              <span>Adaptive Clustering</span>
+            </label>
+          </div>
+        )}
 
         <button 
           onClick={handleStartScan}
@@ -172,6 +210,31 @@ const IcebergOrders = () => {
               <div className="stat-label">Hidden Volume</div>
             </div>
           </div>
+
+          {/* NEW: Clustering Stats */}
+          {enableClustering && icebergData.clusteringStats && (
+            <>
+              <div className="stat-card clustering">
+                <div className="stat-icon">🔗</div>
+                <div className="stat-content">
+                  <div className="stat-value">
+                    {icebergData.clusteringStats.parent_orders_found || 0}
+                  </div>
+                  <div className="stat-label">Parent Orders</div>
+                </div>
+              </div>
+
+              <div className="stat-card clustering">
+                <div className="stat-icon">📊</div>
+                <div className="stat-content">
+                  <div className="stat-value">
+                    {(icebergData.clusteringStats.clustering_rate || 0).toFixed(0)}%
+                  </div>
+                  <div className="stat-label">Clustering Rate</div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -183,22 +246,36 @@ const IcebergOrders = () => {
             onClick={() => setActiveTab('chart')}
           >
             <span className="tab-icon">📊</span>
-            Chart Ansicht
+            Chart View
           </button>
           <button 
             className={`tab-button ${activeTab === 'analysis' ? 'active' : ''}`}
             onClick={() => setActiveTab('analysis')}
           >
             <span className="tab-icon">🔬</span>
-            Preis-Level Analyse
+            Price Levels
           </button>
+          {enableClustering && (
+            <button 
+              className={`tab-button ${activeTab === 'parents' ? 'active' : ''}`}
+              onClick={() => setActiveTab('parents')}
+            >
+              <span className="tab-icon">🔗</span>
+              Parent Orders
+              {icebergData.clusteringStats?.parent_orders_found > 0 && (
+                <span className="tab-badge">
+                  {icebergData.clusteringStats.parent_orders_found}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       )}
 
       {/* Tab Content */}
       {icebergData && (
         <div className="tab-content">
-          {activeTab === 'chart' ? (
+          {activeTab === 'chart' && (
             <>
               {/* Main Chart */}
               <IcebergCandleChart 
@@ -210,7 +287,7 @@ const IcebergOrders = () => {
               {/* Detected Orders List */}
               {icebergData.totalDetected > 0 && (
                 <div className="detected-orders-section">
-                  <h2 className="section-title">Detected Iceberg Orders</h2>
+                  <h2 className="section-title">Individual Iceberg Detections</h2>
                   
                   <div className="orders-grid">
                     {/* Buy Orders */}
@@ -241,7 +318,7 @@ const IcebergOrders = () => {
                                 <div className="detail-row">
                                   <span className="detail-label">Total:</span>
                                   <span className="detail-value total">
-                                    {((order.visibleVolume || 0) + (order.hiddenVolume || 0)).toFixed(2)}
+                                    {(order.totalVolume || 0).toFixed(2)}
                                   </span>
                                 </div>
                               </div>
@@ -279,7 +356,7 @@ const IcebergOrders = () => {
                                 <div className="detail-row">
                                   <span className="detail-label">Total:</span>
                                   <span className="detail-value total">
-                                    {((order.visibleVolume || 0) + (order.hiddenVolume || 0)).toFixed(2)}
+                                    {(order.totalVolume || 0).toFixed(2)}
                                   </span>
                                 </div>
                               </div>
@@ -292,19 +369,24 @@ const IcebergOrders = () => {
                 </div>
               )}
             </>
-          ) : (
-            /* Analysis Tab */
+          )}
+
+          {activeTab === 'analysis' && (
             <IcebergAnalysisTab icebergData={icebergData} />
+          )}
+
+          {activeTab === 'parents' && (
+            <ParentOrdersTab icebergData={icebergData} />
           )}
         </div>
       )}
 
       {/* Info Section */}
       <div className="info-section">
-        <h3>ℹ️ About Iceberg Orders</h3>
+        <h3>ℹ️ About Iceberg Orders {enableClustering && '& Parent Order Clustering'}</h3>
         <p>
           Iceberg orders are large orders that are split into smaller visible portions to hide the true order size.
-          This tool detects potential iceberg orders by analyzing orderbook depth, trade flow, and volume patterns.
+          {enableClustering && ' The clustering algorithm groups related icebergs to identify the larger parent orders behind them.'}
         </p>
         <div className="info-grid">
           <div className="info-card">
@@ -315,23 +397,23 @@ const IcebergOrders = () => {
               <li>Volume anomaly detection</li>
             </ul>
           </div>
+          {enableClustering && (
+            <div className="info-card">
+              <h4>🔗 Clustering Features</h4>
+              <ul>
+                <li>Groups related refills</li>
+                <li>Identifies trader types</li>
+                <li>Analyzes execution patterns</li>
+              </ul>
+            </div>
+          )}
           <div className="info-card">
             <h4>📊 How to Use</h4>
             <ul>
               <li>Select exchange and symbol</li>
               <li>Adjust detection threshold</li>
-              <li>Switch between Chart and Analysis tabs</li>
-              <li>View price-level hotspots and pending orders</li>
-            </ul>
-          </div>
-          <div className="info-card">
-            <h4>⚡ Features</h4>
-            <ul>
-              <li>Real-time detection</li>
-              <li>Interactive candlestick chart</li>
-              <li>Price-level aggregation</li>
-              <li>Support/Resistance identification</li>
-              <li>Confidence scoring</li>
+              <li>Enable clustering for parent orders</li>
+              <li>Switch between tabs for different views</li>
             </ul>
           </div>
         </div>
