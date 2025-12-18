@@ -533,3 +533,164 @@
     font-size: 11px;
   }
 }
+/* ============================================
+   REFILLS SECTION
+   ============================================ */
+
+.refills-section {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 10px;
+  margin-top: 24px;
+  overflow: hidden;
+}
+
+.refills-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: #1f2937;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.refills-header:hover {
+  background: #374151;
+}
+
+.refills-icon {
+  font-size: 14px;
+  color: #8b5cf6;
+  font-weight: 700;
+  min-width: 20px;
+}
+
+.refills-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.refills-list {
+  padding: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.refills-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.refills-list::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.refills-list::-webkit-scrollbar-thumb {
+  background: #8b5cf6;
+  border-radius: 4px;
+}
+
+.refills-list-header {
+  display: grid;
+  grid-template-columns: 50px 100px 100px 80px 80px 80px 60px;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #0f172a;
+  border-bottom: 2px solid #8b5cf6;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8b5cf6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.refill-row {
+  display: grid;
+  grid-template-columns: 50px 100px 100px 80px 80px 80px 60px;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #1f2937;
+  font-size: 12px;
+  color: #e5e7eb;
+  transition: background 0.2s ease;
+}
+
+.refill-row:hover {
+  background: #1f2937;
+}
+
+.refill-row:last-child {
+  border-bottom: none;
+}
+
+.refill-col-num {
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.refill-col-time {
+  color: #60a5fa;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.refill-col-price {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.refill-col-visible {
+  color: #3b82f6;
+}
+
+.refill-col-hidden {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.refill-col-total {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.refill-col-confidence {
+  color: #8b5cf6;
+  font-weight: 600;
+}
+
+.refills-empty {
+  padding: 20px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+/* Responsive für Refills */
+@media (max-width: 1200px) {
+  .refills-list-header,
+  .refill-row {
+    grid-template-columns: 40px 90px 90px 70px 70px 70px 55px;
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 768px) {
+  .refills-list-header,
+  .refill-row {
+    grid-template-columns: 35px 80px 80px 65px 65px 65px 50px;
+    gap: 6px;
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  
+  .refills-list {
+    max-height: 300px;
+  }
+}
