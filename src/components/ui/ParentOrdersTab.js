@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './ParentOrdersTab.css';
 
 const ParentOrdersTab = ({ icebergData }) => {
+  const [expandedParents, setExpandedParents] = useState({});
+
   if (!icebergData?.parentOrders || icebergData.parentOrders.length === 0) {
     return (
       <div className="parent-orders-empty">
@@ -30,6 +32,13 @@ const ParentOrdersTab = ({ icebergData }) => {
     } else {
       return { type: 'Manual Trader', icon: '👤', color: '#6b7280' };
     }
+  };
+
+  const toggleRefills = (parentId) => {
+    setExpandedParents(prev => ({
+      ...prev,
+      [parentId]: !prev[parentId]
+    }));
   };
 
   return (
@@ -63,6 +72,7 @@ const ParentOrdersTab = ({ icebergData }) => {
           );
 
           const isBuy = parent.side === 'buy';
+          const isExpanded = expandedParents[parent.id];
 
           return (
             <div key={idx} className={`parent-order-card ${isBuy ? 'buy' : 'sell'}`}>
@@ -252,6 +262,70 @@ const ParentOrdersTab = ({ icebergData }) => {
                   )}
                 </p>
               </div>
+
+              {/* REFILLS SECTION - EXPANDABLE */}
+              <div className="refills-section">
+                <div 
+                  className="refills-header"
+                  onClick={() => toggleRefills(parent.id)}
+                >
+                  <span className="refills-icon">
+                    {isExpanded ? '▼' : '▶'}
+                  </span>
+                  <span className="refills-title">
+                    {isExpanded ? 'Hide' : 'Show'} {parent.refills?.count || 0} Refills
+                  </span>
+                </div>
+                
+                {isExpanded && parent.refills?.details && parent.refills.details.length > 0 && (
+                  <div className="refills-list">
+                    <div className="refills-list-header">
+                      <span className="refill-col-num">#</span>
+                      <span className="refill-col-time">Time</span>
+                      <span className="refill-col-price">Price</span>
+                      <span className="refill-col-visible">Visible</span>
+                      <span className="refill-col-hidden">Hidden</span>
+                      <span className="refill-col-total">Total</span>
+                      <span className="refill-col-confidence">Conf</span>
+                    </div>
+                    {parent.refills.details.map((refill, refillIdx) => {
+                      const visibleVol = refill.visible_volume || refill.visibleVolume || 0;
+                      const hiddenVol = refill.hidden_volume || refill.hiddenVolume || 0;
+                      const totalVol = refill.total_volume || refill.totalVolume || (visibleVol + hiddenVol);
+
+                      return (
+                        <div key={refillIdx} className="refill-row">
+                          <span className="refill-col-num">{refillIdx + 1}</span>
+                          <span className="refill-col-time">
+                            {new Date(refill.timestamp).toLocaleTimeString()}
+                          </span>
+                          <span className="refill-col-price">
+                            ${refill.price?.toFixed(2) || 'N/A'}
+                          </span>
+                          <span className="refill-col-visible">
+                            {visibleVol.toFixed(3)}
+                          </span>
+                          <span className="refill-col-hidden">
+                            {hiddenVol.toFixed(3)}
+                          </span>
+                          <span className="refill-col-total">
+                            {totalVol.toFixed(3)}
+                          </span>
+                          <span className="refill-col-confidence">
+                            {((refill.confidence || 0) * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {isExpanded && (!parent.refills?.details || parent.refills.details.length === 0) && (
+                  <div className="refills-empty">
+                    <p>No refill details available</p>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -259,9 +333,9 @@ const ParentOrdersTab = ({ icebergData }) => {
 
       {/* Info Box */}
       <div className="parent-orders-info">
-        <h4>ℹ️ About Parent Orders</h4>
+        <h4>ℹ️ About Parent Orders & Refills</h4>
         <p>
-          Parent orders represent large institutional orders that have been split into multiple smaller refills.
+          Parent orders represent large institutional orders (Icebergs) that have been split into multiple smaller refills.
           The clustering algorithm groups related iceberg detections based on:
         </p>
         <ul>
@@ -279,6 +353,11 @@ const ParentOrdersTab = ({ icebergData }) => {
           <li>👔 <strong>Professional</strong> - Consistency {'>'} 70%</li>
           <li>👤 <strong>Manual Trader</strong> - Lower consistency</li>
         </ul>
+        <p>
+          <strong>Refills:</strong> Click "Show X Refills" on any parent order to see the individual 
+          order executions that make up the larger iceberg. Each refill shows the exact price, volume 
+          breakdown, timestamp, and detection confidence.
+        </p>
       </div>
     </div>
   );
