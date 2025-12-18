@@ -12,10 +12,9 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartData, setChartData] = useState(null);
-  const [showAllRefills, setShowAllRefills] = useState(false); // NEU: Toggle
+  const [showAllRefills, setShowAllRefills] = useState(false);
   const priceLineRefs = useRef([]);
 
-  // Fetch real candle data and merge with iceberg data
   useEffect(() => {
     const fetchAndMergeData = async () => {
       if (!icebergData) {
@@ -58,15 +57,11 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
           volume: candle.volume
         }));
 
-        // ============================================
-        // ENTSCHEIDE: Parent Orders (Icebergs) ODER alle Refills
-        // ============================================
         const hasParentOrders = icebergData.parentOrders && icebergData.parentOrders.length > 0;
         
         let ordersToDisplay = [];
 
         if (hasParentOrders && !showAllRefills) {
-          // MODUS 1: Zeige nur Icebergs (Parent Orders)
           console.log(`🧊 Displaying ${icebergData.parentOrders.length} Icebergs (Parent Orders)`);
           
           ordersToDisplay = icebergData.parentOrders.map(parent => ({
@@ -77,7 +72,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
             totalVolume: parent.volume.total,
             confidence: parent.confidence.overall,
             timestamp: parent.timing.first_seen,
-            // Parent Order Info
             isParentOrder: true,
             parentId: parent.id,
             refillCount: parent.refills.count,
@@ -86,7 +80,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
             avgInterval: parent.timing.avg_interval_seconds
           }));
         } else {
-          // MODUS 2: Zeige alle Refills (einzelne Detektionen)
           const buyRefills = icebergData.buyIcebergs || [];
           const sellRefills = icebergData.sellIcebergs || [];
           ordersToDisplay = [...buyRefills, ...sellRefills];
@@ -94,7 +87,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
           console.log(`📍 Displaying ${ordersToDisplay.length} individual Refills`);
         }
 
-        // Map zu Candles
         const icebergMarkers = {};
         
         ordersToDisplay.forEach((order, idx) => {
@@ -118,7 +110,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
               hiddenVolume: hiddenVol,
               totalVolume: totalVolume,
               confidence: order.confidence,
-              // Parent Order spezifisch
               isParentOrder: order.isParentOrder || false,
               parentId: order.parentId || null,
               refillCount: order.refillCount || 1,
@@ -155,7 +146,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     };
 
     fetchAndMergeData();
-  }, [icebergData, symbol, timeframe, exchange, showAllRefills]); // ← showAllRefills dependency!
+  }, [icebergData, symbol, timeframe, exchange, showAllRefills]);
 
   const findMatchingCandle = (candles, icebergPrice, side) => {
     let bestMatch = null;
@@ -201,8 +192,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     const orders = chartData.icebergMarkers[candleTime];
     if (!orders || orders.length === 0) return;
 
-    console.log(`📍 Adding ${orders.length} price lines for candle ${candleTime}`);
-
     orders.forEach((order, idx) => {
       const isBuy = order.side === 'buy';
 
@@ -210,8 +199,8 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
         const priceLine = candleSeriesRef.current.createPriceLine({
           price: order.price,
           color: isBuy ? '#10b981' : '#ef4444',
-          lineWidth: order.isParentOrder ? 3 : 2, // Parent Orders dicker
-          lineStyle: order.isParentOrder ? 0 : 2, // Parent solid, Refills dashed
+          lineWidth: order.isParentOrder ? 3 : 2,
+          lineStyle: order.isParentOrder ? 0 : 2,
           axisLabelVisible: true,
           title: order.isParentOrder 
             ? `${isBuy ? 'BUY' : 'SELL'} 🧊 ${order.totalVolume.toFixed(1)} (${order.refillCount}x)`
@@ -223,11 +212,8 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
         console.error('❌ Failed to create price line:', e);
       }
     });
-
-    console.log(`✅ Total price lines added: ${priceLineRefs.current.length}`);
   };
 
-  // Create/update chart
   useEffect(() => {
     if (!chartContainerRef.current || !chartData) return;
 
@@ -261,23 +247,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
 
     chartRef.current = chart;
 
-    try {
-      chart.applyOptions({
-        handleScale: {
-          axisPressedMouseMove: {
-            time: false,
-            price: true,
-          },
-        },
-        handleScroll: {
-          mouseWheel: true,
-          pressedMouseMove: true,
-        },
-      });
-    } catch (error) {
-      console.log('⚠️ Advanced scaling options not available');
-    }
-
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#10b981',
       downColor: '#ef4444',
@@ -290,43 +259,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     candleSeriesRef.current = candleSeries;
     candleSeries.setData(chartData.candles);
 
-    const handleMouseWheel = (e) => {
-      if (!candleSeriesRef.current) return;
-      
-      const rect = chartContainerRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const width = rect.width;
-      
-      if (x > width - 80) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        try {
-          const priceScale = candleSeriesRef.current.priceScale();
-          const currentOptions = priceScale.options();
-          
-          const delta = e.deltaY > 0 ? 0.02 : -0.02;
-          const newTop = Math.max(0.05, Math.min(0.4, (currentOptions.scaleMargins?.top || 0.1) + delta));
-          const newBottom = Math.max(0.05, Math.min(0.4, (currentOptions.scaleMargins?.bottom || 0.1) + delta));
-          
-          priceScale.applyOptions({
-            scaleMargins: {
-              top: newTop,
-              bottom: newBottom,
-            },
-          });
-        } catch (err) {
-          console.log('⚠️ Vertical zoom not available:', err.message);
-        }
-      }
-    };
-
-    const chartElement = chartContainerRef.current;
-    if (chartElement) {
-      chartElement.addEventListener('wheel', handleMouseWheel, { passive: false });
-    }
-
-    // Add markers
     const markers = [];
     Object.entries(chartData.icebergMarkers).forEach(([time, orders]) => {
       const isParentOrders = orders.some(o => o.isParentOrder);
@@ -334,10 +266,10 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
       markers.push({
         time: parseInt(time),
         position: 'aboveBar',
-        color: isParentOrders ? '#8b5cf6' : '#f59e0b', // Lila für Parent, Orange für Refills
+        color: isParentOrders ? '#8b5cf6' : '#f59e0b',
         shape: 'circle',
         text: isParentOrders ? `🧊 ${orders.length}` : `📍 ${orders.length}`,
-        size: isParentOrders ? 2 : 1, // Parent Orders größer
+        size: isParentOrders ? 2 : 1,
       });
     });
     candleSeries.setMarkers(markers);
@@ -366,7 +298,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
 
       const orders = chartData.icebergMarkers[param.time];
       if (orders && orders.length > 0) {
-        console.log(`🎯 Clicked candle with ${orders.length} orders at time ${param.time}`);
         setClickedCandle({
           time: param.time,
           orders: orders
@@ -395,23 +326,16 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      
-      if (chartElement) {
-        chartElement.removeEventListener('wheel', handleMouseWheel);
-      }
-      
       priceLineRefs.current.forEach(line => {
         try {
           candleSeriesRef.current.removePriceLine(line);
         } catch (e) {}
       });
       priceLineRefs.current = [];
-      
       chart.remove();
     };
   }, [chartData]);
 
-  // Orderbook Extension Overlay (for hover)
   const OrderbookExtension = () => {
     if (!hoveredCandle || !hoveredCandle.orders) return null;
 
@@ -448,7 +372,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
     );
   };
 
-  // Clicked Candle Details
   const ClickedCandleDetails = () => {
     if (!clickedCandle || !clickedCandle.orders) return null;
 
@@ -512,17 +435,6 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
                   </div>
                 )}
 
-                <div className="candle-info">
-                  <div className="candle-prices">
-                    <span className={order.candlePrice.close > order.candlePrice.open ? 'green' : 'red'}>
-                      O: {order.candlePrice.open.toFixed(2)} | 
-                      H: {order.candlePrice.high.toFixed(2)} | 
-                      L: {order.candlePrice.low.toFixed(2)} | 
-                      C: {order.candlePrice.close.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
                 <div className="volume-row">
                   <span className="volume-label">Visible:</span>
                   <span className="volume-value">{order.visibleVolume.toFixed(2)}</span>
@@ -572,8 +484,35 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
 
   return (
     <div className="iceberg-candle-chart">
+      {/* GROßER TOGGLE BUTTON - OBERHALB DES CHARTS! */}
+      {hasParentOrders && (
+        <div className="chart-mode-selector">
+          <button 
+            className={`mode-button ${!showAllRefills ? 'active' : ''}`}
+            onClick={() => setShowAllRefills(false)}
+          >
+            <span className="mode-icon">🧊</span>
+            <div className="mode-info">
+              <div className="mode-title">Icebergs Only</div>
+              <div className="mode-desc">{icebergData.parentOrders.length} Parent Orders</div>
+            </div>
+          </button>
+          
+          <button 
+            className={`mode-button ${showAllRefills ? 'active' : ''}`}
+            onClick={() => setShowAllRefills(true)}
+          >
+            <span className="mode-icon">📍</span>
+            <div className="mode-info">
+              <div className="mode-title">All Refills</div>
+              <div className="mode-desc">{icebergData.totalDetected} Individual Detections</div>
+            </div>
+          </button>
+        </div>
+      )}
+
       <div className="chart-header">
-        <h3>{symbol} - Iceberg Orders Detection</h3>
+        <h3>{symbol} - {showAllRefills ? 'All Refills' : 'Iceberg Orders'}</h3>
         <div className="chart-legend">
           <span className="legend-item">
             <span className="legend-color" style={{ backgroundColor: '#10b981' }}></span>
@@ -585,21 +524,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
           </span>
           <span className="legend-item">
             <span className="legend-marker">{showAllRefills ? '📍' : '🧊'}</span>
-            {Object.keys(chartData.icebergMarkers).length} candles with {showAllRefills ? 'refills' : 'icebergs'}
-          </span>
-          
-          {/* NEU: Toggle Button */}
-          {hasParentOrders && (
-            <button 
-              className="toggle-view-button"
-              onClick={() => setShowAllRefills(!showAllRefills)}
-            >
-              {showAllRefills ? '🧊 Show Icebergs Only' : '📍 Show All Refills'}
-            </button>
-          )}
-          
-          <span className="legend-item hint">
-            💡 Click marker to show details | Scroll Y-axis to zoom
+            {Object.keys(chartData.icebergMarkers).length} candles
           </span>
         </div>
       </div>
