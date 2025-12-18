@@ -832,3 +832,228 @@
 .volume-value.highlight {
   color: #f59e0b;
 }
+
+/* ============================================
+   OVERLAY REFILLS SECTION
+   ============================================ */
+
+.overlay-refills-section {
+  margin-top: 16px;
+  border-top: 1px solid #374151;
+  padding-top: 16px;
+}
+
+.overlay-refills-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  border: 1px solid #8b5cf6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.overlay-refills-toggle:hover {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  border-color: #a78bfa;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.overlay-refills-toggle .toggle-icon {
+  color: #8b5cf6;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.overlay-refills-toggle .toggle-text {
+  flex: 1;
+  text-align: left;
+}
+
+.overlay-refills-list {
+  margin-top: 12px;
+  background: #0f172a;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.overlay-refills-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overlay-refills-list::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.overlay-refills-list::-webkit-scrollbar-thumb {
+  background: #8b5cf6;
+  border-radius: 3px;
+}
+
+.overlay-refills-header {
+  display: grid;
+  grid-template-columns: 40px 80px 80px 70px 50px;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #1e293b;
+  border-bottom: 2px solid #8b5cf6;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8b5cf6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  sticky: top 0;
+  z-index: 10;
+}
+
+.overlay-refill-row {
+  display: grid;
+  grid-template-columns: 40px 80px 80px 70px 50px;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #1f2937;
+  font-size: 11px;
+  color: #e5e7eb;
+  transition: background 0.2s ease;
+}
+
+.overlay-refill-row:hover {
+  background: #1f2937;
+}
+
+.overlay-refill-row:last-child {
+  border-bottom: none;
+}
+
+.overlay-refill-row .refill-col-num {
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.overlay-refill-row .refill-col-time {
+  color: #60a5fa;
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.overlay-refill-row .refill-col-price {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.overlay-refill-row .refill-col-vol {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.overlay-refill-row .refill-col-conf {
+  color: #8b5cf6;
+  font-weight: 600;
+}
+
+.overlay-refills-empty {
+  padding: 20px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+/* Responsive für kleinere Overlays */
+@media (max-width: 768px) {
+  .overlay-refills-header,
+  .overlay-refill-row {
+    grid-template-columns: 35px 70px 70px 60px 45px;
+    gap: 6px;
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  
+  .overlay-refills-list {
+    max-height: 200px;
+  }
+}
+
+/* Parent Order Badge im Overlay */
+.extension-order.parent-order {
+  border-left: 4px solid #8b5cf6;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%);
+}
+
+.refill-badge {
+  display: inline-block;
+  background: rgba(139, 92, 246, 0.3);
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  margin-left: 8px;
+  color: #e9d5ff;
+}
+
+/* Info Rows im Parent Order */
+.parent-order-info {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.info-label {
+  color: #9ca3af;
+}
+
+.info-value {
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+/* Volume Rows */
+.volume-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #374151;
+}
+
+.volume-row:last-child {
+  border-bottom: none;
+}
+
+.volume-row.total {
+  border-top: 2px solid #4b5563;
+  padding-top: 12px;
+  margin-top: 8px;
+  font-weight: 700;
+}
+
+.volume-label {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.volume-value {
+  font-size: 14px;
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.volume-value.highlight {
+  color: #f59e0b;
+}
