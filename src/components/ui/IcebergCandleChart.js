@@ -14,7 +14,8 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
   const [chartData, setChartData] = useState(null);
   const [showAllRefills, setShowAllRefills] = useState(false);
   const priceLineRefs = useRef([]);
-
+  const [expandedOverlayRefills, setExpandedOverlayRefills] = useState({});
+  
   useEffect(() => {
     const fetchAndMergeData = async () => {
       if (!icebergData) {
