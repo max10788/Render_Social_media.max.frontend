@@ -693,3 +693,142 @@
 .volume-value.highlight {
   color: #f59e0b;
 }
+
+/* GROßER MODE SELECTOR - OBERHALB CHART */
+.chart-mode-selector {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #111827;
+  border-radius: 12px;
+  border: 2px solid #374151;
+}
+
+.mode-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: #1f2937;
+  border: 2px solid #374151;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mode-button:hover {
+  border-color: #8b5cf6;
+  background: #374151;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(139, 92, 246, 0.2);
+}
+
+.mode-button.active {
+  border-color: #8b5cf6;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(99, 102, 241, 0.2) 100%);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.mode-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.mode-info {
+  flex: 1;
+  text-align: left;
+}
+
+.mode-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e5e7eb;
+  margin-bottom: 4px;
+}
+
+.mode-desc {
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+.mode-button.active .mode-title {
+  color: #8b5cf6;
+}
+
+.mode-button.active .mode-desc {
+  color: #a78bfa;
+}
+
+/* Parent Order Styling in Overlay */
+.extension-order.parent-order {
+  border-left: 4px solid #8b5cf6;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%);
+}
+
+.refill-badge {
+  display: inline-block;
+  background: rgba(139, 92, 246, 0.3);
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+.parent-order-info {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.info-label {
+  color: #9ca3af;
+}
+
+.info-value {
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.volume-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #374151;
+}
+
+.volume-row:last-child {
+  border-bottom: none;
+}
+
+.volume-row.total {
+  border-top: 2px solid #4b5563;
+  padding-top: 12px;
+  margin-top: 8px;
+  font-weight: 700;
+}
+
+.volume-label {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.volume-value {
+  font-size: 14px;
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.volume-value.highlight {
+  color: #f59e0b;
+}
