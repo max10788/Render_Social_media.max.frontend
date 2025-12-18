@@ -373,10 +373,19 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
   };
 
   const ClickedCandleDetails = () => {
+    const [expandedOverlayRefills, setExpandedOverlayRefills] = useState({});
+  
     if (!clickedCandle || !clickedCandle.orders) return null;
-
+  
     const totalOrders = clickedCandle.orders.length;
-
+  
+    const toggleOverlayRefills = (parentId) => {
+      setExpandedOverlayRefills(prev => ({
+        ...prev,
+        [parentId]: !prev[parentId]
+      }));
+    };
+  
     return (
       <div className="orderbook-extension-overlay clicked">
         <div className="extension-header-main">
@@ -387,6 +396,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
             className="close-button"
             onClick={() => {
               setClickedCandle(null);
+              setExpandedOverlayRefills({});
               priceLineRefs.current.forEach(line => {
                 try {
                   candleSeriesRef.current.removePriceLine(line);
@@ -398,11 +408,12 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
             ✕
           </button>
         </div>
-
+  
         <div className="extension-orders-container">
           {clickedCandle.orders.map((order, idx) => {
             const isBuy = order.side === 'buy';
-
+            const isExpanded = expandedOverlayRefills[order.parentId || `order_${idx}`];
+  
             return (
               <div key={idx} className={`extension-order ${isBuy ? 'buy' : 'sell'} ${order.isParentOrder ? 'parent-order' : ''}`}>
                 <div className="extension-header">
@@ -417,7 +428,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
                     {(order.confidence * 100).toFixed(0)}%
                   </span>
                 </div>
-
+  
                 {order.isParentOrder && (
                   <div className="parent-order-info">
                     <div className="info-row">
@@ -434,7 +445,7 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
                     </div>
                   </div>
                 )}
-
+  
                 <div className="volume-row">
                   <span className="volume-label">Visible:</span>
                   <span className="volume-value">{order.visibleVolume.toFixed(2)}</span>
@@ -447,6 +458,73 @@ const IcebergCandleChart = ({ icebergData, symbol, timeframe, exchange = 'binanc
                   <span className="volume-label">Total:</span>
                   <span className="volume-value">{order.totalVolume.toFixed(2)}</span>
                 </div>
+  
+                {/* REFILLS BUTTON - NUR FÜR PARENT ORDERS */}
+                {order.isParentOrder && order.refillCount > 0 && (
+                  <div className="overlay-refills-section">
+                    <button 
+                      className="overlay-refills-toggle"
+                      onClick={() => toggleOverlayRefills(order.parentId || `order_${idx}`)}
+                    >
+                      <span className="toggle-icon">{isExpanded ? '▼' : '▶'}</span>
+                      <span className="toggle-text">
+                        {isExpanded ? 'Hide' : 'Show'} {order.refillCount} Refills
+                      </span>
+                    </button>
+  
+                    {isExpanded && (
+                      <div className="overlay-refills-list">
+                        <div className="overlay-refills-header">
+                          <span className="refill-col-num">#</span>
+                          <span className="refill-col-time">Time</span>
+                          <span className="refill-col-price">Price</span>
+                          <span className="refill-col-vol">Volume</span>
+                          <span className="refill-col-conf">Conf</span>
+                        </div>
+  
+                        {/* Hole Refills aus icebergData */}
+                        {(() => {
+                          // Finde die passende Parent Order in icebergData
+                          const parentOrder = icebergData?.parentOrders?.find(
+                            p => p.id === order.parentId
+                          );
+  
+                          if (!parentOrder || !parentOrder.refills?.details) {
+                            return (
+                              <div className="overlay-refills-empty">
+                                <p>No refill details available</p>
+                              </div>
+                            );
+                          }
+  
+                          return parentOrder.refills.details.map((refill, refillIdx) => {
+                            const visibleVol = refill.visible_volume || refill.visibleVolume || 0;
+                            const hiddenVol = refill.hidden_volume || refill.hiddenVolume || 0;
+                            const totalVol = refill.total_volume || refill.totalVolume || (visibleVol + hiddenVol);
+  
+                            return (
+                              <div key={refillIdx} className="overlay-refill-row">
+                                <span className="refill-col-num">{refillIdx + 1}</span>
+                                <span className="refill-col-time">
+                                  {new Date(refill.timestamp).toLocaleTimeString()}
+                                </span>
+                                <span className="refill-col-price">
+                                  ${refill.price?.toFixed(2) || 'N/A'}
+                                </span>
+                                <span className="refill-col-vol">
+                                  {totalVol.toFixed(3)}
+                                </span>
+                                <span className="refill-col-conf">
+                                  {((refill.confidence || 0) * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
