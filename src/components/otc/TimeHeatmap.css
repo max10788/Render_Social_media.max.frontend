@@ -1,0 +1,384 @@
+.time-heatmap-container {
+  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(78, 205, 196, 0.2);
+  padding: 24px;
+  overflow: hidden;
+}
+
+.time-heatmap-container.empty {
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Header */
+.heatmap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.heatmap-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title-icon {
+  font-size: 22px;
+}
+
+/* Legend */
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.legend-label {
+  font-size: 12px;
+  color: #b0b0b0;
+  font-weight: 600;
+}
+
+.legend-gradient {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-min,
+.legend-max {
+  font-size: 11px;
+  color: #666;
+}
+
+.gradient-bar {
+  width: 100px;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, 
+    #0a3a3a 0%,
+    #137373 25%,
+    #2aacac 50%,
+    #4ECDC4 75%,
+    #6ED9D1 100%
+  );
+  border: 1px solid rgba(78, 205, 196, 0.3);
+}
+
+/* Grid Container */
+.heatmap-grid-container {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.heatmap-grid-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.heatmap-grid-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.heatmap-grid-container::-webkit-scrollbar-thumb {
+  background: rgba(78, 205, 196, 0.3);
+  border-radius: 3px;
+}
+
+/* Hour Labels */
+.hour-labels {
+  display: flex;
+  margin-bottom: 4px;
+}
+
+.empty-corner {
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.hour-label {
+  flex: 1;
+  min-width: 32px;
+  text-align: center;
+  font-size: 11px;
+  color: #666;
+  font-weight: 600;
+}
+
+/* Heatmap Rows */
+.heatmap-row {
+  display: flex;
+  margin-bottom: 4px;
+}
+
+.day-label {
+  width: 100px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #e0e0e0;
+  font-weight: 600;
+  padding-right: 12px;
+}
+
+.heatmap-cells {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+}
+
+/* Heatmap Cells */
+.heatmap-cell {
+  flex: 1;
+  min-width: 32px;
+  height: 40px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.heatmap-cell.empty {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.heatmap-cell:not(.empty):hover,
+.heatmap-cell.hovered {
+  transform: scale(1.1);
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
+  border-color: #4ECDC4;
+}
+
+/* Cell Tooltip */
+.cell-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 26, 0.98);
+  border: 1px solid rgba(78, 205, 196, 0.3);
+  border-radius: 6px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+  animation: tooltipFadeIn 0.2s ease;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.cell-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(26, 26, 26, 0.98);
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.tooltip-day {
+  font-size: 11px;
+  color: #b0b0b0;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.tooltip-time {
+  font-size: 12px;
+  color: #e0e0e0;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.tooltip-value {
+  font-size: 14px;
+  color: #4ECDC4;
+  font-weight: 700;
+}
+
+.tooltip-count {
+  font-size: 10px;
+  color: #666;
+  margin-top: 2px;
+}
+
+/* Peak Indicators */
+.peak-indicators {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(78, 205, 196, 0.1);
+}
+
+.peak-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b0b0b0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+}
+
+.peak-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.peak-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(78, 205, 196, 0.05);
+  border: 1px solid rgba(78, 205, 196, 0.2);
+  border-radius: 6px;
+}
+
+.peak-rank {
+  font-size: 12px;
+  font-weight: 700;
+  color: #FFE66D;
+  min-width: 30px;
+}
+
+.peak-time {
+  flex: 1;
+  font-size: 12px;
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
+.peak-value {
+  font-size: 13px;
+  color: #4ECDC4;
+  font-weight: 700;
+}
+
+/* Pattern Annotations */
+.pattern-annotations {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(78, 205, 196, 0.1);
+}
+
+.pattern-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b0b0b0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+}
+
+.pattern-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pattern-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 230, 109, 0.05);
+  border: 1px solid rgba(255, 230, 109, 0.2);
+  border-radius: 6px;
+}
+
+.pattern-icon {
+  font-size: 16px;
+}
+
+.pattern-text {
+  font-size: 12px;
+  color: #e0e0e0;
+  line-height: 1.4;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .hour-label {
+    min-width: 28px;
+  }
+
+  .heatmap-cell {
+    min-width: 28px;
+    height: 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  .time-heatmap-container {
+    padding: 16px;
+  }
+
+  .heatmap-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .day-label {
+    width: 80px;
+    font-size: 11px;
+  }
+
+  .empty-corner {
+    width: 80px;
+  }
+
+  .hour-label {
+    min-width: 24px;
+    font-size: 10px;
+  }
+
+  .heatmap-cell {
+    min-width: 24px;
+    height: 32px;
+  }
+}
