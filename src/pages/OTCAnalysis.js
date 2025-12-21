@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import FilterPanel from '../../components/otc/FilterPanel';
-import OTCMetricsOverview from '../../components/otc/OTCMetricsOverview';
-import NetworkGraph from '../../components/otc/NetworkGraph';
-import OTCWalletDetailSidebar from '../../components/otc/OTCWalletDetailSidebar';
-import AlertFeed from '../../components/otc/AlertFeed';
-import { useOTCData } from '../../hooks/useOTCData';
-import { useOTCWebSocket } from '../../hooks/useOTCWebSocket';
+import FilterPanel from '../components/otc/FilterPanel';           // ✅
+import OTCMetricsOverview from '../components/otc/OTCMetricsOverview'; // ✅
+import NetworkGraph from '../components/otc/NetworkGraph';         // ✅
+import OTCWalletDetailSidebar from '../components/otc/OTCWalletDetailSidebar'; // ✅
+import AlertFeed from '../components/otc/AlertFeed';              // ✅
+import { useOTCData } from '../hooks/useOTCData';                 // ✅
+import { useOTCWebSocket } from '../hooks/useOTCWebSocket';       // ✅
 import './OTCAnalysis.css';
 
 const OTCAnalysis = () => {
