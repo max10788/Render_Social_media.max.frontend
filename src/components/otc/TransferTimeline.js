@@ -6,6 +6,20 @@ const TransferTimeline = ({ data, onTransferClick, timeRange = '7d' }) => {
   const [sortBy, setSortBy] = useState('time'); // 'time' or 'size'
   const [selectedTransfer, setSelectedTransfer] = useState(null);
 
+  // Sort transfers - MUSS vor dem frühen Return sein!
+  const sortedTransfers = useMemo(() => {
+    if (!data || !data.transfers || data.transfers.length === 0) {
+      return [];
+    }
+    const sorted = [...data.transfers];
+    if (sortBy === 'time') {
+      sorted.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    } else if (sortBy === 'size') {
+      sorted.sort((a, b) => b.usd_value - a.usd_value);
+    }
+    return sorted;
+  }, [data, sortBy]);
+
   if (!data || !data.transfers || data.transfers.length === 0) {
     return (
       <div className="transfer-timeline-container empty">
@@ -25,17 +39,6 @@ const TransferTimeline = ({ data, onTransferClick, timeRange = '7d' }) => {
   };
 
   const hours = timeRangeHours[timeRange] || 168;
-
-  // Sort transfers
-  const sortedTransfers = useMemo(() => {
-    const sorted = [...data.transfers];
-    if (sortBy === 'time') {
-      sorted.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    } else if (sortBy === 'size') {
-      sorted.sort((a, b) => b.usd_value - a.usd_value);
-    }
-    return sorted;
-  }, [data.transfers, sortBy]);
 
   // Calculate timeline boundaries
   const timestamps = data.transfers.map(t => new Date(t.timestamp).getTime());
