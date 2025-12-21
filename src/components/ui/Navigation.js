@@ -77,9 +77,10 @@ const Navigation = () => {
     { path: '/tokens', icon: '💎', text: 'Token Overview', label: 'Token Overview' },
     { path: '/wallets', icon: '👛', text: 'Wallet Analysis', label: 'Wallet Analysis' },
     { path: '/network', icon: '🕸️', text: 'Transaction Network', label: 'Transaction Network' },
+    { path: '/otc-analysis', icon: '🔄', text: 'OTC Analysis', label: 'OTC Analysis' },
     { path: '/price-movers', icon: '📈', text: 'Price Movers', label: 'Price Movers' },
     { path: '/orderbook-heatmap', icon: '🔥', text: 'Orderbook Heatmap', label: 'Orderbook Heatmap' },
-    { path: '/iceberg-orders', icon: '🧊', text: 'Iceberg Orders', label: 'Iceberg Orders' },  // ← NEU
+    { path: '/iceberg-orders', icon: '🧊', text: 'Iceberg Orders', label: 'Iceberg Orders' },
   ];
 
   const accountPages = currentUser ? [
