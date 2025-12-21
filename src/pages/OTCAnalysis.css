@@ -263,6 +263,23 @@
 }
 
 /* Visualization Placeholder */
+.phase2-visualizations {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.visualization-card {
+  background: transparent;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.visualization-card .section-header {
+  margin-bottom: 16px;
+}
+
+/* Old Placeholder (kept for reference, can be removed) */
 .visualization-placeholder {
   background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
   border-radius: 12px;
