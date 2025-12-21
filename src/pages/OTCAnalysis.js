@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import FilterPanel from '../components/otc/FilterPanel';           // ✅
-import OTCMetricsOverview from '../components/otc/OTCMetricsOverview'; // ✅
-import NetworkGraph from '../components/otc/NetworkGraph';         // ✅
-import OTCWalletDetailSidebar from '../components/otc/OTCWalletDetailSidebar'; // ✅
-import AlertFeed from '../components/otc/AlertFeed';              // ✅
-import { useOTCData } from '../hooks/useOTCData';                 // ✅
-import { useOTCWebSocket } from '../hooks/useOTCWebSocket';       // ✅
+import FilterPanel from '../components/otc/FilterPanel';
+import OTCMetricsOverview from '../components/otc/OTCMetricsOverview';
+import NetworkGraph from '../components/otc/NetworkGraph';
+import OTCWalletDetailSidebar from '../components/otc/OTCWalletDetailSidebar';
+import AlertFeed from '../components/otc/AlertFeed';
+import SankeyFlow from '../components/otc/SankeyFlow';
+import TimeHeatmap from '../components/otc/TimeHeatmap';
+import TransferTimeline from '../components/otc/TransferTimeline';
+import DistributionCharts from '../components/otc/DistributionCharts';
+import { useOTCData } from '../hooks/useOTCData';
+import { useOTCWebSocket } from '../hooks/useOTCWebSocket';
 import './OTCAnalysis.css';
 
 const OTCAnalysis = () => {
@@ -189,13 +193,50 @@ const OTCAnalysis = () => {
           </div>
 
           {/* Additional visualizations placeholder */}
-          <div className="visualization-placeholder">
-            <div className="placeholder-content">
-              <span className="placeholder-icon">📈</span>
-              <h3 className="placeholder-title">More Visualizations Coming Soon</h3>
-              <p className="placeholder-text">
-                Sankey Flow Diagram, Time Heatmap, Transfer Timeline, and Distribution Charts will be added in Phase 2
-              </p>
+          <div className="phase2-visualizations">
+            {/* Sankey Flow */}
+            <div className="visualization-card">
+              <div className="section-header">
+                <h2 className="section-title">
+                  <span className="section-icon">💱</span>
+                  Money Flow Analysis
+                </h2>
+              </div>
+              <SankeyFlow
+                data={networkData?.sankey_data}
+                onNodeClick={handleNodeClick}
+                onLinkClick={(link) => console.log('Link clicked:', link)}
+              />
+            </div>
+
+            {/* Time Heatmap */}
+            <div className="visualization-card">
+              <TimeHeatmap
+                data={networkData?.time_heatmap}
+                onCellClick={(cell) => console.log('Cell clicked:', cell)}
+              />
+            </div>
+
+            {/* Transfer Timeline */}
+            <div className="visualization-card">
+              <TransferTimeline
+                data={networkData?.timeline_data}
+                onTransferClick={(transfer) => {
+                  console.log('Transfer clicked:', transfer);
+                  if (transfer.from_address) {
+                    fetchWalletProfile(transfer.from_address);
+                    setIsSidebarOpen(true);
+                  }
+                }}
+                timeRange="7d"
+              />
+            </div>
+
+            {/* Distribution Charts */}
+            <div className="visualization-card">
+              <DistributionCharts
+                data={networkData?.distributions}
+              />
             </div>
           </div>
         </div>
