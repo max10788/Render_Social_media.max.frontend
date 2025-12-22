@@ -14,8 +14,8 @@ console.log('✅ Alle Imports erfolgreich geladen');
 
 // Konfigurationsobjekt für Umgebungsvariablen
 const config = {
-  apiUrl: process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend.onrender.com',
-  wsUrl: process.env.REACT_APP_WS_URL || 'wss://render-social-media-max-backend.onrender.com/ws',
+  apiUrl: process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-m1un.onrender.com', // ✅ HIER!
+  wsUrl: process.env.REACT_APP_WS_URL || 'wss://render-social-media-max-backend-m1un.onrender.com/ws/otc',
   environment: process.env.REACT_APP_ENVIRONMENT || 'production',
   ethereumRpcUrl: process.env.REACT_APP_ETHEREUM_RPC_URL,
   solanaRpcUrl: process.env.REACT_APP_SOLANA_RPC_URL,
