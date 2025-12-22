@@ -1,13 +1,13 @@
-// src/config/api.js - UPDATED with Enhanced Endpoint and Hybrid Analysis
+// src/config/api.js - FIXED: Korrigierte Backend URL + OTC Endpoints
 import axios from 'axios';
 
-// Base Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-1kzq.onrender.com';
+// ✅ KORRIGIERTE Backend URL
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-m1un.onrender.com';
 
 // Axios Instance with Interceptors
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 180000, // ✅ ERHÖHT: 3 Minuten für Enhanced Analysis
+  timeout: 180000, // 3 Minuten
   headers: {
     'Content-Type': 'application/json',
   },
@@ -68,9 +68,19 @@ export const API_CONFIG = {
     ANALYZE_WALLET_TYPES: `/api/analyze/wallet-types`,
     ANALYZE_WALLET_SOURCES: `/api/analyze/wallet-sources`,
 
-    // 🆕 PRICE MOVERS ENDPOINTS (NEU!)
+    // 🆕 OTC ANALYSIS ENDPOINTS - NEU!
+    OTC_STATISTICS: `/api/otc/statistics`,
+    OTC_NETWORK_GRAPH: `/api/otc/network/graph`,
+    OTC_WALLET_PROFILE: (address) => `/api/otc/wallet/${address}/profile`,
+    OTC_WATCHLIST: `/api/otc/watchlist`,
+    OTC_WATCHLIST_ADD: `/api/otc/watchlist/add`,
+    OTC_WATCHLIST_REMOVE: (address) => `/api/otc/watchlist/${address}`,
+    OTC_ALERTS: `/api/otc/alerts`,
+    OTC_HEALTH: `/api/otc/health`,
+
+    // Price Movers Endpoints
     PRICE_MOVERS_QUICK: `/api/v1/analyze/quick`,
-    PRICE_MOVERS_ENHANCED: `/api/v1/analyze/enhanced`, // ✅ NEU!
+    PRICE_MOVERS_ENHANCED: `/api/v1/analyze/enhanced`,
     PRICE_MOVERS_STATUS: `/api/v1/analyze/status`,
     PRICE_MOVERS_CHART_CANDLES: `/api/v1/chart/candles`,
     PRICE_MOVERS_CANDLE_MOVERS: (timestamp) => `/api/v1/chart/candle/${timestamp}/movers`,
@@ -81,28 +91,28 @@ export const API_CONFIG = {
     PRICE_MOVERS_SYMBOLS: `/api/v1/chart/symbols`,
     PRICE_MOVERS_DATA_AVAILABILITY: `/api/v1/chart/data-availability`,
 
-    // 🆕 HYBRID CEX/DEX ANALYSIS ENDPOINTS (NEU!)
+    // Hybrid CEX/DEX Analysis Endpoints
     HYBRID_ANALYZE: `/api/v1/hybrid/analyze`,
     HYBRID_SUPPORTED_CEX: `/api/v1/hybrid/supported-cex`,
     HYBRID_SUPPORTED_DEX: `/api/v1/hybrid/supported-dex`,
     HYBRID_SUPPORTED_SYMBOLS: `/api/v1/hybrid/supported-symbols`,
     HYBRID_SUPPORTED_TIMEFRAMES: `/api/v1/hybrid/supported-timeframes`,
 
-    // At the end of ENDPOINTS, before closing }
+    // Orderbook Heatmap Endpoints
     ORDERBOOK_HEATMAP_EXCHANGES: `/api/v1/orderbook-heatmap/exchanges`,
     ORDERBOOK_HEATMAP_START: `/api/v1/orderbook-heatmap/start`,
     ORDERBOOK_HEATMAP_STOP: `/api/v1/orderbook-heatmap/stop`,
     ORDERBOOK_HEATMAP_STATUS: `/api/v1/orderbook-heatmap/status`,
     ORDERBOOK_HEATMAP_SNAPSHOT: (symbol) => `/api/v1/orderbook-heatmap/snapshot/${symbol}`,
 
-    // 🆕 DEX POOLS ENDPOINTS - NEU HINZUFÜGEN:
+    // DEX Pools Endpoints
     DEX_POOLS: (network, token0, token1) => `/api/v1/orderbook-heatmap/dex/pools/${network}/${token0}/${token1}`,
     DEX_POOL_LIQUIDITY: (poolAddress) => `/api/v1/orderbook-heatmap/dex/liquidity/${poolAddress}`,
     DEX_VIRTUAL_ORDERBOOK: (poolAddress) => `/api/v1/orderbook-heatmap/dex/virtual-orderbook/${poolAddress}`,
     DEX_HEATMAP_START: `/api/v1/orderbook-heatmap/heatmap/start-dex`,
     DEX_TVL_HISTORY: (poolAddress) => `/api/v1/orderbook-heatmap/dex/tvl-history/${poolAddress}`,
 
-    // 🆕 ICEBERG ORDERS ENDPOINTS - NEU HINZUFÜGEN:
+    // Iceberg Orders Endpoints
     ICEBERG_ORDERS: `/api/iceberg-orders`,
     ICEBERG_ORDERS_HISTORY: `/api/iceberg-orders/history`,
     ICEBERG_ORDERS_ANALYZE_DEPTH: `/api/iceberg-orders/analyze-depth`,
@@ -133,30 +143,34 @@ export const API_ENDPOINTS = {
   WALLET_TYPES: `${API_BASE_URL}/api/analyze/wallet-types`,
   WALLET_SOURCES: `${API_BASE_URL}/api/analyze/wallet-sources`,
 
-  // 🆕 Price Movers (NEU!)
+  // 🆕 OTC Analysis - NEU!
+  OTC_STATISTICS: `${API_BASE_URL}/api/otc/statistics`,
+  OTC_NETWORK_GRAPH: `${API_BASE_URL}/api/otc/network/graph`,
+  OTC_WATCHLIST: `${API_BASE_URL}/api/otc/watchlist`,
+  OTC_ALERTS: `${API_BASE_URL}/api/otc/alerts`,
+
+  // Price Movers
   PRICE_MOVERS_QUICK: `${API_BASE_URL}/api/v1/analyze/quick`,
-  PRICE_MOVERS_ENHANCED: `${API_BASE_URL}/api/v1/analyze/enhanced`, // ✅ NEU!
+  PRICE_MOVERS_ENHANCED: `${API_BASE_URL}/api/v1/analyze/enhanced`,
   PRICE_MOVERS_STATUS: `${API_BASE_URL}/api/v1/analyze/status`,
   PRICE_MOVERS_CHART_CANDLES: `${API_BASE_URL}/api/v1/chart/candles`,
   PRICE_MOVERS_BATCH_ANALYZE: `${API_BASE_URL}/api/v1/chart/batch-analyze`,
   PRICE_MOVERS_TIMEFRAMES: `${API_BASE_URL}/api/v1/chart/timeframes`,
   PRICE_MOVERS_SYMBOLS: `${API_BASE_URL}/api/v1/chart/symbols`,
 
-  // 🆕 Hybrid CEX/DEX Analysis (NEU!)
+  // Hybrid CEX/DEX Analysis
   HYBRID_ANALYZE: `${API_BASE_URL}/api/v1/hybrid/analyze`,
   HYBRID_SUPPORTED_CEX: `${API_BASE_URL}/api/v1/hybrid/supported-cex`,
   HYBRID_SUPPORTED_DEX: `${API_BASE_URL}/api/v1/hybrid/supported-dex`,
   HYBRID_SUPPORTED_SYMBOLS: `${API_BASE_URL}/api/v1/hybrid/supported-symbols`,
   HYBRID_SUPPORTED_TIMEFRAMES: `${API_BASE_URL}/api/v1/hybrid/supported-timeframes`,
 
-  // 🆕 ICEBERG ORDERS ENDPOINTS - NEU HINZUFÜGEN:
-  ICEBERG_ORDERS: `/api/iceberg-orders`,
-  ICEBERG_ORDERS_HISTORY: `/api/iceberg-orders/history`,
-  ICEBERG_ORDERS_ANALYZE_DEPTH: `/api/iceberg-orders/analyze-depth`,
-  ICEBERG_ORDERS_STATS: `/api/iceberg-orders/stats`,
-  ICEBERG_ORDERS_EXCHANGES: (exchange) => `/api/iceberg-orders/exchanges/${exchange}/symbols`,
-  ICEBERG_ORDERS_WS: `/api/iceberg-orders/ws`,
-  
+  // Iceberg Orders
+  ICEBERG_ORDERS: `${API_BASE_URL}/api/iceberg-orders`,
+  ICEBERG_ORDERS_HISTORY: `${API_BASE_URL}/api/iceberg-orders/history`,
+  ICEBERG_ORDERS_ANALYZE_DEPTH: `${API_BASE_URL}/api/iceberg-orders/analyze-depth`,
+  ICEBERG_ORDERS_STATS: `${API_BASE_URL}/api/iceberg-orders/stats`,
+  ICEBERG_ORDERS_WS: `${API_BASE_URL}/api/iceberg-orders/ws`,
 };
 
 export const ERROR_CODES = {
@@ -327,4 +341,4 @@ export const validateAnalysisRequest = (tokenAddress, chain, walletSource, recen
 };
 
 export default api;
-export { API_BASE_URL };;
+export { API_BASE_URL };
