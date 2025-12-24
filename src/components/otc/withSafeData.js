@@ -1,5 +1,5 @@
 // src/components/OTC/withSafeData.jsx
-// Higher-Order Component für sicheres Data Handling
+// HOC für sicheres Data Handling - Pure React + Tailwind
 
 import React from 'react';
 import EmptyState from './EmptyState';
@@ -97,3 +97,5 @@ export const safeLength = (value, defaultValue = 0) => {
   if (typeof value === 'object' && value !== null) return Object.keys(value).length;
   return defaultValue;
 };
+
+export default withSafeData;
