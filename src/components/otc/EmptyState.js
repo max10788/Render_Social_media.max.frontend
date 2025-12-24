@@ -1,8 +1,8 @@
 // src/components/OTC/EmptyState.jsx
+// Pure React + Tailwind - NO external dependencies
 
 import React from 'react';
 import { AlertCircle, Database, Network, TrendingUp, Clock } from 'lucide-react';
-import { Card, CardContent } from '../ui/card';
 
 /**
  * Reusable Empty State Component for OTC Dashboard
@@ -30,17 +30,17 @@ const EmptyState = ({
   const Icon = icons[type] || icons.default;
 
   return (
-    <Card className="w-full">
-      <CardContent className={`${height} flex items-center justify-center`}>
+    <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className={`${height} flex items-center justify-center p-6`}>
         <div className="text-center text-gray-500">
           <Icon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium">{message}</p>
+          <p className="text-lg font-medium text-gray-700">{message}</p>
           {subtitle && (
             <p className="text-sm mt-2 text-gray-400">{subtitle}</p>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
