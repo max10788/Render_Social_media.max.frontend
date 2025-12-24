@@ -1,11 +1,28 @@
 // src/components/OTC/Phase2/TimeHeatmap.jsx
-// Pure React + Tailwind - NO external dependencies
+// FIXED: Hooks BEFORE all returns!
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Clock, TrendingUp, AlertCircle } from 'lucide-react';
 
 const TimeHeatmap = ({ data }) => {
-  // ✅ Handle undefined/null data
+  // ✅ Calculate values BEFORE any early returns (no hooks needed)
+  const heatmap = data?.heatmap || [];
+  const hasData = heatmap.length > 0 && heatmap[0] && heatmap[0].length > 0;
+  
+  // ✅ Calculate max value safely (no useMemo needed for simple calc)
+  let maxValue = 1;
+  if (hasData) {
+    try {
+      const allValues = heatmap.flat().filter(v => typeof v === 'number' && !isNaN(v));
+      if (allValues.length > 0) {
+        maxValue = Math.max(...allValues);
+      }
+    } catch (error) {
+      console.error('Error calculating max value:', error);
+    }
+  }
+
+  // ✅ NOW we can do early returns
   if (!data || !data.heatmap || !Array.isArray(data.heatmap)) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -27,9 +44,7 @@ const TimeHeatmap = ({ data }) => {
     );
   }
 
-  // ✅ Validate heatmap structure
-  const heatmap = data.heatmap || [];
-  if (heatmap.length === 0 || !heatmap[0] || heatmap[0].length === 0) {
+  if (!hasData) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="p-6 border-b border-gray-200">
@@ -50,18 +65,7 @@ const TimeHeatmap = ({ data }) => {
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   
-  // ✅ Safely calculate max value
-  const maxValue = useMemo(() => {
-    try {
-      const allValues = heatmap.flat().filter(v => typeof v === 'number' && !isNaN(v));
-      return allValues.length > 0 ? Math.max(...allValues) : 1;
-    } catch (error) {
-      console.error('Error calculating max value:', error);
-      return 1;
-    }
-  }, [heatmap]);
-
-  // ✅ Safely get intensity
+  // Helper functions
   const getIntensity = (value) => {
     if (typeof value !== 'number' || isNaN(value) || maxValue === 0) {
       return 0;
@@ -69,7 +73,6 @@ const TimeHeatmap = ({ data }) => {
     return Math.min(1, value / maxValue);
   };
 
-  // ✅ Safely get color
   const getColor = (intensity) => {
     if (intensity === 0) return 'bg-gray-100';
     if (intensity < 0.2) return 'bg-blue-100';
@@ -79,7 +82,6 @@ const TimeHeatmap = ({ data }) => {
     return 'bg-blue-500';
   };
 
-  // ✅ Safely format value
   const formatValue = (value) => {
     if (typeof value !== 'number' || isNaN(value)) return '$0';
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
