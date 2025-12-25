@@ -1,4 +1,4 @@
-// path: src/pages/LandingPage.js
+// path: src/pages/LandingPage/LandingPage.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -193,6 +193,18 @@ const LandingPage = () => {
                 </Link>
               </div>
             )}
+
+            {currentUser && (
+              <div className="hero-cta">
+                <Link to="/learning" className="btn btn-primary">
+                  Lernbereich öffnen
+                  <span className="btn-icon">📚</span>
+                </Link>
+                <Link to="/dashboard" className="btn btn-secondary">
+                  Dashboard
+                </Link>
+              </div>
+            )}
           </div>
 
           <div className="hero-visual">
@@ -349,7 +361,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Learning Path Section */}
+      {/* Learning Path Section - UPDATED WITH CTA */}
       <section className="learning-section" ref={(el) => observerRefs.current[2] = el}>
         <div className="container">
           <div className="section-header">
@@ -396,6 +408,27 @@ const LandingPage = () => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* NEW: Call-to-Action for Learning Area */}
+          <div className="learning-cta">
+            <div className="learning-cta-content">
+              <div className="learning-cta-badge">
+                <span className="badge-icon">🎓</span>
+                Kostenloser Kurs
+              </div>
+              <h3 className="learning-cta-title">
+                Starte mit den Blockchain-Grundlagen
+              </h3>
+              <p className="learning-cta-text">
+                Lerne die Kernkonzepte der Blockchain in 9 interaktiven Modulen – 
+                ohne Vorkenntnisse, Schritt für Schritt.
+              </p>
+              <Link to="/learning" className="btn btn-learning">
+                Zum Kurs: Blockchain Grundlagen
+                <span className="btn-icon">→</span>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
