@@ -1,7 +1,7 @@
 // path: src/pages/LandingPage/LandingPage.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../../auth/AuthContext';
 import './LandingPage.css';
 
 const LandingPage = () => {
