@@ -3,7 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import Navigation from './components/ui/Navigation';
-import LandingPage from './pages/LandingPage';
+import LandingPage from './pages/LandingPage/LandingPage';
 import UserDashboard from './pages/UserDashboard';
 import ContractRadar from './pages/ContractRadar';
 import TokenOverview from './pages/TokenOverview';
