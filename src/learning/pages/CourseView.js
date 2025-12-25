@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Module01_WhyBlockchain from '../courses/blockchain-basics/modules/Module01_WhyBlockchain';
+import Module02_SharedNotebook from '../courses/blockchain-basics/modules/Module02_SharedNotebook';
 import './CourseView.css';
 
 const CourseView = () => {
@@ -15,7 +16,11 @@ const CourseView = () => {
   const modules = {
     1: { component: Module01_WhyBlockchain, title: 'Warum braucht man Blockchain?' },
     // Weitere Module werden hier hinzugefügt
-  };
+    2: { 
+      component: Module02_SharedNotebook, 
+      title: 'Das gemeinsame Notizbuch',
+      description: 'Verteilte Listen, die alle sehen können'
+    },
 
   useEffect(() => {
     // Load progress
