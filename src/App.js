@@ -18,6 +18,7 @@ import Login from './auth/Login/Login';
 import Register from './auth/Register/Register';
 import Account from './auth/Account/Account';
 import ProtectedRoute from './auth/ProtectedRoute';
+import LearningHome from './learning/pages/LearningHome';
 import './App.css';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
               <Route path="/price-movers" element={<PriceMovers />} />
               <Route path="/orderbook-heatmap" element={<OrderbookHeatmap />} />
               <Route path="/iceberg-orders" element={<IcebergOrders />} />
+              <Route path="/learning" element={<LearningHome />} />
               
               {/* Protected Routes */}
               <Route 
