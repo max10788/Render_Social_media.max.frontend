@@ -1,3 +1,4 @@
+// path: src/components/ui/Navigation.js
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -9,22 +10,25 @@ const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
 
+  // Handle scroll for navbar styling
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+      setIsScrolled(window.scrollY > 20);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Close menu on route change
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location]);
 
+  // Handle menu interactions
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (isMenuOpen && !event.target.closest('.nav-links') && !event.target.closest('.nav-toggle')) {
+      if (isMenuOpen && !event.target.closest('.nav-sidebar') && !event.target.closest('.nav-toggle')) {
         setIsMenuOpen(false);
       }
     };
@@ -50,10 +54,6 @@ const Navigation = () => {
     };
   }, [isMenuOpen]);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -70,33 +70,40 @@ const Navigation = () => {
     return location.pathname.startsWith(path);
   };
 
-  const mainPages = [
-    { path: '/', icon: '🏠', text: 'Home', label: 'Home' },
-    { path: '/dashboard', icon: '📊', text: 'Dashboard', label: 'Dashboard' },
-    { path: '/radar', icon: '📡', text: 'Contract Radar', label: 'Contract Radar' },
-    { path: '/tokens', icon: '💎', text: 'Token Overview', label: 'Token Overview' },
-    { path: '/wallets', icon: '👛', text: 'Wallet Analysis', label: 'Wallet Analysis' },
-    { path: '/network', icon: '🕸️', text: 'Transaction Network', label: 'Transaction Network' },
-    { path: '/otc-analysis', icon: '🔄', text: 'OTC Analysis', label: 'OTC Analysis' },
-    { path: '/price-movers', icon: '📈', text: 'Price Movers', label: 'Price Movers' },
-    { path: '/orderbook-heatmap', icon: '🔥', text: 'Orderbook Heatmap', label: 'Orderbook Heatmap' },
-    { path: '/iceberg-orders', icon: '🧊', text: 'Iceberg Orders', label: 'Iceberg Orders' },
+  // Navigation structure organized by category
+  const navigationGroups = [
+    {
+      title: 'Analysis Tools',
+      items: [
+        { path: '/radar', icon: '📡', text: 'Contract Radar', label: 'Smart Contract Analysis' },
+        { path: '/price-movers', icon: '💹', text: 'Price Impact', label: 'Wallet Price Impact' },
+        { path: '/otc-analysis', icon: '🔄', text: 'OTC Flows', label: 'OTC Transaction Analysis' },
+        { path: '/wallets', icon: '👛', text: 'Wallet Intelligence', label: 'Wallet Behavior Analysis' },
+      ]
+    },
+    {
+      title: 'Market Data',
+      items: [
+        { path: '/tokens', icon: '💎', text: 'Tokens', label: 'Token Overview' },
+        { path: '/orderbook-heatmap', icon: '🔥', text: 'Orderbook', label: 'Orderbook Heatmap' },
+        { path: '/iceberg-orders', icon: '🧊', text: 'Iceberg Orders', label: 'Hidden Order Detection' },
+      ]
+    },
+    {
+      title: 'Network',
+      items: [
+        { path: '/network', icon: '🕸️', text: 'Transaction Graph', label: 'Transaction Network' },
+      ]
+    }
   ];
-
-  const accountPages = currentUser ? [
-    { path: '/account', icon: '👤', text: 'Account Settings', label: 'Account Settings' },
-  ] : [];
-
-  const authPages = !currentUser ? [
-    { path: '/login', icon: '🔑', text: 'Login', label: 'Login' },
-    { path: '/register', icon: '📝', text: 'Register', label: 'Register' },
-  ] : [];
 
   return (
     <>
-      <nav className={`navigation ${isScrolled ? 'scrolled' : ''}`}>
-        <div className="nav-brand">
-          <Link to="/" aria-label="BlockIntel - Home">
+      {/* Top Navigation Bar */}
+      <nav className={`nav-bar ${isScrolled ? 'scrolled' : ''}`}>
+        <div className="nav-container">
+          {/* Brand */}
+          <Link to="/" className="nav-brand" aria-label="BlockIntel - Home">
             <img 
               src="/logo-blockintel.png" 
               alt="BlockIntel" 
@@ -107,148 +114,217 @@ const Navigation = () => {
               }}
             />
             <div className="brand-fallback" style={{ display: 'none' }}>
-              <span className="brand-icon" role="img" aria-label="BlockIntel">🏠</span>
+              <span className="brand-icon">📊</span>
               <span className="brand-text">BlockIntel</span>
             </div>
           </Link>
-        </div>
 
-        <button 
-          className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
-          onClick={toggleMenu}
-          aria-label={isMenuOpen ? 'Menü schließen' : 'Menü öffnen'}
-          aria-expanded={isMenuOpen}
-          aria-controls="nav-links"
-          type="button"
-        >
-          <span className="nav-toggle-bar" aria-hidden="true"></span>
-          <span className="nav-toggle-bar" aria-hidden="true"></span>
-          <span className="nav-toggle-bar" aria-hidden="true"></span>
-        </button>
+          {/* Desktop Navigation Links */}
+          <div className="nav-desktop-links">
+            {currentUser && (
+              <Link 
+                to="/dashboard" 
+                className={`nav-desktop-link ${isActiveRoute('/dashboard') ? 'active' : ''}`}
+              >
+                Dashboard
+              </Link>
+            )}
+            <a href="#tools" className="nav-desktop-link">Tools</a>
+            <a href="#learning" className="nav-desktop-link">Learn</a>
+          </div>
+
+          {/* Right Actions */}
+          <div className="nav-actions">
+            {currentUser ? (
+              <>
+                <Link to="/dashboard" className="nav-action-btn primary">
+                  Dashboard
+                </Link>
+                <button 
+                  className="nav-toggle-desktop"
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  aria-label="Open menu"
+                  type="button"
+                >
+                  <span className="user-avatar-small">
+                    {currentUser.email?.charAt(0).toUpperCase() || 'U'}
+                  </span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="nav-action-btn secondary">
+                  Sign In
+                </Link>
+                <Link to="/register" className="nav-action-btn primary">
+                  Get Started
+                </Link>
+              </>
+            )}
+
+            {/* Mobile Menu Toggle */}
+            <button 
+              className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMenuOpen}
+              type="button"
+            >
+              <span className="toggle-line"></span>
+              <span className="toggle-line"></span>
+              <span className="toggle-line"></span>
+            </button>
+          </div>
+        </div>
       </nav>
 
+      {/* Overlay */}
       <div 
         className={`nav-overlay ${isMenuOpen ? 'open' : ''}`}
         onClick={() => setIsMenuOpen(false)}
         aria-hidden="true"
       />
 
-      <aside className={`nav-links ${isMenuOpen ? 'open' : ''}`} role="navigation" id="nav-links">
-        <div className="nav-menu-header">
-          <h2 className="nav-menu-title">Navigation</h2>
+      {/* Sidebar Menu */}
+      <aside className={`nav-sidebar ${isMenuOpen ? 'open' : ''}`}>
+        {/* Sidebar Header */}
+        <div className="sidebar-header">
+          <div className="sidebar-brand">
+            <span className="brand-icon">📊</span>
+            <span className="brand-text">BlockIntel</span>
+          </div>
           <button 
-            className="nav-close-btn"
+            className="sidebar-close"
             onClick={() => setIsMenuOpen(false)}
-            aria-label="Menü schließen"
+            aria-label="Close menu"
             type="button"
           >
             ✕
           </button>
         </div>
 
-        <nav className="nav-menu-content" role="menubar">
-          {mainPages.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`nav-link ${isActiveRoute(item.path) ? 'active' : ''}`}
-              role="menuitem"
-              aria-current={isActiveRoute(item.path) ? 'page' : undefined}
+        {/* Quick Actions (Mobile) */}
+        {!currentUser && (
+          <div className="sidebar-quick-actions">
+            <Link 
+              to="/register" 
+              className="quick-action-btn primary"
               onClick={() => setIsMenuOpen(false)}
-              tabIndex={isMenuOpen ? 0 : -1}
             >
-              <span className="nav-icon" role="img" aria-label={item.label}>
-                {item.icon}
-              </span>
-              <span className="nav-text">{item.text}</span>
-              {isActiveRoute(item.path) && (
-                <span className="nav-indicator" aria-hidden="true"></span>
-              )}
+              Get Started
             </Link>
+            <Link 
+              to="/login" 
+              className="quick-action-btn secondary"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Sign In
+            </Link>
+          </div>
+        )}
+
+        {/* Navigation Groups */}
+        <nav className="sidebar-nav">
+          {/* Main Links */}
+          <div className="nav-group">
+            <Link
+              to="/"
+              className={`nav-item ${isActiveRoute('/') && location.pathname === '/' ? 'active' : ''}`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span className="nav-item-icon">🏠</span>
+              <span className="nav-item-text">Home</span>
+            </Link>
+            
+            {currentUser && (
+              <Link
+                to="/dashboard"
+                className={`nav-item ${isActiveRoute('/dashboard') ? 'active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <span className="nav-item-icon">📊</span>
+                <span className="nav-item-text">Dashboard</span>
+              </Link>
+            )}
+          </div>
+
+          {/* Tool Groups */}
+          {currentUser && navigationGroups.map((group, index) => (
+            <div key={index} className="nav-group">
+              <div className="nav-group-title">{group.title}</div>
+              {group.items.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`nav-item ${isActiveRoute(item.path) ? 'active' : ''}`}
+                  onClick={() => setIsMenuOpen(false)}
+                  title={item.label}
+                >
+                  <span className="nav-item-icon">{item.icon}</span>
+                  <span className="nav-item-text">{item.text}</span>
+                  {isActiveRoute(item.path) && (
+                    <span className="nav-item-indicator" aria-hidden="true"></span>
+                  )}
+                </Link>
+              ))}
+            </div>
           ))}
 
-          <div className="nav-divider" aria-hidden="true"></div>
-
-          {accountPages.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`nav-link ${isActiveRoute(item.path) ? 'active' : ''}`}
-              role="menuitem"
-              aria-current={isActiveRoute(item.path) ? 'page' : undefined}
-              onClick={() => setIsMenuOpen(false)}
-              tabIndex={isMenuOpen ? 0 : -1}
-            >
-              <span className="nav-icon" role="img" aria-label={item.label}>
-                {item.icon}
-              </span>
-              <span className="nav-text">{item.text}</span>
-              {isActiveRoute(item.path) && (
-                <span className="nav-indicator" aria-hidden="true"></span>
-              )}
-            </Link>
-          ))}
-
-          {authPages.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`nav-link ${isActiveRoute(item.path) ? 'active' : ''}`}
-              role="menuitem"
-              aria-current={isActiveRoute(item.path) ? 'page' : undefined}
-              onClick={() => setIsMenuOpen(false)}
-              tabIndex={isMenuOpen ? 0 : -1}
-            >
-              <span className="nav-icon" role="img" aria-label={item.label}>
-                {item.icon}
-              </span>
-              <span className="nav-text">{item.text}</span>
-              {isActiveRoute(item.path) && (
-                <span className="nav-indicator" aria-hidden="true"></span>
-              )}
-            </Link>
-          ))}
-
+          {/* Account Section */}
           {currentUser && (
-            <div className="nav-user-area">
-              <div className="nav-user-info">
-                <div className="user-avatar" aria-hidden="true">
-                  {currentUser.email?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <div className="user-details">
-                  <div className="user-name">
-                    {currentUser.email?.split('@')[0] || 'Benutzer'}
-                  </div>
-                  <div className="user-email">{currentUser.email}</div>
-                </div>
-              </div>
-              
+            <div className="nav-group">
+              <div className="nav-group-title">Account</div>
+              <Link
+                to="/account"
+                className={`nav-item ${isActiveRoute('/account') ? 'active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <span className="nav-item-icon">⚙️</span>
+                <span className="nav-item-text">Settings</span>
+              </Link>
               <button 
                 onClick={handleLogout}
-                className="nav-link logout-btn"
-                role="menuitem"
-                aria-label="Abmelden"
-                tabIndex={isMenuOpen ? 0 : -1}
+                className="nav-item logout"
                 type="button"
               >
-                <span className="nav-icon" role="img" aria-label="Abmelden">🚪</span>
-                <span className="nav-text">Abmelden</span>
+                <span className="nav-item-icon">🚪</span>
+                <span className="nav-item-text">Sign Out</span>
               </button>
-            </div>
-          )}
-
-          {!currentUser && (
-            <div className="nav-info-box">
-              <p className="nav-info-text">
-                💡 Melde dich an, um alle Funktionen zu nutzen
-              </p>
             </div>
           )}
         </nav>
 
-        <div className="nav-menu-footer">
-          <div className="nav-version">BlockIntel v1.0</div>
-        </div>
+        {/* User Info (if logged in) */}
+        {currentUser && (
+          <div className="sidebar-footer">
+            <div className="user-info">
+              <div className="user-avatar">
+                {currentUser.email?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div className="user-details">
+                <div className="user-name">
+                  {currentUser.email?.split('@')[0] || 'User'}
+                </div>
+                <div className="user-email">{currentUser.email}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info Box (if not logged in) */}
+        {!currentUser && (
+          <div className="sidebar-footer">
+            <div className="info-box">
+              <div className="info-icon">💡</div>
+              <div className="info-text">
+                <strong>Sign in</strong> to access professional analysis tools
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Version */}
+        <div className="sidebar-version">BlockIntel v1.0</div>
       </aside>
     </>
   );
