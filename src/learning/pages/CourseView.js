@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Module01_WhyBlockchain from '../courses/blockchain-basics/modules/Module01_WhyBlockchain';
 import Module02_SharedNotebook from '../courses/blockchain-basics/modules/Module02_SharedNotebook';
+import Module03_BlockStructure from '../courses/blockchain-basics/modules/Module03_BlockStructure';
+import Module04_TheChain from '../courses/blockchain-basics/modules/Module04_TheChain';
+import Module05_HashFunction from '../courses/blockchain-basics/modules/Module05_HashFunction';
 import './CourseView.css';
 
 const CourseView = () => {
@@ -23,8 +26,23 @@ const CourseView = () => {
       component: Module02_SharedNotebook, 
       title: 'Das gemeinsame Notizbuch',
       description: 'Verteilte Listen, die alle sehen können'
+    },
+    3: {
+      component: Module03_BlockStructure,
+      title: 'Der Block als Datenstruktur',
+      description: 'Was steht in einem Block?'
+    },
+    4: {
+      component: Module04_TheChain,
+      title: 'Die Kette: Blöcke verbinden',
+      description: 'Wie Blöcke über Hashes verbunden sind'
+    },
+    5: {
+      component: Module05_HashFunction,
+      title: 'Die Hash-Funktion',
+      description: 'Digitaler Fingerabdruck - kleine Änderung, neuer Hash'
     }
-    // Weitere Module werden hier hinzugefügt
+    // Module 6-9 werden später hinzugefügt
   };
 
   useEffect(() => {
