@@ -1,3 +1,4 @@
+// path: src/App.js
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
@@ -19,12 +20,7 @@ import Account from './auth/Account/Account';
 import ProtectedRoute from './auth/ProtectedRoute';
 import './App.css';
 
-console.log('🎯 App.js wird geladen');
-console.log('✅ Alle App-Imports erfolgreich');
-
 function App() {
-  console.log('🏗️ App-Komponente wird gerendert');
-  
   return (
     <AuthProvider>
       <Router>
@@ -34,6 +30,10 @@ function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              
+              {/* Dashboard & Tools */}
               <Route path="/dashboard" element={<UserDashboard />} />
               <Route path="/radar" element={<ContractRadar />} />
               <Route path="/tokens" element={<TokenOverview />} />
@@ -44,8 +44,6 @@ function App() {
               <Route path="/price-movers" element={<PriceMovers />} />
               <Route path="/orderbook-heatmap" element={<OrderbookHeatmap />} />
               <Route path="/iceberg-orders" element={<IcebergOrders />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
               
               {/* Protected Routes */}
               <Route 
@@ -63,7 +61,5 @@ function App() {
     </AuthProvider>
   );
 }
-
-console.log('✅ App-Komponente definiert');
 
 export default App;
