@@ -14,13 +14,18 @@ const CourseView = () => {
   const moduleNumber = parseInt(moduleId.replace('module-', ''));
 
   const modules = {
-    1: { component: Module01_WhyBlockchain, title: 'Warum braucht man Blockchain?' },
-    // Weitere Module werden hier hinzugefügt
+    1: { 
+      component: Module01_WhyBlockchain, 
+      title: 'Warum braucht man Blockchain?',
+      description: 'Vertrauen ohne Bank oder Notar'
+    },
     2: { 
       component: Module02_SharedNotebook, 
       title: 'Das gemeinsame Notizbuch',
       description: 'Verteilte Listen, die alle sehen können'
-    },
+    }
+    // Weitere Module werden hier hinzugefügt
+  };
 
   useEffect(() => {
     // Load progress
