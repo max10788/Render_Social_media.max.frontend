@@ -1,3 +1,4 @@
+// path: src/pages/LandingPage.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
