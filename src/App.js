@@ -49,7 +49,8 @@ function App() {
               
               <Route path="/learning" element={<LearningHome />} />
               <Route path="/learning/blockchain-basics/:moduleId" element={<CourseView />} />
-
+              <Route path="/learning/course/:courseId/module/:moduleId" element={<CourseView />} />
+              <Route path="/learning/course/:courseId" element={<CourseView />} />
               
               {/* Protected Routes */}
               <Route 
