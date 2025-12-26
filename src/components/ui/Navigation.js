@@ -1,4 +1,4 @@
-// path: src/components/ui/Navigation.js
+// path: src/components/ui/Navigation.js - TOOLS FOR EVERYONE
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -66,6 +66,7 @@ const Navigation = () => {
     return location.pathname.startsWith(path);
   };
 
+  // UPDATED: Tools available for everyone
   const navigationGroups = [
     {
       title: 'Analysis Tools',
@@ -122,14 +123,18 @@ const Navigation = () => {
                 Dashboard
               </Link>
             )}
-            {/* NEW: Learning Link - Always visible */}
             <Link 
               to="/learning" 
               className={`nav-desktop-link ${isActiveRoute('/learning') ? 'active' : ''}`}
             >
               📚 Learning
             </Link>
-            <a href="#tools" className="nav-desktop-link">Tools</a>
+            <Link 
+              to="/radar" 
+              className={`nav-desktop-link ${isActiveRoute('/radar') ? 'active' : ''}`}
+            >
+              🛠️ Tools
+            </Link>
           </div>
 
           <div className="nav-actions">
@@ -217,6 +222,7 @@ const Navigation = () => {
         )}
 
         <nav className="sidebar-nav">
+          {/* Main Navigation - ALWAYS VISIBLE */}
           <div className="nav-group">
             <Link
               to="/"
@@ -227,7 +233,6 @@ const Navigation = () => {
               <span className="nav-item-text">Home</span>
             </Link>
 
-            {/* NEW: Learning - Always visible */}
             <Link
               to="/learning"
               className={`nav-item ${isActiveRoute('/learning') ? 'active' : ''}`}
@@ -249,7 +254,8 @@ const Navigation = () => {
             )}
           </div>
 
-          {currentUser && navigationGroups.map((group, index) => (
+          {/* UPDATED: Tool Groups - AVAILABLE FOR EVERYONE */}
+          {navigationGroups.map((group, index) => (
             <div key={index} className="nav-group">
               <div className="nav-group-title">{group.title}</div>
               {group.items.map((item) => (
@@ -270,6 +276,7 @@ const Navigation = () => {
             </div>
           ))}
 
+          {/* Account Section - ONLY FOR LOGGED IN */}
           {currentUser && (
             <div className="nav-group">
               <div className="nav-group-title">Account</div>
@@ -293,7 +300,8 @@ const Navigation = () => {
           )}
         </nav>
 
-        {currentUser && (
+        {/* Footer - Different for logged in vs logged out */}
+        {currentUser ? (
           <div className="sidebar-footer">
             <div className="user-info">
               <div className="user-avatar">
@@ -307,14 +315,12 @@ const Navigation = () => {
               </div>
             </div>
           </div>
-        )}
-
-        {!currentUser && (
+        ) : (
           <div className="sidebar-footer">
             <div className="info-box">
               <div className="info-icon">💡</div>
               <div className="info-text">
-                <strong>Sign in</strong> to access professional analysis tools
+                <strong>Try our tools for free!</strong> Create an account for saved preferences and alerts.
               </div>
             </div>
           </div>
