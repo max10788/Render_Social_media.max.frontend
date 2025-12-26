@@ -102,6 +102,42 @@ const Module07_Consensus = ({ onComplete }) => {
         </div>
       </section>
 
+      {/* Metaphor Grid for Understanding Consensus */}
+      <section className="content-section">
+        <div className="section-label">🎨 Konsens in Alltagsmetaphern</div>
+        <div className="metaphor-grid">
+          <div className="metaphor-card">
+            <div className="metaphor-icon">🗳️</div>
+            <h4>Demokratische Wahl</h4>
+            <p>
+              Konsens ist wie eine Wahl: Alle stimmen ab, die Mehrheit gewinnt. Aber statt 
+              alle 4 Jahre wählen, "wählt" die Blockchain alle 10 Minuten (Bitcoin) einen 
+              neuen Block. Niemand kann die Wahl fälschen, weil tausende mitgucken.
+            </p>
+          </div>
+          
+          <div className="metaphor-card">
+            <div className="metaphor-icon">⚖️</div>
+            <h4>Geschworenengericht</h4>
+            <p>
+              Wie bei einem Gerichtsprozess müssen sich die "Geschworenen" (Nodes) einig sein. 
+              Ein einzelner Betrüger-Node? Überstimmt von tausenden ehrlichen. Die "Jury" 
+              entscheidet gemeinsam über schuldig (valide) oder unschuldig (invalide).
+            </p>
+          </div>
+
+          <div className="metaphor-card">
+            <div className="metaphor-icon">🏆</div>
+            <h4>Sportwettbewerb</h4>
+            <p>
+              PoW ist wie ein Marathon: Wer zuerst ins Ziel kommt (Rätsel löst), gewinnt. 
+              PoS ist wie eine Lotterie: Wer mehr Lose kauft (mehr Stake), hat höhere Chancen - 
+              aber auch der Kleinanleger kann gewinnen.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* The Problem */}
       <section className="content-section">
         <div className="section-label">❓ Das Problem: Wer darf entscheiden?</div>
@@ -145,6 +181,12 @@ const Module07_Consensus = ({ onComplete }) => {
       {/* Proof of Work */}
       <section className="content-section">
         <div className="section-label">⚒️ Konsens-Methode 1: Proof of Work (PoW)</div>
+        
+        <ConceptBox
+          icon="⛏️"
+          title="Proof of Work - Rechenpower-Wettbewerb"
+          description="Computer lösen komplexe mathematische Rätsel. Wer als Erster die Lösung findet, darf den nächsten Block erstellen und bekommt eine Belohnung. Wie ein Lotto-Spiel: Je mehr Rechenpower, desto höher die Gewinnchance."
+        />
         
         <div className="consensus-method">
           <div className="method-header">
@@ -251,6 +293,12 @@ const Module07_Consensus = ({ onComplete }) => {
       <section className="content-section">
         <div className="section-label">🏦 Konsens-Methode 2: Proof of Stake (PoS)</div>
         
+        <ConceptBox
+          icon="💎"
+          title="Proof of Stake - Geld als Kaution"
+          description="Statt Rechenpower einzusetzen, hinterlegst du Kryptowährung als 'Kaution' (Stake). Wer betrügt, verliert sein Geld (Slashing). Wer ehrlich ist, verdient Zinsen. Wie eine Sicherheitsleistung beim Wohnungskauf."
+        />
+        
         <div className="consensus-method">
           <div className="method-header">
             <div className="method-icon">💎</div>
@@ -356,6 +404,52 @@ const Module07_Consensus = ({ onComplete }) => {
       {/* Direct Comparison */}
       <section className="content-section">
         <div className="section-label">⚖️ Direkter Vergleich: PoW vs. PoS</div>
+        
+        <div className="comparison-container">
+          <div className="comparison-card problem">
+            <div className="card-icon">⚒️</div>
+            <h3>Proof of Work (PoW)</h3>
+            <div className="comparison-items">
+              <div className="comparison-item">
+                <strong>Wie es funktioniert:</strong> Computer lösen mathematische Rätsel im Wettbewerb
+              </div>
+              <div className="comparison-item">
+                <strong>Was du brauchst:</strong> Teure Mining-Hardware (ASIC), viel Strom
+              </div>
+              <div className="comparison-item">
+                <strong>Belohnung:</strong> Block Reward (aktuell 3,125 BTC ≈ 120,000€)
+              </div>
+              <div className="comparison-item problem-highlight">
+                <strong>Nachteil:</strong> Enormer Energieverbrauch (wie ein ganzes Land!)
+              </div>
+              <div className="comparison-item solution-highlight">
+                <strong>Vorteil:</strong> Sehr sicher, seit 2009 bewährt
+              </div>
+            </div>
+          </div>
+
+          <div className="comparison-card solution">
+            <div className="card-icon">💎</div>
+            <h3>Proof of Stake (PoS)</h3>
+            <div className="comparison-items">
+              <div className="comparison-item">
+                <strong>Wie es funktioniert:</strong> Geld als Kaution einsetzen, zufällige Auswahl
+              </div>
+              <div className="comparison-item">
+                <strong>Was du brauchst:</strong> 32 ETH (≈80,000€) als Stake
+              </div>
+              <div className="comparison-item">
+                <strong>Belohnung:</strong> ~5% Zinsen pro Jahr auf deinen Stake
+              </div>
+              <div className="comparison-item solution-highlight">
+                <strong>Vorteil:</strong> 99% weniger Energie, klimafreundlich
+              </div>
+              <div className="comparison-item problem-highlight">
+                <strong>Nachteil:</strong> Hohe Einstiegshürde (80,000€)
+              </div>
+            </div>
+          </div>
+        </div>
         
         <div className="comparison-table">
           <div className="comparison-row header">
