@@ -254,6 +254,39 @@ const Module07_Consensus = ({ onComplete }) => {
             </div>
           </div>
 
+          {/* Mining Metaphors */}
+          <div className="metaphor-grid">
+            <div className="metaphor-card">
+              <div className="metaphor-icon">🎲</div>
+              <h4>Würfel-Wettbewerb</h4>
+              <p>
+                Stell dir vor: 10,000 Leute würfeln gleichzeitig. Wer als Erster eine 6-6-6 
+                würfelt, gewinnt. Bei Bitcoin ist es ähnlich - nur mit Milliarden Versuchen 
+                pro Sekunde und einem noch schwierigeren "Gewinn-Muster".
+              </p>
+            </div>
+
+            <div className="metaphor-card">
+              <div className="metaphor-icon">⛏️</div>
+              <h4>Gold schürfen</h4>
+              <p>
+                Daher der Name "Mining" (Bergbau): Wie Goldgräber Tonnen Erde durchsieben 
+                für ein paar Gramm Gold, sieben Miner Milliarden Zahlen durch für einen 
+                gültigen Block-Hash.
+              </p>
+            </div>
+
+            <div className="metaphor-card">
+              <div className="metaphor-icon">🔐</div>
+              <h4>Passwort knacken</h4>
+              <p>
+                Mining ist wie ein Passwort erraten - aber das Passwort ändert sich alle 
+                10 Minuten und wer es zuerst findet, bekommt 120,000€. Deshalb investieren 
+                Leute in teure Hardware!
+              </p>
+            </div>
+          </div>
+
           <div className="method-pros-cons">
             <div className="pros">
               <h4>✓ Vorteile von Proof of Work:</h4>
@@ -383,6 +416,39 @@ const Module07_Consensus = ({ onComplete }) => {
                 <li><strong>Weniger erprobt:</strong> PoS ist jünger als PoW (weniger Erfahrung)</li>
                 <li><strong>Zentralisierung:</strong> Große Stake-Pools könnten zu mächtig werden</li>
               </ul>
+            </div>
+          </div>
+
+          {/* Staking Metaphors */}
+          <div className="metaphor-grid">
+            <div className="metaphor-card">
+              <div className="metaphor-icon">🏦</div>
+              <h4>Sparkonto mit Verantwortung</h4>
+              <p>
+                Du legst Geld auf ein Sparkonto (Staking) und bekommst 5% Zinsen pro Jahr. 
+                Aber: Wenn du betrügst (z.B. doppelt ausgeben), sperrt die Bank dein Konto 
+                und behält das Geld. Das ist "Slashing" bei PoS.
+              </p>
+            </div>
+
+            <div className="metaphor-card">
+              <div className="metaphor-icon">🎯</div>
+              <h4>Gewichtete Lotterie</h4>
+              <p>
+                Stell dir eine Lotterie vor, bei der du mehr Lose kaufen kannst, wenn du mehr 
+                Geld einzahlst. Wer 1% aller Coins staked, hat ~1% Chance gewählt zu werden. 
+                Fair, aber teuer im Einstieg.
+              </p>
+            </div>
+
+            <div className="metaphor-card">
+              <div className="metaphor-icon">👔</div>
+              <h4>Vertrauenswürdiger Notar</h4>
+              <p>
+                Um Notar zu werden, musst du eine hohe Kaution hinterlegen. So weiß jeder: 
+                Dieser Notar wird nicht betrügen, denn er verliert sonst seine Lizenz UND 
+                sein Geld. PoS funktioniert gleich!
+              </p>
             </div>
           </div>
 
