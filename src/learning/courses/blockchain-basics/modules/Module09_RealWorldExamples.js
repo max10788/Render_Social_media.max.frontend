@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import ConceptBox from '../../../components/content/ConceptBox';
-import MultipleChoice from '../../../components/exercises/MultipleChoice';
-import ExpandableSection from '../../../components/content/ExpandableSection';
+import ConceptBox from '../../components/content/ConceptBox';
+import ExpandableSection from '../../components/content/ExpandableSection';
+import MultipleChoice from '../../components/exercises/MultipleChoice';
 import './Module.css';
 
 const Module09_RealWorldExamples = ({ onComplete }) => {
