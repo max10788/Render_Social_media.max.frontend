@@ -214,6 +214,37 @@ const Module08_Security = ({ onComplete }) => {
         </div>
       </section>
 
+      {/* Additional Security Concepts */}
+      <section className="content-section">
+        <div className="section-label">🔐 Kern-Sicherheitskonzepte erklärt</div>
+        
+        <div className="metaphor-grid">
+          <div className="metaphor-card">
+            <ConceptBox
+              icon="🔒"
+              title="Kryptografische Sicherheit"
+              description="Blockchain nutzt fortgeschrittene Mathematik (SHA-256, ECDSA), die selbst mit Supercomputern nicht zu knacken ist. Wie ein Tresor, für den es keinen Dietrich gibt."
+            />
+          </div>
+          
+          <div className="metaphor-card">
+            <ConceptBox
+              icon="⛓️"
+              title="Verkettungs-Sicherheit"
+              description="Jeder Block verweist auf den vorherigen. Änderst du einen, bricht die gesamte Kette. Wie Dominosteine: Einer fällt, alle fallen - sofort sichtbar."
+            />
+          </div>
+
+          <div className="metaphor-card">
+            <ConceptBox
+              icon="👥"
+              title="Konsens-Sicherheit"
+              description="Die Mehrheit der Nodes muss zustimmen. Ein betrügerischer Node gegen 15,000 ehrliche? Keine Chance. Demokratie schlägt Diktatur."
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Attack Scenarios */}
       <section className="content-section">
         <div className="section-label">🦹 Angriffs-Szenarien: Was könnte schiefgehen?</div>
@@ -312,6 +343,46 @@ const Module08_Security = ({ onComplete }) => {
       <section className="content-section">
         <div className="section-label">✅ Was IST möglich (und was NICHT)?</div>
         
+        <div className="comparison-container">
+          <div className="comparison-card problem">
+            <div className="card-icon">🏦</div>
+            <h3>Traditionelle Datenbank</h3>
+            <div className="comparison-items">
+              <div className="comparison-item">
+                <strong>Zentrale Kontrolle:</strong> Admin kann alles ändern, löschen, manipulieren
+              </div>
+              <div className="comparison-item">
+                <strong>Single Point of Failure:</strong> Server down = alles down
+              </div>
+              <div className="comparison-item">
+                <strong>Hacking-Ziel:</strong> Ein Server = ein Angriffspunkt
+              </div>
+              <div className="comparison-item problem-highlight">
+                <strong>Vertrauen nötig:</strong> Du musst dem Betreiber vertrauen
+              </div>
+            </div>
+          </div>
+
+          <div className="comparison-card solution">
+            <div className="card-icon">⛓️</div>
+            <h3>Blockchain</h3>
+            <div className="comparison-items">
+              <div className="comparison-item">
+                <strong>Keine zentrale Kontrolle:</strong> Konsens durch Mehrheit
+              </div>
+              <div className="comparison-item">
+                <strong>Kein Single Point:</strong> 15,000+ Kopien weltweit
+              </div>
+              <div className="comparison-item">
+                <strong>Verteiltes Risiko:</strong> Müsste tausende Server gleichzeitig hacken
+              </div>
+              <div className="comparison-item solution-highlight">
+                <strong>Trustless:</strong> Vertrauen nicht nötig - Mathematik garantiert Sicherheit
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <div className="possibility-grid">
           <div className="possibility-card possible">
             <h4>✅ Was Angreifer KÖNNEN:</h4>
@@ -347,6 +418,39 @@ const Module08_Security = ({ onComplete }) => {
       {/* Immutability */}
       <section className="content-section">
         <div className="section-label">🗿 Unveränderlichkeit (Immutability)</div>
+        
+        {/* Security Metaphors */}
+        <div className="metaphor-grid">
+          <div className="metaphor-card">
+            <div className="metaphor-icon">🏰</div>
+            <h4>Festung mit 5 Mauern</h4>
+            <p>
+              Die Blockchain ist wie eine mittelalterliche Festung mit 5 Verteidigungsringen: 
+              Kryptografie, Verkettung, Dezentralität, Konsens, Anreize. Ein Angreifer müsste 
+              ALLE 5 überwinden - praktisch unmöglich!
+            </p>
+          </div>
+          
+          <div className="metaphor-card">
+            <div className="metaphor-icon">🧱</div>
+            <h4>In Stein gemeißelt</h4>
+            <p>
+              Was in die Blockchain geschrieben wird, ist wie in Stein gemeißelt. Nicht mit 
+              Tinte, die man wegwischen kann, sondern mit Hammer und Meißel in Granit. 
+              Für die Ewigkeit.
+            </p>
+          </div>
+
+          <div className="metaphor-card">
+            <div className="metaphor-icon">🕸️</div>
+            <h4>Spinnennetz-Redundanz</h4>
+            <p>
+              Wie ein Spinnennetz: Schneide einen Faden durch (ein Node fällt aus), das Netz 
+              hält trotzdem. Schneide 100 Fäden durch, hält immer noch. Die Redundanz macht 
+              es unzerstörbar.
+            </p>
+          </div>
+        </div>
         
         <div className="immutability-explanation">
           <p>
