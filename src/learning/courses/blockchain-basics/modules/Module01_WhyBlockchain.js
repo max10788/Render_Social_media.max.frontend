@@ -1,8 +1,8 @@
 // path: src/learning/courses/blockchain-basics/modules/Module01_WhyBlockchain.js
 import React, { useState } from 'react';
-import ConceptBox from '../../components/content/ConceptBox';
-import ExpandableSection from '../../components/content/ExpandableSection';
-import MultipleChoice from '../../components/exercises/MultipleChoice';
+import ConceptBox from '../../../components/content/ConceptBox';
+import ExpandableSection from '../../../components/content/ExpandableSection';
+import MultipleChoice from '../../../components/exercises/MultipleChoice';
 import './Module.css';
 
 const Module01_WhyBlockchain = ({ onComplete }) => {
