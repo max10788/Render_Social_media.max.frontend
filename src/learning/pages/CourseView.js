@@ -1,4 +1,4 @@
-// src/learning/pages/CourseView.js - COMPLETE WITH AUTO-REDIRECT
+// src/learning/pages/CourseView.js - COMPLETE WITH ALL 8 MODULES
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -14,12 +14,15 @@ import Module07_Consensus from '../courses/blockchain-basics/modules/Module07_Co
 import Module08_Security from '../courses/blockchain-basics/modules/Module08_Security';
 import Module09_RealWorldExamples from '../courses/blockchain-basics/modules/Module09_RealWorldExamples';
 
-// Reading Transactions Modules - CORRECTED PATH
+// Reading Transactions Modules - ALL 8 MODULES
 import Module01_TransactionBasics from '../courses/data-structures/Module01_TransactionBasics';
 import Module02_WalletAndAddress from '../courses/data-structures/Module02_WalletAndAddress';
 import Module03_SimpleTransaction from '../courses/data-structures/Module03_SimpleTransaction';
 import Module04_EthereumExplorer from '../courses/data-structures/Module04_EthereumExplorer';
 import Module05_GasAndFees from '../courses/data-structures/Module05_GasAndFees';
+import Module06_SmartContracts from '../courses/data-structures/Module06_SmartContracts';
+import Module07_SecurityModule from '../courses/data-structures/Module07_Security';
+import Module08_SpecialCases from '../courses/data-structures/Module08_SpecialCases';
 
 import './CourseView.css';
 
@@ -58,14 +61,16 @@ const CourseView = () => {
     },
     'reading-transactions': {
       title: 'Transaktionen Lesen',
-      totalModules: 5, // UPDATED: Only 5 modules available
+      totalModules: 8, // UPDATED TO 8!
       modules: {
         1: { component: Module01_TransactionBasics, title: 'Was ist eine Transaktion?' },
         2: { component: Module02_WalletAndAddress, title: 'Wallet & Adresse verstehen' },
         3: { component: Module03_SimpleTransaction, title: 'Aufbau einer Transaktion' },
         4: { component: Module04_EthereumExplorer, title: 'Ethereum im Blockexplorer' },
-        5: { component: Module05_GasAndFees, title: 'Gas & Gebühren' }
-        // Module 6-8 coming soon
+        5: { component: Module05_GasAndFees, title: 'Gas & Gebühren' },
+        6: { component: Module06_SmartContracts, title: 'Smart Contract Interaktionen' },
+        7: { component: Module07_SecurityModule, title: 'Security & Sicherheit' },
+        8: { component: Module08_SpecialCases, title: 'Special Cases & Spezialfälle' }
       }
     }
   };
