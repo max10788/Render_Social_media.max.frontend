@@ -1,4 +1,4 @@
-// src/learning/pages/CourseView.js - UPDATED IMPORTS
+// src/learning/pages/CourseView.js - COMPLETE WITH AUTO-REDIRECT
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -30,6 +30,13 @@ const CourseView = () => {
   const [showCompletion, setShowCompletion] = useState(false);
   const [courseCompleted, setCourseCompleted] = useState(false);
 
+  // AUTO-REDIRECT: If no moduleId, redirect to module 1
+  useEffect(() => {
+    if (courseId && !moduleId) {
+      navigate(`/learning/course/${courseId}/module/1`, { replace: true });
+    }
+  }, [courseId, moduleId, navigate]);
+
   const moduleNumber = moduleId ? parseInt(moduleId) : 1;
 
   // Course configurations
@@ -51,22 +58,21 @@ const CourseView = () => {
     },
     'reading-transactions': {
       title: 'Transaktionen Lesen',
-      totalModules: 8,
+      totalModules: 5, // UPDATED: Only 5 modules available
       modules: {
         1: { component: Module01_TransactionBasics, title: 'Was ist eine Transaktion?' },
         2: { component: Module02_WalletAndAddress, title: 'Wallet & Adresse verstehen' },
         3: { component: Module03_SimpleTransaction, title: 'Aufbau einer Transaktion' },
         4: { component: Module04_EthereumExplorer, title: 'Ethereum im Blockexplorer' },
-        5: { component: Module05_GasAndFees, title: 'Gas & Gebühren' },
-        // 6: { component: Module06_SmartContracts, title: 'Smart Contract Interaktionen' },
-        // 7: { component: Module07_Security, title: 'Security-Perspektive' },
-        // 8: { component: Module08_SpecialCases, title: 'Spezialfälle und Muster' }
+        5: { component: Module05_GasAndFees, title: 'Gas & Gebühren' }
+        // Module 6-8 coming soon
       }
     }
   };
 
   const currentCourse = courseConfigs[courseId];
 
+  // Load progress
   useEffect(() => {
     const savedProgress = localStorage.getItem('learning_progress');
     if (savedProgress) {
@@ -74,6 +80,90 @@ const CourseView = () => {
     }
     window.scrollTo(0, 0);
   }, [courseId, moduleId]);
+
+  // Show loading if redirecting
+  if (!moduleId) {
+    return (
+      <div className="course-view">
+        <div className="container" style={{ 
+          padding: '4rem 1rem', 
+          textAlign: 'center',
+          minHeight: '60vh',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <div style={{ 
+            fontSize: '3rem', 
+            marginBottom: '1rem',
+            animation: 'pulse 1.5s ease-in-out infinite'
+          }}>⏳</div>
+          <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>Lade Kurs...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if course exists
+  if (!currentCourse) {
+    return (
+      <div className="course-view">
+        <div className="container">
+          <div className="error-state" style={{ 
+            padding: '4rem 1rem', 
+            textAlign: 'center',
+            minHeight: '60vh',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>❌</div>
+            <h2 style={{ color: '#e0e7ff', marginBottom: '0.5rem' }}>Kurs nicht gefunden</h2>
+            <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>Kurs-ID: <code>{courseId}</code></p>
+            <Link to="/learning" className="btn btn-primary">
+              Zurück zur Übersicht
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const CurrentModule = currentCourse.modules[moduleNumber]?.component;
+
+  // Check if module exists
+  if (!CurrentModule) {
+    return (
+      <div className="course-view">
+        <div className="container">
+          <div className="error-state" style={{ 
+            padding: '4rem 1rem', 
+            textAlign: 'center',
+            minHeight: '60vh',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📭</div>
+            <h2 style={{ color: '#e0e7ff', marginBottom: '0.5rem' }}>Modul nicht gefunden</h2>
+            <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
+              Kurs: <strong>{courseId}</strong>, Modul: <strong>{moduleNumber}</strong>
+            </p>
+            <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>
+              Dieser Kurs hat {currentCourse.totalModules} Module. 
+              {moduleNumber > currentCourse.totalModules && ' Modul noch nicht verfügbar.'}
+            </p>
+            <Link to={`/learning/course/${courseId}/module/1`} className="btn btn-primary">
+              Zu Modul 1
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleComplete = () => {
     const newProgress = {
@@ -86,7 +176,7 @@ const CourseView = () => {
     setProgress(newProgress);
     localStorage.setItem('learning_progress', JSON.stringify(newProgress));
     
-    const courseProgress = newProgress[courseId];
+    const courseProgress = newProgress[courseId] || {};
     const allCompleted = Object.keys(currentCourse.modules).every(key => 
       courseProgress[parseInt(key)]?.completed === true
     );
@@ -115,34 +205,6 @@ const CourseView = () => {
       navigate(`/learning/course/${courseId}/module/${prevModule}`);
     }
   };
-
-  if (!currentCourse) {
-    return (
-      <div className="course-view">
-        <div className="container">
-          <div className="error-state">
-            <h2>Kurs nicht gefunden</h2>
-            <Link to="/learning" className="btn btn-primary">Zurück zur Übersicht</Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const CurrentModule = currentCourse.modules[moduleNumber]?.component;
-
-  if (!CurrentModule) {
-    return (
-      <div className="course-view">
-        <div className="container">
-          <div className="error-state">
-            <h2>Modul nicht gefunden</h2>
-            <Link to="/learning" className="btn btn-primary">Zurück zur Übersicht</Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="course-view">
@@ -223,6 +285,25 @@ const CourseView = () => {
                 <p className="completion-text">
                   🎉 Herzlichen Glückwunsch! Du hast "{currentCourse.title}" erfolgreich abgeschlossen!
                 </p>
+                <div className="completion-stats" style={{ 
+                  display: 'flex', 
+                  gap: '2rem', 
+                  justifyContent: 'center',
+                  margin: '2rem 0'
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ 
+                      fontSize: '2rem', 
+                      fontWeight: 'bold',
+                      background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent'
+                    }}>
+                      {currentCourse.totalModules}
+                    </div>
+                    <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Module</div>
+                  </div>
+                </div>
               </>
             ) : (
               <>
