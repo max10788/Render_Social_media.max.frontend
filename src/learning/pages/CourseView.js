@@ -6,6 +6,10 @@ import Module02_SharedNotebook from '../courses/blockchain-basics/modules/Module
 import Module03_BlockStructure from '../courses/blockchain-basics/modules/Module03_BlockStructure';
 import Module04_TheChain from '../courses/blockchain-basics/modules/Module04_TheChain';
 import Module05_HashFunction from '../courses/blockchain-basics/modules/Module05_HashFunction';
+import Module06_Decentralization from '../courses/blockchain-basics/modules/Module06_Decentralization';
+import Module07_Consensus from '../courses/blockchain-basics/modules/Module07_Consensus';
+import Module08_Security from '../courses/blockchain-basics/modules/Module08_Security';
+import Module09_RealWorldExamples from '../courses/blockchain-basics/modules/Module09_RealWorldExamples';
 import './CourseView.css';
 
 const CourseView = () => {
@@ -13,6 +17,7 @@ const CourseView = () => {
   const navigate = useNavigate();
   const [progress, setProgress] = useState({});
   const [showCompletion, setShowCompletion] = useState(false);
+  const [courseCompleted, setCourseCompleted] = useState(false);
 
   const moduleNumber = parseInt(moduleId.replace('module-', ''));
 
@@ -41,8 +46,27 @@ const CourseView = () => {
       component: Module05_HashFunction,
       title: 'Die Hash-Funktion',
       description: 'Digitaler Fingerabdruck - kleine Änderung, neuer Hash'
+    },
+    6: {
+      component: Module06_Decentralization,
+      title: 'Dezentralität',
+      description: 'Viele Kopien im Netzwerk'
+    },
+    7: {
+      component: Module07_Consensus,
+      title: 'Konsens: Wie sich alle einigen',
+      description: 'Proof of Work vs. Proof of Stake'
+    },
+    8: {
+      component: Module08_Security,
+      title: 'Sicherheit & Unveränderlichkeit',
+      description: 'Warum Blockchain unknackbar ist'
+    },
+    9: {
+      component: Module09_RealWorldExamples,
+      title: 'Praxisbeispiele & Anwendungen',
+      description: 'Von Bitcoin bis Lieferketten'
     }
-    // Module 6-9 werden später hinzugefügt
   };
 
   useEffect(() => {
@@ -63,6 +87,16 @@ const CourseView = () => {
     };
     setProgress(newProgress);
     localStorage.setItem('learning_progress', JSON.stringify(newProgress));
+    
+    // Check if all modules are completed
+    const allCompleted = Object.keys(modules).every(key => 
+      newProgress[parseInt(key)]?.completed === true
+    );
+    
+    if (allCompleted) {
+      setCourseCompleted(true);
+    }
+    
     setShowCompletion(true);
   };
 
@@ -71,6 +105,7 @@ const CourseView = () => {
     if (modules[nextModule]) {
       navigate(`/learning/blockchain-basics/module-${nextModule}`);
       setShowCompletion(false);
+      setCourseCompleted(false);
     } else {
       navigate('/learning');
     }
@@ -172,17 +207,48 @@ const CourseView = () => {
       {showCompletion && (
         <div className="completion-overlay">
           <div className="completion-modal">
-            <div className="completion-icon">🎉</div>
-            <h2 className="completion-title">Modul abgeschlossen!</h2>
-            <p className="completion-text">
-              Sehr gut! Du hast Modul {moduleNumber} erfolgreich abgeschlossen.
-            </p>
+            {courseCompleted && moduleNumber === 9 ? (
+              <>
+                <div className="completion-icon course-done">🎓</div>
+                <h2 className="completion-title">Kurs abgeschlossen!</h2>
+                <p className="completion-text">
+                  🎉🎉🎉 Herzlichen Glückwunsch! Du hast alle 9 Module erfolgreich abgeschlossen 
+                  und verstehst jetzt die Grundlagen der Blockchain-Technologie!
+                </p>
+                <div className="completion-stats">
+                  <div className="stat">
+                    <div className="stat-value">9/9</div>
+                    <div className="stat-label">Module</div>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-value">27</div>
+                    <div className="stat-label">Quiz-Fragen</div>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-value">~2h</div>
+                    <div className="stat-label">Lernzeit</div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="completion-icon">🎉</div>
+                <h2 className="completion-title">Modul abgeschlossen!</h2>
+                <p className="completion-text">
+                  Sehr gut! Du hast Modul {moduleNumber} erfolgreich abgeschlossen.
+                </p>
+              </>
+            )}
+            
             <div className="completion-actions">
               <button onClick={handleNext} className="btn btn-primary btn-large">
                 {moduleNumber < 9 ? 'Weiter zu Modul ' + (moduleNumber + 1) : 'Zurück zur Übersicht'}
                 <span className="btn-arrow">→</span>
               </button>
-              <button onClick={() => setShowCompletion(false)} className="btn btn-secondary">
+              <button onClick={() => {
+                setShowCompletion(false);
+                setCourseCompleted(false);
+              }} className="btn btn-secondary">
                 Modul wiederholen
               </button>
             </div>
