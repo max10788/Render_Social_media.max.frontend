@@ -1,4 +1,5 @@
-// src/learning/pages/CourseView.js
+// src/learning/pages/CourseView.js - UPDATED IMPORTS
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
@@ -13,13 +14,12 @@ import Module07_Consensus from '../courses/blockchain-basics/modules/Module07_Co
 import Module08_Security from '../courses/blockchain-basics/modules/Module08_Security';
 import Module09_RealWorldExamples from '../courses/blockchain-basics/modules/Module09_RealWorldExamples';
 
-// Reading Transactions Modules
-import Module01_TransactionBasics from '../courses/reading-transactions/modules/Module01_TransactionBasics';
-import Module02_WalletAndAddress from '../courses/reading-transactions/modules/Module02_WalletAndAddress';
-import Module03_SimpleTransaction from '../courses/reading-transactions/modules/Module03_SimpleTransaction';
-import Module04_EthereumExplorer from '../courses/reading-transactions/modules/Module04_EthereumExplorer';
-import Module05_GasAndFees from '../courses/reading-transactions/modules/Module05_GasAndFees';
-// TODO: Add Module 6-8 when ready
+// Reading Transactions Modules - CORRECTED PATH
+import Module01_TransactionBasics from '../courses/data-structures/Module01_TransactionBasics';
+import Module02_WalletAndAddress from '../courses/data-structures/Module02_WalletAndAddress';
+import Module03_SimpleTransaction from '../courses/data-structures/Module03_SimpleTransaction';
+import Module04_EthereumExplorer from '../courses/data-structures/Module04_EthereumExplorer';
+import Module05_GasAndFees from '../courses/data-structures/Module05_GasAndFees';
 
 import './CourseView.css';
 
