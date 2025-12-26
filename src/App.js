@@ -35,7 +35,15 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
-              {/* Dashboard & Tools */}
+              {/* Learning Routes - PUBLIC (no login required) */}
+              <Route path="/learning" element={<LearningHome />} />
+              <Route path="/learning/course/:courseId" element={<CourseView />} />
+              <Route path="/learning/course/:courseId/module/:moduleId" element={<CourseView />} />
+              
+              {/* Legacy route for old blockchain-basics links */}
+              <Route path="/learning/blockchain-basics/:moduleId" element={<CourseView />} />
+              
+              {/* Dashboard & Tools - Can be public or protected as needed */}
               <Route path="/dashboard" element={<UserDashboard />} />
               <Route path="/radar" element={<ContractRadar />} />
               <Route path="/tokens" element={<TokenOverview />} />
@@ -46,11 +54,6 @@ function App() {
               <Route path="/price-movers" element={<PriceMovers />} />
               <Route path="/orderbook-heatmap" element={<OrderbookHeatmap />} />
               <Route path="/iceberg-orders" element={<IcebergOrders />} />
-              
-              <Route path="/learning" element={<LearningHome />} />
-              <Route path="/learning/blockchain-basics/:moduleId" element={<CourseView />} />
-              <Route path="/learning/course/:courseId/module/:moduleId" element={<CourseView />} />
-              <Route path="/learning/course/:courseId" element={<CourseView />} />
               
               {/* Protected Routes */}
               <Route 
