@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import ConceptBox from '../../components/content/ConceptBox';
 import ExpandableSection from '../../components/content/ExpandableSection';
 import MultipleChoice from '../../components/exercises/MultipleChoice';
-import '../../blockchain-basics/modules/Module.css';
+import '../../blockchain-basics/modules/Module';
 
 export default function Module04_EthereumExplorer() {
   const [quizScore, setQuizScore] = useState(null);
