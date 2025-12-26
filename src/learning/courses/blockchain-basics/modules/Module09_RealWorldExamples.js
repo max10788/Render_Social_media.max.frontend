@@ -138,6 +138,12 @@ const Module09_RealWorldExamples = ({ onComplete }) => {
       <section className="content-section">
         <div className="section-label">💰 Anwendung 1: Kryptowährungen (Bitcoin & Co.)</div>
         
+        <ConceptBox
+          icon="₿"
+          title="Bitcoin - Geld ohne Banken"
+          description="Bitcoin nutzt Blockchain als digitales Kassenbuch: Wer hat wie viel? Jede Transaktion wird permanent gespeichert. Keine Bank kann dein Konto sperren, keine Regierung kann Bitcoin 'abschalten'. Pure finanzielle Freiheit."
+        />
+        
         <div className="application-deep-dive">
           <div className="app-header">
             <div className="app-icon">₿</div>
@@ -215,6 +221,12 @@ const Module09_RealWorldExamples = ({ onComplete }) => {
       <section className="content-section">
         <div className="section-label">📦 Anwendung 2: Lieferketten-Tracking</div>
         
+        <ConceptBox
+          icon="🚚"
+          title="Von der Farm bis zum Teller"
+          description="Blockchain macht Lieferketten transparent: Jeder Schritt (Produktion, Transport, Verkauf) wird unveränderlich gespeichert. Fake-Produkte? Sofort erkennbar. Herkunft nachweisen? Scannen genügt. Lückenlose Nachverfolgung ohne Vertrauen."
+        />
+        
         <div className="application-deep-dive">
           <div className="app-header">
             <div className="app-icon">🚚</div>
@@ -233,6 +245,47 @@ const Module09_RealWorldExamples = ({ onComplete }) => {
               Kolumbien? Oder hat der Zwischenhändler gelogen? Du weißt es nicht - du musst 
               dem Label vertrauen.
             </p>
+
+            {/* Comparison: Traditional vs. Blockchain Supply Chain */}
+            <div className="comparison-container">
+              <div className="comparison-card problem">
+                <div className="card-icon">📋</div>
+                <h3>Traditionelle Lieferkette</h3>
+                <div className="comparison-items">
+                  <div className="comparison-item">
+                    <strong>Papier-Dokumente:</strong> Leicht zu fälschen, können verloren gehen
+                  </div>
+                  <div className="comparison-item">
+                    <strong>Zwischenhändler:</strong> Jeder kann behaupten "Bio" - kein Beweis
+                  </div>
+                  <div className="comparison-item">
+                    <strong>Intransparent:</strong> Du siehst nicht, wo dein Produkt herkommt
+                  </div>
+                  <div className="comparison-item problem-highlight">
+                    <strong>Vertrauen nötig:</strong> Du musst dem Label glauben
+                  </div>
+                </div>
+              </div>
+
+              <div className="comparison-card solution">
+                <div className="card-icon">⛓️</div>
+                <h3>Blockchain-Lieferkette</h3>
+                <div className="comparison-items">
+                  <div className="comparison-item">
+                    <strong>Digitale Einträge:</strong> Unveränderlich, nicht zu fälschen
+                  </div>
+                  <div className="comparison-item">
+                    <strong>Lückenlos:</strong> Jeder Schritt von Farm bis Laden aufgezeichnet
+                  </div>
+                  <div className="comparison-item">
+                    <strong>Transparent:</strong> QR-Code scannen = komplette Historie sehen
+                  </div>
+                  <div className="comparison-item solution-highlight">
+                    <strong>Kein Vertrauen nötig:</strong> Blockchain beweist Herkunft
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <h4>Die Lösung mit Blockchain:</h4>
             <div className="supply-chain-steps">
@@ -308,6 +361,12 @@ const Module09_RealWorldExamples = ({ onComplete }) => {
       <section className="content-section">
         <div className="section-label">📜 Anwendung 3: Digitales Grundbuch</div>
         
+        <ConceptBox
+          icon="🏡"
+          title="Grundstücksbesitz fälschungssicher"
+          description="Wem gehört dieses Haus? Die Blockchain weiß es - unveränderlich und für immer gespeichert. Kein korrupter Beamter kann heimlich Besitzer ändern. Kein Hacker kann Einträge fälschen. Eigentum wird mathematisch garantiert, nicht durch Papierkram."
+        />
+        
         <div className="application-deep-dive">
           <div className="app-header">
             <div className="app-icon">🏡</div>
@@ -326,6 +385,47 @@ const Module09_RealWorldExamples = ({ onComplete }) => {
               besticht einen Beamten → plötzlich gehört DEIN Grundstück ihm! Du kannst es 
               nicht beweisen.
             </p>
+
+            {/* Comparison: Traditional vs. Blockchain Land Registry */}
+            <div className="comparison-container">
+              <div className="comparison-card problem">
+                <div className="card-icon">📜</div>
+                <h3>Traditionelles Grundbuch</h3>
+                <div className="comparison-items">
+                  <div className="comparison-item">
+                    <strong>Papier oder zentrale Datenbank:</strong> Kann gefälscht werden
+                  </div>
+                  <div className="comparison-item">
+                    <strong>Beamte kontrollieren:</strong> Korruption möglich
+                  </div>
+                  <div className="comparison-item">
+                    <strong>Langsam:</strong> Wochen für Eigentumsübertragung
+                  </div>
+                  <div className="comparison-item problem-highlight">
+                    <strong>Risiko:</strong> Grundstücksraub durch Fälschung
+                  </div>
+                </div>
+              </div>
+
+              <div className="comparison-card solution">
+                <div className="card-icon">⛓️</div>
+                <h3>Blockchain-Grundbuch</h3>
+                <div className="comparison-items">
+                  <div className="comparison-item">
+                    <strong>Unveränderlich:</strong> Niemand kann Einträge heimlich ändern
+                  </div>
+                  <div className="comparison-item">
+                    <strong>Dezentral:</strong> Kein einzelner Beamter hat Kontrolle
+                  </div>
+                  <div className="comparison-item">
+                    <strong>Schnell:</strong> Minuten statt Wochen
+                  </div>
+                  <div className="comparison-item solution-highlight">
+                    <strong>Sicher:</strong> Grundstücksraub praktisch unmöglich
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <h4>Die Lösung mit Blockchain:</h4>
             <p>
@@ -380,6 +480,12 @@ const Module09_RealWorldExamples = ({ onComplete }) => {
       {/* Application 4: NFTs */}
       <section className="content-section">
         <div className="section-label">🎨 Anwendung 4: NFTs - Digitales Eigentum</div>
+        
+        <ConceptBox
+          icon="🖼️"
+          title="Non-Fungible Tokens - Einzigartige digitale Besitznachweise"
+          description="Ein NFT ist ein Eigentumsnachweis auf der Blockchain. Jedes NFT ist einzigartig (non-fungible = nicht austauschbar). Du kannst digitale Kunst, Spielgegenstände, Tickets wirklich 'besitzen' - nachweisbar in der Blockchain, für immer."
+        />
         
         <div className="application-deep-dive">
           <div className="app-header">
