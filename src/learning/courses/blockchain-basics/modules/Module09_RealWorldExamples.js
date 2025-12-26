@@ -195,6 +195,39 @@ const Module09_RealWorldExamples = ({ onComplete }) => {
                 Geld nach Hause - mit Bitcoin ist das günstiger und schneller als mit Western Union.
               </p>
             </div>
+
+            {/* Crypto Metaphors */}
+            <div className="metaphor-grid">
+              <div className="metaphor-card">
+                <div className="metaphor-icon">💸</div>
+                <h4>Bargeld für das Internet</h4>
+                <p>
+                  Bitcoin ist wie digitales Bargeld: Du gibst es direkt weiter (Person zu Person), 
+                  keine Bank dazwischen. Aber: Im Gegensatz zu Bargeld ist jede Transaktion 
+                  öffentlich nachvollziehbar (pseudonym, nicht anonym).
+                </p>
+              </div>
+
+              <div className="metaphor-card">
+                <div className="metaphor-icon">🏦</div>
+                <h4>Deine eigene Bank</h4>
+                <p>
+                  Mit Bitcoin bist du deine eigene Bank. Niemand kann dein "Konto" sperren, 
+                  niemand braucht dir "Erlaubnis" zu geben. Aber: Mit großer Macht kommt große 
+                  Verantwortung - verlierst du den Private Key, ist das Geld weg!
+                </p>
+              </div>
+
+              <div className="metaphor-card">
+                <div className="metaphor-icon">🌍</div>
+                <h4>Globales Geld</h4>
+                <p>
+                  Bitcoin kennt keine Grenzen: 1 BTC in Japan = 1 BTC in Brasilien. Keine 
+                  Wechselkurse, keine Gebühren für Auslandsüberweisungen. Ein universelles 
+                  Zahlungsmittel für das Internet-Zeitalter.
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="app-variants">
@@ -571,6 +604,39 @@ const Module09_RealWorldExamples = ({ onComplete }) => {
                   <strong>Beispiel:</strong> NBA Top Shot - Basketball-Highlights als NFTs, 
                   Millionen Umsatz
                 </div>
+              </div>
+            </div>
+
+            {/* NFT Metaphors */}
+            <div className="metaphor-grid">
+              <div className="metaphor-card">
+                <div className="metaphor-icon">🎨</div>
+                <h4>Signierte Kunstwerke</h4>
+                <p>
+                  Ein NFT ist wie ein signiertes Original-Gemälde: Jeder kann eine Kopie machen 
+                  (Foto, Druck), aber nur du besitzt das Original mit der Signatur des Künstlers. 
+                  Die Blockchain ist das Echtheits-Zertifikat.
+                </p>
+              </div>
+
+              <div className="metaphor-card">
+                <div className="metaphor-icon">🏅</div>
+                <h4>Sammelkarten mit Seriennummer</h4>
+                <p>
+                  NFTs sind wie limitierte Sammelkarten: Jede hat eine einzigartige Nummer. 
+                  Karte #1 von 100 ist wertvoller als #99. Die Blockchain beweist: "Du besitzt 
+                  wirklich #1, nicht eine Fälschung."
+                </p>
+              </div>
+
+              <div className="metaphor-card">
+                <div className="metaphor-icon">🔑</div>
+                <h4>Digitaler Eigentumsnachweis</h4>
+                <p>
+                  Wie ein Grundbucheintrag für dein Haus, aber für digitale Güter. Der NFT 
+                  beweist: "Dieses digitale Item gehört dir." Unveränderlich, fälschungssicher, 
+                  für immer gespeichert.
+                </p>
               </div>
             </div>
           </div>
