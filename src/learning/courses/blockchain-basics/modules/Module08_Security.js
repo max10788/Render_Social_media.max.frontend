@@ -339,6 +339,42 @@ const Module08_Security = ({ onComplete }) => {
         </div>
       </section>
 
+      {/* Why Traditional Systems Fail - Comparison */}
+      <section className="content-section">
+        <div className="section-label">💡 Warum scheitern traditionelle Systeme?</div>
+        
+        <div className="metaphor-grid">
+          <div className="metaphor-card">
+            <div className="metaphor-icon">🏛️</div>
+            <h4>Zentraler Server = Einzelpunkt-Risiko</h4>
+            <p>
+              Ein zentraler Server ist wie ein König: Stirbt der König, bricht das Königreich 
+              zusammen. Bei Blockchain gibt es 15,000 "Könige" - wenn einer stirbt, regieren 
+              die anderen weiter.
+            </p>
+          </div>
+
+          <div className="metaphor-card">
+            <div className="metaphor-icon">🔓</div>
+            <h4>Passwort-Sicherheit vs. Mathematik</h4>
+            <p>
+              Traditionelle Systeme verlassen sich auf Passwörter (können gehackt werden). 
+              Blockchain verlässt sich auf Mathematik (SHA-256 ist praktisch unknackbar - 
+              würde länger dauern als das Universum existiert).
+            </p>
+          </div>
+
+          <div className="metaphor-card">
+            <div className="metaphor-icon">🎭</div>
+            <h4>Vertrauen vs. Beweis</h4>
+            <p>
+              Bank: "Vertrau mir, dein Geld ist sicher." (Du musst glauben)<br/>
+              Blockchain: "Hier ist der mathematische Beweis." (Du kannst nachprüfen)
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* What IS Possible */}
       <section className="content-section">
         <div className="section-label">✅ Was IST möglich (und was NICHT)?</div>
