@@ -10,22 +10,18 @@ const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
 
-  // Handle scroll for navbar styling
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close menu on route change
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location]);
 
-  // Handle menu interactions
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isMenuOpen && !event.target.closest('.nav-sidebar') && !event.target.closest('.nav-toggle')) {
@@ -70,7 +66,6 @@ const Navigation = () => {
     return location.pathname.startsWith(path);
   };
 
-  // Navigation structure organized by category
   const navigationGroups = [
     {
       title: 'Analysis Tools',
@@ -99,10 +94,8 @@ const Navigation = () => {
 
   return (
     <>
-      {/* Top Navigation Bar */}
       <nav className={`nav-bar ${isScrolled ? 'scrolled' : ''}`}>
         <div className="nav-container">
-          {/* Brand */}
           <Link to="/" className="nav-brand" aria-label="BlockIntel - Home">
             <img 
               src="/logo-blockintel.png" 
@@ -129,11 +122,16 @@ const Navigation = () => {
                 Dashboard
               </Link>
             )}
+            {/* NEW: Learning Link - Always visible */}
+            <Link 
+              to="/learning" 
+              className={`nav-desktop-link ${isActiveRoute('/learning') ? 'active' : ''}`}
+            >
+              📚 Learning
+            </Link>
             <a href="#tools" className="nav-desktop-link">Tools</a>
-            <a href="#learning" className="nav-desktop-link">Learn</a>
           </div>
 
-          {/* Right Actions */}
           <div className="nav-actions">
             {currentUser ? (
               <>
@@ -162,7 +160,6 @@ const Navigation = () => {
               </>
             )}
 
-            {/* Mobile Menu Toggle */}
             <button 
               className={`nav-toggle ${isMenuOpen ? 'open' : ''}`}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -178,16 +175,13 @@ const Navigation = () => {
         </div>
       </nav>
 
-      {/* Overlay */}
       <div 
         className={`nav-overlay ${isMenuOpen ? 'open' : ''}`}
         onClick={() => setIsMenuOpen(false)}
         aria-hidden="true"
       />
 
-      {/* Sidebar Menu */}
       <aside className={`nav-sidebar ${isMenuOpen ? 'open' : ''}`}>
-        {/* Sidebar Header */}
         <div className="sidebar-header">
           <div className="sidebar-brand">
             <span className="brand-icon">📊</span>
@@ -203,7 +197,6 @@ const Navigation = () => {
           </button>
         </div>
 
-        {/* Quick Actions (Mobile) */}
         {!currentUser && (
           <div className="sidebar-quick-actions">
             <Link 
@@ -223,9 +216,7 @@ const Navigation = () => {
           </div>
         )}
 
-        {/* Navigation Groups */}
         <nav className="sidebar-nav">
-          {/* Main Links */}
           <div className="nav-group">
             <Link
               to="/"
@@ -234,6 +225,16 @@ const Navigation = () => {
             >
               <span className="nav-item-icon">🏠</span>
               <span className="nav-item-text">Home</span>
+            </Link>
+
+            {/* NEW: Learning - Always visible */}
+            <Link
+              to="/learning"
+              className={`nav-item ${isActiveRoute('/learning') ? 'active' : ''}`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span className="nav-item-icon">📚</span>
+              <span className="nav-item-text">Learning</span>
             </Link>
             
             {currentUser && (
@@ -248,7 +249,6 @@ const Navigation = () => {
             )}
           </div>
 
-          {/* Tool Groups */}
           {currentUser && navigationGroups.map((group, index) => (
             <div key={index} className="nav-group">
               <div className="nav-group-title">{group.title}</div>
@@ -270,7 +270,6 @@ const Navigation = () => {
             </div>
           ))}
 
-          {/* Account Section */}
           {currentUser && (
             <div className="nav-group">
               <div className="nav-group-title">Account</div>
@@ -294,7 +293,6 @@ const Navigation = () => {
           )}
         </nav>
 
-        {/* User Info (if logged in) */}
         {currentUser && (
           <div className="sidebar-footer">
             <div className="user-info">
@@ -311,7 +309,6 @@ const Navigation = () => {
           </div>
         )}
 
-        {/* Info Box (if not logged in) */}
         {!currentUser && (
           <div className="sidebar-footer">
             <div className="info-box">
@@ -323,7 +320,6 @@ const Navigation = () => {
           </div>
         )}
 
-        {/* Version */}
         <div className="sidebar-version">BlockIntel v1.0</div>
       </aside>
     </>
