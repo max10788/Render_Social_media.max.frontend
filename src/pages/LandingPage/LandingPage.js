@@ -212,21 +212,18 @@ const LandingPage = () => {
     }
   ];
 
-  // NEW: Handle topic click
   const handleTopicClick = (topic) => {
     if (topic.comingSoon) {
       return; // Do nothing for coming soon topics
     }
-
-    if (!currentUser) {
-      // If not logged in, redirect to login with intended destination
-      navigate('/login', { 
-        state: { 
-          from: `/learning/course/${topic.course}${topic.module ? `/module/${topic.module}` : ''}` 
-        }
-      });
-      return;
+  
+    // Direct navigation - NO LOGIN CHECK
+    if (topic.module) {
+      navigate(`/learning/course/${topic.course}/module/${topic.module}`);
+    } else if (topic.course) {
+      navigate(`/learning/course/${topic.course}`);
     }
+  };
 
     // Navigate to course or specific module
     if (topic.module) {
