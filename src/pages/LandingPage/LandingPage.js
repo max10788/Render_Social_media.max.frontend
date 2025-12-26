@@ -1,11 +1,12 @@
-// path: src/pages/LandingPage/LandingPage.js
+// src/pages/LandingPage/LandingPage.js (UPDATED)
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import './LandingPage.css';
 
 const LandingPage = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     contracts: { total: 0, active: 0 },
     tokens: { total: 0, volume: '0' },
@@ -15,14 +16,11 @@ const LandingPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('beginner');
   
-  // Refs for scroll animations
   const observerRefs = useRef([]);
 
-  // TODO: Replace with actual API calls
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Mock data - replace with actual API endpoint
         setTimeout(() => {
           setStats({
             contracts: { total: 180247, active: 1834 },
@@ -40,7 +38,6 @@ const LandingPage = () => {
     fetchStats();
   }, []);
 
-  // Intersection Observer for scroll animations
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -107,6 +104,7 @@ const LandingPage = () => {
     }
   ];
 
+  // UPDATED: Learning paths with module links
   const learningPath = [
     {
       level: 'beginner',
@@ -114,10 +112,30 @@ const LandingPage = () => {
       duration: '2-4 weeks',
       description: 'Start with fundamentals of onchain analysis',
       topics: [
-        'Understanding blockchain data structures',
-        'Reading wallet transactions',
-        'Basic pattern recognition',
-        'Risk assessment fundamentals'
+        {
+          title: 'Understanding blockchain data structures',
+          course: 'blockchain-basics',
+          module: null, // Links to course overview
+          icon: '🧱'
+        },
+        {
+          title: 'Reading wallet transactions',
+          course: 'reading-transactions',
+          module: null, // Links to course overview
+          icon: '📝'
+        },
+        {
+          title: 'Basic pattern recognition',
+          course: 'blockchain-basics',
+          module: 7, // Links to specific module
+          icon: '🔍'
+        },
+        {
+          title: 'Risk assessment fundamentals',
+          course: 'reading-transactions',
+          module: 7, // Security module
+          icon: '⚠️'
+        }
       ]
     },
     {
@@ -126,10 +144,34 @@ const LandingPage = () => {
       duration: '4-8 weeks',
       description: 'Advanced analysis techniques',
       topics: [
-        'Entity clustering algorithms',
-        'OTC flow interpretation',
-        'Smart money tracking',
-        'Market impact modeling'
+        {
+          title: 'Entity clustering algorithms',
+          course: null, // Coming soon
+          module: null,
+          icon: '🔗',
+          comingSoon: true
+        },
+        {
+          title: 'OTC flow interpretation',
+          course: null,
+          module: null,
+          icon: '🔄',
+          comingSoon: true
+        },
+        {
+          title: 'Smart money tracking',
+          course: null,
+          module: null,
+          icon: '💰',
+          comingSoon: true
+        },
+        {
+          title: 'Market impact modeling',
+          course: null,
+          module: null,
+          icon: '📊',
+          comingSoon: true
+        }
       ]
     },
     {
@@ -138,13 +180,61 @@ const LandingPage = () => {
       duration: '8+ weeks',
       description: 'Professional-grade strategies',
       topics: [
-        'Multi-chain correlation analysis',
-        'Predictive modeling',
-        'Custom alert systems',
-        'Portfolio risk management'
+        {
+          title: 'Multi-chain correlation analysis',
+          course: null,
+          module: null,
+          icon: '⛓️',
+          comingSoon: true
+        },
+        {
+          title: 'Predictive modeling',
+          course: null,
+          module: null,
+          icon: '🔮',
+          comingSoon: true
+        },
+        {
+          title: 'Custom alert systems',
+          course: null,
+          module: null,
+          icon: '🚨',
+          comingSoon: true
+        },
+        {
+          title: 'Portfolio risk management',
+          course: null,
+          module: null,
+          icon: '📈',
+          comingSoon: true
+        }
       ]
     }
   ];
+
+  // NEW: Handle topic click
+  const handleTopicClick = (topic) => {
+    if (topic.comingSoon) {
+      return; // Do nothing for coming soon topics
+    }
+
+    if (!currentUser) {
+      // If not logged in, redirect to login with intended destination
+      navigate('/login', { 
+        state: { 
+          from: `/learning/course/${topic.course}${topic.module ? `/module/${topic.module}` : ''}` 
+        }
+      });
+      return;
+    }
+
+    // Navigate to course or specific module
+    if (topic.module) {
+      navigate(`/learning/course/${topic.course}/module/${topic.module}`);
+    } else if (topic.course) {
+      navigate(`/learning/course/${topic.course}`);
+    }
+  };
 
   return (
     <div className="landing-page">
@@ -361,7 +451,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Learning Path Section - UPDATED WITH CTA */}
+      {/* Learning Path Section - UPDATED WITH CLICKABLE TOPICS */}
       <section className="learning-section" ref={(el) => observerRefs.current[2] = el}>
         <div className="container">
           <div className="section-header">
@@ -393,16 +483,29 @@ const LandingPage = () => {
                   <div className="panel-meta">
                     <span className="panel-duration">{path.duration}</span>
                     <span className="panel-separator">•</span>
-                    <span className="panel-level">{path.title} Level</span>
+                    <span className="panel-level">{path.level} Level</span>
                   </div>
                   <h3 className="panel-title">{path.description}</h3>
                 </div>
 
+                {/* UPDATED: Clickable topics grid */}
                 <div className="topics-grid">
                   {path.topics.map((topic, i) => (
-                    <div key={i} className="topic-item">
+                    <div 
+                      key={i} 
+                      className={`topic-item ${topic.course ? 'clickable' : ''} ${topic.comingSoon ? 'coming-soon' : ''}`}
+                      onClick={() => handleTopicClick(topic)}
+                      style={{ cursor: topic.course ? 'pointer' : 'default' }}
+                    >
+                      <div className="topic-icon">{topic.icon}</div>
                       <div className="topic-number">{i + 1}</div>
-                      <div className="topic-text">{topic}</div>
+                      <div className="topic-text">{topic.title}</div>
+                      {topic.comingSoon && (
+                        <div className="topic-badge">Bald verfügbar</div>
+                      )}
+                      {topic.course && !topic.comingSoon && (
+                        <div className="topic-arrow">→</div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -410,7 +513,7 @@ const LandingPage = () => {
             ))}
           </div>
 
-          {/* NEW: Call-to-Action for Learning Area */}
+          {/* Learning CTA */}
           <div className="learning-cta">
             <div className="learning-cta-content">
               <div className="learning-cta-badge">
