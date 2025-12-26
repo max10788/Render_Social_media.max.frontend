@@ -1,9 +1,9 @@
 // src/learning/courses/reading-transactions/modules/Module05_GasAndFees.js
 
 import React, { useState } from 'react';
-import ConceptBox from '../../../components/content/ConceptBox';
-import ExpandableSection from '../../../components/content/ExpandableSection';
-import MultipleChoice from '../../../components/exercises/MultipleChoice';
+import ConceptBox from '../../components/content/ConceptBox';
+import ExpandableSection from '../../components/content/ExpandableSection';
+import MultipleChoice from '../../components/exercises/MultipleChoice';
 import '../../blockchain-basics/modules/Module.css';
 
 export default function Module05_GasAndFees() {
