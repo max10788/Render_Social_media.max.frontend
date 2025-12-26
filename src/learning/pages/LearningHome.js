@@ -35,16 +35,16 @@ const LearningHome = () => {
       title: 'Transaktionen Lesen',
       description: 'Lerne Wallet-Transaktionen im Blockexplorer zu analysieren und zu verstehen.',
       icon: '📝',
-      modules: 5,
-      duration: '2-3 Stunden',
+      modules: 8, // UPDATED TO 8!
+      duration: '3-4 Stunden',
       level: 'Beginner',
       color: '#a855f7',
       new: true,
       topics: [
         'Wallet & Adressen',
         'Gas & Gebühren',
-        'Ethereum Explorer',
-        'Transaction Basics'
+        'Smart Contracts',
+        'Security Best Practices'
       ]
     }
   ];
