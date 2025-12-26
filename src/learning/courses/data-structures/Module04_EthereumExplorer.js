@@ -1,9 +1,9 @@
 // src/learning/courses/reading-transactions/modules/Module04_EthereumExplorer.js
 
 import React, { useState } from 'react';
-import ConceptBox from '../../../components/content/ConceptBox';
-import ExpandableSection from '../../../components/content/ExpandableSection';
-import MultipleChoice from '../../../components/exercises/MultipleChoice';
+import ConceptBox from '../../components/content/ConceptBox';
+import ExpandableSection from '../../components/content/ExpandableSection';
+import MultipleChoice from '../../components/exercises/MultipleChoice';
 import '../../blockchain-basics/modules/Module.css';
 
 export default function Module04_EthereumExplorer() {
