@@ -17,18 +17,29 @@ const OTCWalletDetailSidebar = ({
   // ✅ SICHERE FALLBACKS - Verhindert "r.some is not a function" Fehler
   const details = walletDetails || wallet || {};
   
-  // ✅ Sichere Array-Checks
-  const activityData = Array.isArray(details.activity_data) ? details.activity_data : [];
-  const transferSizeData = Array.isArray(details.transfer_size_data) ? details.transfer_size_data : [];
+  // ✅ KRITISCHER FIX: Sichere Array-Konvertierung
+  const ensureArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (!value || typeof value !== 'object') return [];
+    // Falls value ein Object ist, versuch es zu konvertieren
+    if (Object.keys(value).length === 0) return [];
+    return [];
+  };
+  
+  // ✅ Sichere Array-Checks für alle potenziellen Arrays
+  const activityData = ensureArray(details.activity_data);
+  const transferSizeData = ensureArray(details.transfer_size_data);
+  const walletTags = ensureArray(details.tags || wallet?.tags);
   
   // ✅ Sichere Boolean/String Checks
   const isVerified = Boolean(details.is_verified);
   const dataSource = details.data_source || 'database';
-  const walletTags = Array.isArray(details.tags) ? details.tags : (Array.isArray(wallet.tags) ? wallet.tags : []);
 
   const formatCurrency = (value) => {
     // ✅ Handle invalid values
-    if (!value || isNaN(value) || !isFinite(value)) return '$0';
+    if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+      return '$0';
+    }
     
     // ✅ Handle unrealistic values
     if (value > Number.MAX_SAFE_INTEGER || value < 0) {
@@ -44,7 +55,7 @@ const OTCWalletDetailSidebar = ({
   };
 
   const formatAddress = (address) => {
-    if (!address) return '';
+    if (!address || typeof address !== 'string') return '';
     return `${address.slice(0, 8)}...${address.slice(-6)}`;
   };
 
@@ -54,6 +65,7 @@ const OTCWalletDetailSidebar = ({
       institutional: '#4ECDC4',
       exchange: '#FFE66D',
       market_maker: '#FF6B6B',
+      prop_trading: '#FF6B6B',
       cex: '#FFE66D',
       unknown: '#95A5A6'
     };
@@ -66,18 +78,12 @@ const OTCWalletDetailSidebar = ({
       institutional: '🏛️',
       exchange: '🏦',
       market_maker: '🔴',
+      prop_trading: '⚡',
       cex: '🏦',
       unknown: '❓'
     };
     return icons[type] || '❓';
   };
-
-  // ❌ DIESE ZEILEN ENTFERNEN (Zeile 67-71 im Original) - DUPLIKAT!
-  // const details = walletDetails || wallet;
-  // const activityData = details.activity_data || [];
-  // const transferSizeData = details.transfer_size_data || [];
-  // const isVerified = details.is_verified || false;
-  // const dataSource = details.data_source || 'database';
 
   return (
     <div className="otc-wallet-sidebar">
@@ -104,7 +110,7 @@ const OTCWalletDetailSidebar = ({
             <div className="wallet-type" style={{ background: getEntityTypeColor(wallet.entity_type) }}>
               <span className="type-icon">{getEntityTypeIcon(wallet.entity_type)}</span>
               <span className="type-label">
-                {wallet.entity_type?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                {wallet.entity_type?.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Unknown'}
               </span>
             </div>
             
@@ -122,15 +128,28 @@ const OTCWalletDetailSidebar = ({
             )}
             
             {/* ✅ ETH Balance (if available) */}
-            {details.balance_eth && (
+            {details.balance_eth !== undefined && details.balance_eth !== null && (
               <div className="wallet-balance">
                 <span className="balance-label">ETH Balance:</span>
                 <span className="balance-value">
-                  {details.balance_eth.toFixed(4)} ETH
+                  {Number(details.balance_eth).toFixed(4)} ETH
                 </span>
-                <span className="balance-usd">
-                  ({formatCurrency(details.balance_usd)})
-                </span>
+                {details.balance_usd !== undefined && (
+                  <span className="balance-usd">
+                    ({formatCurrency(details.balance_usd)})
+                  </span>
+                )}
+              </div>
+            )}
+            
+            {/* ✅ Tags Display */}
+            {walletTags.length > 0 && (
+              <div className="wallet-tags">
+                {walletTags.map((tag, index) => (
+                  <span key={index} className="tag-badge">
+                    {tag}
+                  </span>
+                ))}
               </div>
             )}
             
