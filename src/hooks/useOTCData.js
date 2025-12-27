@@ -19,21 +19,27 @@ export const useOTCData = () => {
 
   // Data state
   const [networkData, setNetworkData] = useState(null);
+  const [sankeyData, setSankeyData] = useState(null);
   const [statistics, setStatistics] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState(null);
+  const [walletDetails, setWalletDetails] = useState(null); // ✅ NEW
   
   // Loading and error states
   const [loading, setLoading] = useState({
     network: false,
+    sankey: false,
     statistics: false,
-    wallet: false
+    wallet: false,
+    walletDetails: false // ✅ NEW
   });
   
   const [errors, setErrors] = useState({
     network: null,
+    sankey: null,
     statistics: null,
-    wallet: null
+    wallet: null,
+    walletDetails: null // ✅ NEW
   });
 
   /**
@@ -62,6 +68,28 @@ export const useOTCData = () => {
   }, [filters]);
 
   /**
+   * ✅ NEW: Fetch Sankey flow data
+   */
+  const fetchSankeyData = useCallback(async () => {
+    setLoading(prev => ({ ...prev, sankey: true }));
+    setErrors(prev => ({ ...prev, sankey: null }));
+    
+    try {
+      const data = await otcAnalysisService.getSankeyFlow({
+        fromDate: filters.fromDate,
+        toDate: filters.toDate,
+        minFlowSize: filters.minTransferSize
+      });
+      setSankeyData(data);
+    } catch (error) {
+      setErrors(prev => ({ ...prev, sankey: error.message }));
+      console.error('Error fetching Sankey data:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, sankey: false }));
+    }
+  }, [filters.fromDate, filters.toDate, filters.minTransferSize]);
+
+  /**
    * Fetch statistics
    */
   const fetchStatistics = useCallback(async () => {
@@ -83,7 +111,7 @@ export const useOTCData = () => {
   }, [filters.fromDate, filters.toDate]);
 
   /**
-   * Fetch wallet profile
+   * Fetch wallet profile (basic)
    */
   const fetchWalletProfile = useCallback(async (address) => {
     if (!address) return;
@@ -99,6 +127,26 @@ export const useOTCData = () => {
       console.error('Error fetching wallet profile:', error);
     } finally {
       setLoading(prev => ({ ...prev, wallet: false }));
+    }
+  }, []);
+
+  /**
+   * ✅ NEW: Fetch wallet details (with charts)
+   */
+  const fetchWalletDetails = useCallback(async (address) => {
+    if (!address) return;
+    
+    setLoading(prev => ({ ...prev, walletDetails: true }));
+    setErrors(prev => ({ ...prev, walletDetails: null }));
+    
+    try {
+      const data = await otcAnalysisService.getWalletDetails(address);
+      setWalletDetails(data);
+    } catch (error) {
+      setErrors(prev => ({ ...prev, walletDetails: error.message }));
+      console.error('Error fetching wallet details:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, walletDetails: false }));
     }
   }, []);
 
@@ -145,16 +193,19 @@ export const useOTCData = () => {
    */
   useEffect(() => {
     fetchNetworkData();
+    fetchSankeyData();
     fetchStatistics();
     fetchWatchlist();
-  }, [fetchNetworkData, fetchStatistics, fetchWatchlist]);
+  }, [fetchNetworkData, fetchSankeyData, fetchStatistics, fetchWatchlist]);
 
   return {
     // Data
     networkData,
+    sankeyData,
     statistics,
     watchlist,
     selectedWallet,
+    walletDetails, // ✅ NEW
     
     // Filters
     filters,
@@ -168,8 +219,10 @@ export const useOTCData = () => {
     
     // Actions
     fetchNetworkData,
+    fetchSankeyData,
     fetchStatistics,
     fetchWalletProfile,
+    fetchWalletDetails, // ✅ NEW
     addToWatchlist,
     removeFromWatchlist,
     setSelectedWallet
