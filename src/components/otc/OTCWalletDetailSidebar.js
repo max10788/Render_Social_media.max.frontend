@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import './OTCWalletDetailSidebar.css';
 
-const OTCWalletDetailSidebar = ({ wallet, onClose, onAddToWatchlist, isInWatchlist }) => {
+const OTCWalletDetailSidebar = ({ 
+  wallet, 
+  walletDetails, 
+  loading, 
+  onClose, 
+  onAddToWatchlist, 
+  isInWatchlist 
+}) => {
   const [activeTab, setActiveTab] = useState('overview');
 
   if (!wallet) return null;
@@ -25,6 +32,8 @@ const OTCWalletDetailSidebar = ({ wallet, onClose, onAddToWatchlist, isInWatchli
       otc_desk: '#FF6B6B',
       institutional: '#4ECDC4',
       exchange: '#FFE66D',
+      market_maker: '#FF6B6B',
+      cex: '#FFE66D',
       unknown: '#95A5A6'
     };
     return colors[type] || '#95A5A6';
@@ -35,35 +44,22 @@ const OTCWalletDetailSidebar = ({ wallet, onClose, onAddToWatchlist, isInWatchli
       otc_desk: '🔴',
       institutional: '🏛️',
       exchange: '🏦',
+      market_maker: '🔴',
+      cex: '🏦',
       unknown: '❓'
     };
     return icons[type] || '❓';
   };
 
-  const mockActivityData = [
-    { date: '12/14', volume: 5200000 },
-    { date: '12/15', volume: 6800000 },
-    { date: '12/16', volume: 4500000 },
-    { date: '12/17', volume: 7200000 },
-    { date: '12/18', volume: 8500000 },
-    { date: '12/19', volume: 6100000 },
-    { date: '12/20', volume: 9200000 }
-  ];
-
-  const mockTransferSizeData = [
-    { date: '12/14', size: 1200000 },
-    { date: '12/15', size: 1500000 },
-    { date: '12/16', size: 980000 },
-    { date: '12/17', size: 1800000 },
-    { date: '12/18', size: 2100000 },
-    { date: '12/19', size: 1650000 },
-    { date: '12/20', size: 2400000 }
-  ];
+  // ✅ Use real data from API or fallback to wallet data
+  const details = walletDetails || wallet;
+  const activityData = details.activity_data || [];
+  const transferSizeData = details.transfer_size_data || [];
+  const isVerified = details.is_verified || false;
+  const dataSource = details.data_source || 'database';
 
   return (
     <div className="otc-wallet-sidebar">
-      <div className="sidebar-overlay" onClick={onClose}></div>
-      
       <div className="sidebar-content">
         {/* Header */}
         <div className="sidebar-header">
@@ -72,6 +68,18 @@ const OTCWalletDetailSidebar = ({ wallet, onClose, onAddToWatchlist, isInWatchli
           </button>
           
           <div className="wallet-header-card">
+            {/* ✅ Verified Badge */}
+            {isVerified && (
+              <div className="verified-badge">
+                ✅ Verified OTC Wallet - Live Data
+              </div>
+            )}
+            {!isVerified && dataSource === 'etherscan_display' && (
+              <div className="unverified-badge">
+                ⚠️ Unverified - Display Only
+              </div>
+            )}
+            
             <div className="wallet-type" style={{ background: getEntityTypeColor(wallet.entity_type) }}>
               <span className="type-icon">{getEntityTypeIcon(wallet.entity_type)}</span>
               <span className="type-label">
@@ -88,6 +96,19 @@ const OTCWalletDetailSidebar = ({ wallet, onClose, onAddToWatchlist, isInWatchli
                 {wallet.label}
                 <span className="confidence-badge">
                   {wallet.confidence_score || 0}% conf.
+                </span>
+              </div>
+            )}
+            
+            {/* ✅ ETH Balance (if available) */}
+            {details.balance_eth && (
+              <div className="wallet-balance">
+                <span className="balance-label">ETH Balance:</span>
+                <span className="balance-value">
+                  {details.balance_eth.toFixed(4)} ETH
+                </span>
+                <span className="balance-usd">
+                  ({formatCurrency(details.balance_usd)})
                 </span>
               </div>
             )}
@@ -126,173 +147,188 @@ const OTCWalletDetailSidebar = ({ wallet, onClose, onAddToWatchlist, isInWatchli
 
         {/* Tab Content */}
         <div className="sidebar-body">
-          {activeTab === 'overview' && (
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
+              <p className="loading-text">Fetching live data from Etherscan...</p>
+            </div>
+          ) : activeTab === 'overview' ? (
             <>
-              {/* Key Metrics */}
+              {/* Key Metrics - ✅ REAL DATA */}
               <div className="metrics-section">
-                <h3 className="section-title">Key Metrics</h3>
+                <h3 className="section-title">
+                  Key Metrics
+                  {dataSource === 'etherscan_live' && (
+                    <span className="live-indicator">🟢 Live</span>
+                  )}
+                </h3>
                 <div className="metrics-grid-sidebar">
                   <div className="metric-item">
                     <div className="metric-label">Lifetime Volume</div>
-                    <div className="metric-value">{formatCurrency(wallet.lifetime_volume || 450000000)}</div>
+                    <div className="metric-value">
+                      {formatCurrency(details.lifetime_volume || details.total_volume_usd || 0)}
+                    </div>
                   </div>
                   <div className="metric-item">
                     <div className="metric-label">30-Day Volume</div>
-                    <div className="metric-value">{formatCurrency(wallet.volume_30d || 45000000)}</div>
+                    <div className="metric-value">
+                      {formatCurrency(details.volume_30d || 0)}
+                    </div>
                   </div>
                   <div className="metric-item">
                     <div className="metric-label">7-Day Volume</div>
-                    <div className="metric-value">{formatCurrency(wallet.volume_7d || 8500000)}</div>
+                    <div className="metric-value">
+                      {formatCurrency(details.volume_7d || 0)}
+                    </div>
                   </div>
                   <div className="metric-item">
                     <div className="metric-label">Avg Transfer</div>
-                    <div className="metric-value">{formatCurrency(wallet.avg_transfer || 1200000)}</div>
+                    <div className="metric-value">
+                      {formatCurrency(details.avg_transfer || 0)}
+                    </div>
                   </div>
                   <div className="metric-item">
                     <div className="metric-label">Total Transactions</div>
-                    <div className="metric-value">{wallet.transaction_count || 378}</div>
+                    <div className="metric-value">
+                      {details.transaction_count || 0}
+                    </div>
                   </div>
                   <div className="metric-item">
                     <div className="metric-label">Last Activity</div>
-                    <div className="metric-value">2h ago</div>
+                    <div className="metric-value">
+                      {details.last_activity || 'Unknown'}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Sparklines */}
-              <div className="charts-section">
-                <h3 className="section-title">Activity Trends</h3>
-                
-                <div className="chart-container">
-                  <h4 className="chart-title">30-Day Activity</h4>
-                  <ResponsiveContainer width="100%" height={100}>
-                    <LineChart data={mockActivityData}>
-                      <XAxis dataKey="date" stroke="#666" style={{ fontSize: '10px' }} />
-                      <YAxis hide />
-                      <Tooltip 
-                        contentStyle={{ background: '#1a1a1a', border: '1px solid #4ECDC4', borderRadius: '4px' }}
-                        formatter={(value) => formatCurrency(value)}
-                      />
-                      <Line type="monotone" dataKey="volume" stroke="#4ECDC4" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
+              {/* Data Source Info */}
+              {dataSource === 'database' && (
+                <div className="data-source-info">
+                  <div className="info-badge">
+                    ℹ️ Using cached database data. Live Etherscan data unavailable.
+                  </div>
                 </div>
+              )}
 
-                <div className="chart-container">
-                  <h4 className="chart-title">Transfer Size Trend</h4>
-                  <ResponsiveContainer width="100%" height={100}>
-                    <AreaChart data={mockTransferSizeData}>
-                      <XAxis dataKey="date" stroke="#666" style={{ fontSize: '10px' }} />
-                      <YAxis hide />
-                      <Tooltip 
-                        contentStyle={{ background: '#1a1a1a', border: '1px solid #FF6B6B', borderRadius: '4px' }}
-                        formatter={(value) => formatCurrency(value)}
-                      />
-                      <Area type="monotone" dataKey="size" stroke="#FF6B6B" fill="rgba(255, 107, 107, 0.2)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+              {/* Sparklines - ✅ REAL DATA */}
+              {activityData.length > 0 && (
+                <div className="charts-section">
+                  <h3 className="section-title">Activity Trends</h3>
+                  
+                  <div className="chart-container">
+                    <h4 className="chart-title">7-Day Activity</h4>
+                    <ResponsiveContainer width="100%" height={100}>
+                      <LineChart data={activityData}>
+                        <XAxis dataKey="date" stroke="#666" style={{ fontSize: '10px' }} />
+                        <YAxis hide />
+                        <Tooltip 
+                          contentStyle={{ background: '#1a1a1a', border: '1px solid #4ECDC4', borderRadius: '4px' }}
+                          formatter={(value) => formatCurrency(value)}
+                        />
+                        <Line type="monotone" dataKey="volume" stroke="#4ECDC4" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {transferSizeData.length > 0 && (
+                    <div className="chart-container">
+                      <h4 className="chart-title">Transfer Size Trend</h4>
+                      <ResponsiveContainer width="100%" height={100}>
+                        <AreaChart data={transferSizeData}>
+                          <XAxis dataKey="date" stroke="#666" style={{ fontSize: '10px' }} />
+                          <YAxis hide />
+                          <Tooltip 
+                            contentStyle={{ background: '#1a1a1a', border: '1px solid #FF6B6B', borderRadius: '4px' }}
+                            formatter={(value) => formatCurrency(value)}
+                          />
+                          <Area type="monotone" dataKey="size" stroke="#FF6B6B" fill="rgba(255, 107, 107, 0.2)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
-              {/* Centrality Metrics */}
+              {/* Centrality Metrics - ⚠️ TODO: Need network analysis */}
               <div className="centrality-section">
                 <h3 className="section-title">Network Position</h3>
                 <div className="centrality-metrics">
                   <div className="centrality-item">
                     <div className="centrality-label">Betweenness</div>
                     <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: '92%', background: '#4ECDC4' }}></div>
+                      <div className="progress-fill" style={{ width: '0%', background: '#4ECDC4' }}></div>
                     </div>
-                    <div className="centrality-value">92%</div>
+                    <div className="centrality-value">N/A</div>
                   </div>
                   <div className="centrality-item">
                     <div className="centrality-label">Degree</div>
                     <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: '87%', background: '#FFE66D' }}></div>
+                      <div className="progress-fill" style={{ width: '0%', background: '#FFE66D' }}></div>
                     </div>
-                    <div className="centrality-value">87%</div>
+                    <div className="centrality-value">N/A</div>
                   </div>
                   <div className="centrality-item">
                     <div className="centrality-label">Closeness</div>
                     <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: '65%', background: '#FF6B6B' }}></div>
+                      <div className="progress-fill" style={{ width: '0%', background: '#FF6B6B' }}></div>
                     </div>
-                    <div className="centrality-value">65%</div>
+                    <div className="centrality-value">N/A</div>
                   </div>
                   <div className="centrality-item">
                     <div className="centrality-label">Eigenvector</div>
                     <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: '78%', background: '#A78BFA' }}></div>
+                      <div className="progress-fill" style={{ width: '0%', background: '#A78BFA' }}></div>
                     </div>
-                    <div className="centrality-value">78%</div>
+                    <div className="centrality-value">N/A</div>
                   </div>
                 </div>
+                <p className="section-note">
+                  ℹ️ Network analysis requires transaction relationship data
+                </p>
               </div>
 
-              {/* Risk Indicators */}
+              {/* Risk Indicators - ⚠️ TODO: Need risk analysis */}
               <div className="risk-section">
                 <h3 className="section-title">Risk Indicators</h3>
                 <div className="risk-indicators">
-                  <div className="risk-indicator warning">
-                    ⚠️ High-Value Activity Detected
-                  </div>
                   <div className="risk-indicator info">
-                    📊 Unusual Timing Pattern
-                  </div>
-                  <div className="risk-indicator alert">
-                    🔗 Cluster Expansion Detected
+                    ℹ️ Risk analysis requires historical transaction data
                   </div>
                 </div>
+                <p className="section-note">
+                  This feature will be available once transaction indexing is complete.
+                </p>
               </div>
-            </>
-          )}
 
-          {activeTab === 'network' && (
+              {/* Data Timestamp */}
+              {details.last_updated && (
+                <div className="data-timestamp">
+                  <span className="timestamp-icon">🕐</span>
+                  Last updated: {new Date(details.last_updated).toLocaleString()}
+                </div>
+              )}
+            </>
+          ) : activeTab === 'network' ? (
             <div className="network-tab">
-              <h3 className="section-title">Top Counterparties (by volume)</h3>
-              <div className="counterparties-list">
-                {[
-                  { address: '0x5e6f...', type: 'exchange', volume: 45000000 },
-                  { address: '0x7g8h...', type: 'institutional', volume: 38000000 },
-                  { address: '0x9i0j...', type: 'unknown', volume: 22000000 },
-                  { address: '0x1k2l...', type: 'otc_desk', volume: 18000000 },
-                  { address: '0x3m4n...', type: 'exchange', volume: 15000000 }
-                ].map((cp, idx) => (
-                  <div key={idx} className="counterparty-item">
-                    <div className="counterparty-rank">{idx + 1}</div>
-                    <div className="counterparty-info">
-                      <div className="counterparty-address">{cp.address}</div>
-                      <div className="counterparty-type" style={{ color: getEntityTypeColor(cp.type) }}>
-                        {cp.type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                      </div>
-                    </div>
-                    <div className="counterparty-volume">{formatCurrency(cp.volume)}</div>
-                  </div>
-                ))}
+              <h3 className="section-title">Network Analysis</h3>
+              <div className="placeholder-state">
+                <span className="placeholder-icon">🔗</span>
+                <p className="placeholder-text">Counterparty analysis requires transaction data</p>
+                <p className="placeholder-subtext">
+                  This feature will be available once transaction relationships are indexed from the blockchain.
+                </p>
               </div>
             </div>
-          )}
-
-          {activeTab === 'history' && (
+          ) : (
             <div className="history-tab">
               <h3 className="section-title">Transaction History</h3>
-              <div className="transactions-list">
-                {[
-                  { time: '2h ago', direction: 'out', to: '0x5e6f...', amount: 2400000, token: 'USDT', confidence: 91 },
-                  { time: '5h ago', direction: 'in', from: '0x7g8h...', amount: 1800000, token: 'USDC', confidence: 88 },
-                  { time: '1d ago', direction: 'out', to: '0x9i0j...', amount: 3200000, token: 'USDT', confidence: 94 }
-                ].map((tx, idx) => (
-                  <div key={idx} className="transaction-item">
-                    <div className="tx-time">{tx.time}</div>
-                    <div className="tx-direction" style={{ color: tx.direction === 'in' ? '#4ECDC4' : '#FF6B6B' }}>
-                      {tx.direction === 'in' ? '↓ In' : '↑ Out'}
-                    </div>
-                    <div className="tx-address">{tx.to || tx.from}</div>
-                    <div className="tx-amount">{formatCurrency(tx.amount)}</div>
-                    <div className="tx-token">{tx.token}</div>
-                    <div className="tx-confidence">{tx.confidence}%</div>
-                  </div>
-                ))}
+              <div className="placeholder-state">
+                <span className="placeholder-icon">📜</span>
+                <p className="placeholder-text">Transaction history requires blockchain indexing</p>
+                <p className="placeholder-subtext">
+                  This feature will be available once historical transactions are indexed.
+                </p>
               </div>
             </div>
           )}
@@ -300,19 +336,23 @@ const OTCWalletDetailSidebar = ({ wallet, onClose, onAddToWatchlist, isInWatchli
 
         {/* Action Buttons */}
         <div className="sidebar-actions">
-          <button className="action-btn">
+          <button className="action-btn" disabled title="Coming soon">
             <span className="btn-icon">🔔</span>
             Set Alert
           </button>
-          <button className="action-btn">
+          <button className="action-btn" disabled title="Coming soon">
             <span className="btn-icon">📊</span>
             Generate Report
           </button>
-          <button className="action-btn">
+          <button className="action-btn" disabled title="Coming soon">
             <span className="btn-icon">🔍</span>
             Deep Dive
           </button>
-          <button className="action-btn">
+          <button 
+            className="action-btn"
+            onClick={() => window.open(`https://etherscan.io/address/${wallet.address}`, '_blank')}
+            title="View on Etherscan"
+          >
             <span className="btn-icon">↗️</span>
             View Explorer
           </button>
