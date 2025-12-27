@@ -1,13 +1,12 @@
-/* Overlay - KOMPLETT SEPARATES ELEMENT */
+/* Overlay - OHNE BLUR */
 .sidebar-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  z-index: 9998; /* ✅ Unter Sidebar */
+  background: rgba(0, 0, 0, 0.7); /* ✅ Nur Abdunkelung, kein Blur */
+  z-index: 9998;
   animation: fadeIn 0.3s ease;
   cursor: pointer;
 }
@@ -21,7 +20,7 @@
   }
 }
 
-/* Sidebar Container - SEPARATES ELEMENT */
+/* Sidebar Container */
 .otc-wallet-sidebar {
   position: fixed;
   top: 0;
@@ -29,7 +28,7 @@
   bottom: 0;
   width: 450px;
   max-width: 90vw;
-  z-index: 9999; /* ✅ Über Overlay */
+  z-index: 9999;
   background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
   display: flex;
@@ -47,7 +46,7 @@
   }
 }
 
-/* Sidebar Content Wrapper - KEIN EXTRA DIV NÖTIG */
+/* Sidebar Content Wrapper */
 .sidebar-content {
   display: flex;
   flex-direction: column;
