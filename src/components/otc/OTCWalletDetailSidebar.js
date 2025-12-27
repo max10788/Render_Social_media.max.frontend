@@ -14,6 +14,18 @@ const OTCWalletDetailSidebar = ({
 
   if (!wallet) return null;
 
+  // ✅ SICHERE FALLBACKS - Verhindert "r.some is not a function" Fehler
+  const details = walletDetails || wallet || {};
+  
+  // ✅ Sichere Array-Checks
+  const activityData = Array.isArray(details.activity_data) ? details.activity_data : [];
+  const transferSizeData = Array.isArray(details.transfer_size_data) ? details.transfer_size_data : [];
+  
+  // ✅ Sichere Boolean/String Checks
+  const isVerified = Boolean(details.is_verified);
+  const dataSource = details.data_source || 'database';
+  const walletTags = Array.isArray(details.tags) ? details.tags : (Array.isArray(wallet.tags) ? wallet.tags : []);
+
   const formatCurrency = (value) => {
     if (!value) return '$0';
     if (value >= 1000000000) return `$${(value / 1000000000).toFixed(2)}B`;
