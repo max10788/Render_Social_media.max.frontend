@@ -1,4 +1,4 @@
-// path: src/components/ui/Navigation.js - TOOLS FOR EVERYONE
+// path: src/components/ui/Navigation.js - NO TOOLS OVERVIEW IN SIDEBAR
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -66,7 +66,7 @@ const Navigation = () => {
     return location.pathname.startsWith(path);
   };
 
-  // UPDATED: Tools available for everyone
+  // Tools navigation groups
   const navigationGroups = [
     {
       title: 'Analysis Tools',
@@ -130,8 +130,8 @@ const Navigation = () => {
               📚 Learning
             </Link>
             <Link 
-              to="/radar" 
-              className={`nav-desktop-link ${isActiveRoute('/radar') ? 'active' : ''}`}
+              to="/tools" 
+              className={`nav-desktop-link ${isActiveRoute('/tools') || isActiveRoute('/radar') || isActiveRoute('/wallets') || isActiveRoute('/tokens') || isActiveRoute('/network') || isActiveRoute('/price-movers') || isActiveRoute('/otc-analysis') || isActiveRoute('/orderbook-heatmap') || isActiveRoute('/iceberg-orders') ? 'active' : ''}`}
             >
               🛠️ Tools
             </Link>
@@ -254,7 +254,7 @@ const Navigation = () => {
             )}
           </div>
 
-          {/* UPDATED: Tool Groups - AVAILABLE FOR EVERYONE */}
+          {/* Tool Groups - DIRECTLY LISTED, NO "Tools Overview" */}
           {navigationGroups.map((group, index) => (
             <div key={index} className="nav-group">
               <div className="nav-group-title">{group.title}</div>
