@@ -4,6 +4,9 @@ import { format, subDays } from 'date-fns';
 
 /**
  * Custom hook for OTC Analysis data management
+ * 
+ * ✅ FIXED: Better null-checks and error handling
+ * ✅ FIXED: Ensures all returned data has safe defaults
  */
 export const useOTCData = () => {
   // Filter state
@@ -23,7 +26,7 @@ export const useOTCData = () => {
   const [statistics, setStatistics] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState(null);
-  const [walletDetails, setWalletDetails] = useState(null); // ✅ NEW
+  const [walletDetails, setWalletDetails] = useState(null);
   
   // Loading and error states
   const [loading, setLoading] = useState({
@@ -31,7 +34,7 @@ export const useOTCData = () => {
     sankey: false,
     statistics: false,
     wallet: false,
-    walletDetails: false // ✅ NEW
+    walletDetails: false
   });
   
   const [errors, setErrors] = useState({
@@ -39,8 +42,35 @@ export const useOTCData = () => {
     sankey: null,
     statistics: null,
     wallet: null,
-    walletDetails: null // ✅ NEW
+    walletDetails: null
   });
+
+  /**
+   * ✅ Helper: Ensure data is safe
+   */
+  const ensureSafeData = useCallback((data) => {
+    if (!data) return null;
+    
+    // Ensure tags is always an array
+    if (data.tags && !Array.isArray(data.tags)) {
+      console.warn('Converting non-array tags to array:', data.tags);
+      data.tags = [];
+    }
+    
+    // Ensure activity_data is array
+    if (data.activity_data && !Array.isArray(data.activity_data)) {
+      console.warn('Converting non-array activity_data to array');
+      data.activity_data = [];
+    }
+    
+    // Ensure transfer_size_data is array
+    if (data.transfer_size_data && !Array.isArray(data.transfer_size_data)) {
+      console.warn('Converting non-array transfer_size_data to array');
+      data.transfer_size_data = [];
+    }
+    
+    return data;
+  }, []);
 
   /**
    * Update filters
@@ -58,17 +88,37 @@ export const useOTCData = () => {
     
     try {
       const data = await otcAnalysisService.getNetworkGraph(filters);
-      setNetworkData(data);
+      
+      // ✅ Validate data structure
+      if (data && typeof data === 'object') {
+        const safeData = {
+          nodes: Array.isArray(data.nodes) ? data.nodes : [],
+          edges: Array.isArray(data.edges) ? data.edges : [],
+          metadata: data.metadata || {}
+        };
+        
+        console.log('Network data loaded:', {
+          nodeCount: safeData.nodes.length,
+          edgeCount: safeData.edges.length
+        });
+        
+        setNetworkData(safeData);
+      } else {
+        console.error('Invalid network data structure:', data);
+        setNetworkData({ nodes: [], edges: [], metadata: {} });
+      }
     } catch (error) {
       setErrors(prev => ({ ...prev, network: error.message }));
       console.error('Error fetching network data:', error);
+      // Set safe default
+      setNetworkData({ nodes: [], edges: [], metadata: {} });
     } finally {
       setLoading(prev => ({ ...prev, network: false }));
     }
   }, [filters]);
 
   /**
-   * ✅ NEW: Fetch Sankey flow data
+   * Fetch Sankey flow data
    */
   const fetchSankeyData = useCallback(async () => {
     setLoading(prev => ({ ...prev, sankey: true }));
@@ -80,10 +130,22 @@ export const useOTCData = () => {
         toDate: filters.toDate,
         minFlowSize: filters.minTransferSize
       });
-      setSankeyData(data);
+      
+      // ✅ Validate Sankey data
+      if (data && typeof data === 'object') {
+        const safeData = {
+          nodes: Array.isArray(data.nodes) ? data.nodes : [],
+          links: Array.isArray(data.links) ? data.links : [],
+          metadata: data.metadata || {}
+        };
+        setSankeyData(safeData);
+      } else {
+        setSankeyData({ nodes: [], links: [], metadata: {} });
+      }
     } catch (error) {
       setErrors(prev => ({ ...prev, sankey: error.message }));
       console.error('Error fetching Sankey data:', error);
+      setSankeyData({ nodes: [], links: [], metadata: {} });
     } finally {
       setLoading(prev => ({ ...prev, sankey: false }));
     }
@@ -101,10 +163,31 @@ export const useOTCData = () => {
         fromDate: filters.fromDate,
         toDate: filters.toDate
       });
-      setStatistics(data);
+      
+      // ✅ Ensure statistics has safe defaults
+      const safeData = {
+        total_volume_usd: Number(data?.total_volume_usd) || 0,
+        active_wallets: Number(data?.active_wallets) || 0,
+        total_transactions: Number(data?.total_transactions) || 0,
+        avg_transfer_size: Number(data?.avg_transfer_size) || 0,
+        volume_change_24h: Number(data?.volume_change_24h) || 0,
+        wallets_change_24h: Number(data?.wallets_change_24h) || 0,
+        ...data
+      };
+      
+      setStatistics(safeData);
     } catch (error) {
       setErrors(prev => ({ ...prev, statistics: error.message }));
       console.error('Error fetching statistics:', error);
+      // Set safe defaults
+      setStatistics({
+        total_volume_usd: 0,
+        active_wallets: 0,
+        total_transactions: 0,
+        avg_transfer_size: 0,
+        volume_change_24h: 0,
+        wallets_change_24h: 0
+      });
     } finally {
       setLoading(prev => ({ ...prev, statistics: false }));
     }
@@ -114,41 +197,66 @@ export const useOTCData = () => {
    * Fetch wallet profile (basic)
    */
   const fetchWalletProfile = useCallback(async (address) => {
-    if (!address) return;
+    if (!address || typeof address !== 'string') {
+      console.warn('Invalid address provided to fetchWalletProfile:', address);
+      return;
+    }
     
     setLoading(prev => ({ ...prev, wallet: true }));
     setErrors(prev => ({ ...prev, wallet: null }));
     
     try {
       const data = await otcAnalysisService.getWalletProfile(address);
-      setSelectedWallet(data);
+      
+      // ✅ Ensure safe data
+      const safeData = ensureSafeData(data);
+      setSelectedWallet(safeData);
+      
+      console.log('Wallet profile loaded:', {
+        address: safeData?.address,
+        label: safeData?.label
+      });
     } catch (error) {
       setErrors(prev => ({ ...prev, wallet: error.message }));
       console.error('Error fetching wallet profile:', error);
+      setSelectedWallet(null);
     } finally {
       setLoading(prev => ({ ...prev, wallet: false }));
     }
-  }, []);
+  }, [ensureSafeData]);
 
   /**
-   * ✅ NEW: Fetch wallet details (with charts)
+   * Fetch wallet details (with charts)
    */
   const fetchWalletDetails = useCallback(async (address) => {
-    if (!address) return;
+    if (!address || typeof address !== 'string') {
+      console.warn('Invalid address provided to fetchWalletDetails:', address);
+      return;
+    }
     
     setLoading(prev => ({ ...prev, walletDetails: true }));
     setErrors(prev => ({ ...prev, walletDetails: null }));
     
     try {
       const data = await otcAnalysisService.getWalletDetails(address);
-      setWalletDetails(data);
+      
+      // ✅ Ensure safe data with proper array conversions
+      const safeData = ensureSafeData(data);
+      setWalletDetails(safeData);
+      
+      console.log('Wallet details loaded:', {
+        address: safeData?.address,
+        dataSource: safeData?.data_source,
+        hasCharts: !!(safeData?.activity_data?.length || safeData?.transfer_size_data?.length)
+      });
     } catch (error) {
       setErrors(prev => ({ ...prev, walletDetails: error.message }));
       console.error('Error fetching wallet details:', error);
+      setWalletDetails(null);
     } finally {
       setLoading(prev => ({ ...prev, walletDetails: false }));
     }
-  }, []);
+  }, [ensureSafeData]);
 
   /**
    * Fetch watchlist
@@ -156,9 +264,13 @@ export const useOTCData = () => {
   const fetchWatchlist = useCallback(async () => {
     try {
       const data = await otcAnalysisService.getWatchlist();
-      setWatchlist(data);
+      
+      // ✅ Ensure watchlist is an array
+      const safeData = Array.isArray(data) ? data : (data?.items || []);
+      setWatchlist(safeData);
     } catch (error) {
       console.error('Error fetching watchlist:', error);
+      setWatchlist([]);
     }
   }, []);
 
@@ -166,9 +278,15 @@ export const useOTCData = () => {
    * Add to watchlist
    */
   const addToWatchlist = useCallback(async (address, label = null) => {
+    if (!address) {
+      throw new Error('Address is required');
+    }
+    
     try {
       await otcAnalysisService.addToWatchlist(address, label);
       await fetchWatchlist();
+      
+      console.log('Added to watchlist:', address);
     } catch (error) {
       console.error('Error adding to watchlist:', error);
       throw error;
@@ -179,9 +297,15 @@ export const useOTCData = () => {
    * Remove from watchlist
    */
   const removeFromWatchlist = useCallback(async (address) => {
+    if (!address) {
+      throw new Error('Address is required');
+    }
+    
     try {
       await otcAnalysisService.removeFromWatchlist(address);
       await fetchWatchlist();
+      
+      console.log('Removed from watchlist:', address);
     } catch (error) {
       console.error('Error removing from watchlist:', error);
       throw error;
@@ -192,6 +316,8 @@ export const useOTCData = () => {
    * Initial data fetch
    */
   useEffect(() => {
+    console.log('useOTCData: Initial data fetch');
+    
     fetchNetworkData();
     fetchSankeyData();
     fetchStatistics();
@@ -205,7 +331,7 @@ export const useOTCData = () => {
     statistics,
     watchlist,
     selectedWallet,
-    walletDetails, // ✅ NEW
+    walletDetails,
     
     // Filters
     filters,
@@ -222,7 +348,7 @@ export const useOTCData = () => {
     fetchSankeyData,
     fetchStatistics,
     fetchWalletProfile,
-    fetchWalletDetails, // ✅ NEW
+    fetchWalletDetails,
     addToWatchlist,
     removeFromWatchlist,
     setSelectedWallet
