@@ -15,7 +15,9 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
     otc_desk: '#FF6B6B',
     institutional: '#4ECDC4',
     exchange: '#FFE66D',
-    unknown: '#95A5A6'
+    unknown: '#95A5A6',
+    market_maker: '#FF6B6B',  // Same as otc_desk
+    cex: '#FFE66D'  // Same as exchange
   };
 
   useEffect(() => {
@@ -35,10 +37,10 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
             'width': (ele) => Math.max(20, Math.log(ele.data('total_volume_usd') + 1) * 8),
             'height': (ele) => Math.max(20, Math.log(ele.data('total_volume_usd') + 1) * 8),
             'label': (ele) => ele.data('label') || truncateAddress(ele.data('address')),
-            'opacity': (ele) => ele.data('confidence_score') / 100,
+            'opacity': (ele) => Math.max(0.5, ele.data('confidence_score') / 100),
             'border-width': 2,
             'border-color': (ele) => ele.data('is_active') ? '#fff' : entityColors[ele.data('entity_type')],
-            'border-style': (ele) => ele.data('is_active') ? 'solid' : 'solid',
+            'border-style': 'solid',
             'color': '#ffffff',
             'text-valign': 'center',
             'text-halign': 'center',
@@ -55,15 +57,13 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
           selector: 'node:selected',
           style: {
             'border-width': 4,
-            'border-color': '#ffffff',
-            'box-shadow': '0 0 20px rgba(255, 255, 255, 0.5)'
+            'border-color': '#ffffff'
           }
         },
         {
           selector: 'node:hover',
           style: {
-            'border-width': 3,
-            'cursor': 'pointer'
+            'border-width': 3
           }
         },
         {
@@ -108,7 +108,7 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
         animate: true,
         animationDuration: 1000,
         fit: true,
-        padding: 30,
+        padding: 50,
         nodeDimensionsIncludeLabels: true,
         idealEdgeLength: (edge) => 100,
         edgeElasticity: (edge) => 0.45,
@@ -176,6 +176,17 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
       }
     });
 
+    // ✅ FIT GRAPH TO VIEWPORT AFTER RENDERING
+    setTimeout(() => {
+      if (cyRef.current) {
+        cyRef.current.fit(50); // 50px padding
+        cyRef.current.center();
+        
+        // Log for debugging
+        console.log('✅ Graph fitted with', cyRef.current.nodes().length, 'nodes');
+      }
+    }, 100);
+
     // Cleanup
     return () => {
       if (cyRef.current) {
@@ -241,7 +252,7 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
 
   const createGradient = (color1, color2) => {
     // Simple color mixing - in real implementation, use actual gradient
-    return color1;
+    return color1 || '#95A5A6';
   };
 
   const handleContextAction = (action) => {
@@ -282,7 +293,9 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
 
       <div className="graph-legend">
         <h4>Entity Types</h4>
-        {Object.entries(entityColors).map(([type, color]) => (
+        {Object.entries(entityColors).filter(([type]) => 
+          ['otc_desk', 'institutional', 'exchange', 'unknown'].includes(type)
+        ).map(([type, color]) => (
           <div key={type} className="legend-item">
             <span className="legend-color" style={{ background: color }}></span>
             <span className="legend-label">
@@ -293,7 +306,7 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
       </div>
 
       <div className="graph-controls">
-        <button onClick={() => cyRef.current?.fit()} title="Fit to screen">
+        <button onClick={() => cyRef.current?.fit(50)} title="Fit to screen">
           🎯
         </button>
         <button onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 1.2)} title="Zoom in">
