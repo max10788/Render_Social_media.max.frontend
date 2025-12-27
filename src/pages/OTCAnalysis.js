@@ -250,11 +250,19 @@ const OTCAnalysis = () => {
       {isSidebarOpen && selectedWallet && (
         <OTCWalletDetailSidebar
           wallet={selectedWallet}
+          walletDetails={walletDetails} // ✅ NEW
+          loading={loading.walletDetails} // ✅ NEW
           onClose={handleCloseSidebar}
           onAddToWatchlist={handleAddToWatchlist}
           isInWatchlist={isWalletInWatchlist}
         />
       )}
+
+      {/* Sankey Flow - mit echten Daten */}
+      <SankeyFlow
+        data={sankeyData} // ✅ Changed from networkData.sankey_data
+        onNodeClick={handleNodeClick}
+      />
     </div>
   );
 };
