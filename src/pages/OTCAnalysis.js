@@ -15,15 +15,18 @@ import './OTCAnalysis.css';
 const OTCAnalysis = () => {
   const {
     networkData,
+    sankeyData, // ✅ NEW
     statistics,
     watchlist,
     selectedWallet,
+    walletDetails, // ✅ NEW
     filters,
     updateFilters,
     loading,
     errors,
     fetchNetworkData,
     fetchWalletProfile,
+    fetchWalletDetails, // ✅ NEW
     addToWatchlist,
     removeFromWatchlist,
     setSelectedWallet
@@ -40,6 +43,7 @@ const OTCAnalysis = () => {
   const handleNodeClick = (node) => {
     console.log('Node clicked:', node);
     fetchWalletProfile(node.address);
+    fetchWalletDetails(node.address); // ✅ NEW: Fetch detailed data
     setIsSidebarOpen(true);
   };
 
