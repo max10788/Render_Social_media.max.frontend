@@ -63,12 +63,12 @@ const OTCWalletDetailSidebar = ({
     return icons[type] || '❓';
   };
 
-  // ✅ Use real data from API or fallback to wallet data
-  const details = walletDetails || wallet;
-  const activityData = details.activity_data || [];
-  const transferSizeData = details.transfer_size_data || [];
-  const isVerified = details.is_verified || false;
-  const dataSource = details.data_source || 'database';
+  // ❌ DIESE ZEILEN ENTFERNEN (Zeile 67-71 im Original) - DUPLIKAT!
+  // const details = walletDetails || wallet;
+  // const activityData = details.activity_data || [];
+  // const transferSizeData = details.transfer_size_data || [];
+  // const isVerified = details.is_verified || false;
+  // const dataSource = details.data_source || 'database';
 
   return (
     <div className="otc-wallet-sidebar">
