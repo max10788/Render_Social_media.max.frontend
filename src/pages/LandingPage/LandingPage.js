@@ -214,18 +214,9 @@ const LandingPage = () => {
 
   const handleTopicClick = (topic) => {
     if (topic.comingSoon) {
-      return; // Do nothing for coming soon topics
+      return;
     }
   
-    // Direct navigation - NO LOGIN CHECK
-    if (topic.module) {
-      navigate(`/learning/course/${topic.course}/module/${topic.module}`);
-    } else if (topic.course) {
-      navigate(`/learning/course/${topic.course}`);
-    }
-  };
-
-    // Navigate to course or specific module
     if (topic.module) {
       navigate(`/learning/course/${topic.course}/module/${topic.module}`);
     } else if (topic.course) {
