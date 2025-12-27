@@ -1,4 +1,4 @@
-// src/pages/ToolsOverview.js - NEW FILE
+// src/pages/ToolsOverview.js - COMPLETE WITH ALL TOOLS
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -22,7 +22,31 @@ const ToolsOverview = () => {
 
   const toolCategories = [
     {
-      category: 'Analysis Tools',
+      category: 'Dashboard & Overview',
+      description: 'Central hub and monitoring tools',
+      tools: [
+        {
+          path: '/dashboard',
+          icon: '📊',
+          title: 'Dashboard',
+          description: 'Your personal analytics dashboard with customizable widgets and insights.',
+          metrics: ['Portfolio Overview', 'Activity Feed', 'Custom Widgets'],
+          color: '#3b82f6',
+          stats: 'Personalized View'
+        },
+        {
+          path: '/scans',
+          icon: '🔍',
+          title: 'Scan Jobs',
+          description: 'Schedule and manage automated scans for contract monitoring.',
+          metrics: ['Automated Scanning', 'Job Management', 'Alert System'],
+          color: '#8b5cf6',
+          stats: 'Continuous Monitoring'
+        }
+      ]
+    },
+    {
+      category: 'Contract & Wallet Analysis',
       description: 'Deep dive into smart contracts and wallet behavior',
       tools: [
         {
@@ -35,24 +59,6 @@ const ToolsOverview = () => {
           stats: `${stats.contracts.active.toLocaleString()} Active Contracts`
         },
         {
-          path: '/price-movers',
-          icon: '💹',
-          title: 'Price Impact Analysis',
-          description: 'Identify wallets driving significant price movements.',
-          metrics: ['Wallet Impact Score', 'Order Flow', 'Market Depth'],
-          color: '#a855f7',
-          stats: 'Real-time Impact Tracking'
-        },
-        {
-          path: '/otc-analysis',
-          icon: '🔄',
-          title: 'OTC Flow Analysis',
-          description: 'Track large off-exchange transactions and institutional flows.',
-          metrics: ['Transfer Patterns', 'Entity Clustering', 'Flow Direction'],
-          color: '#8b5cf6',
-          stats: 'Dark Pool Monitoring'
-        },
-        {
           path: '/wallets',
           icon: '👛',
           title: 'Wallet Intelligence',
@@ -60,11 +66,20 @@ const ToolsOverview = () => {
           metrics: ['Behavioral Profiling', 'Entity Graph', 'Portfolio Tracking'],
           color: '#7c3aed',
           stats: `${(stats.wallets.tracked / 1000000).toFixed(1)}M Wallets Tracked`
+        },
+        {
+          path: '/price-movers',
+          icon: '💹',
+          title: 'Price Impact Analysis',
+          description: 'Identify wallets driving significant price movements.',
+          metrics: ['Wallet Impact Score', 'Order Flow', 'Market Depth'],
+          color: '#a855f7',
+          stats: 'Real-time Impact Tracking'
         }
       ]
     },
     {
-      category: 'Market Data',
+      category: 'Market Data & Trading',
       description: 'Real-time market intelligence and order flow',
       tools: [
         {
@@ -93,6 +108,15 @@ const ToolsOverview = () => {
           metrics: ['Hidden Volume', 'Order Detection', 'Smart Money Tracking'],
           color: '#06b6d4',
           stats: 'Hidden Order Detection'
+        },
+        {
+          path: '/otc-analysis',
+          icon: '🔄',
+          title: 'OTC Flow Analysis',
+          description: 'Track large off-exchange transactions and institutional flows.',
+          metrics: ['Transfer Patterns', 'Entity Clustering', 'Flow Direction'],
+          color: '#8b5cf6',
+          stats: 'Dark Pool Monitoring'
         }
       ]
     },
@@ -112,6 +136,8 @@ const ToolsOverview = () => {
       ]
     }
   ];
+
+  const totalTools = toolCategories.reduce((sum, cat) => sum + cat.tools.length, 0);
 
   return (
     <div className="tools-overview">
@@ -138,7 +164,7 @@ const ToolsOverview = () => {
             <div className="stat-item">
               <div className="stat-icon">📊</div>
               <div className="stat-content">
-                <div className="stat-value">{toolCategories.reduce((sum, cat) => sum + cat.tools.length, 0)}</div>
+                <div className="stat-value">{totalTools}</div>
                 <div className="stat-label">Analysis Tools</div>
               </div>
             </div>
