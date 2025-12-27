@@ -27,7 +27,16 @@ const OTCWalletDetailSidebar = ({
   const walletTags = Array.isArray(details.tags) ? details.tags : (Array.isArray(wallet.tags) ? wallet.tags : []);
 
   const formatCurrency = (value) => {
-    if (!value) return '$0';
+    // ✅ Handle invalid values
+    if (!value || isNaN(value) || !isFinite(value)) return '$0';
+    
+    // ✅ Handle unrealistic values
+    if (value > Number.MAX_SAFE_INTEGER || value < 0) {
+      console.warn('Currency value out of safe range:', value);
+      return '$Error';
+    }
+    
+    // Format normally
     if (value >= 1000000000) return `$${(value / 1000000000).toFixed(2)}B`;
     if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
     if (value >= 1000) return `$${(value / 1000).toFixed(2)}K`;
