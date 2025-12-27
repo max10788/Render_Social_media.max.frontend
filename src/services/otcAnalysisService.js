@@ -40,6 +40,19 @@ class OTCAnalysisService {
   }
 
   /**
+   * ✅ NEW: Get detailed wallet information with charts
+   */
+  async getWalletDetails(address) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/otc/wallet/${address}/details`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching wallet details:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Trace flow between two addresses
    */
   async traceFlow(params) {
@@ -58,14 +71,14 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get OTC statistics for a time range
+   * Get OTC statistics for a time range (✅ NOW WITH CHANGES)
    */
   async getStatistics(params) {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/otc/statistics`, {
         params: {
-          from_date: params.fromDate,
-          to_date: params.toDate,
+          start_date: params.fromDate,
+          end_date: params.toDate,
           entity_type: params.entityType
         }
       });
@@ -83,8 +96,8 @@ class OTCAnalysisService {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/otc/network/graph`, {
         params: {
-          from_date: params.fromDate,
-          to_date: params.toDate,
+          start_date: params.fromDate,
+          end_date: params.toDate,
           min_confidence: params.minConfidence || 0,
           min_transfer_size: params.minTransferSize || 0,
           entity_types: params.entityTypes?.join(','),
@@ -100,14 +113,14 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get Sankey flow data
+   * Get Sankey flow data (✅ NOW IMPLEMENTED)
    */
   async getSankeyFlow(params) {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/otc/flow/sankey`, {
         params: {
-          from_date: params.fromDate,
-          to_date: params.toDate,
+          start_date: params.fromDate,
+          end_date: params.toDate,
           min_flow_size: params.minFlowSize || 100000
         }
       });
@@ -123,10 +136,10 @@ class OTCAnalysisService {
    */
   async getTimeHeatmap(params) {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/analytics/time-heatmap`, {
+      const response = await axios.get(`${API_BASE_URL}/api/otc/heatmap`, {
         params: {
-          from_date: params.fromDate,
-          to_date: params.toDate,
+          start_date: params.fromDate,
+          end_date: params.toDate,
           entity_type: params.entityType
         }
       });
@@ -138,14 +151,14 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get transfer timeline data
+   * Get transfer timeline data (✅ NOW IMPLEMENTED)
    */
   async getTransferTimeline(params) {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/otc/transfers/timeline`, {
         params: {
-          from_date: params.fromDate,
-          to_date: params.toDate,
+          start_date: params.fromDate,
+          end_date: params.toDate,
           min_confidence: params.minConfidence || 0,
           sort_by: params.sortBy || 'timestamp'
         }
@@ -158,14 +171,14 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get distribution statistics
+   * Get distribution statistics (✅ NOW IMPLEMENTED)
    */
   async getDistributions(params) {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/otc/analytics/distributions`, {
         params: {
-          from_date: params.fromDate,
-          to_date: params.toDate
+          start_date: params.fromDate,
+          end_date: params.toDate
         }
       });
       return response.data;
