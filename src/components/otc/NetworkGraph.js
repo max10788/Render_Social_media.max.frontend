@@ -16,12 +16,19 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
     institutional: '#4ECDC4',
     exchange: '#FFE66D',
     unknown: '#95A5A6',
-    market_maker: '#FF6B6B',  // Same as otc_desk
-    cex: '#FFE66D'  // Same as exchange
+    market_maker: '#FF6B6B',
+    prop_trading: '#FF6B6B',
+    cex: '#FFE66D'
   };
 
   useEffect(() => {
     if (!containerRef.current || !data) return;
+
+    // ✅ Validate data structure
+    if (!data.nodes || !Array.isArray(data.nodes)) {
+      console.error('Invalid graph data: nodes must be an array');
+      return;
+    }
 
     // Initialize Cytoscape
     const cy = cytoscape({
@@ -34,12 +41,25 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
           selector: 'node',
           style: {
             'background-color': (ele) => entityColors[ele.data('entity_type')] || '#95A5A6',
-            'width': (ele) => Math.max(20, Math.log(ele.data('total_volume_usd') + 1) * 8),
-            'height': (ele) => Math.max(20, Math.log(ele.data('total_volume_usd') + 1) * 8),
+            'width': (ele) => {
+              const volume = ele.data('total_volume_usd') || 0;
+              return Math.max(20, Math.log(volume + 1) * 8);
+            },
+            'height': (ele) => {
+              const volume = ele.data('total_volume_usd') || 0;
+              return Math.max(20, Math.log(volume + 1) * 8);
+            },
             'label': (ele) => ele.data('label') || truncateAddress(ele.data('address')),
-            'opacity': (ele) => Math.max(0.5, ele.data('confidence_score') / 100),
+            'opacity': (ele) => {
+              const confidence = ele.data('confidence_score') || 0;
+              return Math.max(0.5, confidence / 100);
+            },
             'border-width': 2,
-            'border-color': (ele) => ele.data('is_active') ? '#fff' : entityColors[ele.data('entity_type')],
+            'border-color': (ele) => {
+              const isActive = ele.data('is_active');
+              const entityType = ele.data('entity_type');
+              return isActive ? '#fff' : (entityColors[entityType] || '#95A5A6');
+            },
             'border-style': 'solid',
             'color': '#ffffff',
             'text-valign': 'center',
@@ -69,7 +89,10 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
         {
           selector: 'edge',
           style: {
-            'width': (ele) => Math.max(1, Math.log(ele.data('transfer_amount_usd') + 1) / 2),
+            'width': (ele) => {
+              const amount = ele.data('transfer_amount_usd') || 0;
+              return Math.max(1, Math.log(amount + 1) / 2);
+            },
             'line-color': (ele) => {
               const source = ele.source().data('entity_type');
               const target = ele.target().data('entity_type');
@@ -89,13 +112,19 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
               return edgeCount > 1 ? edgeCount * 40 : 0;
             },
             'opacity': 0.6,
-            'line-style': (ele) => ele.data('is_suspected_otc') ? 'solid' : 'dashed'
+            'line-style': (ele) => {
+              const isSuspected = ele.data('is_suspected_otc');
+              return isSuspected ? 'solid' : 'dashed';
+            }
           }
         },
         {
           selector: 'edge:selected',
           style: {
-            'width': (ele) => Math.max(2, Math.log(ele.data('transfer_amount_usd') + 1)),
+            'width': (ele) => {
+              const amount = ele.data('transfer_amount_usd') || 0;
+              return Math.max(2, Math.log(amount + 1));
+            },
             'opacity': 1
           }
         }
@@ -130,32 +159,69 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
     // Event listeners
     cy.on('tap', 'node', (evt) => {
       const node = evt.target;
-      if (onNodeClick) {
-        onNodeClick(node.data());
+      const nodeData = node.data();
+      
+      console.log('Node clicked:', nodeData);
+      
+      if (onNodeClick && typeof onNodeClick === 'function') {
+        // ✅ Ensure node data is valid before passing
+        try {
+          onNodeClick(nodeData);
+        } catch (error) {
+          console.error('Error in onNodeClick handler:', error);
+        }
       }
     });
 
     cy.on('mouseover', 'node', (evt) => {
       const node = evt.target;
-      if (onNodeHover) {
-        onNodeHover(node.data());
+      const nodeData = node.data();
+      
+      console.log('Node hovered:', nodeData);
+      
+      if (onNodeHover && typeof onNodeHover === 'function') {
+        try {
+          onNodeHover(nodeData);
+        } catch (error) {
+          console.error('Error in onNodeHover handler:', error);
+        }
       }
       
       // Highlight connected edges
-      node.connectedEdges().style({
-        'opacity': 1,
-        'width': (ele) => Math.max(3, Math.log(ele.data('transfer_amount_usd') + 1))
-      });
+      try {
+        const connectedEdges = node.connectedEdges();
+        if (connectedEdges && connectedEdges.length > 0) {
+          connectedEdges.style({
+            'opacity': 1,
+            'width': (ele) => {
+              const amount = ele.data('transfer_amount_usd') || 0;
+              return Math.max(3, Math.log(amount + 1));
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error highlighting edges:', error);
+      }
     });
 
     cy.on('mouseout', 'node', (evt) => {
       const node = evt.target;
       
       // Reset edges
-      node.connectedEdges().style({
-        'opacity': 0.6,
-        'width': (ele) => Math.max(1, Math.log(ele.data('transfer_amount_usd') + 1) / 2)
-      });
+      try {
+        const connectedEdges = node.connectedEdges();
+        if (connectedEdges && connectedEdges.length > 0) {
+          connectedEdges.style({
+            'opacity': 0.6,
+            'width': (ele) => {
+              const amount = ele.data('transfer_amount_usd') || 0;
+              return Math.max(1, Math.log(amount + 1) / 2);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error resetting edges:', error);
+      }
     });
 
     cy.on('cxttap', 'node', (evt) => {
@@ -179,18 +245,26 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
     // ✅ FIT GRAPH TO VIEWPORT AFTER RENDERING
     setTimeout(() => {
       if (cyRef.current) {
-        cyRef.current.fit(50); // 50px padding
-        cyRef.current.center();
-        
-        // Log for debugging
-        console.log('✅ Graph fitted with', cyRef.current.nodes().length, 'nodes');
+        try {
+          cyRef.current.fit(50); // 50px padding
+          cyRef.current.center();
+          
+          const nodeCount = cyRef.current.nodes().length;
+          console.log('✅ Graph fitted with', nodeCount, 'nodes');
+        } catch (error) {
+          console.error('Error fitting graph:', error);
+        }
       }
     }, 100);
 
     // Cleanup
     return () => {
       if (cyRef.current) {
-        cyRef.current.destroy();
+        try {
+          cyRef.current.destroy();
+        } catch (error) {
+          console.error('Error destroying cytoscape instance:', error);
+        }
       }
     };
   }, [data, onNodeClick, onNodeHover]);
@@ -199,60 +273,90 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
   useEffect(() => {
     if (!cyRef.current || !selectedNode) return;
 
-    cyRef.current.nodes().unselect();
-    const node = cyRef.current.nodes(`[address="${selectedNode.address}"]`);
-    if (node.length > 0) {
-      node.select();
-      cyRef.current.animate({
-        center: { eles: node },
-        zoom: 1.5
-      }, {
-        duration: 500
-      });
+    try {
+      cyRef.current.nodes().unselect();
+      
+      const nodeAddress = selectedNode.address;
+      if (!nodeAddress) return;
+      
+      const node = cyRef.current.nodes(`[address="${nodeAddress}"]`);
+      if (node.length > 0) {
+        node.select();
+        cyRef.current.animate({
+          center: { eles: node },
+          zoom: 1.5
+        }, {
+          duration: 500
+        });
+      }
+    } catch (error) {
+      console.error('Error updating selection:', error);
     }
   }, [selectedNode]);
 
   const formatGraphData = (graphData) => {
-    if (!graphData || !graphData.nodes || !graphData.edges) {
+    if (!graphData) {
+      console.warn('No graph data provided');
       return [];
     }
 
-    const nodes = graphData.nodes.map(node => ({
-      data: {
-        id: node.address,
-        address: node.address,
-        label: node.label,
-        entity_type: node.entity_type,
-        total_volume_usd: node.total_volume_usd || 0,
-        confidence_score: node.confidence_score || 0,
-        is_active: node.is_active || false,
-        transaction_count: node.transaction_count || 0
-      }
-    }));
+    // ✅ Ensure nodes is an array
+    const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
+    const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
 
-    const edges = graphData.edges.map(edge => ({
-      data: {
-        id: `${edge.source}-${edge.target}`,
-        source: edge.source,
-        target: edge.target,
-        transfer_amount_usd: edge.transfer_amount_usd || 0,
-        is_suspected_otc: edge.is_suspected_otc || false,
-        edge_count: edge.edge_count || 1,
-        transaction_count: edge.transaction_count || 1
+    const nodes = rawNodes.map(node => {
+      // ✅ Validate node has required fields
+      if (!node || !node.address) {
+        console.warn('Invalid node:', node);
+        return null;
       }
-    }));
+
+      return {
+        data: {
+          id: node.address,
+          address: node.address,
+          label: node.label || null,
+          entity_type: node.entity_type || 'unknown',
+          total_volume_usd: Number(node.total_volume_usd) || 0,
+          confidence_score: Number(node.confidence_score) || 0,
+          is_active: Boolean(node.is_active),
+          transaction_count: Number(node.transaction_count) || 0
+        }
+      };
+    }).filter(Boolean); // Remove null entries
+
+    const edges = rawEdges.map(edge => {
+      // ✅ Validate edge has required fields
+      if (!edge || !edge.source || !edge.target) {
+        console.warn('Invalid edge:', edge);
+        return null;
+      }
+
+      return {
+        data: {
+          id: `${edge.source}-${edge.target}`,
+          source: edge.source,
+          target: edge.target,
+          transfer_amount_usd: Number(edge.transfer_amount_usd) || 0,
+          is_suspected_otc: Boolean(edge.is_suspected_otc),
+          edge_count: Number(edge.edge_count) || 1,
+          transaction_count: Number(edge.transaction_count) || 1
+        }
+      };
+    }).filter(Boolean); // Remove null entries
 
     return [...nodes, ...edges];
   };
 
   const truncateAddress = (address) => {
-    if (!address) return '';
+    if (!address || typeof address !== 'string') return '';
+    if (address.length < 12) return address;
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   const createGradient = (color1, color2) => {
     // Simple color mixing - in real implementation, use actual gradient
-    return color1 || '#95A5A6';
+    return color1 || color2 || '#95A5A6';
   };
 
   const handleContextAction = (action) => {
@@ -306,16 +410,32 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
       </div>
 
       <div className="graph-controls">
-        <button onClick={() => cyRef.current?.fit(50)} title="Fit to screen">
+        <button 
+          onClick={() => cyRef.current?.fit(50)} 
+          title="Fit to screen"
+          disabled={!cyRef.current}
+        >
           🎯
         </button>
-        <button onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 1.2)} title="Zoom in">
+        <button 
+          onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 1.2)} 
+          title="Zoom in"
+          disabled={!cyRef.current}
+        >
           ➕
         </button>
-        <button onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 0.8)} title="Zoom out">
+        <button 
+          onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 0.8)} 
+          title="Zoom out"
+          disabled={!cyRef.current}
+        >
           ➖
         </button>
-        <button onClick={() => cyRef.current?.reset()} title="Reset view">
+        <button 
+          onClick={() => cyRef.current?.reset()} 
+          title="Reset view"
+          disabled={!cyRef.current}
+        >
           🔄
         </button>
       </div>
