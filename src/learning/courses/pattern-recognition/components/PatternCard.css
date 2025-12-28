@@ -1,1 +1,251 @@
+.pattern-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border-left: 4px solid var(--primary-color);
+  margin-bottom: 1.5rem;
+}
 
+.pattern-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Color Schemes */
+.pattern-card-green {
+  border-left-color: #4CAF50;
+}
+
+.pattern-card-blue {
+  border-left-color: #2196F3;
+}
+
+.pattern-card-orange {
+  border-left-color: #FF9800;
+}
+
+.pattern-card-purple {
+  border-left-color: #9C27B0;
+}
+
+.pattern-card-pink {
+  border-left-color: #E91E63;
+}
+
+/* Header */
+.pattern-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.pattern-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.pattern-expand-btn {
+  background: #f5f5f5;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+}
+
+.pattern-expand-btn:hover {
+  background: #e0e0e0;
+  color: #333;
+  transform: scale(1.1);
+}
+
+/* Body */
+.pattern-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Visualization */
+.pattern-visualization {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 120px;
+}
+
+.pattern-svg {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+}
+
+/* Description */
+.pattern-description {
+  color: #555;
+  line-height: 1.6;
+}
+
+.pattern-description p {
+  margin: 0;
+}
+
+/* Analogy */
+.pattern-analogy {
+  display: flex;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #FFF9E6 0%, #FFF3CC 100%);
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 3px solid #FFC107;
+}
+
+.analogy-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.analogy-content {
+  flex: 1;
+}
+
+.analogy-content strong {
+  display: block;
+  color: #F57C00;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.analogy-content p {
+  margin: 0;
+  color: #666;
+  font-style: italic;
+}
+
+/* Characteristics */
+.pattern-characteristics {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.pattern-characteristics h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: #555;
+  font-weight: 600;
+}
+
+.pattern-characteristics ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pattern-characteristics li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.characteristic-bullet {
+  color: #4CAF50;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+/* Examples */
+.pattern-examples {
+  background: #f0f7ff;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 3px solid #2196F3;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pattern-examples h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: #1976D2;
+  font-weight: 600;
+}
+
+.example-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e3f2fd;
+}
+
+.example-item:last-child {
+  border-bottom: none;
+}
+
+.example-label {
+  font-weight: 500;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.example-value {
+  color: #2196F3;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pattern-card {
+    padding: 1rem;
+  }
+
+  .pattern-name {
+    font-size: 1.1rem;
+  }
+
+  .pattern-visualization {
+    padding: 1rem;
+    min-height: 100px;
+  }
+
+  .pattern-svg {
+    max-width: 250px;
+  }
+
+  .example-item {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
