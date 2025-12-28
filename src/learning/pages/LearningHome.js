@@ -35,16 +35,33 @@ const LearningHome = () => {
       title: 'Transaktionen Lesen',
       description: 'Lerne Wallet-Transaktionen im Blockexplorer zu analysieren und zu verstehen.',
       icon: '📝',
-      modules: 8, // UPDATED TO 8!
+      modules: 8,
       duration: '3-4 Stunden',
       level: 'Beginner',
       color: '#a855f7',
-      new: true,
       topics: [
         'Wallet & Adressen',
         'Gas & Gebühren',
         'Smart Contracts',
         'Security Best Practices'
+      ]
+    },
+    {
+      id: 'pattern-recognition',
+      title: 'Pattern Recognition',
+      description: 'Erkenne typische On-Chain-Muster wie Börsen, Airdrops, Token-Transfers und DeFi-Interaktionen.',
+      icon: '🔍',
+      modules: 6,
+      duration: '3-4 Stunden',
+      level: 'Intermediate',
+      color: '#4facfe',
+      new: true,
+      prerequisites: ['reading-transactions'],
+      topics: [
+        'Verhaltensmuster',
+        'Wallet-Cluster',
+        'Börsen & Services',
+        'Analyse-Workflows'
       ]
     }
   ];
@@ -67,6 +84,20 @@ const LearningHome = () => {
       case 'Advanced': return 'advanced';
       default: return 'beginner';
     }
+  };
+
+  const isPrerequisiteMet = (courseId) => {
+    const course = courses.find(c => c.id === courseId);
+    if (!course?.prerequisites || course.prerequisites.length === 0) {
+      return true;
+    }
+    
+    return course.prerequisites.every(prereqId => {
+      const prereqCourse = courses.find(c => c.id === prereqId);
+      if (!prereqCourse) return true;
+      const completed = getCompletedModules(prereqId);
+      return completed === prereqCourse.modules;
+    });
   };
 
   return (
@@ -108,7 +139,7 @@ const LearningHome = () => {
             <div className="stat-card">
               <div className="stat-icon">⏱️</div>
               <div className="stat-content">
-                <div className="stat-value">~5h</div>
+                <div className="stat-value">~9h</div>
                 <div className="stat-label">Gesamtdauer</div>
               </div>
             </div>
@@ -132,19 +163,21 @@ const LearningHome = () => {
               const completedModules = getCompletedModules(course.id);
               const isStarted = completedModules > 0;
               const isCompleted = completedModules === course.modules;
+              const prerequisiteMet = isPrerequisiteMet(course.id);
+              const isLocked = !prerequisiteMet;
 
               return (
                 <div 
                   key={course.id} 
-                  className={`course-card ${isCompleted ? 'completed' : ''}`}
+                  className={`course-card ${isCompleted ? 'completed' : ''} ${isLocked ? 'locked' : ''}`}
                   style={{ '--course-color': course.color }}
                 >
                   <div className="course-card-header">
                     <div className="course-icon" style={{ background: course.color }}>
-                      {course.icon}
+                      {isLocked ? '🔒' : course.icon}
                     </div>
                     <div className="course-badges">
-                      {course.new && (
+                      {course.new && !isLocked && (
                         <span className="course-badge new">Neu</span>
                       )}
                       <span className={`course-badge level ${getLevelColor(course.level)}`}>
@@ -157,64 +190,90 @@ const LearningHome = () => {
                     <h3 className="course-title">{course.title}</h3>
                     <p className="course-description">{course.description}</p>
 
-                    <div className="course-topics">
-                      {course.topics.map((topic, i) => (
-                        <div key={i} className="topic-tag">
-                          <span className="topic-dot">•</span>
-                          {topic}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="course-meta">
-                      <span className="meta-item">
-                        <span className="meta-icon">📚</span>
-                        {course.modules} Module
-                      </span>
-                      <span className="meta-item">
-                        <span className="meta-icon">⏱️</span>
-                        {course.duration}
-                      </span>
-                    </div>
-
-                    {isStarted && (
-                      <div className="course-progress">
-                        <div className="progress-info">
-                          <span className="progress-label">Fortschritt</span>
-                          <span className="progress-percentage">{courseProgress}%</span>
-                        </div>
-                        <div className="progress-bar-container">
-                          <div 
-                            className="progress-bar-fill" 
-                            style={{ 
-                              width: `${courseProgress}%`,
-                              background: course.color
-                            }}
-                          ></div>
-                        </div>
-                        <div className="progress-modules">
-                          {completedModules} / {course.modules} Module abgeschlossen
+                    {isLocked && course.prerequisites && (
+                      <div className="prerequisite-warning">
+                        <span className="warning-icon">⚠️</span>
+                        <div className="warning-content">
+                          <strong>Voraussetzung:</strong>
+                          <p>
+                            Schließe zuerst "{courses.find(c => c.id === course.prerequisites[0])?.title}" ab
+                          </p>
                         </div>
                       </div>
                     )}
 
-                    {isCompleted && (
-                      <div className="completion-badge-course">
-                        <span className="badge-icon">✓</span>
-                        Kurs abgeschlossen
-                      </div>
+                    {!isLocked && (
+                      <>
+                        <div className="course-topics">
+                          {course.topics.map((topic, i) => (
+                            <div key={i} className="topic-tag">
+                              <span className="topic-dot">•</span>
+                              {topic}
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="course-meta">
+                          <span className="meta-item">
+                            <span className="meta-icon">📚</span>
+                            {course.modules} Module
+                          </span>
+                          <span className="meta-item">
+                            <span className="meta-icon">⏱️</span>
+                            {course.duration}
+                          </span>
+                        </div>
+
+                        {isStarted && (
+                          <div className="course-progress">
+                            <div className="progress-info">
+                              <span className="progress-label">Fortschritt</span>
+                              <span className="progress-percentage">{courseProgress}%</span>
+                            </div>
+                            <div className="progress-bar-container">
+                              <div 
+                                className="progress-bar-fill" 
+                                style={{ 
+                                  width: `${courseProgress}%`,
+                                  background: course.color
+                                }}
+                              ></div>
+                            </div>
+                            <div className="progress-modules">
+                              {completedModules} / {course.modules} Module abgeschlossen
+                            </div>
+                          </div>
+                        )}
+
+                        {isCompleted && (
+                          <div className="completion-badge-course">
+                            <span className="badge-icon">✓</span>
+                            Kurs abgeschlossen
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
                   <div className="course-card-footer">
-                    <Link 
-                      to={`/learning/course/${course.id}`}
-                      className="course-button"
-                      style={{ background: course.color }}
-                    >
-                      {isCompleted ? 'Wiederholen' : isStarted ? 'Fortsetzen' : 'Kurs starten'}
-                      <span className="button-arrow">→</span>
-                    </Link>
+                    {isLocked ? (
+                      <button 
+                        className="course-button locked"
+                        disabled
+                      >
+                        <span className="lock-icon">🔒</span>
+                        Gesperrt
+                      </button>
+                    ) : (
+                      <Link 
+                        to={`/learning/course/${course.id}`}
+                        className="course-button"
+                        style={{ background: course.color }}
+                      >
+                        {isCompleted ? 'Wiederholen' : isStarted ? 'Fortsetzen' : 'Kurs starten'}
+                        <span className="button-arrow">→</span>
+                      </Link>
+                    )}
                   </div>
                 </div>
               );
@@ -234,6 +293,9 @@ const LearningHome = () => {
                     <strong>Transaktionen Lesen</strong> – Analysiere Wallet-Aktivität
                   </li>
                   <li>
+                    <strong>Pattern Recognition</strong> – Erkenne On-Chain-Muster
+                  </li>
+                  <li>
                     <strong>Advanced Analysis</strong> – Professionelle Techniken (Bald verfügbar)
                   </li>
                 </ol>
@@ -249,6 +311,7 @@ const LearningHome = () => {
                   <li>Nimm dir Zeit für Quiz-Fragen</li>
                   <li>Wiederhole Module bei Bedarf</li>
                   <li>Praktische Übungen festigen das Wissen</li>
+                  <li>Der neue Pattern Recognition Kurs baut auf Transaktionen Lesen auf</li>
                 </ul>
               </div>
             </div>
