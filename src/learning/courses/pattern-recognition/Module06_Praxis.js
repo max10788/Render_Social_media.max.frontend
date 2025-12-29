@@ -4,7 +4,7 @@ import ConceptBox from '../../components/content/ConceptBox';
 import MultipleChoice from '../../components/exercises/MultipleChoice';
 
 const Module06_Praxis = () => {
-  const [challengeComplete, setChallenge Complete] = useState(false);
+  const [challengeComplete, setChallenge, Complete] = useState(false);
   const [selectedScenarios, setSelectedScenarios] = useState({});
 
   const finalQuiz = [
