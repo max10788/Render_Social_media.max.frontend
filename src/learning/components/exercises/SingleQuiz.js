@@ -95,10 +95,9 @@ const SingleQuiz = ({ question, options, correctIndex, explanation, onComplete }
               Antwort prüfen
             </button>
           ) : (
-            <div className="quiz-result">
+            <div className="quiz-result" style={{ textAlign: 'center', marginTop: '1rem' }}>
               {selectedAnswer === correctIndex ? (
                 <div style={{ 
-                  textAlign: 'center', 
                   color: '#10b981', 
                   fontSize: '1.2rem',
                   fontWeight: '600' 
@@ -107,7 +106,6 @@ const SingleQuiz = ({ question, options, correctIndex, explanation, onComplete }
                 </div>
               ) : (
                 <div style={{ 
-                  textAlign: 'center', 
                   color: '#ef4444', 
                   fontSize: '1.2rem',
                   fontWeight: '600' 
