@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './Module.css';
 import ConceptBox from '../../components/content/ConceptBox';
-import SingleQuiz from '../../components/exercises/SingleQuiz'; // ← GEÄNDERT!
+import SingleQuiz from '../../components/exercises/SingleQuiz';
 
 const Module01_ZielUndRahmen = () => {
   const [quizComplete, setQuizComplete] = useState(false);
