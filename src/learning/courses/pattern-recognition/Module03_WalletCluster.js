@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './Module.css';
 import ConceptBox from '../../components/content/ConceptBox';
 import MultipleChoice from '../../components/exercises/MultipleChoice';
-import HeuristicChecker from '../components/HeuristicChecker';
+import HeuristicChecker from './components/HeuristicChecker';
 
 const Module03_WalletCluster = () => {
   const [heuristicComplete, setHeuristicComplete] = useState(false);
