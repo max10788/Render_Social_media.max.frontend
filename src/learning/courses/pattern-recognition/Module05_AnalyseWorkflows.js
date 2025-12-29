@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './Module.css';
 import ConceptBox from '../../components/content/ConceptBox';
-import WorkflowStepper from '../components/WorkflowStepper';
+import WorkflowStepper from './components/WorkflowStepper';
 
 const Module05_AnalyseWorkflows = () => {
   const [completedWorkflows, setCompletedWorkflows] = useState([]);
