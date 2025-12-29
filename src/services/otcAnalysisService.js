@@ -1,277 +1,325 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-m1un.onrender.com';
 
 /**
- * OTC Analysis Service
- * Handles all API calls for OTC transaction analysis
+ * OTC Analysis Service - COMPLETE API INTEGRATION
+ * Alle Backend-Endpoints: Desks, Wallets, Statistics, Network, Flow, Monitoring, Streams
  */
 class OTCAnalysisService {
+  constructor() {
+    this.client = axios.create({
+      baseURL: API_BASE_URL,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    // Response Interceptor
+    this.client.interceptors.response.use(
+      response => response,
+      error => {
+        console.error('OTC API Error:', {
+          endpoint: error.config?.url,
+          status: error.response?.status,
+          message: error.response?.data?.detail || error.message
+        });
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  // ============================================================================
+  // 🏢 DESKS ENDPOINTS
+  // ============================================================================
+
   /**
-   * Scan a block range for OTC activity
+   * Get all OTC desks (verified + discovered + database)
+   * GET /api/otc/desks
    */
-  async scanRange(params) {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/otc/scan/range`, {
-        from_block: params.fromBlock,
-        to_block: params.toBlock,
-        tokens: params.tokens || [],
-        min_usd_value: params.minUsdValue || 100000,
-        exclude_exchanges: params.excludeExchanges !== false
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error scanning OTC range:', error);
-      throw error;
-    }
+  async getDesks(params = {}) {
+    const response = await this.client.get('/api/otc/desks', {
+      params: {
+        include_discovered: params.includeDiscovered ?? true,
+        include_db: params.includeDb ?? true,
+        min_confidence: params.minConfidence ?? 0.7
+      }
+    });
+    return response.data;
   }
 
   /**
-   * Get detailed wallet profile
+   * Discover new OTC desks from transactions
+   * POST /api/otc/desks/discover
+   */
+  async discoverDesks(params = {}) {
+    const response = await this.client.post('/api/otc/desks/discover', {
+      hours_back: params.hoursBack || 24,
+      volume_threshold: params.volumeThreshold || 100000,
+      max_new_desks: params.maxNewDesks || 20
+    });
+    return response.data;
+  }
+
+  // ============================================================================
+  // 👛 WALLETS ENDPOINTS
+  // ============================================================================
+
+  /**
+   * Get wallet profile (basic info)
+   * GET /api/otc/wallet/{address}/profile
    */
   async getWalletProfile(address) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/wallet/${address}/profile`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching wallet profile:', error);
-      throw error;
-    }
+    const response = await this.client.get(`/api/otc/wallet/${address}/profile`);
+    return response.data;
   }
 
   /**
-   * ✅ NEW: Get detailed wallet information with charts
+   * Get wallet details (with charts & analytics)
+   * GET /api/otc/wallet/{address}/details
    */
   async getWalletDetails(address) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/wallet/${address}/details`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching wallet details:', error);
-      throw error;
-    }
+    const response = await this.client.get(`/api/otc/wallet/${address}/details`);
+    return response.data;
   }
+
+  // ============================================================================
+  // 📊 STATISTICS ENDPOINTS
+  // ============================================================================
+
+  /**
+   * Get OTC statistics
+   * GET /api/otc/statistics
+   */
+  async getStatistics(params = {}) {
+    const response = await this.client.get('/api/otc/statistics', {
+      params: {
+        start_date: params.startDate,
+        end_date: params.endDate,
+        entity_type: params.entityType
+      }
+    });
+    return response.data;
+  }
+
+  /**
+   * Get analytics distributions (volume, transfer sizes, etc.)
+   * GET /api/otc/analytics/distributions
+   */
+  async getDistributions(params = {}) {
+    const response = await this.client.get('/api/otc/analytics/distributions', {
+      params: {
+        start_date: params.startDate,
+        end_date: params.endDate
+      }
+    });
+    return response.data;
+  }
+
+  // ============================================================================
+  // 🌐 NETWORK ENDPOINTS
+  // ============================================================================
+
+  /**
+   * Get network graph data (for visualization)
+   * GET /api/otc/network/graph
+   */
+  async getNetworkGraph(params = {}) {
+    const response = await this.client.get('/api/otc/network/graph', {
+      params: {
+        start_date: params.startDate,
+        end_date: params.endDate,
+        max_nodes: params.maxNodes || 500
+      }
+    });
+    return response.data;
+  }
+
+  /**
+   * Get activity heatmap (24x7 grid)
+   * GET /api/otc/network/heatmap
+   */
+  async getActivityHeatmap(params = {}) {
+    const response = await this.client.get('/api/otc/network/heatmap', {
+      params: {
+        start_date: params.startDate,
+        end_date: params.endDate
+      }
+    });
+    return response.data;
+  }
+
+  // ============================================================================
+  // 🔄 FLOW ENDPOINTS
+  // ============================================================================
 
   /**
    * Trace flow between two addresses
+   * POST /api/otc/flow/trace
    */
   async traceFlow(params) {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/otc/flow/trace`, {
-        source_address: params.sourceAddress,
-        target_address: params.targetAddress,
-        max_hops: params.maxHops || 5,
-        min_confidence: params.minConfidence || 50
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error tracing flow:', error);
-      throw error;
-    }
+    const response = await this.client.post('/api/otc/flow/trace', {
+      source_address: params.sourceAddress,
+      target_address: params.targetAddress,
+      max_hops: params.maxHops || 5,
+      min_confidence: params.minConfidence || 0.5
+    });
+    return response.data;
   }
 
   /**
-   * Get OTC statistics for a time range (✅ NOW WITH CHANGES)
+   * Get Sankey flow diagram data
+   * GET /api/otc/flow/sankey
    */
-  async getStatistics(params) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/statistics`, {
-        params: {
-          start_date: params.fromDate,
-          end_date: params.toDate,
-          entity_type: params.entityType
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching OTC statistics:', error);
-      throw error;
-    }
+  async getSankeyFlow(params = {}) {
+    const response = await this.client.get('/api/otc/flow/sankey', {
+      params: {
+        start_date: params.startDate,
+        end_date: params.endDate,
+        min_flow_size: params.minFlowSize || 100000
+      }
+    });
+    return response.data;
   }
 
   /**
-   * Get network graph data
+   * Get transfer timeline
+   * GET /api/otc/flow/transfers/timeline
    */
-  async getNetworkGraph(params) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/network/graph`, {
-        params: {
-          start_date: params.fromDate,
-          end_date: params.toDate,
-          min_confidence: params.minConfidence || 0,
-          min_transfer_size: params.minTransferSize || 0,
-          entity_types: params.entityTypes?.join(','),
-          tokens: params.tokens?.join(','),
-          max_nodes: params.maxNodes || 500
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching network graph:', error);
-      throw error;
-    }
+  async getTransferTimeline(params = {}) {
+    const response = await this.client.get('/api/otc/flow/transfers/timeline', {
+      params: {
+        start_date: params.startDate,
+        end_date: params.endDate,
+        min_confidence: params.minConfidence || 0
+      }
+    });
+    return response.data;
   }
 
-  /**
-   * Get Sankey flow data (✅ NOW IMPLEMENTED)
-   */
-  async getSankeyFlow(params) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/flow/sankey`, {
-        params: {
-          start_date: params.fromDate,
-          end_date: params.toDate,
-          min_flow_size: params.minFlowSize || 100000
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching Sankey flow:', error);
-      throw error;
-    }
-  }
+  // ============================================================================
+  // 👀 MONITORING ENDPOINTS
+  // ============================================================================
 
   /**
-   * Get time-based heatmap data
+   * Get watchlist
+   * GET /api/otc/monitoring/watchlist
    */
-  async getTimeHeatmap(params) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/heatmap`, {
-        params: {
-          start_date: params.fromDate,
-          end_date: params.toDate,
-          entity_type: params.entityType
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching time heatmap:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get transfer timeline data (✅ NOW IMPLEMENTED)
-   */
-  async getTransferTimeline(params) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/transfers/timeline`, {
-        params: {
-          start_date: params.fromDate,
-          end_date: params.toDate,
-          min_confidence: params.minConfidence || 0,
-          sort_by: params.sortBy || 'timestamp'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching transfer timeline:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get distribution statistics (✅ NOW IMPLEMENTED)
-   */
-  async getDistributions(params) {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/analytics/distributions`, {
-        params: {
-          start_date: params.fromDate,
-          end_date: params.toDate
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching distributions:', error);
-      throw error;
-    }
+  async getWatchlist() {
+    const response = await this.client.get('/api/otc/monitoring/watchlist');
+    return response.data;
   }
 
   /**
    * Add wallet to watchlist
+   * POST /api/otc/monitoring/watchlist/add
    */
   async addToWatchlist(address, label = null) {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/otc/watchlist/add`, {
-        address,
-        label
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error adding to watchlist:', error);
-      throw error;
-    }
+    const response = await this.client.post('/api/otc/monitoring/watchlist/add', {
+      address,
+      label
+    });
+    return response.data;
   }
 
   /**
    * Remove wallet from watchlist
+   * DELETE /api/otc/monitoring/watchlist/{address}
    */
   async removeFromWatchlist(address) {
-    try {
-      const response = await axios.delete(`${API_BASE_URL}/api/otc/watchlist/${address}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error removing from watchlist:', error);
-      throw error;
-    }
+    const response = await this.client.delete(`/api/otc/monitoring/watchlist/${address}`);
+    return response.data;
   }
 
   /**
-   * Get watchlist
-   */
-  async getWatchlist() {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/watchlist`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching watchlist:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create alert for wallet
-   */
-  async createAlert(params) {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/otc/alerts/create`, {
-        wallet_address: params.walletAddress,
-        alert_type: params.alertType,
-        threshold: params.threshold,
-        conditions: params.conditions
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error creating alert:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get active alerts
+   * Get alerts
+   * GET /api/otc/monitoring/alerts
    */
   async getAlerts() {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/otc/alerts`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching alerts:', error);
-      throw error;
-    }
+    const response = await this.client.get('/api/otc/monitoring/alerts');
+    return response.data;
+  }
+
+  /**
+   * Create alert
+   * POST /api/otc/monitoring/alerts/create
+   */
+  async createAlert(params) {
+    const response = await this.client.post('/api/otc/monitoring/alerts/create', {
+      wallet_address: params.walletAddress,
+      alert_type: params.alertType,
+      threshold: params.threshold,
+      conditions: params.conditions || {}
+    });
+    return response.data;
   }
 
   /**
    * Dismiss alert
+   * POST /api/otc/monitoring/alerts/{alert_id}/dismiss
    */
   async dismissAlert(alertId) {
-    try {
-      const response = await axios.post(`${API_BASE_URL}/api/otc/alerts/${alertId}/dismiss`);
-      return response.data;
-    } catch (error) {
-      console.error('Error dismissing alert:', error);
-      throw error;
-    }
+    const response = await this.client.post(`/api/otc/monitoring/alerts/${alertId}/dismiss`);
+    return response.data;
+  }
+
+  // ============================================================================
+  // 📡 STREAMS ENDPOINTS (Moralis Webhooks)
+  // ============================================================================
+
+  /**
+   * Get Moralis Streams status
+   * GET /api/otc/streams/status
+   */
+  async getStreamsStatus() {
+    const response = await this.client.get('/api/otc/streams/status');
+    return response.data;
+  }
+
+  /**
+   * Test webhook
+   * POST /api/otc/streams/test
+   */
+  async testWebhook() {
+    const response = await this.client.post('/api/otc/streams/test');
+    return response.data;
+  }
+
+  // ============================================================================
+  // ⚙️ ADMIN ENDPOINTS
+  // ============================================================================
+
+  /**
+   * Get system health
+   * GET /api/otc/admin/system/health
+   */
+  async getSystemHealth() {
+    const response = await this.client.get('/api/otc/admin/system/health');
+    return response.data;
+  }
+
+  /**
+   * Get database status
+   * GET /api/otc/admin/database/status
+   */
+  async getDatabaseStatus() {
+    const response = await this.client.get('/api/otc/admin/database/status');
+    return response.data;
+  }
+
+  /**
+   * Setup Moralis Streams
+   * POST /api/otc/admin/setup-moralis-streams
+   */
+  async setupMoralisStreams(params = {}) {
+    const response = await this.client.post('/api/otc/admin/setup-moralis-streams', null, {
+      params: {
+        webhook_url: params.webhookUrl,
+        min_value_eth: params.minValueEth || 30
+      }
+    });
+    return response.data;
   }
 }
 
