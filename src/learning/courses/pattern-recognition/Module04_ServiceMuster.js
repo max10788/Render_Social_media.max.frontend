@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './Module.css';
 import ConceptBox from '../../components/content/ConceptBox';
 import MultipleChoice from '../../components/exercises/MultipleChoice';
-import ExplorerSimulator from '../components/ExplorerSimulator';
+import ExplorerSimulator from './components/ExplorerSimulator';
 
 const Module04_ServiceMuster = () => {
   const [simulatorComplete, setSimulatorComplete] = useState(false);
