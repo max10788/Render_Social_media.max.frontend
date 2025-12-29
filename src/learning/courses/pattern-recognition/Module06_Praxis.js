@@ -4,7 +4,7 @@ import ConceptBox from '../../components/content/ConceptBox';
 import MultipleChoice from '../../components/exercises/MultipleChoice';
 
 const Module06_Praxis = () => {
-  const [challengeComplete, setChallenge, Complete] = useState(false);
+  const [challengeComplete, setChallengeComplete] = useState(false);
   const [selectedScenarios, setSelectedScenarios] = useState({});
 
   const finalQuiz = [
@@ -403,7 +403,7 @@ const Module06_Praxis = () => {
         <div className="completion-icon-large">🎓</div>
         <h2>Kurs abgeschlossen!</h2>
         <p>Du hast alle Module des Pattern Recognition Kurses erfolgreich durchlaufen.</p>
-        <button className="btn-primary large" onClick={() => setChallenge Complete(true)}>
+        <button className="btn-primary large" onClick={() => setChallengeComplete(true)}>
           Zertifikat anfordern 🏆
         </button>
       </div>
