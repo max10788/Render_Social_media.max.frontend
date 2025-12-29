@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './Module.css';
 import ConceptBox from '../../components/content/ConceptBox';
-import MultipleChoice from '../../components/exercises/MultipleChoice';
+import SingleQuiz from '../../components/exercises/SingleQuiz'; // ← GEÄNDERT!
 
 const Module01_ZielUndRahmen = () => {
   const [quizComplete, setQuizComplete] = useState(false);
@@ -100,15 +100,13 @@ const Module01_ZielUndRahmen = () => {
           <p>Teste dein Mustergefühl mit einem Alltagsbeispiel:</p>
         </ConceptBox>
 
-        <div className="quiz-section">
-          <MultipleChoice
-            question={introQuiz.question}
-            options={introQuiz.options}
-            correctIndex={introQuiz.correctIndex}
-            explanation={introQuiz.explanation}
-            onComplete={() => setQuizComplete(true)}
-          />
-        </div>
+        <SingleQuiz
+          question={introQuiz.question}
+          options={introQuiz.options}
+          correctIndex={introQuiz.correctIndex}
+          explanation={introQuiz.explanation}
+          onComplete={() => setQuizComplete(true)}
+        />
 
         {quizComplete && (
           <ConceptBox title="Perfekt! 🎉" type="success">
