@@ -1,287 +1,249 @@
-
 import React, { useState } from 'react';
 import './Module.css';
 import ConceptBox from '../../components/content/ConceptBox';
-import MultipleChoice from '../../components/exercises/MultipleChoice';
-import PatternCard, { 
-  NormalPaymentViz, 
-  CollectorPatternViz, 
-  FanOutPatternViz 
-} from './components/PatternCard';
+import SingleQuiz from '../../components/exercises/SingleQuiz';
 
-const Module02_VerhaltensmusterEinfach = () => {
-  const [dragDropComplete, setDragDropComplete] = useState(false);
-  const [selectedPattern, setSelectedPattern] = useState(null);
+const Module02_VerhaltensmuserEinfach = () => {
+  const [quizComplete, setQuizComplete] = useState(false);
 
-  // Pattern-Erkennungs-Quiz
   const patternQuiz = {
-    question: "Du siehst eine Adresse mit 10.000+ Transaktionen, die meisten sind kleine Beträge von verschiedenen Adressen, die eingehen. Was ist das wahrscheinlich?",
+    question: "Eine Adresse erhält über 100 kleine Einzahlungen pro Tag von verschiedenen Adressen und macht 5-10 große Auszahlungen pro Tag. Was ist das wahrscheinlich?",
     options: [
-      "Eine normale Privat-Person",
-      "Eine Börse oder Sammler-Adresse",
-      "Ein Betrüger",
+      "Ein normaler User",
+      "Eine Börsen-Adresse (Exchange)",
+      "Ein Airdrop",
       "Ein Smart Contract"
     ],
     correctIndex: 1,
-    explanation: "Richtig! Das ist das typische Muster einer **Börse oder Sammler-Adresse**: Viele verschiedene Adressen zahlen ein (User-Deposits), wenige große Auszahlungen (Börse konsolidiert Funds)."
-  };
-
-  // Drag & Drop Übung (vereinfacht)
-  const scenarios = [
-    {
-      id: 1,
-      description: "15 Transaktionen in 3 Monaten, unregelmäßig, unterschiedliche Beträge",
-      correctPattern: "normal"
-    },
-    {
-      id: 2,
-      description: "5.000+ Transaktionen, 95% Eingänge von verschiedenen Adressen",
-      correctPattern: "collector"
-    },
-    {
-      id: 3,
-      description: "1 Transaktion splittet Funds auf 200 neue Adressen gleichzeitig",
-      correctPattern: "fanout"
-    }
-  ];
-
-  const [userAnswers, setUserAnswers] = useState({});
-
-  const handlePatternSelect = (scenarioId, pattern) => {
-    setUserAnswers(prev => ({
-      ...prev,
-      [scenarioId]: pattern
-    }));
-  };
-
-  const checkAnswers = () => {
-    const allCorrect = scenarios.every(
-      scenario => userAnswers[scenario.id] === scenario.correctPattern
-    );
-    if (allCorrect) {
-      setDragDropComplete(true);
-    } else {
-      alert('Nicht alle Antworten sind korrekt. Versuche es nochmal!');
-    }
+    explanation: "Richtig! Das ist ein typisches Muster für eine Börse: Viele User zahlen kleine Beträge ein (Deposits), die Börse konsolidiert diese und macht große Auszahlungen (Withdrawals)."
   };
 
   return (
     <div className="module-container">
-      <header className="module-header">
-        <span className="module-number">Modul 2</span>
-        <h1>Einfache Verhaltensmuster</h1>
+      <header className="module-header-section">
+        <div className="module-icon-large">👤</div>
+        <h1 className="module-title">Einfache Verhaltensmuster</h1>
         <p className="module-subtitle">
-          Erkenne grundlegende On-Chain-Muster direkt im Explorer
+          Erkenne grundlegende On-Chain-Aktivitäten: normale User, Börsen und Airdrops
         </p>
       </header>
 
-      <section className="module-section">
-        <ConceptBox title="Lernziel" type="info">
-          <p>
-            In diesem Modul lernst du, <strong>drei grundlegende Muster</strong> zu erkennen, 
-            die du direkt im Block Explorer sehen kannst – ohne komplizierte Analysetools.
-          </p>
-        </ConceptBox>
+      <section className="content-section">
+        <span className="section-label">Grundmuster</span>
+        <h2>📊 Die drei häufigsten Muster</h2>
+        
+        <div className="scenario-cards">
+          <div className="scenario-card">
+            <div className="scenario-icon">👤</div>
+            <h4>Normaler User</h4>
+            <p><strong>Muster:</strong></p>
+            <ul style={{ color: '#cbd5e1', fontSize: '0.95rem', lineHeight: '1.6' }}>
+              <li>Wenige Transaktionen pro Tag (1-10)</li>
+              <li>Meist ähnliche Beträge</li>
+              <li>Regelmäßige Interaktionen mit bekannten Services</li>
+              <li>Gelegentliche Pausen (Tage ohne Aktivität)</li>
+            </ul>
+            <div className="scenario-result success">
+              ✅ Menschliches Verhalten
+            </div>
+          </div>
 
-        <div className="text-content">
-          <h2>🔍 Fokus: Was du direkt siehst</h2>
-          <p>
-            Wir konzentrieren uns auf Dinge, die du <strong>sofort im Explorer erkennen</strong> kannst:
-          </p>
-          <ul>
-            <li>Anzahl der Transaktionen</li>
-            <li>Richtung der Zahlungen (Ein- oder Ausgänge)</li>
-            <li>Regelmäßigkeit und Beträge</li>
-            <li>Anzahl verschiedener Adressen</li>
-          </ul>
+          <div className="scenario-card">
+            <div className="scenario-icon">🏦</div>
+            <h4>Börse (Exchange)</h4>
+            <p><strong>Muster:</strong></p>
+            <ul style={{ color: '#cbd5e1', fontSize: '0.95rem', lineHeight: '1.6' }}>
+              <li>Sehr viele Transaktionen (100+ pro Tag)</li>
+              <li>Viele kleine Einzahlungen</li>
+              <li>Wenige große Auszahlungen</li>
+              <li>24/7 aktiv, keine Pausen</li>
+              <li>Hoher Gesamtwert (Millionen $)</li>
+            </ul>
+            <div className="scenario-result success">
+              🏦 Service-Adresse
+            </div>
+          </div>
+
+          <div className="scenario-card">
+            <div className="scenario-icon">🎁</div>
+            <h4>Airdrop</h4>
+            <p><strong>Muster:</strong></p>
+            <ul style={{ color: '#cbd5e1', fontSize: '0.95rem', lineHeight: '1.6' }}>
+              <li>Eine Sender-Adresse</li>
+              <li>Viele Empfänger (100-10.000+)</li>
+              <li>Meist gleicher oder ähnlicher Betrag</li>
+              <li>Alle Transaktionen in kurzer Zeit</li>
+              <li>Oft neue Token</li>
+            </ul>
+            <div className="scenario-result success">
+              🎁 Distribution-Event
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="module-section">
-        <h2>📊 Die drei Grundmuster</h2>
+      <section className="content-section">
+        <span className="section-label">Vergleich</span>
+        <h2>🔄 Transaktions-Flow visualisiert</h2>
 
-        {/* Muster 1: Normale Zahlung */}
-        <PatternCard
-          name="Muster 1: Normale Zahlung"
-          description="Wenige Transaktionen, unregelmäßig verteilt. Beträge variieren. From/To sind meist immer wieder andere Adressen."
-          analogy="Eine Privatperson, die manchmal Geld überweist – mal an den Vermieter, mal online einkaufen, mal an Freunde."
-          visualization={<NormalPaymentViz />}
-          characteristics={[
-            "5-50 Transaktionen pro Monat",
-            "Unregelmäßige Zeitpunkte",
-            "Verschiedene Beträge (0.05 ETH, 0.3 ETH, 1.2 ETH...)",
-            "Wechselnde Empfänger und Sender"
-          ]}
-          examples={[
-            { label: "Typische Anzahl", value: "10-30 Tx/Monat" },
-            { label: "Muster", value: "Unregelmäßig" },
-            { label: "Beträge", value: "Variabel" }
-          ]}
-          colorScheme="green"
-        />
+        <div className="metaphor-grid">
+          <div className="metaphor-card">
+            <div className="metaphor-icon">👤</div>
+            <h4 className="metaphor-title">Normaler User</h4>
+            <div className="metaphor-text">
+              <p style={{ marginBottom: '0.75rem' }}>Wallet A</p>
+              <p style={{ fontSize: '1.5rem', margin: '0.5rem 0' }}>↓ ↑ ↓</p>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                Wenige Transaktionen<br/>
+                In beide Richtungen
+              </p>
+            </div>
+          </div>
 
-        {/* Muster 2: Sammler-Adresse */}
-        <PatternCard
-          name="Muster 2: Sammler-Adresse (Börse/Sammelwallet)"
-          description="Sehr viele Eingänge von vielen unterschiedlichen Adressen. Gelegentliche große Ausgänge zur Konsolidierung."
-          analogy="Eine Supermarktkasse: Viele Kunden zahlen kleine Beträge ein, am Ende des Tages wird alles zur Bank gebracht."
-          visualization={<CollectorPatternViz />}
-          characteristics={[
-            "1.000+ Transaktionen (oft 10.000+)",
-            "90%+ sind Eingänge",
-            "Viele verschiedene Sender",
-            "Wenige, aber große Ausgänge",
-            "Oft mit Explorer-Tag (z.B. 'Binance', 'Exchange')"
-          ]}
-          examples={[
-            { label: "Typische Anzahl", value: "10.000+ Tx" },
-            { label: "Eingänge", value: "~95%" },
-            { label: "Tag", value: "Binance Hot Wallet" }
-          ]}
-          colorScheme="blue"
-        />
+          <div className="metaphor-divider">vs</div>
 
-        {/* Muster 3: Fächer-Pattern */}
-        <PatternCard
-          name="Muster 3: Fächer-Pattern (Fan-Out)"
-          description="Eine Transaktion von einer Adresse splittert Funds auf viele neue Adressen gleichzeitig. Typisch für Airdrops oder Sammelwallet-Verteilung."
-          analogy="Du brichst einen 100-Euro-Schein in viele kleinere Scheine und verteilst sie auf verschiedene Umschläge für verschiedene Zwecke."
-          visualization={<FanOutPatternViz />}
-          characteristics={[
-            "1 Transaktion → viele Outputs",
-            "Oft 50-1000+ Empfänger gleichzeitig",
-            "Ähnliche oder identische Beträge",
-            "Empfänger oft neue Adressen (0 vorherige Tx)",
-            "Zeitpunkt: alle im gleichen Block"
-          ]}
-          examples={[
-            { label: "Typisches Beispiel", value: "Airdrop: 1 → 500 Adressen" },
-            { label: "Betrag pro Empfänger", value: "0.1 ETH (identisch)" },
-            { label: "Block", value: "Alle im selben Block" }
-          ]}
-          colorScheme="orange"
-        />
+          <div className="metaphor-card highlight">
+            <div className="metaphor-icon">🏦</div>
+            <h4 className="metaphor-title">Börse</h4>
+            <div className="metaphor-text">
+              <p style={{ marginBottom: '0.75rem' }}>Exchange Wallet</p>
+              <p style={{ fontSize: '1.5rem', margin: '0.5rem 0' }}>↓↓↓↓↓ → ↑↑</p>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                Viele rein (deposits)<br/>
+                Wenige raus (withdrawals)
+              </p>
+            </div>
+          </div>
+
+          <div className="metaphor-divider">vs</div>
+
+          <div className="metaphor-card">
+            <div className="metaphor-icon">🎁</div>
+            <h4 className="metaphor-title">Airdrop</h4>
+            <div className="metaphor-text">
+              <p style={{ marginBottom: '0.75rem' }}>Distributor</p>
+              <p style={{ fontSize: '1.5rem', margin: '0.5rem 0' }}>1 → ∞</p>
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                Eine Quelle<br/>
+                Viele Empfänger
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section className="module-section">
-        <h2>✅ Wissenstest: Muster erkennen</h2>
-        <MultipleChoice
+      <section className="content-section">
+        <span className="section-label">Praxis</span>
+        <h2>🔍 Echtes Beispiel: Binance Hot Wallet</h2>
+
+        <ConceptBox title="Real-World Daten" type="info">
+          <div style={{ marginBottom: '1rem' }}>
+            <strong>Adresse:</strong>
+            <code style={{ 
+              display: 'block', 
+              marginTop: '0.5rem',
+              padding: '0.5rem',
+              background: 'rgba(0,0,0,0.3)',
+              borderRadius: '6px',
+              fontSize: '0.85rem',
+              wordBreak: 'break-all'
+            }}>
+              0x28C6c06298d514Db089934071355E5743bf21d60
+            </code>
+          </div>
+          <p><strong>Erkennungsmerkmale:</strong></p>
+          <ul>
+            <li>~1000 Transaktionen pro Tag</li>
+            <li>Gesamtwert: mehrere Milliarden Dollar</li>
+            <li>Nie offline (24/7 aktiv)</li>
+            <li>Hauptsächlich ERC-20 Tokens</li>
+            <li>Label in Explorern: "Binance 14"</li>
+          </ul>
+        </ConceptBox>
+
+        <div className="comparison-container" style={{ marginTop: '2rem' }}>
+          <div className="comparison-item problem">
+            <div className="comparison-header">
+              <span className="comparison-icon">❓</span>
+              <h3>Ohne Pattern Recognition</h3>
+            </div>
+            <p style={{ color: '#cbd5e1' }}>
+              "Was macht diese Adresse? Ist das sicher? Warum so viele Transaktionen?"
+            </p>
+          </div>
+
+          <div className="comparison-item solution">
+            <div className="comparison-header">
+              <span className="comparison-icon">✓</span>
+              <h3>Mit Pattern Recognition</h3>
+            </div>
+            <p style={{ color: '#cbd5e1' }}>
+              "Börsen-Muster erkannt: Hot Wallet, viele kleine Inflows, wenige große Outflows → Binance"
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="content-section">
+        <span className="section-label">Quiz</span>
+        <h2>🧩 Teste dein Wissen</h2>
+
+        <SingleQuiz
           question={patternQuiz.question}
           options={patternQuiz.options}
           correctIndex={patternQuiz.correctIndex}
           explanation={patternQuiz.explanation}
+          onComplete={() => setQuizComplete(true)}
         />
+
+        {quizComplete && (
+          <ConceptBox title="Sehr gut! 🎉" type="success">
+            <p>
+              Du kannst jetzt die drei grundlegenden Muster unterscheiden. 
+              Im nächsten Modul schauen wir uns <strong>Wallet-Cluster</strong> an – 
+              wie erkennst du, ob mehrere Adressen zur selben Person gehören?
+            </p>
+          </ConceptBox>
+        )}
       </section>
 
-      <section className="module-section">
-        <h2>🎯 Übung: Ordne die Muster zu</h2>
-        <ConceptBox title="Aufgabe" type="practice">
-          <p>
-            Lies die Beschreibungen und wähle das passende Muster. Klicke dann auf 
-            "Antworten prüfen".
-          </p>
-        </ConceptBox>
-
-        <div className="pattern-matching-exercise">
-          {scenarios.map(scenario => (
-            <div key={scenario.id} className="scenario-card">
-              <div className="scenario-description">
-                <strong>Szenario {scenario.id}:</strong>
-                <p>{scenario.description}</p>
-              </div>
-              <div className="scenario-options">
-                <label className={userAnswers[scenario.id] === 'normal' ? 'selected' : ''}>
-                  <input
-                    type="radio"
-                    name={`scenario-${scenario.id}`}
-                    value="normal"
-                    checked={userAnswers[scenario.id] === 'normal'}
-                    onChange={() => handlePatternSelect(scenario.id, 'normal')}
-                  />
-                  Normale Zahlung
-                </label>
-                <label className={userAnswers[scenario.id] === 'collector' ? 'selected' : ''}>
-                  <input
-                    type="radio"
-                    name={`scenario-${scenario.id}`}
-                    value="collector"
-                    checked={userAnswers[scenario.id] === 'collector'}
-                    onChange={() => handlePatternSelect(scenario.id, 'collector')}
-                  />
-                  Sammler-Adresse
-                </label>
-                <label className={userAnswers[scenario.id] === 'fanout' ? 'selected' : ''}>
-                  <input
-                    type="radio"
-                    name={`scenario-${scenario.id}`}
-                    value="fanout"
-                    checked={userAnswers[scenario.id] === 'fanout'}
-                    onChange={() => handlePatternSelect(scenario.id, 'fanout')}
-                  />
-                  Fächer-Pattern
-                </label>
-              </div>
+      <section className="content-section">
+        <span className="section-label">Zusammenfassung</span>
+        <h2>📝 Key Takeaways</h2>
+        
+        <div className="takeaways-grid">
+          <div className="takeaway-item">
+            <div className="takeaway-number">1</div>
+            <div className="takeaway-content">
+              <h4>Transaktionsfrequenz</h4>
+              <p>User: wenige/Tag | Börse: 100+/Tag</p>
             </div>
-          ))}
-
-          <button 
-            className="btn-primary"
-            onClick={checkAnswers}
-            disabled={Object.keys(userAnswers).length !== scenarios.length}
-          >
-            Antworten prüfen
-          </button>
-
-          {dragDropComplete && (
-            <ConceptBox title="Perfekt! 🎉" type="success">
-              <p>
-                Du hast alle Muster korrekt erkannt! Du kannst jetzt:
-              </p>
-              <ul>
-                <li>✅ Normale User-Adressen erkennen</li>
-                <li>✅ Börsen und Sammler-Adressen identifizieren</li>
-                <li>✅ Fächer-Pattern (Airdrops) verstehen</li>
-              </ul>
-              <p>
-                Im nächsten Modul lernst du, wie man <strong>mehrere Adressen zu einer 
-                Person</strong> zuordnen kann – mit einfachen Heuristiken!
-              </p>
-            </ConceptBox>
-          )}
-        </div>
-      </section>
-
-      <section className="module-section">
-        <h2>💡 Zusammenfassung</h2>
-        <div className="summary-grid">
-          <div className="summary-card">
-            <div className="summary-icon">👤</div>
-            <h4>Normale Zahlung</h4>
-            <p>Wenige Tx, unregelmäßig, variable Beträge</p>
           </div>
-          <div className="summary-card">
-            <div className="summary-icon">🏦</div>
-            <h4>Sammler (Börse)</h4>
-            <p>Viele Eingänge, große Ausgänge, Explorer-Tag</p>
+          <div className="takeaway-item">
+            <div className="takeaway-number">2</div>
+            <div className="takeaway-content">
+              <h4>Flow-Richtung</h4>
+              <p>Börse: viele rein, wenige raus</p>
+            </div>
           </div>
-          <div className="summary-card">
-            <div className="summary-icon">🌊</div>
-            <h4>Fächer-Pattern</h4>
-            <p>1 → viele, gleicher Block, oft Airdrop</p>
+          <div className="takeaway-item">
+            <div className="takeaway-number">3</div>
+            <div className="takeaway-content">
+              <h4>Aktivitätsmuster</h4>
+              <p>User: Pausen | Börse: 24/7 aktiv</p>
+            </div>
+          </div>
+          <div className="takeaway-item">
+            <div className="takeaway-number">4</div>
+            <div className="takeaway-content">
+              <h4>Airdrop-Struktur</h4>
+              <p>1 Sender → viele Empfänger, kurze Zeit</p>
+            </div>
           </div>
         </div>
       </section>
-
-      <div className="module-navigation">
-        <button className="btn-secondary">
-          ← Vorheriges Modul
-        </button>
-        <button className="btn-primary">
-          Nächstes Modul →
-        </button>
-      </div>
     </div>
   );
 };
 
-export default Module02_VerhaltensmusterEinfach;
+export default Module02_VerhaltensmuserEinfach;
