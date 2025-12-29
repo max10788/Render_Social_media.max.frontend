@@ -313,6 +313,90 @@ export const useOTCData = () => {
   }, [fetchWatchlist]);
 
   /**
+   * Fetch distributions
+   */
+  const fetchDistributions = useCallback(async () => {
+    try {
+      const data = await otcAnalysisService.getDistributions({
+        startDate: filters.fromDate,
+        endDate: filters.toDate
+      });
+      return data;
+    } catch (error) {
+      console.error('Error fetching distributions:', error);
+      return null;
+    }
+  }, [filters.fromDate, filters.toDate]);
+  
+  /**
+   * Fetch activity heatmap
+   */
+  const fetchHeatmap = useCallback(async () => {
+    try {
+      const data = await otcAnalysisService.getActivityHeatmap({
+        startDate: filters.fromDate,
+        endDate: filters.toDate
+      });
+      return data;
+    } catch (error) {
+      console.error('Error fetching heatmap:', error);
+      return null;
+    }
+  }, [filters.fromDate, filters.toDate]);
+  
+  /**
+   * Fetch transfer timeline
+   */
+  const fetchTimeline = useCallback(async () => {
+    try {
+      const data = await otcAnalysisService.getTransferTimeline({
+        startDate: filters.fromDate,
+        endDate: filters.toDate,
+        minConfidence: filters.minConfidence
+      });
+      return data;
+    } catch (error) {
+      console.error('Error fetching timeline:', error);
+      return null;
+    }
+  }, [filters.fromDate, filters.toDate, filters.minConfidence]);
+  
+  /**
+   * Discover new desks
+   */
+  const discoverDesks = useCallback(async (hoursBack = 24) => {
+    try {
+      const data = await otcAnalysisService.discoverDesks({
+        hoursBack,
+        volumeThreshold: 100000,
+        maxNewDesks: 20
+      });
+      return data;
+    } catch (error) {
+      console.error('Error discovering desks:', error);
+      throw error;
+    }
+  }, []);
+  
+  /**
+   * Trace flow between addresses
+   */
+  const traceFlow = useCallback(async (sourceAddress, targetAddress) => {
+    try {
+      const data = await otcAnalysisService.traceFlow({
+        sourceAddress,
+        targetAddress,
+        maxHops: 5,
+        minConfidence: 0.5
+      });
+      return data;
+    } catch (error) {
+      console.error('Error tracing flow:', error);
+      throw error;
+    }
+  }, []);
+  
+  /**
    * Initial data fetch
    */
   useEffect(() => {
@@ -351,7 +435,12 @@ export const useOTCData = () => {
     fetchWalletDetails,
     addToWatchlist,
     removeFromWatchlist,
-    setSelectedWallet
+    setSelectedWallet,
+    fetchDistributions,
+    fetchHeatmap,
+    fetchTimeline,
+    discoverDesks,
+    traceFlow
   };
 };
 
