@@ -1,4 +1,4 @@
-// src/learning/pages/CourseView.js - COMPLETE WITH ALL 8 MODULES
+// src/learning/pages/CourseView.js - WITH PATTERN RECOGNITION
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -23,6 +23,14 @@ import Module05_GasAndFees from '../courses/data-structures/Module05_GasAndFees'
 import Module06_SmartContracts from '../courses/data-structures/Module06_SmartContracts';
 import Module07_SecurityModule from '../courses/data-structures/Module07_Security';
 import Module08_SpecialCases from '../courses/data-structures/Module08_SpecialCases';
+
+// Pattern Recognition Modules - ALL 6 MODULES
+import Module01_ZielUndRahmen from '../courses/pattern-recognition/Module01_ZielUndRahmen';
+import Module02_VerhaltensmuserEinfach from '../courses/pattern-recognition/Module02_VerhaltensmuserEinfach';
+import Module03_WalletCluster from '../courses/pattern-recognition/Module03_WalletCluster';
+import Module04_ServiceMuster from '../courses/pattern-recognition/Module04_ServiceMuster';
+import Module05_AnalyseWorkflows from '../courses/pattern-recognition/Module05_AnalyseWorkflows';
+import Module06_Praxis from '../courses/pattern-recognition/Module06_Praxis';
 
 import './CourseView.css';
 
@@ -61,7 +69,7 @@ const CourseView = () => {
     },
     'reading-transactions': {
       title: 'Transaktionen Lesen',
-      totalModules: 8, // UPDATED TO 8!
+      totalModules: 8,
       modules: {
         1: { component: Module01_TransactionBasics, title: 'Was ist eine Transaktion?' },
         2: { component: Module02_WalletAndAddress, title: 'Wallet & Adresse verstehen' },
@@ -71,6 +79,18 @@ const CourseView = () => {
         6: { component: Module06_SmartContracts, title: 'Smart Contract Interaktionen' },
         7: { component: Module07_SecurityModule, title: 'Security & Sicherheit' },
         8: { component: Module08_SpecialCases, title: 'Special Cases & Spezialfälle' }
+      }
+    },
+    'pattern-recognition': {
+      title: 'Pattern Recognition',
+      totalModules: 6,
+      modules: {
+        1: { component: Module01_ZielUndRahmen, title: 'Ziel und Rahmen' },
+        2: { component: Module02_VerhaltensmuserEinfach, title: 'Einfache Verhaltensmuster' },
+        3: { component: Module03_WalletCluster, title: 'Wallet-Cluster erkennen' },
+        4: { component: Module04_ServiceMuster, title: 'Service-Muster' },
+        5: { component: Module05_AnalyseWorkflows, title: 'Analyse-Workflows' },
+        6: { component: Module06_Praxis, title: 'Praxis & Anwendung' }
       }
     }
   };
