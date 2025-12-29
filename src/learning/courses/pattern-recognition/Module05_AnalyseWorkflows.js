@@ -1,306 +1,368 @@
 import React, { useState } from 'react';
 import './Module.css';
 import ConceptBox from '../../components/content/ConceptBox';
-import WorkflowStepper from './components/WorkflowStepper';
+import SingleQuiz from '../../components/exercises/SingleQuiz';
 
 const Module05_AnalyseWorkflows = () => {
-  const [completedWorkflows, setCompletedWorkflows] = useState([]);
+  const [quizComplete, setQuizComplete] = useState(false);
 
-  const workflows = [
-    {
-      id: 'normal-payment',
-      title: 'Workflow 1: Normale Zahlung erkennen',
-      icon: '💸',
-      description: 'Schritt-für-Schritt: Wie erkennst du eine normale User-zu-User Zahlung?',
-      steps: [
-        {
-          title: 'Transaktion im Explorer öffnen',
-          description: 'Öffne die Transaktion in Etherscan oder einem anderen Explorer',
-          tips: ['Achte auf den Transaction Hash', 'Stelle sicher, dass die Transaktion confirmed ist'],
-          example: 'https://etherscan.io/tx/0xabc...'
-        },
-        {
-          title: 'Ziel prüfen: Adresse oder Contract?',
-          description: 'Prüfe, ob das Ziel eine normale Adresse oder ein Smart Contract ist',
-          tips: [
-            'Normale Adresse: Beginnt mit 0x, keine Code-Tab',
-            'Smart Contract: Hat einen "Contract" Tab mit Code'
-          ],
-          checkpoints: ['✓ Normale Adresse = User', '✓ Contract = DeFi/Service']
-        },
-        {
-          title: 'Value & Data prüfen',
-          description: 'Überprüfe den ETH-Betrag und die Input Data',
-          tips: [
-            'Value > 0 = ETH-Transfer',
-            'Data leer oder minimal (0x) = Einfache Zahlung',
-            'Data lang = Contract-Interaktion'
-          ],
-          example: 'Value: 1.5 ETH, Input Data: 0x (leer) → Normale Zahlung'
-        },
-        {
-          title: 'Historie der Adressen kurz prüfen',
-          description: 'Klicke auf From und To Adressen und schau dir ihre Historie an',
-          tips: [
-            'Wenige Transaktionen (< 100) = Privat-User',
-            'Viele Transaktionen (10.000+) = Service/Börse',
-            'Unregelmäßige Aktivität = Normal'
-          ],
-          checkpoints: ['✓ Beide Seiten private User?', '✓ Oder eine Seite Service?']
-        },
-        {
-          title: 'Fazit ziehen',
-          description: 'Basierend auf allen Informationen: Was ist es?',
-          conclusion: 'Normale Zahlung = Private User, geringe Tx-Anzahl, kein Contract, einfache Value-Transfer'
-        }
-      ]
-    },
-    {
-      id: 'exchange-detection',
-      title: 'Workflow 2: Börse oder Service erkennen',
-      icon: '🏦',
-      description: 'Identifiziere systematisch, ob eine Adresse ein Exchange oder Service ist',
-      steps: [
-        {
-          title: 'Adresse im Explorer öffnen',
-          description: 'Navigiere zur verdächtigen Adresse',
-          tips: ['Achte sofort auf Explorer-Tags', 'Prüfe die Transaktionsanzahl']
-        },
-        {
-          title: 'Transaktionszahl prüfen',
-          description: 'Wie viele Transaktionen hat die Adresse insgesamt?',
-          checkpoints: [
-            '< 100 Tx = Wahrscheinlich privater User',
-            '100 - 1.000 Tx = Aktiver User oder kleiner Service',
-            '> 10.000 Tx = Sehr wahrscheinlich Service/Börse'
-          ],
-          example: '45,823 Transaktionen → Sehr verdächtig für Exchange'
-        },
-        {
-          title: 'Transaktions-Richtung analysieren',
-          description: 'Scrolle durch die letzten 50-100 Transaktionen',
-          tips: [
-            'Zähle grob: Wie viele Eingänge vs. Ausgänge?',
-            '90%+ Eingänge = Sammler/Exchange-Muster',
-            'Ausgeglichenes Verhältnis = DeFi oder Normal'
-          ],
-          checkpoints: ['✓ Von wie vielen verschiedenen Adressen?', '✓ Gibt es große Konsolidierungs-Transfers?']
-        },
-        {
-          title: 'Explorer-Tags beachten',
-          description: 'Schau, ob der Explorer bereits ein Tag/Label hat',
-          tips: [
-            'Etherscan zeigt oft "Binance: Hot Wallet"',
-            '"Exchange" oder Firmennamen sind gute Indikatoren',
-            'Kein Tag bedeutet NICHT, dass es kein Service ist'
-          ],
-          example: 'Tag: "Binance: Hot Wallet 8" → Bestätigung!'
-        },
-        {
-          title: 'Ein- und Auszahlungen in Blöcken?',
-          description: 'Prüfe, ob Transaktionen in zeitlichen Clustern auftreten',
-          tips: [
-            'Viele Eingänge innerhalb von Minuten',
-            'Gefolgt von einem großen Ausgang',
-            'Typisch für Exchange-Konsolidierung'
-          ],
-          conclusion: 'Börse = Viele Tx, Explorer-Tag, 90%+ Eingänge, Konsolidierungen'
-        }
-      ]
-    },
-    {
-      id: 'token-transfer',
-      title: 'Workflow 3: Token-Transfer lesen',
-      icon: '🪙',
-      description: 'Verstehe, was bei einem Token-Transfer wirklich passiert',
-      steps: [
-        {
-          title: 'Token-Transfer Tab öffnen',
-          description: 'Gehe zum Tab "ERC-20 Token Txns" oder "Token Transfers"',
-          tips: [
-            'Dieser Tab zeigt Token-Bewegungen (nicht ETH!)',
-            'Jede Zeile ist ein Token-Transfer'
-          ],
-          example: 'Tab: "ERC-20 Token Txns (3)" → 3 Token wurden bewegt'
-        },
-        {
-          title: 'Wer sendet an wen?',
-          description: 'Identifiziere From, To und den Token',
-          checkpoints: [
-            'From = Wer gibt die Token ab',
-            'To = Wer empfängt die Token',
-            'Token = Welcher Token (USDT, DAI, UNI, etc.)'
-          ],
-          example: 'From: 0xAlice... → To: 0xBob... | Token: 1000 USDT'
-        },
-        {
-          title: 'Menge und Wert prüfen',
-          description: 'Wie viele Token wurden transferiert?',
-          tips: [
-            'Achte auf Dezimalstellen (z.B. USDT hat 6)',
-            'Prüfe den USD-Wert, falls angezeigt',
-            'Große Mengen = potenziell hohes Risiko'
-          ],
-          example: '1,000,000 USDT = $1,000,000'
-        },
-        {
-          title: 'Gas-Gebühr verstehen',
-          description: 'Wer hat die Gas-Gebühr bezahlt?',
-          tips: [
-            'Gas wird IMMER in ETH bezahlt',
-            'Zahler = Wer die Transaktion initiiert hat',
-            'Oft = From-Adresse, manchmal aber auch To (z.B. bei Relay-Service)'
-          ],
-          example: 'Gas: 0.003 ETH bezahlt von Alice'
-        },
-        {
-          title: 'Risikofrage stellen',
-          description: 'War das eine gewollte Aktion?',
-          checkpoints: [
-            '✓ Wollte ich wirklich DIESEN Token bewegen?',
-            '✓ Wollte ich an DIESE Adresse senden?',
-            '✓ War es die richtige MENGE?',
-            '⚠️ Bei Verdacht: Token Approval prüfen!'
-          ],
-          conclusion: 'Token-Transfer = Separater Tab, zeigt Token (nicht ETH), Gas immer in ETH'
-        }
-      ]
-    }
-  ];
-
-  const handleWorkflowComplete = (workflowId) => {
-    if (!completedWorkflows.includes(workflowId)) {
-      setCompletedWorkflows([...completedWorkflows, workflowId]);
-    }
+  const workflowQuiz = {
+    question: "Du analysierst eine neue Wallet. Was ist der BESTE erste Schritt?",
+    options: [
+      "Sofort alle Transaktionen im Detail prüfen",
+      "Einen High-Level Überblick verschaffen: Alter, Wert, Aktivität, häufigste Interaktionen",
+      "Nach Cluster-Verbindungen suchen",
+      "Die neueste Transaktion analysieren"
+    ],
+    correctIndex: 1,
+    explanation: "Richtig! Start always with the BIG PICTURE. Verschaffe dir einen High-Level Überblick, bevor du in Details gehst. Das spart Zeit und gibt Kontext."
   };
-
-  const allComplete = completedWorkflows.length === workflows.length;
 
   return (
     <div className="module-container">
-      <header className="module-header">
-        <span className="module-number">Modul 5</span>
-        <h1>Mini-Analyse-Workflows</h1>
+      <header className="module-header-section">
+        <div className="module-icon-large">🔬</div>
+        <h1 className="module-title">Analyse-Workflows</h1>
         <p className="module-subtitle">
-          Schritt-für-Schritt Anleitungen für häufige Analyse-Szenarien
+          Systematisch vorgehen: Von der ersten Adresse bis zur vollständigen Analyse
         </p>
       </header>
 
-      <section className="module-section">
-        <ConceptBox title="Lernziel" type="info">
+      <section className="content-section">
+        <span className="section-label">Methodik</span>
+        <h2>🎯 Der systematische Ansatz</h2>
+
+        <ConceptBox title="Warum ein Workflow?" type="info">
           <p>
-            Du lernst <strong>drei praktische Workflows</strong>, die du sofort anwenden kannst:
+            Ohne System analysierst du chaotisch: Du springst zwischen Transaktionen hin und her, 
+            verlierst den Überblick, und übersiehst wichtige Muster.
+          </p>
+          <p style={{ marginTop: '1rem' }}>
+            <strong>Mit einem klaren Workflow:</strong>
           </p>
           <ul>
-            <li>💸 Normale Zahlung systematisch prüfen</li>
-            <li>🏦 Börsen und Services identifizieren</li>
-            <li>🪙 Token-Transfers richtig lesen</li>
-          </ul>
-        </ConceptBox>
-
-        <div className="text-content">
-          <p>
-            Ein <strong>Workflow</strong> ist eine Checkliste, die du Schritt für Schritt 
-            durchgehst. Jeder Schritt baut auf dem vorherigen auf und führt dich zum Ergebnis.
-          </p>
-        </div>
-
-        <ConceptBox title="💡 Wie du die Workflows nutzt" type="practice">
-          <ul>
-            <li>📋 Folge jedem Schritt in der Reihenfolge</li>
-            <li>✓ Hake Checkpoints ab</li>
-            <li>🎯 Ziehe am Ende ein Fazit</li>
-            <li>🔁 Wiederhole bei Unsicherheit</li>
+            <li>✅ Du gehst strukturiert vor</li>
+            <li>✅ Du übersiehst nichts Wichtiges</li>
+            <li>✅ Du sparst Zeit</li>
+            <li>✅ Du kannst deine Findings dokumentieren</li>
           </ul>
         </ConceptBox>
       </section>
 
-      <section className="module-section">
-        <h2>📚 Die drei Workflows</h2>
-        
-        <div className="workflows-overview">
-          {workflows.map(workflow => (
-            <div key={workflow.id} className="workflow-overview-card">
-              <div className="workflow-icon">{workflow.icon}</div>
-              <div className="workflow-info">
-                <h3>{workflow.title}</h3>
-                <p>{workflow.description}</p>
-              </div>
-              {completedWorkflows.includes(workflow.id) && (
-                <div className="workflow-completed">✓</div>
-              )}
+      <section className="content-section">
+        <span className="section-label">5-Schritte-Prozess</span>
+        <h2>📋 Der Standard-Analyse-Workflow</h2>
+
+        <div className="supply-chain-steps">
+          <div className="sc-step">
+            <div className="sc-number">1</div>
+            <div className="sc-content">
+              <h5>High-Level Overview</h5>
+              <p style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>
+                Wallet Age, Balance, TX Count, Active Days
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {workflows.map((workflow, index) => (
-        <section key={workflow.id} className="module-section">
-          <div className="workflow-header">
-            <span className="workflow-number">Workflow {index + 1}</span>
-            <h2>{workflow.icon} {workflow.title.replace(/^Workflow \d+: /, '')}</h2>
           </div>
 
-          <WorkflowStepper
-            workflow={workflow}
-            onComplete={() => handleWorkflowComplete(workflow.id)}
-          />
-        </section>
-      ))}
+          <div className="sc-arrow">→</div>
 
-      {allComplete && (
-        <section className="module-section">
-          <ConceptBox title="Alle Workflows abgeschlossen! 🎉" type="success">
+          <div className="sc-step">
+            <div className="sc-number">2</div>
+            <div className="sc-content">
+              <h5>Activity Pattern</h5>
+              <p style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>
+                Frequency, Timing, Value Distribution
+              </p>
+            </div>
+          </div>
+
+          <div className="sc-arrow">→</div>
+
+          <div className="sc-step">
+            <div className="sc-number">3</div>
+            <div className="sc-content">
+              <h5>Interaction Analysis</h5>
+              <p style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>
+                Welche Contracts? Welche Tokens?
+              </p>
+            </div>
+          </div>
+
+          <div className="sc-arrow">→</div>
+
+          <div className="sc-step">
+            <div className="sc-number">4</div>
+            <div className="sc-content">
+              <h5>Funding & Outflows</h5>
+              <p style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>
+                Woher kommt das Geld? Wohin geht es?
+              </p>
+            </div>
+          </div>
+
+          <div className="sc-arrow">→</div>
+
+          <div className="sc-step">
+            <div className="sc-number">5</div>
+            <div className="sc-content">
+              <h5>Cluster Detection</h5>
+              <p style={{ color: '#cbd5e1', fontSize: '0.9rem' }}>
+                Verbindungen zu anderen Wallets?
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '2rem' }}>
+          <ConceptBox title="⚡ Quick-Win Tipp" type="practice">
             <p>
-              Du hast alle drei Analyse-Workflows gemeistert:
-            </p>
-            <ul>
-              <li>✅ Normale Zahlungen erkennen und prüfen</li>
-              <li>✅ Börsen und Services systematisch identifizieren</li>
-              <li>✅ Token-Transfers richtig lesen und bewerten</li>
-            </ul>
-            <p>
-              Im nächsten Modul wendest du alles in <strong>praktischen Szenarien</strong> an 
-              und erhältst Tipps für fortgeschrittene Analysen!
+              Für 80% der Fälle reichen die ersten 3 Schritte! 
+              Cluster-Analyse brauchst du nur bei suspected Sybils oder Fraud-Cases.
             </p>
           </ConceptBox>
-        </section>
-      )}
+        </div>
+      </section>
 
-      <section className="module-section">
-        <h2>💡 Praxis-Tipps</h2>
-        <div className="tips-grid">
-          <div className="tip-card">
-            <div className="tip-icon">📝</div>
-            <h4>Notizen machen</h4>
-            <p>Schreibe wichtige Findings auf – Adressen, Patterns, Verdachtsmomente</p>
+      <section className="content-section">
+        <span className="section-label">Schritt 1</span>
+        <h2>📊 High-Level Overview</h2>
+
+        <div className="security-layers">
+          <div className="security-layer">
+            <div className="layer-number">🔍</div>
+            <div className="layer-content">
+              <div className="layer-header">
+                <h4>Was du checken solltest:</h4>
+              </div>
+              <ul style={{ color: '#cbd5e1' }}>
+                <li><strong>Wallet Age:</strong> Wann first TX? (z.B. 2 Jahre alt)</li>
+                <li><strong>Current Balance:</strong> Wie viel ETH/Tokens? (z.B. 5.2 ETH)</li>
+                <li><strong>Total TX Count:</strong> Wie viele Transaktionen? (z.B. 847 TXs)</li>
+                <li><strong>Active Days:</strong> An wie vielen Tagen aktiv? (z.B. 156 Tage)</li>
+                <li><strong>Total Volume:</strong> Wie viel $ moved? (z.B. $125k)</li>
+              </ul>
+              <div className="layer-protection">
+                <strong>💡 Was sagt dir das?</strong>
+                <p>
+                  Alter + Volume + TX Count → Ist das ein erfahrener User, ein neuer Wallet, 
+                  oder ein Bot?
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="tip-card">
-            <div className="tip-icon">🔗</div>
-            <h4>Links speichern</h4>
-            <p>Speichere Explorer-Links zu interessanten Transaktionen als Referenz</p>
+        </div>
+
+        <div className="comparison-container" style={{ marginTop: '1.5rem' }}>
+          <div className="comparison-item">
+            <div className="comparison-header">
+              <span className="comparison-icon">🆕</span>
+              <h3>Neue Wallet</h3>
+            </div>
+            <ul className="comparison-list">
+              <li>Age: &lt; 30 Tage</li>
+              <li>TXs: &lt; 20</li>
+              <li>Mögliche Bedeutung: Airdrop Farmer, neuer User, oder Sybil</li>
+            </ul>
           </div>
-          <div className="tip-card">
-            <div className="tip-icon">⏱️</div>
-            <h4>Zeit nehmen</h4>
-            <p>Gute Analyse braucht Zeit – überstürze nichts</p>
-          </div>
-          <div className="tip-card">
-            <div className="tip-icon">🔄</div>
-            <h4>Mehrfach prüfen</h4>
-            <p>Bei wichtigen Entscheidungen: Workflows mehrmals durchgehen</p>
+
+          <div className="comparison-item solution">
+            <div className="comparison-header">
+              <span className="comparison-icon">⭐</span>
+              <h3>Etablierte Wallet</h3>
+            </div>
+            <ul className="comparison-list">
+              <li>Age: &gt; 1 Jahr</li>
+              <li>TXs: 500+</li>
+              <li>Mögliche Bedeutung: Echter User, Trader, oder Service</li>
+            </ul>
           </div>
         </div>
       </section>
 
-      <div className="module-navigation">
-        <button className="btn-secondary">
-          ← Vorheriges Modul
-        </button>
-        <button className="btn-primary">
-          Nächstes Modul →
-        </button>
-      </div>
+      <section className="content-section">
+        <span className="section-label">Schritt 2-3</span>
+        <h2>🎯 Activity & Interactions</h2>
+
+        <div className="nft-comparison">
+          <div className="nft-col fungible">
+            <h5>Activity Pattern Check</h5>
+            <p style={{ color: '#cbd5e1', marginBottom: '1rem' }}>
+              <strong>Fragen:</strong>
+            </p>
+            <ul style={{ textAlign: 'left', color: '#cbd5e1', fontSize: '0.9rem' }}>
+              <li>Wie oft aktiv? (täglich / wöchentlich / monatlich)</li>
+              <li>Zu welchen Zeiten? (Bot = 24/7, Human = Tageszeiten)</li>
+              <li>Transaktions-Value? (kleine Beträge / große Beträge)</li>
+              <li>Gas-Optimierung? (Batching? EIP-1559?)</li>
+            </ul>
+          </div>
+
+          <div className="nft-col non-fungible">
+            <h5>Interaction Analysis</h5>
+            <p style={{ color: '#cbd5e1', marginBottom: '1rem' }}>
+              <strong>Fragen:</strong>
+            </p>
+            <ul style={{ textAlign: 'left', color: '#cbd5e1', fontSize: '0.9rem' }}>
+              <li>Welche Contracts? (DEX / Lending / NFT / Bridge)</li>
+              <li>Welche Tokens? (ETH / Stablecoins / Memecoins)</li>
+              <li>Diversität? (viele verschiedene / immer dieselben)</li>
+              <li>Erfolgsrate? (Failed TXs / Reverts)</li>
+            </ul>
+          </div>
+        </div>
+
+        <ConceptBox title="🎨 Beispiel: DeFi Power User" type="success">
+          <p><strong>Pattern erkannt:</strong></p>
+          <ul>
+            <li>✅ 1000+ Transaktionen über 18 Monate</li>
+            <li>✅ Interagiert mit: Uniswap, Aave, Curve, Yearn</li>
+            <li>✅ Hauptsächlich Stablecoins (USDC, DAI)</li>
+            <li>✅ Yield Farming Strategie erkennbar</li>
+          </ul>
+          <p style={{ marginTop: '1rem' }}>
+            → <strong>Interpretation:</strong> Erfahrener DeFi User, wahrscheinlich Yield Optimizer
+          </p>
+        </ConceptBox>
+      </section>
+
+      <section className="content-section">
+        <span className="section-label">Schritt 4-5</span>
+        <h2>💰 Funding & Cluster Analysis</h2>
+
+        <div className="story-card">
+          <p className="story-text">
+            <strong>Funding Source Tracking:</strong> Woher kam das initiale Kapital?
+          </p>
+          <ul style={{ color: '#cbd5e1' }}>
+            <li>Von einer Börse? → Wahrscheinlich legitimer User</li>
+            <li>Von einem bekannten Exploiter? → 🚨 Red Flag</li>
+            <li>Von einer Parent-Wallet die 100 andere Wallets funded? → Sybil Cluster</li>
+            <li>Direkt gemined? → Sehr altes Wallet (Pre-2016)</li>
+          </ul>
+          <p className="story-highlight">
+            💡 Der Funding Trail sagt oft mehr als 1000 Transaktionen!
+          </p>
+        </div>
+
+        <div className="scenario-cards">
+          <div className="scenario-card">
+            <div className="scenario-icon">✅</div>
+            <h4>Clean Funding</h4>
+            <p style={{ color: '#cbd5e1' }}>
+              Funded von Coinbase/Binance → Normaler User
+            </p>
+          </div>
+
+          <div className="scenario-card">
+            <div className="scenario-icon">⚠️</div>
+            <h4>Suspicious Funding</h4>
+            <p style={{ color: '#cbd5e1' }}>
+              Funded von Tornado Cash → Potential Mixer Usage
+            </p>
+          </div>
+
+          <div className="scenario-card">
+            <div className="scenario-icon">🚨</div>
+            <h4>Red Flag Funding</h4>
+            <p style={{ color: '#cbd5e1' }}>
+              Funded von bekanntem Exploiter → High Risk
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="content-section">
+        <span className="section-label">Tools</span>
+        <h2>🛠️ Welche Tools nutzt du wo?</h2>
+
+        <div className="takeaways-grid">
+          <div className="takeaway-item">
+            <div className="takeaway-number">📊</div>
+            <div className="takeaway-content">
+              <h4>Etherscan</h4>
+              <p>High-Level Overview, TX History, Token Holdings</p>
+            </div>
+          </div>
+          <div className="takeaway-item">
+            <div className="takeaway-number">🔍</div>
+            <div className="takeaway-content">
+              <h4>Arkham</h4>
+              <p>Entity Labels, Flow Visualization, Connections</p>
+            </div>
+          </div>
+          <div className="takeaway-item">
+            <div className="takeaway-number">📈</div>
+            <div className="takeaway-content">
+              <h4>Nansen</h4>
+              <p>Wallet Labels (Smart Money), Token God Mode</p>
+            </div>
+          </div>
+          <div className="takeaway-item">
+            <div className="takeaway-number">🎯</div>
+            <div className="takeaway-content">
+              <h4>Dune Analytics</h4>
+              <p>Custom Queries, Aggregate Analysis, Dashboards</p>
+            </div>
+          </div>
+          <div className="takeaway-item">
+            <div className="takeaway-number">🌐</div>
+            <div className="takeaway-content">
+              <h4>Breadcrumbs</h4>
+              <p>Advanced Clustering, Investigations, Reports</p>
+            </div>
+          </div>
+          <div className="takeaway-item">
+            <div className="takeaway-number">🔗</div>
+            <div className="takeaway-content">
+              <h4>Eigene Tools</h4>
+              <p>Python Scripts, APIs, Custom Dashboards</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="content-section">
+        <span className="section-label">Quiz</span>
+        <h2>🧩 Workflow-Verständnis Test</h2>
+
+        <SingleQuiz
+          question={workflowQuiz.question}
+          options={workflowQuiz.options}
+          correctIndex={workflowQuiz.correctIndex}
+          explanation={workflowQuiz.explanation}
+          onComplete={() => setQuizComplete(true)}
+        />
+
+        {quizComplete && (
+          <ConceptBox title="Perfekt! 🎉" type="success">
+            <p>
+              Du verstehst jetzt, wie man systematisch vorgeht! 
+              Im letzten Modul wenden wir alles an: <strong>Praxis mit echten Beispielen!</strong>
+            </p>
+          </ConceptBox>
+        )}
+      </section>
+
+      <section className="content-section">
+        <span className="section-label">Zusammenfassung</span>
+        <h2>📝 Der 5-Schritte-Workflow</h2>
+        
+        <div className="summary-card">
+          <ul className="summary-list">
+            <li><strong>Step 1:</strong> High-Level Overview (Age, Balance, TX Count)</li>
+            <li><strong>Step 2:</strong> Activity Pattern (Frequency, Timing, Value)</li>
+            <li><strong>Step 3:</strong> Interactions (Contracts, Tokens, Diversity)</li>
+            <li><strong>Step 4:</strong> Funding Source (Woher kam das Geld?)</li>
+            <li><strong>Step 5:</strong> Cluster Detection (Verbindungen zu anderen Wallets?)</li>
+          </ul>
+          <div className="next-module-hint">
+            <p>
+              <strong>Pro-Tipp:</strong> Für 80% der Fälle reichen Steps 1-3. 
+              Steps 4-5 nur bei Verdachtsfällen oder Research-Projekten!
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
