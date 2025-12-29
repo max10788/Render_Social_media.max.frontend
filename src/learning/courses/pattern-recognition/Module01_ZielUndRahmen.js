@@ -20,15 +20,16 @@ const Module01_ZielUndRahmen = () => {
 
   return (
     <div className="module-container">
-      <header className="module-header">
-        <span className="module-number">Modul 1</span>
-        <h1>Ziel und Rahmen für Pattern Recognition</h1>
+      <header className="module-header-section">
+        <div className="module-icon-large">🔍</div>
+        <h1 className="module-title">Ziel und Rahmen für Pattern Recognition</h1>
         <p className="module-subtitle">
           Lerne, wie sich viele Transaktionen zu wiederkehrenden Mustern formen
         </p>
       </header>
 
-      <section className="module-section">
+      <section className="content-section">
+        <span className="section-label">Einführung</span>
         <h2>🎯 Was lernst du in diesem Kurs?</h2>
         <ConceptBox title="Dein Lernziel" type="info">
           <p>
@@ -55,49 +56,59 @@ const Module01_ZielUndRahmen = () => {
         </div>
       </section>
 
-      <section className="module-section">
+      <section className="content-section">
+        <span className="section-label">Konzept</span>
         <h2>📚 Von Alltagsmustern zu On-Chain-Mustern</h2>
         
-        <div className="comparison-grid">
-          <div className="comparison-card">
-            <div className="comparison-icon">🏦</div>
-            <h3>Im echten Leben</h3>
-            <ul>
+        <div className="comparison-container">
+          <div className="comparison-item">
+            <div className="comparison-header">
+              <span className="comparison-icon">🏦</span>
+              <h3>Im echten Leben</h3>
+            </div>
+            <ul className="comparison-list">
               <li>Stromrechnung: regelmäßig, ähnlicher Betrag</li>
               <li>Supermarkt: viele kleine Zahlungen</li>
               <li>Gehalt: einmal im Monat, fester Betrag</li>
             </ul>
-            <p className="comparison-note">Diese Muster erkennst du sofort!</p>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '1rem', fontStyle: 'italic' }}>
+              Diese Muster erkennst du sofort!
+            </p>
           </div>
 
-          <div className="comparison-arrow">→</div>
-
-          <div className="comparison-card">
-            <div className="comparison-icon">⛓️</div>
-            <h3>Auf der Blockchain</h3>
-            <ul>
+          <div className="comparison-item solution">
+            <div className="comparison-header">
+              <span className="comparison-icon">⛓️</span>
+              <h3>Auf der Blockchain</h3>
+            </div>
+            <ul className="comparison-list">
               <li>Börse: viele Einzahlungen, große Auszahlungen</li>
               <li>Airdrop: eine Adresse → viele neue Adressen</li>
               <li>DeFi: viele interne Transaktionen</li>
             </ul>
-            <p className="comparison-note">Diese Muster lernst du hier!</p>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '1rem', fontStyle: 'italic' }}>
+              Diese Muster lernst du hier!
+            </p>
           </div>
         </div>
       </section>
 
-      <section className="module-section">
+      <section className="content-section">
+        <span className="section-label">Quiz</span>
         <h2>🧩 Warm-up: Erkenne das Muster!</h2>
         <ConceptBox title="Aufgabe" type="practice">
           <p>Teste dein Mustergefühl mit einem Alltagsbeispiel:</p>
         </ConceptBox>
 
-        <MultipleChoice
-          question={introQuiz.question}
-          options={introQuiz.options}
-          correctIndex={introQuiz.correctIndex}
-          explanation={introQuiz.explanation}
-          onComplete={() => setQuizComplete(true)}
-        />
+        <div className="quiz-section">
+          <MultipleChoice
+            question={introQuiz.question}
+            options={introQuiz.options}
+            correctIndex={introQuiz.correctIndex}
+            explanation={introQuiz.explanation}
+            onComplete={() => setQuizComplete(true)}
+          />
+        </div>
 
         {quizComplete && (
           <ConceptBox title="Perfekt! 🎉" type="success">
@@ -109,40 +120,47 @@ const Module01_ZielUndRahmen = () => {
         )}
       </section>
 
-      <section className="module-section">
+      <section className="content-section">
+        <span className="section-label">Vorschau</span>
         <h2>📖 Was kommt als Nächstes?</h2>
-        <div className="preview-grid">
-          <div className="preview-card">
-            <div className="preview-number">2</div>
-            <h4>Einfache Verhaltensmuster</h4>
-            <p>Normale Zahlung, Börse, Airdrop</p>
+        <div className="takeaways-grid">
+          <div className="takeaway-item">
+            <div className="takeaway-number">2</div>
+            <div className="takeaway-content">
+              <h4>Einfache Verhaltensmuster</h4>
+              <p>Normale Zahlung, Börse, Airdrop</p>
+            </div>
           </div>
-          <div className="preview-card">
-            <div className="preview-number">3</div>
-            <h4>Wallet-Cluster</h4>
-            <p>Mehrere Adressen, eine Person?</p>
+          <div className="takeaway-item">
+            <div className="takeaway-number">3</div>
+            <div className="takeaway-content">
+              <h4>Wallet-Cluster</h4>
+              <p>Mehrere Adressen, eine Person?</p>
+            </div>
           </div>
-          <div className="preview-card">
-            <div className="preview-number">4</div>
-            <h4>Service-Muster</h4>
-            <p>Börsen, DeFi, NFTs erkennen</p>
+          <div className="takeaway-item">
+            <div className="takeaway-number">4</div>
+            <div className="takeaway-content">
+              <h4>Service-Muster</h4>
+              <p>Börsen, DeFi, NFTs erkennen</p>
+            </div>
           </div>
-          <div className="preview-card">
-            <div className="preview-number">5</div>
-            <h4>Analyse-Workflows</h4>
-            <p>Schritt für Schritt analysieren</p>
+          <div className="takeaway-item">
+            <div className="takeaway-number">5</div>
+            <div className="takeaway-content">
+              <h4>Analyse-Workflows</h4>
+              <p>Schritt für Schritt analysieren</p>
+            </div>
+          </div>
+          <div className="takeaway-item">
+            <div className="takeaway-number">6</div>
+            <div className="takeaway-content">
+              <h4>Praxis</h4>
+              <p>Echte Beispiele analysieren</p>
+            </div>
           </div>
         </div>
       </section>
-
-      <div className="module-navigation">
-        <button className="btn-secondary" disabled>
-          ← Vorheriges Modul
-        </button>
-        <button className="btn-primary">
-          Nächstes Modul →
-        </button>
-      </div>
     </div>
   );
 };
