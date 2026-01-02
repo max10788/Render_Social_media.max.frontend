@@ -142,11 +142,11 @@ const FilterPanel = ({
               className="filter-slider"
               style={{
                 background: `linear-gradient(to right, #4ECDC4 0%, #4ECDC4 ${
-                  ((Math.log(localFilters.minTransferSize) - Math.log(1000)) / 
-                   (Math.log(100000000) - Math.log(1000))) * 100
+                  ((Math.log(localFilters.minTransferSize) - Math.log(1000)) * 100) / 
+                   (Math.log(100000000) - Math.log(1000))
                 }%, #2a2a2a ${
-                  ((Math.log(localFilters.minTransferSize) - Math.log(1000)) / 
-                   (Math.log(100000000) - Math.log(1000))) * 100
+                  ((Math.log(localFilters.minTransferSize) - Math.log(1000)) * 100) / 
+                   (Math.log(100000000) - Math.log(1000))
                 }%, #2a2a2a 100%)`
               }}
             />
