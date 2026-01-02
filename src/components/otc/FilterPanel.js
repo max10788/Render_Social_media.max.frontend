@@ -5,7 +5,7 @@ const FilterPanel = ({
   filters, 
   onFilterChange, 
   onApply,
-  discoveredDesksCount = 0 // ✅ NEW
+  discoveredDesksCount = 0
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [localFilters, setLocalFilters] = useState(filters);
@@ -62,7 +62,7 @@ const FilterPanel = ({
       entityTypes: ['otc_desk', 'institutional', 'exchange', 'unknown'],
       tokens: ['ETH', 'USDT', 'USDC'],
       maxNodes: 500,
-      deskCategory: 'all' // ✅ NEW
+      deskCategory: 'all'
     };
     setLocalFilters(defaultFilters);
     onFilterChange(defaultFilters);
@@ -73,6 +73,16 @@ const FilterPanel = ({
     if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
     return `$${value}`;
   };
+
+  // ✅ FIXED: Calculate slider percentage BEFORE using it in style
+  const getSliderPercentage = (value) => {
+    const logValue = Math.log(value);
+    const logMin = Math.log(1000);
+    const logMax = Math.log(100000000);
+    return ((logValue - logMin) / (logMax - logMin)) * 100;
+  };
+
+  const sliderPercentage = getSliderPercentage(localFilters.minTransferSize);
 
   return (
     <div className={`filter-panel ${isExpanded ? 'expanded' : 'collapsed'}`}>
@@ -127,7 +137,7 @@ const FilterPanel = ({
             </div>
           </div>
 
-          {/* Transfer Size */}
+          {/* Transfer Size - ✅ FIXED: No inline calc with division */}
           <div className="filter-section">
             <label className="filter-label">
               Min Transfer Size: <span className="filter-value">{formatCurrency(localFilters.minTransferSize)}</span>
@@ -141,13 +151,7 @@ const FilterPanel = ({
               onChange={(e) => handleLocalChange('minTransferSize', parseInt(e.target.value))}
               className="filter-slider"
               style={{
-                background: `linear-gradient(to right, #4ECDC4 0%, #4ECDC4 ${
-                  ((Math.log(localFilters.minTransferSize) - Math.log(1000)) * 100) / 
-                   (Math.log(100000000) - Math.log(1000))
-                }%, #2a2a2a ${
-                  ((Math.log(localFilters.minTransferSize) - Math.log(1000)) * 100) / 
-                   (Math.log(100000000) - Math.log(1000))
-                }%, #2a2a2a 100%)`
+                background: `linear-gradient(to right, #4ECDC4 0%, #4ECDC4 ${sliderPercentage}%, #2a2a2a ${sliderPercentage}%, #2a2a2a 100%)`
               }}
             />
             <div className="slider-labels">
@@ -203,7 +207,7 @@ const FilterPanel = ({
             </div>
           </div>
 
-          {/* ✅ NEW: Desk Category Filter */}
+          {/* Desk Category Filter */}
           <div className="filter-section">
             <label className="filter-label">Desk Categories</label>
             <div className="filter-radio-group">
