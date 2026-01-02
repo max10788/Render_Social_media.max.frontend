@@ -6,7 +6,13 @@ import './NetworkGraph.css';
 // Register layout algorithm
 cytoscape.use(fcose);
 
-const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
+const NetworkGraph = ({ 
+  data, 
+  onNodeClick, 
+  onNodeHover, 
+  selectedNode,
+  discoveredDesks = [] // ✅ NEW
+}) => {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
@@ -18,7 +24,15 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
     unknown: '#95A5A6',
     market_maker: '#FF6B6B',
     prop_trading: '#FF6B6B',
-    cex: '#FFE66D'
+    cex: '#FFE66D',
+    discovered: '#A78BFA' // ✅ NEW: Purple for discovered
+  };
+
+  // ✅ NEW: Helper function to check if node is discovered
+  const isDiscoveredDesk = (address) => {
+    return discoveredDesks.some(desk => 
+      desk.addresses && desk.addresses.includes(address)
+    );
   };
 
   useEffect(() => {
@@ -40,27 +54,79 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
         {
           selector: 'node',
           style: {
-            'background-color': (ele) => entityColors[ele.data('entity_type')] || '#95A5A6',
+            'background-color': (ele) => {
+              const address = ele.data('address');
+              const entityType = ele.data('entity_type');
+              
+              // ✅ NEW: Check if discovered desk
+              if (isDiscoveredDesk(address)) {
+                return entityColors.discovered;
+              }
+              
+              return entityColors[entityType] || '#95A5A6';
+            },
             'width': (ele) => {
               const volume = ele.data('total_volume_usd') || 0;
-              return Math.max(20, Math.log(volume + 1) * 8);
+              const baseSize = Math.max(20, Math.log(volume + 1) * 8);
+              
+              // ✅ NEW: Make discovered desks slightly larger
+              const address = ele.data('address');
+              return isDiscoveredDesk(address) ? baseSize * 1.2 : baseSize;
             },
             'height': (ele) => {
               const volume = ele.data('total_volume_usd') || 0;
-              return Math.max(20, Math.log(volume + 1) * 8);
+              const baseSize = Math.max(20, Math.log(volume + 1) * 8);
+              
+              // ✅ NEW: Make discovered desks slightly larger
+              const address = ele.data('address');
+              return isDiscoveredDesk(address) ? baseSize * 1.2 : baseSize;
             },
-            'label': (ele) => ele.data('label') || truncateAddress(ele.data('address')),
+            'label': (ele) => {
+              const address = ele.data('address');
+              let label = ele.data('label') || truncateAddress(address);
+              
+              // ✅ NEW: Add 🔍 emoji for discovered desks
+              if (isDiscoveredDesk(address)) {
+                label = '🔍 ' + label;
+              }
+              
+              return label;
+            },
             'opacity': (ele) => {
               const confidence = ele.data('confidence_score') || 0;
+              const address = ele.data('address');
+              
+              // ✅ NEW: Discovered desks slightly more prominent
+              if (isDiscoveredDesk(address)) {
+                return Math.max(0.8, confidence / 100);
+              }
+              
               return Math.max(0.5, confidence / 100);
             },
-            'border-width': 2,
+            'border-width': (ele) => {
+              const address = ele.data('address');
+              
+              // ✅ NEW: Thicker border for discovered desks
+              return isDiscoveredDesk(address) ? 3 : 2;
+            },
             'border-color': (ele) => {
+              const address = ele.data('address');
               const isActive = ele.data('is_active');
               const entityType = ele.data('entity_type');
+              
+              // ✅ NEW: Special border for discovered desks
+              if (isDiscoveredDesk(address)) {
+                return isActive ? '#fff' : entityColors.discovered;
+              }
+              
               return isActive ? '#fff' : (entityColors[entityType] || '#95A5A6');
             },
-            'border-style': 'solid',
+            'border-style': (ele) => {
+              const address = ele.data('address');
+              
+              // ✅ NEW: Dashed border for discovered desks
+              return isDiscoveredDesk(address) ? 'dashed' : 'solid';
+            },
             'color': '#ffffff',
             'text-valign': 'center',
             'text-halign': 'center',
@@ -267,7 +333,7 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
         }
       }
     };
-  }, [data, onNodeClick, onNodeHover]);
+  }, [data, onNodeClick, onNodeHover, discoveredDesks]); // ✅ Added discoveredDesks to deps
 
   // Update selection
   useEffect(() => {
@@ -395,15 +461,29 @@ const NetworkGraph = ({ data, onNodeClick, onNodeHover, selectedNode }) => {
         </div>
       )}
 
+      {/* ✅ UPDATED LEGEND */}
       <div className="graph-legend">
         <h4>Entity Types</h4>
         {Object.entries(entityColors).filter(([type]) => 
-          ['otc_desk', 'institutional', 'exchange', 'unknown'].includes(type)
+          ['otc_desk', 'institutional', 'exchange', 'unknown', 'discovered'].includes(type) // ✅ Added 'discovered'
         ).map(([type, color]) => (
           <div key={type} className="legend-item">
-            <span className="legend-color" style={{ background: color }}></span>
+            <span 
+              className="legend-color" 
+              style={{ 
+                background: color,
+                border: type === 'discovered' ? '2px dashed #A78BFA' : 'none' // ✅ Dashed for discovered
+              }}
+            ></span>
             <span className="legend-label">
-              {type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+              {type === 'discovered' 
+                ? '🔍 Discovered Desk' 
+                : type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+              }
+              {/* ✅ NEW: Show count for discovered */}
+              {type === 'discovered' && discoveredDesks.length > 0 && (
+                <span className="legend-count"> ({discoveredDesks.length})</span>
+              )}
             </span>
           </div>
         ))}
