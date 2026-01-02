@@ -240,3 +240,109 @@
     box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
   }
 }
+
+/* ============================================================================
+   ADD THESE STYLES TO NetworkGraph.css
+   For Discovered Desk Visualization
+   ============================================================================ */
+
+/* Legend enhancements */
+.legend-count {
+  font-size: 11px;
+  color: #888;
+  margin-left: 4px;
+  font-weight: normal;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Animation for discovered nodes (optional enhancement) */
+@keyframes discover-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(167, 139, 250, 0);
+  }
+}
+
+/* If you have tooltips, enhance them for discovered desks */
+.graph-tooltip.discovered {
+  border-color: #A78BFA;
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(167, 139, 250, 0.2));
+}
+
+.graph-tooltip.discovered::before {
+  content: '🔍 Discovered';
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #A78BFA;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+/* Enhanced legend item styling */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.legend-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Highlight discovered legend item */
+.legend-item:has(.legend-count) {
+  background: rgba(167, 139, 250, 0.05);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.legend-item:has(.legend-count):hover {
+  background: rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.4);
+}
+
+/* Context menu enhancement for discovered nodes */
+.context-menu.discovered {
+  border-left: 3px solid #A78BFA;
+}
+
+.context-menu.discovered::before {
+  content: '🔍 Discovered Desk';
+  display: block;
+  padding: 8px 12px;
+  background: rgba(167, 139, 250, 0.1);
+  border-bottom: 1px solid rgba(167, 139, 250, 0.2);
+  margin: -8px -12px 8px -12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #A78BFA;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .legend-count {
+    font-size: 10px;
+  }
+  
+  .legend-item:has(.legend-count) {
+    padding: 6px 8px;
+  }
+}
