@@ -28,6 +28,32 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   useEffect(() => {
     if (!data || !dimensions.width || !svgRef.current) return;
 
+    // ✅ CRITICAL: Validate data structure
+    if (!data.nodes || data.nodes.length === 0) {
+      console.warn('⚠️ Sankey: No nodes in data');
+      return;
+    }
+
+    // ✅ CRITICAL: Ensure all nodes have numeric values
+    const validNodes = data.nodes
+      .filter(node => node && typeof node.value === 'number' && node.value > 0)
+      .map((node, index) => ({
+        ...node,
+        index,
+        name: node.name || `Node ${index}`
+      }));
+
+    if (validNodes.length === 0) {
+      console.warn('⚠️ Sankey: No valid nodes with numeric values');
+      return;
+    }
+
+    console.log('🎨 Rendering Sankey with nodes:', {
+      total: validNodes.length,
+      sample: validNodes[0],
+      dimensions
+    });
+
     // Clear previous content
     d3.select(svgRef.current).selectAll('*').remove();
 
@@ -46,79 +72,135 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       .nodeWidth(20)
       .nodePadding(20)
       .extent([[0, 0], [width, height]])
-      .nodeId(d => d.name);
+      .nodeId(d => d.name); // ✅ Use name as ID
 
-    // Prepare data
-    const graph = sankeyGenerator({
-      nodes: data.nodes.map(d => ({ ...d })),
-      links: data.links.map(d => ({ ...d }))
+    // ✅ CRITICAL: Prepare data with proper structure
+    const sankeyData = {
+      nodes: validNodes.map(n => ({
+        name: n.name,
+        category: n.category || 'Unknown',
+        value: Number(n.value), // ✅ Ensure numeric
+        address: n.address
+      })),
+      links: (data.links || [])
+        .filter(link => {
+          // ✅ Validate links
+          const sourceExists = validNodes.some(n => n.name === link.source || n.index === link.source);
+          const targetExists = validNodes.some(n => n.name === link.target || n.index === link.target);
+          return sourceExists && targetExists && link.value > 0;
+        })
+        .map(link => ({
+          source: link.source,
+          target: link.target,
+          value: Number(link.value)
+        }))
+    };
+
+    console.log('📊 Sankey data prepared:', {
+      nodeCount: sankeyData.nodes.length,
+      linkCount: sankeyData.links.length
     });
+
+    // ✅ Generate Sankey layout
+    let graph;
+    try {
+      graph = sankeyGenerator(sankeyData);
+      
+      // ✅ Validate that positions were calculated
+      const hasValidPositions = graph.nodes.every(n => 
+        typeof n.x0 === 'number' && 
+        typeof n.y0 === 'number' && 
+        !isNaN(n.x0) && 
+        !isNaN(n.y0)
+      );
+
+      if (!hasValidPositions) {
+        console.error('❌ Sankey layout calculation failed - invalid positions');
+        return;
+      }
+
+      console.log('✅ Sankey layout calculated:', {
+        nodes: graph.nodes.length,
+        links: graph.links.length,
+        sampleNode: {
+          x0: graph.nodes[0]?.x0,
+          y0: graph.nodes[0]?.y0,
+          value: graph.nodes[0]?.value
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error generating Sankey layout:', error);
+      return;
+    }
 
     // Color scale for different entity types
     const colorScale = d3.scaleOrdinal()
-      .domain(['OTC Desks', 'Institutional', 'Exchanges', 'Unknown'])
-      .range(['#FF6B6B', '#4ECDC4', '#FFE66D', '#95A5A6']);
+      .domain(['OTC Desks', 'Institutional', 'Exchanges', 'Exchange', 'Unknown', 'Otc Desk'])
+      .range(['#FF6B6B', '#4ECDC4', '#FFE66D', '#FFE66D', '#95A5A6', '#FF6B6B']);
 
     // Volume scale for link opacity
     const volumeExtent = d3.extent(graph.links, d => d.value);
     const opacityScale = d3.scaleLinear()
-      .domain(volumeExtent)
+      .domain(volumeExtent.length === 2 ? volumeExtent : [0, 1])
       .range([0.3, 0.9]);
 
-    // Draw links
-    const links = svg.append('g')
-      .selectAll('path')
-      .data(graph.links)
-      .join('path')
-      .attr('d', sankeyLinkHorizontal())
-      .attr('stroke', d => {
-        // Gradient from source to target
-        const gradient = svg.append('defs')
-          .append('linearGradient')
-          .attr('id', `gradient-${d.index}`)
-          .attr('gradientUnits', 'userSpaceOnUse')
-          .attr('x1', d.source.x1)
-          .attr('x2', d.target.x0);
+    // Draw links (if any exist)
+    if (graph.links.length > 0) {
+      const links = svg.append('g')
+        .selectAll('path')
+        .data(graph.links)
+        .join('path')
+        .attr('d', sankeyLinkHorizontal())
+        .attr('stroke', d => {
+          // Gradient from source to target
+          const gradientId = `gradient-${d.index || Math.random()}`;
+          const gradient = svg.append('defs')
+            .append('linearGradient')
+            .attr('id', gradientId)
+            .attr('gradientUnits', 'userSpaceOnUse')
+            .attr('x1', d.source.x1)
+            .attr('x2', d.target.x0);
 
-        gradient.append('stop')
-          .attr('offset', '0%')
-          .attr('stop-color', colorScale(d.source.category));
+          gradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', colorScale(d.source.category));
 
-        gradient.append('stop')
-          .attr('offset', '100%')
-          .attr('stop-color', colorScale(d.target.category));
+          gradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', colorScale(d.target.category));
 
-        return `url(#gradient-${d.index})`;
-      })
-      .attr('stroke-width', d => Math.max(1, d.width))
-      .attr('fill', 'none')
-      .attr('opacity', d => opacityScale(d.value))
-      .on('mouseover', (event, d) => {
-        d3.select(event.currentTarget)
-          .attr('opacity', 1)
-          .attr('stroke-width', d => Math.max(3, d.width + 2));
+          return `url(#${gradientId})`;
+        })
+        .attr('stroke-width', d => Math.max(1, d.width))
+        .attr('fill', 'none')
+        .attr('opacity', d => opacityScale(d.value))
+        .on('mouseover', (event, d) => {
+          d3.select(event.currentTarget)
+            .attr('opacity', 1)
+            .attr('stroke-width', d => Math.max(3, d.width + 2));
 
-        setTooltip({
-          x: event.pageX,
-          y: event.pageY,
-          content: {
-            from: d.source.name,
-            to: d.target.name,
-            value: d.value,
-            transactions: d.transaction_count || 0
-          }
+          setTooltip({
+            x: event.pageX,
+            y: event.pageY,
+            content: {
+              from: d.source.name,
+              to: d.target.name,
+              value: d.value,
+              transactions: d.transaction_count || 0
+            }
+          });
+        })
+        .on('mouseout', (event, d) => {
+          d3.select(event.currentTarget)
+            .attr('opacity', opacityScale(d.value))
+            .attr('stroke-width', d => Math.max(1, d.width));
+
+          setTooltip(null);
+        })
+        .on('click', (event, d) => {
+          if (onLinkClick) onLinkClick(d);
         });
-      })
-      .on('mouseout', (event, d) => {
-        d3.select(event.currentTarget)
-          .attr('opacity', opacityScale(d.value))
-          .attr('stroke-width', d => Math.max(1, d.width));
-
-        setTooltip(null);
-      })
-      .on('click', (event, d) => {
-        if (onLinkClick) onLinkClick(d);
-      });
+    }
 
     // Draw nodes
     const nodes = svg.append('g')
@@ -127,8 +209,8 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       .join('rect')
       .attr('x', d => d.x0)
       .attr('y', d => d.y0)
-      .attr('height', d => d.y1 - d.y0)
-      .attr('width', d => d.x1 - d.x0)
+      .attr('height', d => Math.max(0, d.y1 - d.y0))
+      .attr('width', d => Math.max(0, d.x1 - d.x0))
       .attr('fill', d => colorScale(d.category))
       .attr('stroke', '#000')
       .attr('stroke-width', 1)
@@ -188,21 +270,26 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       .text(d => formatValue(d.value))
       .style('pointer-events', 'none');
 
+    console.log('✅ Sankey rendering complete');
+
   }, [data, dimensions, onNodeClick, onLinkClick]);
 
   const formatValue = (value) => {
+    if (!value || isNaN(value)) return '$0';
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
     if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
     if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
     return `$${value.toFixed(2)}`;
   };
 
-  if (!data) {
+  // ✅ Better empty state handling
+  if (!data || !data.nodes || data.nodes.length === 0) {
     return (
       <div className="sankey-flow-container empty">
         <div className="empty-state">
           <span className="empty-icon">💱</span>
           <p className="empty-text">No flow data available</p>
+          <p className="empty-subtext">Adjust filters to see money flows</p>
         </div>
       </div>
     );
