@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import './FilterPanel.css';
 
-const FilterPanel = ({ filters, onFilterChange, onApply }) => {
+const FilterPanel = ({ 
+  filters, 
+  onFilterChange, 
+  onApply,
+  discoveredDesksCount = 0 // ✅ NEW
+}) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [localFilters, setLocalFilters] = useState(filters);
 
@@ -56,7 +61,8 @@ const FilterPanel = ({ filters, onFilterChange, onApply }) => {
       minTransferSize: 100000,
       entityTypes: ['otc_desk', 'institutional', 'exchange', 'unknown'],
       tokens: ['ETH', 'USDT', 'USDC'],
-      maxNodes: 500
+      maxNodes: 500,
+      deskCategory: 'all' // ✅ NEW
     };
     setLocalFilters(defaultFilters);
     onFilterChange(defaultFilters);
@@ -194,6 +200,56 @@ const FilterPanel = ({ filters, onFilterChange, onApply }) => {
                   <span className="checkbox-label">{option.label}</span>
                 </label>
               ))}
+            </div>
+          </div>
+
+          {/* ✅ NEW: Desk Category Filter */}
+          <div className="filter-section">
+            <label className="filter-label">Desk Categories</label>
+            <div className="filter-radio-group">
+              <label className="filter-radio-label">
+                <input
+                  type="radio"
+                  name="deskCategory"
+                  value="all"
+                  checked={localFilters.deskCategory === 'all'}
+                  onChange={() => handleLocalChange('deskCategory', 'all')}
+                  className="filter-radio"
+                />
+                <span className="radio-custom"></span>
+                <span className="radio-label">All Desks</span>
+              </label>
+              
+              <label className="filter-radio-label">
+                <input
+                  type="radio"
+                  name="deskCategory"
+                  value="verified"
+                  checked={localFilters.deskCategory === 'verified'}
+                  onChange={() => handleLocalChange('deskCategory', 'verified')}
+                  className="filter-radio"
+                />
+                <span className="radio-custom"></span>
+                <span className="radio-label">Verified Only</span>
+              </label>
+              
+              <label className="filter-radio-label">
+                <input
+                  type="radio"
+                  name="deskCategory"
+                  value="discovered"
+                  checked={localFilters.deskCategory === 'discovered'}
+                  onChange={() => handleLocalChange('deskCategory', 'discovered')}
+                  className="filter-radio"
+                />
+                <span className="radio-custom"></span>
+                <span className="radio-label">
+                  Discovered Only
+                  {discoveredDesksCount > 0 && (
+                    <span className="count-badge">{discoveredDesksCount}</span>
+                  )}
+                </span>
+              </label>
             </div>
           </div>
 
