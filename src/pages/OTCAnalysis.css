@@ -599,3 +599,96 @@
     gap: 1rem;
   }
 }
+
+/* ============================================================================
+   ADD THESE STYLES TO OTCAnalysis.css
+   ============================================================================ */
+
+/* Update .page-subtitle to have margin-bottom */
+.page-subtitle {
+  font-size: 16px;
+  color: #b0b0b0;
+  margin: 0 0 12px 0;  /* Changed from margin: 0 */
+  max-width: 600px;
+  line-height: 1.5;
+}
+
+/* ✅ NEW: Discovery Stats Badge */
+.discovery-stats-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(78, 205, 196, 0.1);
+  border: 1px solid rgba(78, 205, 196, 0.3);
+  border-radius: 8px;
+  margin-top: 8px;
+  animation: fadeIn 0.3s ease;
+}
+
+.discovery-stats-badge .badge-icon {
+  font-size: 16px;
+  filter: drop-shadow(0 2px 4px rgba(78, 205, 196, 0.3));
+}
+
+.discovery-stats-badge .badge-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4ECDC4;
+  letter-spacing: 0.3px;
+}
+
+.discovery-stats-badge:hover {
+  background: rgba(78, 205, 196, 0.15);
+  border-color: rgba(78, 205, 196, 0.5);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+EOF
+cat /home/claude/OTCAnalysis_css_additions.txt
+Ausgabe
+
+/* ============================================================================
+   ADD THESE STYLES TO OTCAnalysis.css
+   ============================================================================ */
+
+/* Update .page-subtitle to have margin-bottom */
+.page-subtitle {
+  font-size: 16px;
+  color: #b0b0b0;
+  margin: 0 0 12px 0;  /* Changed from margin: 0 */
+  max-width: 600px;
+  line-height: 1.5;
+}
+
+/* ✅ NEW: Discovery Stats Badge */
+.discovery-stats-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(78, 205, 196, 0.1);
+  border: 1px solid rgba(78, 205, 196, 0.3);
+  border-radius: 8px;
+  margin-top: 8px;
+  animation: fadeIn 0.3s ease;
+}
+
+.discovery-stats-badge .badge-icon {
+  font-size: 16px;
+  filter: drop-shadow(0 2px 4px rgba(78, 205, 196, 0.3));
+}
+
+.discovery-stats-badge .badge-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4ECDC4;
+  letter-spacing: 0.3px;
+}
+
+.discovery-stats-badge:hover {
+  background: rgba(78, 205, 196, 0.15);
+  border-color: rgba(78, 205, 196, 0.5);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
