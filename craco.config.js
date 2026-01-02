@@ -3,10 +3,9 @@ const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 module.exports = {
   webpack: {
     configure: (webpackConfig) => {
-      // Find CSS Minimizer Plugin
+      // Find and update CSS Minimizer Plugin
       const minimizerPlugins = webpackConfig.optimization.minimizer;
       
-      // Update CSS Minimizer options
       const cssMinimizerIndex = minimizerPlugins.findIndex(
         plugin => plugin.constructor.name === 'CssMinimizerPlugin'
       );
@@ -17,9 +16,12 @@ module.exports = {
             preset: [
               'default',
               {
-                // More lenient CSS parsing
                 discardComments: { removeAll: true },
                 normalizeUnicode: false,
+                // Disable calc optimization to prevent division errors
+                calc: false,
+                // Disable svgo to prevent path errors
+                svgo: false,
               },
             ],
           },
@@ -27,6 +29,11 @@ module.exports = {
       }
       
       return webpackConfig;
+    },
+  },
+  style: {
+    postcss: {
+      mode: 'file',
     },
   },
 };
