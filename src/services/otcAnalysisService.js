@@ -6,7 +6,7 @@ const BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-m
  * OTC Analysis Service
  * Handles all API calls for OTC Analysis features
  * 
- * ✅ NEW: Added Discovery System endpoints
+ * ✅ FIXED: Added proper parameter conversion for all endpoints
  */
 class OTCAnalysisService {
   constructor() {
@@ -39,8 +39,8 @@ class OTCAnalysisService {
   async getNetworkGraph(filters = {}) {
     try {
       const params = {
-        from_date: filters.fromDate,
-        to_date: filters.toDate,
+        start_date: filters.fromDate,
+        end_date: filters.toDate,
         min_confidence: filters.minConfidence / 100,
         min_transfer_size: filters.minTransferSize,
         entity_types: filters.entityTypes?.join(','),
@@ -57,14 +57,31 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get Sankey flow data
+   * ✅ FIXED: Get Sankey flow data with proper parameter conversion
    */
   async getSankeyFlow(params = {}) {
     try {
-      const response = await this.apiClient.get('/api/otc/sankey', { params });
+      // ✅ Convert camelCase to snake_case for backend
+      const queryParams = {
+        start_date: params.fromDate || params.startDate,
+        end_date: params.toDate || params.endDate,
+        min_flow_size: params.minFlowSize || params.minTransferSize || 100000
+      };
+
+      console.log('🔍 Fetching Sankey data with params:', queryParams);
+
+      const response = await this.apiClient.get('/api/otc/sankey', { 
+        params: queryParams 
+      });
+      
+      console.log('✅ Sankey data received:', {
+        nodeCount: response.data?.nodes?.length || 0,
+        linkCount: response.data?.links?.length || 0
+      });
+
       return response.data;
     } catch (error) {
-      console.error('Error fetching Sankey flow:', error);
+      console.error('❌ Error fetching Sankey flow:', error);
       throw error;
     }
   }
@@ -74,7 +91,15 @@ class OTCAnalysisService {
    */
   async getStatistics(params = {}) {
     try {
-      const response = await this.apiClient.get('/api/otc/statistics', { params });
+      // ✅ Convert parameters
+      const queryParams = {
+        start_date: params.fromDate || params.startDate,
+        end_date: params.toDate || params.endDate
+      };
+
+      const response = await this.apiClient.get('/api/otc/statistics', { 
+        params: queryParams 
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -87,7 +112,7 @@ class OTCAnalysisService {
    */
   async getWalletProfile(address) {
     try {
-      const response = await this.apiClient.get(`/api/otc/wallet/${address}`);
+      const response = await this.apiClient.get(`/api/otc/wallets/${address}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching wallet profile:', error);
@@ -100,7 +125,7 @@ class OTCAnalysisService {
    */
   async getWalletDetails(address) {
     try {
-      const response = await this.apiClient.get(`/api/otc/wallet/${address}/details`);
+      const response = await this.apiClient.get(`/api/otc/wallets/${address}/details`);
       return response.data;
     } catch (error) {
       console.error('Error fetching wallet details:', error);
@@ -113,7 +138,7 @@ class OTCAnalysisService {
    */
   async getWatchlist() {
     try {
-      const response = await this.apiClient.get('/api/otc/watchlist');
+      const response = await this.apiClient.get('/api/otc/wallets/watchlist');
       return response.data;
     } catch (error) {
       console.error('Error fetching watchlist:', error);
@@ -126,7 +151,7 @@ class OTCAnalysisService {
    */
   async addToWatchlist(address, label = null) {
     try {
-      const response = await this.apiClient.post('/api/otc/watchlist', {
+      const response = await this.apiClient.post('/api/otc/wallets/watchlist', {
         address,
         label
       });
@@ -142,7 +167,7 @@ class OTCAnalysisService {
    */
   async removeFromWatchlist(address) {
     try {
-      const response = await this.apiClient.delete(`/api/otc/watchlist/${address}`);
+      const response = await this.apiClient.delete(`/api/otc/wallets/watchlist/${address}`);
       return response.data;
     } catch (error) {
       console.error('Error removing from watchlist:', error);
@@ -151,11 +176,18 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get distributions
+   * ✅ FIXED: Get distributions with proper parameter conversion
    */
   async getDistributions(params = {}) {
     try {
-      const response = await this.apiClient.get('/api/otc/distributions', { params });
+      const queryParams = {
+        startDate: params.fromDate || params.startDate,
+        endDate: params.toDate || params.endDate
+      };
+
+      const response = await this.apiClient.get('/api/otc/distributions', { 
+        params: queryParams 
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching distributions:', error);
@@ -164,11 +196,18 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get activity heatmap
+   * ✅ FIXED: Get activity heatmap with proper parameter conversion
    */
   async getActivityHeatmap(params = {}) {
     try {
-      const response = await this.apiClient.get('/api/otc/heatmap', { params });
+      const queryParams = {
+        start_date: params.fromDate || params.startDate,
+        end_date: params.toDate || params.endDate
+      };
+
+      const response = await this.apiClient.get('/api/otc/heatmap', { 
+        params: queryParams 
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching heatmap:', error);
@@ -177,11 +216,19 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get transfer timeline
+   * ✅ FIXED: Get transfer timeline with proper parameter conversion
    */
   async getTransferTimeline(params = {}) {
     try {
-      const response = await this.apiClient.get('/api/otc/timeline', { params });
+      const queryParams = {
+        start_date: params.fromDate || params.startDate,
+        end_date: params.toDate || params.endDate,
+        min_confidence: params.minConfidence || 0
+      };
+
+      const response = await this.apiClient.get('/api/otc/timeline', { 
+        params: queryParams 
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching timeline:', error);
@@ -203,7 +250,7 @@ class OTCAnalysisService {
    */
   async discoverFromLastTransactions(otcAddress, numTransactions = 5) {
     try {
-      const response = await this.apiClient.post('/api/otc/discover/simple', null, {
+      const response = await this.apiClient.post('/api/otc/discovery/simple', null, {
         params: {
           otc_address: otcAddress,
           num_transactions: numTransactions
@@ -345,7 +392,7 @@ class OTCAnalysisService {
    */
   async debugTransactions(address, limit = 5) {
     try {
-      const response = await this.apiClient.get('/api/otc/debug/transactions', {
+      const response = await this.apiClient.get('/api/otc/discovery/debug/transactions', {
         params: {
           otc_address: address,
           limit
