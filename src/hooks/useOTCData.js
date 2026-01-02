@@ -5,8 +5,7 @@ import { format, subDays } from 'date-fns';
 /**
  * Custom hook for OTC Analysis data management
  * 
- * ✅ FIXED: Better null-checks and error handling
- * ✅ FIXED: Ensures all returned data has safe defaults
+ * ✅ UPDATED: Added Discovery System integration
  */
 export const useOTCData = () => {
   // Filter state
@@ -17,7 +16,11 @@ export const useOTCData = () => {
     minTransferSize: 100000,
     entityTypes: ['otc_desk', 'institutional', 'exchange', 'unknown'],
     tokens: ['ETH', 'USDT', 'USDC'],
-    maxNodes: 500
+    maxNodes: 500,
+    // ✅ NEW: Discovery filters
+    showDiscovered: true,
+    showVerified: true,
+    deskCategory: 'all' // 'all', 'verified', 'discovered', 'db_validated'
   });
 
   // Data state
@@ -28,13 +31,22 @@ export const useOTCData = () => {
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
   
+  // ✅ NEW: Discovery state
+  const [allDesks, setAllDesks] = useState([]);
+  const [discoveredDesks, setDiscoveredDesks] = useState([]);
+  const [discoveryStats, setDiscoveryStats] = useState(null);
+  
   // Loading and error states
   const [loading, setLoading] = useState({
     network: false,
     sankey: false,
     statistics: false,
     wallet: false,
-    walletDetails: false
+    walletDetails: false,
+    // ✅ NEW: Discovery loading states
+    discovery: false,
+    desks: false,
+    discoveryStats: false
   });
   
   const [errors, setErrors] = useState({
@@ -42,7 +54,10 @@ export const useOTCData = () => {
     sankey: null,
     statistics: null,
     wallet: null,
-    walletDetails: null
+    walletDetails: null,
+    // ✅ NEW: Discovery error states
+    discovery: null,
+    desks: null
   });
 
   /**
@@ -110,7 +125,6 @@ export const useOTCData = () => {
     } catch (error) {
       setErrors(prev => ({ ...prev, network: error.message }));
       console.error('Error fetching network data:', error);
-      // Set safe default
       setNetworkData({ nodes: [], edges: [], metadata: {} });
     } finally {
       setLoading(prev => ({ ...prev, network: false }));
@@ -131,7 +145,6 @@ export const useOTCData = () => {
         minFlowSize: filters.minTransferSize
       });
       
-      // ✅ Validate Sankey data
       if (data && typeof data === 'object') {
         const safeData = {
           nodes: Array.isArray(data.nodes) ? data.nodes : [],
@@ -164,7 +177,6 @@ export const useOTCData = () => {
         toDate: filters.toDate
       });
       
-      // ✅ Ensure statistics has safe defaults
       const safeData = {
         total_volume_usd: Number(data?.total_volume_usd) || 0,
         active_wallets: Number(data?.active_wallets) || 0,
@@ -179,7 +191,6 @@ export const useOTCData = () => {
     } catch (error) {
       setErrors(prev => ({ ...prev, statistics: error.message }));
       console.error('Error fetching statistics:', error);
-      // Set safe defaults
       setStatistics({
         total_volume_usd: 0,
         active_wallets: 0,
@@ -207,8 +218,6 @@ export const useOTCData = () => {
     
     try {
       const data = await otcAnalysisService.getWalletProfile(address);
-      
-      // ✅ Ensure safe data
       const safeData = ensureSafeData(data);
       setSelectedWallet(safeData);
       
@@ -239,8 +248,6 @@ export const useOTCData = () => {
     
     try {
       const data = await otcAnalysisService.getWalletDetails(address);
-      
-      // ✅ Ensure safe data with proper array conversions
       const safeData = ensureSafeData(data);
       setWalletDetails(safeData);
       
@@ -264,8 +271,6 @@ export const useOTCData = () => {
   const fetchWatchlist = useCallback(async () => {
     try {
       const data = await otcAnalysisService.getWatchlist();
-      
-      // ✅ Ensure watchlist is an array
       const safeData = Array.isArray(data) ? data : (data?.items || []);
       setWatchlist(safeData);
     } catch (error) {
@@ -285,7 +290,6 @@ export const useOTCData = () => {
     try {
       await otcAnalysisService.addToWatchlist(address, label);
       await fetchWatchlist();
-      
       console.log('Added to watchlist:', address);
     } catch (error) {
       console.error('Error adding to watchlist:', error);
@@ -304,7 +308,6 @@ export const useOTCData = () => {
     try {
       await otcAnalysisService.removeFromWatchlist(address);
       await fetchWatchlist();
-      
       console.log('Removed from watchlist:', address);
     } catch (error) {
       console.error('Error removing from watchlist:', error);
@@ -361,40 +364,139 @@ export const useOTCData = () => {
     }
   }, [filters.fromDate, filters.toDate, filters.minConfidence]);
   
+  // ============================================================================
+  // ✅ NEW: DISCOVERY SYSTEM FUNCTIONS
+  // ============================================================================
+  
   /**
-   * Discover new desks
+   * Fetch all OTC desks (including discovered)
    */
-  const discoverDesks = useCallback(async (hoursBack = 24) => {
+  const fetchAllDesks = useCallback(async () => {
+    setLoading(prev => ({ ...prev, desks: true }));
+    setErrors(prev => ({ ...prev, desks: null }));
+    
     try {
-      const data = await otcAnalysisService.discoverDesks({
-        hoursBack,
-        volumeThreshold: 100000,
-        maxNewDesks: 20
+      const response = await otcAnalysisService.getAllOTCDesks({
+        includeDiscovered: filters.showDiscovered,
+        includeDbValidated: true,
+        minConfidence: filters.minConfidence / 100
       });
-      return data;
+      
+      let desks = response.data.desks || [];
+      
+      // ✅ Filter by desk category
+      if (filters.deskCategory !== 'all') {
+        desks = desks.filter(desk => desk.desk_category === filters.deskCategory);
+      }
+      
+      setAllDesks(desks);
+      
+      // ✅ Separate discovered desks
+      const discovered = desks.filter(desk => desk.desk_category === 'discovered');
+      setDiscoveredDesks(discovered);
+      
+      console.log('✅ Desks loaded:', {
+        total: desks.length,
+        discovered: discovered.length,
+        verified: desks.filter(d => d.desk_category === 'verified').length
+      });
+      
+      return desks;
     } catch (error) {
-      console.error('Error discovering desks:', error);
-      throw error;
+      setErrors(prev => ({ ...prev, desks: error.message }));
+      console.error('Error fetching desks:', error);
+      setAllDesks([]);
+      setDiscoveredDesks([]);
+      return [];
+    } finally {
+      setLoading(prev => ({ ...prev, desks: false }));
+    }
+  }, [filters.showDiscovered, filters.minConfidence, filters.deskCategory]);
+  
+  /**
+   * Fetch discovery statistics
+   */
+  const fetchDiscoveryStats = useCallback(async () => {
+    setLoading(prev => ({ ...prev, discoveryStats: true }));
+    
+    try {
+      const stats = await otcAnalysisService.getDiscoveryStatistics();
+      setDiscoveryStats(stats);
+      
+      console.log('✅ Discovery stats:', stats);
+      return stats;
+    } catch (error) {
+      console.error('Error fetching discovery stats:', error);
+      return null;
+    } finally {
+      setLoading(prev => ({ ...prev, discoveryStats: false }));
     }
   }, []);
   
   /**
-   * Trace flow between addresses
+   * Run discovery on a single OTC desk
    */
-  const traceFlow = useCallback(async (sourceAddress, targetAddress) => {
+  const runDiscovery = useCallback(async (otcAddress, numTransactions = 5) => {
+    setLoading(prev => ({ ...prev, discovery: true }));
+    setErrors(prev => ({ ...prev, discovery: null }));
+    
     try {
-      const data = await otcAnalysisService.traceFlow({
-        sourceAddress,
-        targetAddress,
-        maxHops: 5,
-        minConfidence: 0.5
+      const result = await otcAnalysisService.discoverFromLastTransactions(
+        otcAddress,
+        numTransactions
+      );
+      
+      console.log('✅ Discovery completed:', {
+        address: otcAddress,
+        discovered: result.discovered_count
       });
-      return data;
+      
+      // Refresh desks and stats after discovery
+      await fetchAllDesks();
+      await fetchDiscoveryStats();
+      
+      return result;
     } catch (error) {
-      console.error('Error tracing flow:', error);
+      setErrors(prev => ({ ...prev, discovery: error.message }));
+      console.error('❌ Discovery failed:', error);
       throw error;
+    } finally {
+      setLoading(prev => ({ ...prev, discovery: false }));
     }
-  }, []);
+  }, [fetchAllDesks, fetchDiscoveryStats]);
+  
+  /**
+   * Run mass discovery on multiple desks
+   */
+  const runMassDiscovery = useCallback(async (otcAddresses, numTransactions = 5, onProgress = null) => {
+    setLoading(prev => ({ ...prev, discovery: true }));
+    setErrors(prev => ({ ...prev, discovery: null }));
+    
+    try {
+      const results = await otcAnalysisService.massDiscovery(
+        otcAddresses,
+        numTransactions,
+        onProgress
+      );
+      
+      console.log('✅ Mass discovery completed:', {
+        desks: otcAddresses.length,
+        totalDiscovered: results.reduce((sum, r) => sum + (r.discovered_count || 0), 0)
+      });
+      
+      // Refresh data
+      await fetchAllDesks();
+      await fetchDiscoveryStats();
+      
+      return results;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, discovery: error.message }));
+      console.error('❌ Mass discovery failed:', error);
+      throw error;
+    } finally {
+      setLoading(prev => ({ ...prev, discovery: false }));
+    }
+  }, [fetchAllDesks, fetchDiscoveryStats]);
   
   /**
    * Initial data fetch
@@ -406,7 +508,16 @@ export const useOTCData = () => {
     fetchSankeyData();
     fetchStatistics();
     fetchWatchlist();
-  }, [fetchNetworkData, fetchSankeyData, fetchStatistics, fetchWatchlist]);
+    fetchAllDesks();
+    fetchDiscoveryStats();
+  }, [
+    fetchNetworkData, 
+    fetchSankeyData, 
+    fetchStatistics, 
+    fetchWatchlist,
+    fetchAllDesks,
+    fetchDiscoveryStats
+  ]);
 
   return {
     // Data
@@ -416,6 +527,11 @@ export const useOTCData = () => {
     watchlist,
     selectedWallet,
     walletDetails,
+    
+    // ✅ NEW: Discovery data
+    allDesks,
+    discoveredDesks,
+    discoveryStats,
     
     // Filters
     filters,
@@ -439,8 +555,12 @@ export const useOTCData = () => {
     fetchDistributions,
     fetchHeatmap,
     fetchTimeline,
-    discoverDesks,
-    traceFlow
+    
+    // ✅ NEW: Discovery actions
+    fetchAllDesks,
+    fetchDiscoveryStats,
+    runDiscovery,
+    runMassDiscovery
   };
 };
 
