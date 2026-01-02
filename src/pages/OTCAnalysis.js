@@ -8,6 +8,7 @@ import SankeyFlow from '../components/otc/SankeyFlow';
 import TimeHeatmap from '../components/otc/TimeHeatmap';
 import TransferTimeline from '../components/otc/TransferTimeline';
 import DistributionCharts from '../components/otc/DistributionCharts';
+import OTCDiscoveryPanel from '../components/otc/OTCDiscoveryPanel'; // ✅ NEW
 import { useOTCData } from '../hooks/useOTCData';
 import { useOTCWebSocket } from '../hooks/useOTCWebSocket';
 import './OTCAnalysis.css';
@@ -24,6 +25,11 @@ const OTCAnalysis = () => {
     watchlist,
     selectedWallet,
     walletDetails,
+    
+    // ✅ NEW: Discovery data
+    allDesks,
+    discoveredDesks,
+    discoveryStats,
     
     // Filters
     filters,
@@ -43,10 +49,16 @@ const OTCAnalysis = () => {
     removeFromWatchlist,
     setSelectedWallet,
     
-    // ✅ NEW: Additional fetches
+    // Additional fetches
     fetchDistributions,
     fetchHeatmap,
-    fetchTimeline
+    fetchTimeline,
+    
+    // ✅ NEW: Discovery actions
+    fetchAllDesks,
+    fetchDiscoveryStats,
+    runDiscovery,
+    runMassDiscovery
   } = useOTCData();
 
   const {
@@ -59,8 +71,9 @@ const OTCAnalysis = () => {
   // 📊 LOCAL STATE
   // ============================================================================
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false); // ✅ NEW
   
-  // ✅ NEW: Separate state for additional visualizations
+  // Additional visualizations state
   const [heatmapData, setHeatmapData] = useState(null);
   const [timelineData, setTimelineData] = useState(null);
   const [distributionsData, setDistributionsData] = useState(null);
@@ -76,7 +89,7 @@ const OTCAnalysis = () => {
   // ============================================================================
   
   /**
-   * ✅ NEW: Load additional visualizations on mount or filter change
+   * Load additional visualizations on mount or filter change
    */
   useEffect(() => {
     const loadAdditionalData = async () => {
@@ -189,6 +202,7 @@ const OTCAnalysis = () => {
     fetchNetworkData();
     fetchSankeyData();
     fetchStatistics();
+    fetchAllDesks(); // ✅ NEW: Also refresh desks
   };
 
   /**
@@ -197,7 +211,6 @@ const OTCAnalysis = () => {
   const handleViewAlertDetails = (alert) => {
     console.log('View alert details:', alert);
     
-    // Extract wallet address from alert
     const address = alert.data?.from_address || alert.data?.to_address;
     
     if (address) {
@@ -227,7 +240,6 @@ const OTCAnalysis = () => {
    */
   const handleSankeyLinkClick = (link) => {
     console.log('Sankey link clicked:', link);
-    // Could show flow details or trace path
   };
 
   /**
@@ -235,7 +247,6 @@ const OTCAnalysis = () => {
    */
   const handleHeatmapCellClick = (cell) => {
     console.log('Heatmap cell clicked:', cell);
-    // Could filter by time period
   };
 
   /**
@@ -254,6 +265,34 @@ const OTCAnalysis = () => {
   };
 
   /**
+   * ✅ NEW: Handle discovery completion
+   */
+  const handleDiscoveryComplete = async (result) => {
+    console.log('✅ Discovery completed:', result);
+    
+    // Refresh network graph and stats
+    await fetchNetworkData();
+    await fetchStatistics();
+    await fetchAllDesks();
+    await fetchDiscoveryStats();
+    
+    // Show notification
+    alert(`Discovery complete! Found ${result.discovered_count || result.total_discovered || 0} new OTC desks.`);
+  };
+
+  /**
+   * ✅ NEW: Handle view wallet from discovery
+   */
+  const handleViewWalletFromDiscovery = (address) => {
+    console.log('View wallet from discovery:', address);
+    
+    fetchWalletProfile(address);
+    fetchWalletDetails(address);
+    setIsSidebarOpen(true);
+    setIsDiscoveryOpen(false); // Close discovery panel
+  };
+
+  /**
    * Refresh all data
    */
   const handleRefreshAll = () => {
@@ -262,6 +301,8 @@ const OTCAnalysis = () => {
     fetchNetworkData();
     fetchSankeyData();
     fetchStatistics();
+    fetchAllDesks(); // ✅ NEW
+    fetchDiscoveryStats(); // ✅ NEW
     
     // Refresh additional visualizations
     fetchHeatmap().then(data => setHeatmapData(data?.heatmap || []));
@@ -282,6 +323,10 @@ const OTCAnalysis = () => {
   const hasHeatmapData = heatmapData?.length > 0;
   const hasTimelineData = timelineData?.length > 0;
 
+  // ✅ NEW: Discovery stats
+  const verifiedDesks = allDesks.filter(d => d.desk_category === 'verified');
+  const discoveredDesksCount = discoveredDesks.length;
+
   // ============================================================================
   // 🎨 RENDER
   // ============================================================================
@@ -300,6 +345,16 @@ const OTCAnalysis = () => {
           <p className="page-subtitle">
             Real-time monitoring and analysis of over-the-counter cryptocurrency transactions
           </p>
+          
+          {/* ✅ NEW: Discovery stats badge */}
+          {discoveryStats && (
+            <div className="discovery-stats-badge">
+              <span className="badge-icon">🔍</span>
+              <span className="badge-text">
+                {discoveryStats.total_discovered} Discovered · {verifiedDesks.length} Verified
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="header-status">
@@ -317,6 +372,13 @@ const OTCAnalysis = () => {
           >
             {loading.network || loading.sankey || loading.statistics ? '⏳' : '🔄'} Refresh All
           </button>
+          
+          {/* ✅ NEW: Discovery trigger button */}
+          <OTCDiscoveryPanel 
+            knownDesks={verifiedDesks}
+            onDiscoveryComplete={handleDiscoveryComplete}
+            onViewWallet={handleViewWalletFromDiscovery}
+          />
         </div>
       </div>
 
@@ -338,6 +400,7 @@ const OTCAnalysis = () => {
             filters={filters}
             onFilterChange={handleFilterChange}
             onApply={handleApplyFilters}
+            discoveredDesksCount={discoveredDesksCount} // ✅ NEW: Pass discovered count
           />
 
           <AlertFeed
@@ -394,6 +457,7 @@ const OTCAnalysis = () => {
                 onNodeClick={handleNodeClick}
                 onNodeHover={handleNodeHover}
                 selectedNode={selectedWallet}
+                discoveredDesks={discoveredDesks} // ✅ NEW: Pass discovered desks for visual distinction
               />
             ) : (
               <div className="empty-state">
