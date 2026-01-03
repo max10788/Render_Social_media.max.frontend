@@ -166,15 +166,18 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * Add/Remove wallet from watchlist
+   * ✅ FIXED: Add/Remove wallet from watchlist
+   * Backend uses wallet_address field, not address
    */
   const handleAddToWatchlist = async () => {
     if (!selectedWallet) return;
 
-    const isInList = watchlist.some(w => w.address === selectedWallet.address);
+    // Check if wallet is in watchlist using wallet_address field
+    const isInList = watchlist.some(w => w.wallet_address === selectedWallet.address);
     
     try {
       if (isInList) {
+        // removeFromWatchlist will find the item by wallet_address and use its id
         await removeFromWatchlist(selectedWallet.address);
       } else {
         await addToWatchlist(selectedWallet.address, selectedWallet.label);
@@ -314,8 +317,11 @@ const OTCAnalysis = () => {
   // 🎨 COMPUTED VALUES
   // ============================================================================
 
+  /**
+   * ✅ FIXED: Check if wallet is in watchlist using wallet_address field
+   */
   const isWalletInWatchlist = selectedWallet 
-    ? watchlist.some(w => w.address === selectedWallet.address)
+    ? watchlist.some(w => w.wallet_address === selectedWallet.address)
     : false;
 
   const hasNetworkData = networkData?.nodes?.length > 0;
