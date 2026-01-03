@@ -1,525 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
-import otcAnalysisService from '../services/otcAnalysisService';
-import { format, subDays } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import FilterPanel from '../components/otc/FilterPanel';
+import OTCMetricsOverview from '../components/otc/OTCMetricsOverview';
+import NetworkGraph from '../components/otc/NetworkGraph';
+import OTCWalletDetailSidebar from '../components/otc/OTCWalletDetailSidebar';
+import AlertFeed from '../components/otc/AlertFeed';
+import SankeyFlow from '../components/otc/SankeyFlow';
+import TimeHeatmap from '../components/otc/TimeHeatmap';
+import TransferTimeline from '../components/otc/TransferTimeline';
+import DistributionCharts from '../components/otc/DistributionCharts';
+import OTCDiscoveryPanel from '../components/otc/OTCDiscoveryPanel'; // ✅ NEW
+import { useOTCData } from '../hooks/useOTCData';
+import { useOTCWebSocket } from '../hooks/useOTCWebSocket';
+import './OTCAnalysis.css';
 
-/**
- * Custom hook for OTC Analysis data management
- * 
- * ✅ UPDATED: Added Discovery System integration
- */
-export const useOTCData = () => {
-  // Filter state
-  const [filters, setFilters] = useState({
-    fromDate: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
-    toDate: format(new Date(), 'yyyy-MM-dd'),
-    minConfidence: 0,
-    minTransferSize: 100000,
-    entityTypes: ['otc_desk', 'institutional', 'exchange', 'unknown'],
-    tokens: ['ETH', 'USDT', 'USDC'],
-    maxNodes: 500,
-    // ✅ NEW: Discovery filters
-    showDiscovered: true,
-    showVerified: true,
-    deskCategory: 'all' // 'all', 'verified', 'discovered', 'db_validated'
-  });
-
-  // Data state
-  const [networkData, setNetworkData] = useState(null);
-  const [sankeyData, setSankeyData] = useState(null);
-  const [statistics, setStatistics] = useState(null);
-  const [watchlist, setWatchlist] = useState([]);
-  const [selectedWallet, setSelectedWallet] = useState(null);
-  const [walletDetails, setWalletDetails] = useState(null);
-  
-  // ✅ NEW: Discovery state
-  const [allDesks, setAllDesks] = useState([]);
-  const [discoveredDesks, setDiscoveredDesks] = useState([]);
-  const [discoveryStats, setDiscoveryStats] = useState(null);
-  
-  // Loading and error states
-  const [loading, setLoading] = useState({
-    network: false,
-    sankey: false,
-    statistics: false,
-    wallet: false,
-    walletDetails: false,
-    // ✅ NEW: Discovery loading states
-    discovery: false,
-    desks: false,
-    discoveryStats: false
-  });
-  
-  const [errors, setErrors] = useState({
-    network: null,
-    sankey: null,
-    statistics: null,
-    wallet: null,
-    walletDetails: null,
-    // ✅ NEW: Discovery error states
-    discovery: null,
-    desks: null
-  });
-
-  /**
-   * ✅ Helper: Ensure data is safe
-   */
-  const ensureSafeData = useCallback((data) => {
-    if (!data) return null;
-    
-    // Ensure tags is always an array
-    if (data.tags && !Array.isArray(data.tags)) {
-      console.warn('Converting non-array tags to array:', data.tags);
-      data.tags = [];
-    }
-    
-    // Ensure activity_data is array
-    if (data.activity_data && !Array.isArray(data.activity_data)) {
-      console.warn('Converting non-array activity_data to array');
-      data.activity_data = [];
-    }
-    
-    // Ensure transfer_size_data is array
-    if (data.transfer_size_data && !Array.isArray(data.transfer_size_data)) {
-      console.warn('Converting non-array transfer_size_data to array');
-      data.transfer_size_data = [];
-    }
-    
-    return data;
-  }, []);
-
-  /**
-   * Update filters
-   */
-  const updateFilters = useCallback((newFilters) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-  }, []);
-
-  /**
-   * Fetch network graph data
-   */
-  const fetchNetworkData = useCallback(async () => {
-    setLoading(prev => ({ ...prev, network: true }));
-    setErrors(prev => ({ ...prev, network: null }));
-    
-    try {
-      const data = await otcAnalysisService.getNetworkGraph(filters);
-      
-      // ✅ Validate data structure
-      if (data && typeof data === 'object') {
-        const safeData = {
-          nodes: Array.isArray(data.nodes) ? data.nodes : [],
-          edges: Array.isArray(data.edges) ? data.edges : [],
-          metadata: data.metadata || {}
-        };
-        
-        console.log('Network data loaded:', {
-          nodeCount: safeData.nodes.length,
-          edgeCount: safeData.edges.length
-        });
-        
-        setNetworkData(safeData);
-      } else {
-        console.error('Invalid network data structure:', data);
-        setNetworkData({ nodes: [], edges: [], metadata: {} });
-      }
-    } catch (error) {
-      setErrors(prev => ({ ...prev, network: error.message }));
-      console.error('Error fetching network data:', error);
-      setNetworkData({ nodes: [], edges: [], metadata: {} });
-    } finally {
-      setLoading(prev => ({ ...prev, network: false }));
-    }
-  }, [filters]);
-
-  /**
-   * Fetch Sankey flow data
-   */
-  const fetchSankeyData = useCallback(async () => {
-    setLoading(prev => ({ ...prev, sankey: true }));
-    setErrors(prev => ({ ...prev, sankey: null }));
-    
-    try {
-      const data = await otcAnalysisService.getSankeyFlow({
-        fromDate: filters.fromDate,
-        toDate: filters.toDate,
-        minFlowSize: filters.minTransferSize
-      });
-      
-      if (data && typeof data === 'object') {
-        const safeData = {
-          nodes: Array.isArray(data.nodes) ? data.nodes : [],
-          links: Array.isArray(data.links) ? data.links : [],
-          metadata: data.metadata || {}
-        };
-        setSankeyData(safeData);
-      } else {
-        setSankeyData({ nodes: [], links: [], metadata: {} });
-      }
-    } catch (error) {
-      setErrors(prev => ({ ...prev, sankey: error.message }));
-      console.error('Error fetching Sankey data:', error);
-      setSankeyData({ nodes: [], links: [], metadata: {} });
-    } finally {
-      setLoading(prev => ({ ...prev, sankey: false }));
-    }
-  }, [filters.fromDate, filters.toDate, filters.minTransferSize]);
-
-  /**
-   * Fetch statistics
-   */
-  const fetchStatistics = useCallback(async () => {
-    setLoading(prev => ({ ...prev, statistics: true }));
-    setErrors(prev => ({ ...prev, statistics: null }));
-    
-    try {
-      const data = await otcAnalysisService.getStatistics({
-        fromDate: filters.fromDate,
-        toDate: filters.toDate
-      });
-      
-      const safeData = {
-        total_volume_usd: Number(data?.total_volume_usd) || 0,
-        active_wallets: Number(data?.active_wallets) || 0,
-        total_transactions: Number(data?.total_transactions) || 0,
-        avg_transfer_size: Number(data?.avg_transfer_size) || 0,
-        volume_change_24h: Number(data?.volume_change_24h) || 0,
-        wallets_change_24h: Number(data?.wallets_change_24h) || 0,
-        ...data
-      };
-      
-      setStatistics(safeData);
-    } catch (error) {
-      setErrors(prev => ({ ...prev, statistics: error.message }));
-      console.error('Error fetching statistics:', error);
-      setStatistics({
-        total_volume_usd: 0,
-        active_wallets: 0,
-        total_transactions: 0,
-        avg_transfer_size: 0,
-        volume_change_24h: 0,
-        wallets_change_24h: 0
-      });
-    } finally {
-      setLoading(prev => ({ ...prev, statistics: false }));
-    }
-  }, [filters.fromDate, filters.toDate]);
-
-  /**
-   * Fetch wallet profile (basic)
-   */
-  const fetchWalletProfile = useCallback(async (address) => {
-    if (!address || typeof address !== 'string') {
-      console.warn('Invalid address provided to fetchWalletProfile:', address);
-      return;
-    }
-    
-    setLoading(prev => ({ ...prev, wallet: true }));
-    setErrors(prev => ({ ...prev, wallet: null }));
-    
-    try {
-      const data = await otcAnalysisService.getWalletProfile(address);
-      const safeData = ensureSafeData(data);
-      setSelectedWallet(safeData);
-      
-      console.log('Wallet profile loaded:', {
-        address: safeData?.address,
-        label: safeData?.label
-      });
-    } catch (error) {
-      setErrors(prev => ({ ...prev, wallet: error.message }));
-      console.error('Error fetching wallet profile:', error);
-      setSelectedWallet(null);
-    } finally {
-      setLoading(prev => ({ ...prev, wallet: false }));
-    }
-  }, [ensureSafeData]);
-
-  /**
-   * Fetch wallet details (with charts)
-   */
-  const fetchWalletDetails = useCallback(async (address) => {
-    if (!address || typeof address !== 'string') {
-      console.warn('Invalid address provided to fetchWalletDetails:', address);
-      return;
-    }
-    
-    setLoading(prev => ({ ...prev, walletDetails: true }));
-    setErrors(prev => ({ ...prev, walletDetails: null }));
-    
-    try {
-      const data = await otcAnalysisService.getWalletDetails(address);
-      const safeData = ensureSafeData(data);
-      setWalletDetails(safeData);
-      
-      console.log('Wallet details loaded:', {
-        address: safeData?.address,
-        dataSource: safeData?.data_source,
-        hasCharts: !!(safeData?.activity_data?.length || safeData?.transfer_size_data?.length)
-      });
-    } catch (error) {
-      setErrors(prev => ({ ...prev, walletDetails: error.message }));
-      console.error('Error fetching wallet details:', error);
-      setWalletDetails(null);
-    } finally {
-      setLoading(prev => ({ ...prev, walletDetails: false }));
-    }
-  }, [ensureSafeData]);
-
-  /**
-   * Fetch watchlist
-   */
-  const fetchWatchlist = useCallback(async () => {
-    try {
-      const data = await otcAnalysisService.getWatchlist();
-      const safeData = Array.isArray(data) ? data : (data?.items || []);
-      setWatchlist(safeData);
-    } catch (error) {
-      console.error('Error fetching watchlist:', error);
-      setWatchlist([]);
-    }
-  }, []);
-
-  /**
-   * Add to watchlist
-   */
-  const addToWatchlist = useCallback(async (address, label = null) => {
-    if (!address) {
-      throw new Error('Address is required');
-    }
-    
-    try {
-      await otcAnalysisService.addToWatchlist(address, label);
-      await fetchWatchlist();
-      console.log('Added to watchlist:', address);
-    } catch (error) {
-      console.error('Error adding to watchlist:', error);
-      throw error;
-    }
-  }, [fetchWatchlist]);
-
-  /**
-   * Remove from watchlist
-   */
-  const removeFromWatchlist = useCallback(async (address) => {
-    if (!address) {
-      throw new Error('Address is required');
-    }
-    
-    try {
-      await otcAnalysisService.removeFromWatchlist(address);
-      await fetchWatchlist();
-      console.log('Removed from watchlist:', address);
-    } catch (error) {
-      console.error('Error removing from watchlist:', error);
-      throw error;
-    }
-  }, [fetchWatchlist]);
-
-  /**
-   * Fetch distributions
-   */
-  const fetchDistributions = useCallback(async () => {
-    try {
-      const data = await otcAnalysisService.getDistributions({
-        startDate: filters.fromDate,
-        endDate: filters.toDate
-      });
-      return data;
-    } catch (error) {
-      console.error('Error fetching distributions:', error);
-      return null;
-    }
-  }, [filters.fromDate, filters.toDate]);
-  
-  /**
-   * Fetch activity heatmap
-   */
-  const fetchHeatmap = useCallback(async () => {
-    try {
-      const data = await otcAnalysisService.getActivityHeatmap({
-        startDate: filters.fromDate,
-        endDate: filters.toDate
-      });
-      return data;
-    } catch (error) {
-      console.error('Error fetching heatmap:', error);
-      return null;
-    }
-  }, [filters.fromDate, filters.toDate]);
-  
-  /**
-   * Fetch transfer timeline
-   */
-  const fetchTimeline = useCallback(async () => {
-    try {
-      const data = await otcAnalysisService.getTransferTimeline({
-        startDate: filters.fromDate,
-        endDate: filters.toDate,
-        minConfidence: filters.minConfidence
-      });
-      return data;
-    } catch (error) {
-      console.error('Error fetching timeline:', error);
-      return null;
-    }
-  }, [filters.fromDate, filters.toDate, filters.minConfidence]);
-  
+const OTCAnalysis = () => {
   // ============================================================================
-  // ✅ NEW: DISCOVERY SYSTEM FUNCTIONS
+  // 🎣 HOOKS
   // ============================================================================
-  
-  /**
-   * Fetch all OTC desks (including discovered)
-   */
-  const fetchAllDesks = useCallback(async () => {
-    setLoading(prev => ({ ...prev, desks: true }));
-    setErrors(prev => ({ ...prev, desks: null }));
-    
-    try {
-      const response = await otcAnalysisService.getAllOTCDesks({
-        includeDiscovered: filters.showDiscovered,
-        includeDbValidated: true,
-        minConfidence: filters.minConfidence / 100
-      });
-      
-      let desks = response.data.desks || [];
-      
-      // ✅ Filter by desk category
-      if (filters.deskCategory !== 'all') {
-        desks = desks.filter(desk => desk.desk_category === filters.deskCategory);
-      }
-      
-      setAllDesks(desks);
-      
-      // ✅ Separate discovered desks
-      const discovered = desks.filter(desk => desk.desk_category === 'discovered');
-      setDiscoveredDesks(discovered);
-      
-      console.log('✅ Desks loaded:', {
-        total: desks.length,
-        discovered: discovered.length,
-        verified: desks.filter(d => d.desk_category === 'verified').length
-      });
-      
-      return desks;
-    } catch (error) {
-      setErrors(prev => ({ ...prev, desks: error.message }));
-      console.error('Error fetching desks:', error);
-      setAllDesks([]);
-      setDiscoveredDesks([]);
-      return [];
-    } finally {
-      setLoading(prev => ({ ...prev, desks: false }));
-    }
-  }, [filters.showDiscovered, filters.minConfidence, filters.deskCategory]);
-  
-  /**
-   * Fetch discovery statistics
-   */
-  const fetchDiscoveryStats = useCallback(async () => {
-    setLoading(prev => ({ ...prev, discoveryStats: true }));
-    
-    try {
-      const stats = await otcAnalysisService.getDiscoveryStatistics();
-      setDiscoveryStats(stats);
-      
-      console.log('✅ Discovery stats:', stats);
-      return stats;
-    } catch (error) {
-      console.error('Error fetching discovery stats:', error);
-      return null;
-    } finally {
-      setLoading(prev => ({ ...prev, discoveryStats: false }));
-    }
-  }, []);
-  
-  /**
-   * Run discovery on a single OTC desk
-   */
-  const runDiscovery = useCallback(async (otcAddress, numTransactions = 5) => {
-    setLoading(prev => ({ ...prev, discovery: true }));
-    setErrors(prev => ({ ...prev, discovery: null }));
-    
-    try {
-      const result = await otcAnalysisService.discoverFromLastTransactions(
-        otcAddress,
-        numTransactions
-      );
-      
-      console.log('✅ Discovery completed:', {
-        address: otcAddress,
-        discovered: result.discovered_count
-      });
-      
-      // Refresh desks and stats after discovery
-      await fetchAllDesks();
-      await fetchDiscoveryStats();
-      
-      return result;
-    } catch (error) {
-      setErrors(prev => ({ ...prev, discovery: error.message }));
-      console.error('❌ Discovery failed:', error);
-      throw error;
-    } finally {
-      setLoading(prev => ({ ...prev, discovery: false }));
-    }
-  }, [fetchAllDesks, fetchDiscoveryStats]);
-  
-  /**
-   * Run mass discovery on multiple desks
-   */
-  const runMassDiscovery = useCallback(async (otcAddresses, numTransactions = 5, onProgress = null) => {
-    setLoading(prev => ({ ...prev, discovery: true }));
-    setErrors(prev => ({ ...prev, discovery: null }));
-    
-    try {
-      const results = await otcAnalysisService.massDiscovery(
-        otcAddresses,
-        numTransactions,
-        onProgress
-      );
-      
-      console.log('✅ Mass discovery completed:', {
-        desks: otcAddresses.length,
-        totalDiscovered: results.reduce((sum, r) => sum + (r.discovered_count || 0), 0)
-      });
-      
-      // Refresh data
-      await fetchAllDesks();
-      await fetchDiscoveryStats();
-      
-      return results;
-    } catch (error) {
-      setErrors(prev => ({ ...prev, discovery: error.message }));
-      console.error('❌ Mass discovery failed:', error);
-      throw error;
-    } finally {
-      setLoading(prev => ({ ...prev, discovery: false }));
-    }
-  }, [fetchAllDesks, fetchDiscoveryStats]);
-  
-  /**
-   * Initial data fetch
-   */
-  useEffect(() => {
-    console.log('useOTCData: Initial data fetch');
-    
-    fetchNetworkData();
-    fetchSankeyData();
-    fetchStatistics();
-    fetchWatchlist();
-    fetchAllDesks();
-    fetchDiscoveryStats();
-  }, [
-    fetchNetworkData, 
-    fetchSankeyData, 
-    fetchStatistics, 
-    fetchWatchlist,
-    fetchAllDesks,
-    fetchDiscoveryStats
-  ]);
-
-  return {
+  const {
     // Data
     networkData,
     sankeyData,
@@ -537,10 +35,8 @@ export const useOTCData = () => {
     filters,
     updateFilters,
     
-    // Loading states
+    // Loading & Errors
     loading,
-    
-    // Errors
     errors,
     
     // Actions
@@ -552,6 +48,8 @@ export const useOTCData = () => {
     addToWatchlist,
     removeFromWatchlist,
     setSelectedWallet,
+    
+    // Additional fetches
     fetchDistributions,
     fetchHeatmap,
     fetchTimeline,
@@ -561,7 +59,555 @@ export const useOTCData = () => {
     fetchDiscoveryStats,
     runDiscovery,
     runMassDiscovery
+  } = useOTCData();
+
+  const {
+    isConnected,
+    alerts,
+    dismissAlert
+  } = useOTCWebSocket();
+
+  // ============================================================================
+  // 📊 LOCAL STATE
+  // ============================================================================
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false); // ✅ NEW
+  
+  // Additional visualizations state
+  const [heatmapData, setHeatmapData] = useState(null);
+  const [timelineData, setTimelineData] = useState(null);
+  const [distributionsData, setDistributionsData] = useState(null);
+  
+  const [visualizationLoading, setVisualizationLoading] = useState({
+    heatmap: false,
+    timeline: false,
+    distributions: false
+  });
+
+  // ============================================================================
+  // 🔄 EFFECTS
+  // ============================================================================
+  
+  /**
+   * Load additional visualizations on mount or filter change
+   */
+  useEffect(() => {
+    const loadAdditionalData = async () => {
+      // Heatmap
+      setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
+      try {
+        const heatmap = await fetchHeatmap();
+        setHeatmapData(heatmap?.heatmap || []);
+      } catch (error) {
+        console.error('Failed to load heatmap:', error);
+      } finally {
+        setVisualizationLoading(prev => ({ ...prev, heatmap: false }));
+      }
+
+      // Timeline
+      setVisualizationLoading(prev => ({ ...prev, timeline: true }));
+      try {
+        const timeline = await fetchTimeline();
+        setTimelineData(timeline?.events || []);
+      } catch (error) {
+        console.error('Failed to load timeline:', error);
+      } finally {
+        setVisualizationLoading(prev => ({ ...prev, timeline: false }));
+      }
+
+      // Distributions
+      setVisualizationLoading(prev => ({ ...prev, distributions: true }));
+      try {
+        const distributions = await fetchDistributions();
+        setDistributionsData(distributions);
+      } catch (error) {
+        console.error('Failed to load distributions:', error);
+      } finally {
+        setVisualizationLoading(prev => ({ ...prev, distributions: false }));
+      }
+    };
+
+    loadAdditionalData();
+  }, [filters.fromDate, filters.toDate, fetchHeatmap, fetchTimeline, fetchDistributions]);
+
+  // ============================================================================
+  // 🎯 HANDLERS
+  // ============================================================================
+
+  /**
+   * Handle node click in network graph
+   */
+  const handleNodeClick = (node) => {
+    console.log('Node clicked:', node);
+    
+    if (!node?.address) {
+      console.warn('No address in node:', node);
+      return;
+    }
+    
+    fetchWalletProfile(node.address);
+    fetchWalletDetails(node.address);
+    setIsSidebarOpen(true);
   };
+
+  /**
+   * Handle node hover (optional)
+   */
+  const handleNodeHover = (node) => {
+    console.log('Node hovered:', node);
+  };
+
+  /**
+   * Close wallet detail sidebar
+   */
+  const handleCloseSidebar = () => {
+    setIsSidebarOpen(false);
+    setSelectedWallet(null);
+  };
+
+  /**
+   * ✅ FIXED: Add/Remove wallet from watchlist
+   * Backend uses wallet_address field, not address
+   */
+  const handleAddToWatchlist = async () => {
+    if (!selectedWallet) return;
+
+    // Check if wallet is in watchlist using wallet_address field
+    const isInList = watchlist.some(w => w.wallet_address === selectedWallet.address);
+    
+    try {
+      if (isInList) {
+        // removeFromWatchlist will find the item by wallet_address and use its id
+        await removeFromWatchlist(selectedWallet.address);
+      } else {
+        await addToWatchlist(selectedWallet.address, selectedWallet.label);
+      }
+    } catch (error) {
+      console.error('Error updating watchlist:', error);
+      alert('Failed to update watchlist. Please try again.');
+    }
+  };
+
+  /**
+   * Handle filter changes
+   */
+  const handleFilterChange = (newFilters) => {
+    updateFilters(newFilters);
+  };
+
+  /**
+   * Apply filters - refresh all data
+   */
+  const handleApplyFilters = () => {
+    console.log('Applying filters:', filters);
+    
+    // Refresh all data sources
+    fetchNetworkData();
+    fetchSankeyData();
+    fetchStatistics();
+    fetchAllDesks(); // ✅ NEW: Also refresh desks
+  };
+
+  /**
+   * View alert details
+   */
+  const handleViewAlertDetails = (alert) => {
+    console.log('View alert details:', alert);
+    
+    const address = alert.data?.from_address || alert.data?.to_address;
+    
+    if (address) {
+      fetchWalletProfile(address);
+      fetchWalletDetails(address);
+      setIsSidebarOpen(true);
+    } else {
+      console.warn('No wallet address in alert:', alert);
+    }
+  };
+
+  /**
+   * Handle Sankey node click
+   */
+  const handleSankeyNodeClick = (node) => {
+    console.log('Sankey node clicked:', node);
+    
+    if (node?.address) {
+      fetchWalletProfile(node.address);
+      fetchWalletDetails(node.address);
+      setIsSidebarOpen(true);
+    }
+  };
+
+  /**
+   * Handle Sankey link click
+   */
+  const handleSankeyLinkClick = (link) => {
+    console.log('Sankey link clicked:', link);
+  };
+
+  /**
+   * Handle heatmap cell click
+   */
+  const handleHeatmapCellClick = (cell) => {
+    console.log('Heatmap cell clicked:', cell);
+  };
+
+  /**
+   * Handle timeline transfer click
+   */
+  const handleTimelineTransferClick = (transfer) => {
+    console.log('Timeline transfer clicked:', transfer);
+    
+    const address = transfer.from_address || transfer.to_address;
+    
+    if (address) {
+      fetchWalletProfile(address);
+      fetchWalletDetails(address);
+      setIsSidebarOpen(true);
+    }
+  };
+
+  /**
+   * ✅ NEW: Handle discovery completion
+   */
+  const handleDiscoveryComplete = async (result) => {
+    console.log('✅ Discovery completed:', result);
+    
+    // Refresh network graph and stats
+    await fetchNetworkData();
+    await fetchStatistics();
+    await fetchAllDesks();
+    await fetchDiscoveryStats();
+    
+    // Show notification
+    alert(`Discovery complete! Found ${result.discovered_count || result.total_discovered || 0} new OTC desks.`);
+  };
+
+  /**
+   * ✅ NEW: Handle view wallet from discovery
+   */
+  const handleViewWalletFromDiscovery = (address) => {
+    console.log('View wallet from discovery:', address);
+    
+    fetchWalletProfile(address);
+    fetchWalletDetails(address);
+    setIsSidebarOpen(true);
+    setIsDiscoveryOpen(false); // Close discovery panel
+  };
+
+  /**
+   * Refresh all data
+   */
+  const handleRefreshAll = () => {
+    console.log('🔄 Refreshing all data...');
+    
+    fetchNetworkData();
+    fetchSankeyData();
+    fetchStatistics();
+    fetchAllDesks(); // ✅ NEW
+    fetchDiscoveryStats(); // ✅ NEW
+    
+    // Refresh additional visualizations
+    fetchHeatmap().then(data => setHeatmapData(data?.heatmap || []));
+    fetchTimeline().then(data => setTimelineData(data?.events || []));
+    fetchDistributions().then(data => setDistributionsData(data));
+  };
+
+  // ============================================================================
+  // 🎨 COMPUTED VALUES
+  // ============================================================================
+
+  /**
+   * ✅ FIXED: Check if wallet is in watchlist using wallet_address field
+   */
+  const isWalletInWatchlist = selectedWallet 
+    ? watchlist.some(w => w.wallet_address === selectedWallet.address)
+    : false;
+
+  const hasNetworkData = networkData?.nodes?.length > 0;
+  const hasSankeyData = sankeyData?.nodes?.length > 0;
+  const hasHeatmapData = heatmapData?.length > 0;
+  const hasTimelineData = timelineData?.length > 0;
+
+  // ✅ NEW: Discovery stats
+  const verifiedDesks = allDesks.filter(d => d.desk_category === 'verified');
+  const discoveredDesksCount = discoveredDesks.length;
+
+  // ============================================================================
+  // 🎨 RENDER
+  // ============================================================================
+
+  return (
+    <div className="otc-analysis-page">
+      {/* ====================================================================== */}
+      {/* PAGE HEADER */}
+      {/* ====================================================================== */}
+      <div className="page-header">
+        <div className="header-content">
+          <h1 className="page-title">
+            <span className="title-icon">🔄</span>
+            OTC Analysis Dashboard
+          </h1>
+          <p className="page-subtitle">
+            Real-time monitoring and analysis of over-the-counter cryptocurrency transactions
+          </p>
+          
+          {/* ✅ NEW: Discovery stats badge */}
+          {discoveryStats && (
+            <div className="discovery-stats-badge">
+              <span className="badge-icon">🔍</span>
+              <span className="badge-text">
+                {discoveryStats.total_discovered} Discovered · {verifiedDesks.length} Verified
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="header-status">
+          <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+            <span className="status-dot"></span>
+            <span className="status-text">
+              {isConnected ? 'Live' : 'Disconnected'}
+            </span>
+          </div>
+          
+          <button 
+            className="refresh-all-button"
+            onClick={handleRefreshAll}
+            disabled={loading.network || loading.sankey || loading.statistics}
+          >
+            {loading.network || loading.sankey || loading.statistics ? '⏳' : '🔄'} Refresh All
+          </button>
+          
+          {/* ✅ NEW: Discovery trigger button */}
+          <OTCDiscoveryPanel 
+            knownDesks={verifiedDesks}
+            onDiscoveryComplete={handleDiscoveryComplete}
+            onViewWallet={handleViewWalletFromDiscovery}
+          />
+        </div>
+      </div>
+
+      {/* ====================================================================== */}
+      {/* METRICS OVERVIEW */}
+      {/* ====================================================================== */}
+      <OTCMetricsOverview 
+        statistics={statistics}
+        loading={loading.statistics}
+      />
+
+      {/* ====================================================================== */}
+      {/* MAIN CONTENT GRID */}
+      {/* ====================================================================== */}
+      <div className="main-content-grid">
+        {/* LEFT COLUMN - Filters & Alerts */}
+        <div className="left-column">
+          <FilterPanel
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onApply={handleApplyFilters}
+            discoveredDesksCount={discoveredDesksCount} // ✅ NEW: Pass discovered count
+          />
+
+          <AlertFeed
+            alerts={alerts}
+            onDismiss={dismissAlert}
+            onViewDetails={handleViewAlertDetails}
+          />
+        </div>
+
+        {/* RIGHT COLUMN - Visualizations */}
+        <div className="right-column">
+          {/* ================================================================ */}
+          {/* NETWORK GRAPH */}
+          {/* ================================================================ */}
+          <div className="graph-section">
+            <div className="section-header">
+              <h2 className="section-title">
+                <span className="section-icon">🕸️</span>
+                Transaction Network
+              </h2>
+              <div className="section-actions">
+                <button 
+                  className="action-button"
+                  onClick={fetchNetworkData}
+                  disabled={loading.network}
+                >
+                  {loading.network ? '⏳ Loading...' : '🔄 Refresh'}
+                </button>
+                <button className="action-button">
+                  📥 Export
+                </button>
+              </div>
+            </div>
+
+            {loading.network ? (
+              <div className="loading-state">
+                <div className="loading-spinner"></div>
+                <p className="loading-text">Loading network data...</p>
+              </div>
+            ) : errors.network ? (
+              <div className="error-state">
+                <span className="error-icon">⚠️</span>
+                <p className="error-text">{errors.network}</p>
+                <button 
+                  className="retry-button"
+                  onClick={fetchNetworkData}
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : hasNetworkData ? (
+              <NetworkGraph
+                data={networkData}
+                onNodeClick={handleNodeClick}
+                onNodeHover={handleNodeHover}
+                selectedNode={selectedWallet}
+                discoveredDesks={discoveredDesks} // ✅ NEW: Pass discovered desks for visual distinction
+              />
+            ) : (
+              <div className="empty-state">
+                <span className="empty-icon">📊</span>
+                <p className="empty-text">No network data available</p>
+                <p className="empty-subtext">Adjust filters and click "Apply Filters" to load data</p>
+              </div>
+            )}
+          </div>
+
+          {/* ================================================================ */}
+          {/* ADDITIONAL VISUALIZATIONS */}
+          {/* ================================================================ */}
+          <div className="visualizations-grid">
+            {/* SANKEY FLOW */}
+            <div className="visualization-card">
+              <div className="section-header">
+                <h2 className="section-title">
+                  <span className="section-icon">💱</span>
+                  Money Flow Analysis
+                </h2>
+                <button 
+                  className="action-button"
+                  onClick={fetchSankeyData}
+                  disabled={loading.sankey}
+                >
+                  {loading.sankey ? '⏳' : '🔄'}
+                </button>
+              </div>
+              
+              {loading.sankey ? (
+                <div className="loading-state">
+                  <div className="loading-spinner"></div>
+                  <p>Loading flow data...</p>
+                </div>
+              ) : hasSankeyData ? (
+                <SankeyFlow
+                  data={sankeyData}
+                  onNodeClick={handleSankeyNodeClick}
+                  onLinkClick={handleSankeyLinkClick}
+                />
+              ) : (
+                <div className="empty-state">
+                  <p>No flow data available</p>
+                </div>
+              )}
+            </div>
+
+            {/* TIME HEATMAP */}
+            <div className="visualization-card">
+              <div className="section-header">
+                <h2 className="section-title">
+                  <span className="section-icon">🔥</span>
+                  Activity Heatmap
+                </h2>
+              </div>
+              
+              {visualizationLoading.heatmap ? (
+                <div className="loading-state">
+                  <div className="loading-spinner"></div>
+                  <p>Loading heatmap...</p>
+                </div>
+              ) : hasHeatmapData ? (
+                <TimeHeatmap
+                  data={heatmapData}
+                  onCellClick={handleHeatmapCellClick}
+                />
+              ) : (
+                <div className="empty-state">
+                  <p>No heatmap data available</p>
+                </div>
+              )}
+            </div>
+
+            {/* TRANSFER TIMELINE */}
+            <div className="visualization-card">
+              <div className="section-header">
+                <h2 className="section-title">
+                  <span className="section-icon">📅</span>
+                  Transfer Timeline
+                </h2>
+              </div>
+              
+              {visualizationLoading.timeline ? (
+                <div className="loading-state">
+                  <div className="loading-spinner"></div>
+                  <p>Loading timeline...</p>
+                </div>
+              ) : hasTimelineData ? (
+                <TransferTimeline
+                  data={timelineData}
+                  onTransferClick={handleTimelineTransferClick}
+                  timeRange={filters.timeRange || '7d'}
+                />
+              ) : (
+                <div className="empty-state">
+                  <p>No timeline data available</p>
+                </div>
+              )}
+            </div>
+
+            {/* DISTRIBUTION CHARTS */}
+            <div className="visualization-card">
+              <div className="section-header">
+                <h2 className="section-title">
+                  <span className="section-icon">📊</span>
+                  Distributions
+                </h2>
+              </div>
+              
+              {visualizationLoading.distributions ? (
+                <div className="loading-state">
+                  <div className="loading-spinner"></div>
+                  <p>Loading distributions...</p>
+                </div>
+              ) : distributionsData ? (
+                <DistributionCharts
+                  data={distributionsData}
+                />
+              ) : (
+                <div className="empty-state">
+                  <p>No distribution data available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ====================================================================== */}
+      {/* WALLET DETAIL SIDEBAR */}
+      {/* ====================================================================== */}
+      {isSidebarOpen && selectedWallet && (
+        <OTCWalletDetailSidebar
+          wallet={selectedWallet}
+          walletDetails={walletDetails}
+          loading={loading.walletDetails}
+          onClose={handleCloseSidebar}
+          onAddToWatchlist={handleAddToWatchlist}
+          isInWatchlist={isWalletInWatchlist}
+        />
+      )}
+    </div>
+  );
 };
 
-export default useOTCData;
+export default OTCAnalysis;
