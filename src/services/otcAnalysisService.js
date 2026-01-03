@@ -7,6 +7,7 @@ const BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-m
  * Handles all API calls for OTC Analysis features
  * 
  * ✅ FIXED: Added proper parameter conversion for all endpoints
+ * ✅ FIXED: Updated wallet and watchlist URLs to match backend
  */
 class OTCAnalysisService {
   constructor() {
@@ -108,11 +109,12 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get wallet profile (basic)
+   * ✅ FIXED: Get wallet profile (basic)
+   * Updated URL: /api/otc/wallet/:address/profile
    */
   async getWalletProfile(address) {
     try {
-      const response = await this.apiClient.get(`/api/otc/wallets/${address}`);
+      const response = await this.apiClient.get(`/api/otc/wallet/${address}/profile`);
       return response.data;
     } catch (error) {
       console.error('Error fetching wallet profile:', error);
@@ -121,11 +123,12 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get wallet details (with charts)
+   * ✅ FIXED: Get wallet details (with charts)
+   * Updated URL: /api/otc/wallet/:address/details
    */
   async getWalletDetails(address) {
     try {
-      const response = await this.apiClient.get(`/api/otc/wallets/${address}/details`);
+      const response = await this.apiClient.get(`/api/otc/wallet/${address}/details`);
       return response.data;
     } catch (error) {
       console.error('Error fetching wallet details:', error);
@@ -134,11 +137,14 @@ class OTCAnalysisService {
   }
 
   /**
-   * Get watchlist
+   * ✅ FIXED: Get watchlist
+   * Updated URL: /api/otc/watchlist?user_id=dev_user_123
    */
   async getWatchlist() {
     try {
-      const response = await this.apiClient.get('/api/otc/wallets/watchlist');
+      const response = await this.apiClient.get('/api/otc/watchlist', {
+        params: { user_id: 'dev_user_123' }
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching watchlist:', error);
@@ -147,14 +153,23 @@ class OTCAnalysisService {
   }
 
   /**
-   * Add to watchlist
+   * ✅ FIXED: Add to watchlist
+   * Updated URL: /api/otc/watchlist?user_id=dev_user_123&wallet_address=...&notes=...
+   * Changed from POST with body to POST with query params
    */
   async addToWatchlist(address, label = null) {
     try {
-      const response = await this.apiClient.post('/api/otc/wallets/watchlist', {
-        address,
-        label
-      });
+      const params = {
+        user_id: 'dev_user_123',
+        wallet_address: address
+      };
+      
+      // Add notes parameter if label is provided
+      if (label) {
+        params.notes = label;
+      }
+      
+      const response = await this.apiClient.post('/api/otc/watchlist', null, { params });
       return response.data;
     } catch (error) {
       console.error('Error adding to watchlist:', error);
@@ -163,11 +178,13 @@ class OTCAnalysisService {
   }
 
   /**
-   * Remove from watchlist
+   * ✅ FIXED: Remove from watchlist
+   * Updated URL: /api/otc/watchlist/:itemId
+   * ⚠️ IMPORTANT: Parameter changed from 'address' to 'itemId'
    */
-  async removeFromWatchlist(address) {
+  async removeFromWatchlist(itemId) {
     try {
-      const response = await this.apiClient.delete(`/api/otc/wallets/watchlist/${address}`);
+      const response = await this.apiClient.delete(`/api/otc/watchlist/${itemId}`);
       return response.data;
     } catch (error) {
       console.error('Error removing from watchlist:', error);
