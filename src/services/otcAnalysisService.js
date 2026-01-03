@@ -8,6 +8,8 @@ const BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-m
  * 
  * ✅ FIXED: Added proper parameter conversion for all endpoints
  * ✅ FIXED: Updated wallet and watchlist URLs to match backend
+ * ✅ FIXED: Discovery endpoints now use '/discover' not '/discovery'
+ * ✅ FIXED: Debug endpoint uses '/debug' not '/discovery/debug'
  */
 class OTCAnalysisService {
   constructor() {
@@ -254,12 +256,14 @@ class OTCAnalysisService {
   }
 
   // ============================================================================
-  // ✅ NEW: DISCOVERY SYSTEM ENDPOINTS
+  // ✅ FIXED: DISCOVERY SYSTEM ENDPOINTS
   // ============================================================================
 
   /**
    * Simple Discovery - Analyze last N transactions of a known OTC desk
    * and discover new OTC desk candidates
+   * 
+   * ✅ FIXED: Changed URL from '/api/otc/discovery/simple' to '/api/otc/discover/simple'
    * 
    * @param {string} otcAddress - Ethereum address of known OTC desk
    * @param {number} numTransactions - Number of transactions to analyze (1-20)
@@ -267,7 +271,7 @@ class OTCAnalysisService {
    */
   async discoverFromLastTransactions(otcAddress, numTransactions = 5) {
     try {
-      const response = await this.apiClient.post('/api/otc/discovery/simple', null, {
+      const response = await this.apiClient.post('/api/otc/discover/simple', null, {
         params: {
           otc_address: otcAddress,
           num_transactions: numTransactions
@@ -377,6 +381,8 @@ class OTCAnalysisService {
   /**
    * Get only discovered OTC desks
    * 
+   * ✅ FIXED: Added logging for better debugging
+   * 
    * @param {number} minConfidence - Minimum confidence (0-100)
    * @returns {Promise<Array>} Discovered desks
    */
@@ -393,6 +399,12 @@ class OTCAnalysisService {
         desk => desk.desk_category === 'discovered'
       );
       
+      console.log('🔍 Discovered desks:', {
+        total: response.data.desks.length,
+        discovered: discoveredDesks.length,
+        verified: response.data.desks.filter(d => d.desk_category === 'verified').length
+      });
+      
       return discoveredDesks;
     } catch (error) {
       console.error('Error fetching discovered desks:', error);
@@ -403,17 +415,25 @@ class OTCAnalysisService {
   /**
    * Debug: Get raw transaction data for a wallet
    * 
+   * ✅ FIXED: Changed URL from '/api/otc/discovery/debug/transactions' to '/api/otc/debug/transactions'
+   * 
    * @param {string} address - Ethereum address
    * @param {number} limit - Number of transactions (1-20)
    * @returns {Promise<Object>} Raw transaction data
    */
   async debugTransactions(address, limit = 5) {
     try {
-      const response = await this.apiClient.get('/api/otc/discovery/debug/transactions', {
+      const response = await this.apiClient.get('/api/otc/debug/transactions', {
         params: {
           otc_address: address,
           limit
         }
+      });
+      
+      console.log('🐛 Debug transactions:', {
+        address,
+        total: response.data.total_transactions,
+        fields: response.data.first_tx_keys
       });
       
       return response.data;
