@@ -16,7 +16,7 @@ class OTCAnalysisService {
     this.baseURL = BASE_URL;
     this.apiClient = axios.create({
       baseURL: this.baseURL,
-      timeout: 60000, // 60s timeout for discovery calls
+      timeout: 120000, // 60s timeout for discovery calls
       headers: {
         'Content-Type': 'application/json',
       },
