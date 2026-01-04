@@ -8,7 +8,7 @@ import SankeyFlow from '../components/otc/SankeyFlow';
 import TimeHeatmap from '../components/otc/TimeHeatmap';
 import TransferTimeline from '../components/otc/TransferTimeline';
 import DistributionCharts from '../components/otc/DistributionCharts';
-import OTCDiscoveryPanel from '../components/otc/OTCDiscoveryPanel'; // ✅ NEW
+import OTCDiscoveryPanel from '../components/otc/OTCDiscoveryPanel';
 import { useOTCData } from '../hooks/useOTCData';
 import { useOTCWebSocket } from '../hooks/useOTCWebSocket';
 import './OTCAnalysis.css';
@@ -26,7 +26,7 @@ const OTCAnalysis = () => {
     selectedWallet,
     walletDetails,
     
-    // ✅ NEW: Discovery data
+    // Discovery data
     allDesks,
     discoveredDesks,
     discoveryStats,
@@ -54,7 +54,7 @@ const OTCAnalysis = () => {
     fetchHeatmap,
     fetchTimeline,
     
-    // ✅ NEW: Discovery actions
+    // Discovery actions
     fetchAllDesks,
     fetchDiscoveryStats,
     runDiscovery,
@@ -71,7 +71,7 @@ const OTCAnalysis = () => {
   // 📊 LOCAL STATE
   // ============================================================================
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false); // ✅ NEW
+  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   
   // Additional visualizations state
   const [heatmapData, setHeatmapData] = useState(null);
@@ -166,18 +166,15 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * ✅ FIXED: Add/Remove wallet from watchlist
-   * Backend uses wallet_address field, not address
+   * Add/Remove wallet from watchlist
    */
   const handleAddToWatchlist = async () => {
     if (!selectedWallet) return;
 
-    // Check if wallet is in watchlist using wallet_address field
     const isInList = watchlist.some(w => w.wallet_address === selectedWallet.address);
     
     try {
       if (isInList) {
-        // removeFromWatchlist will find the item by wallet_address and use its id
         await removeFromWatchlist(selectedWallet.address);
       } else {
         await addToWatchlist(selectedWallet.address, selectedWallet.label);
@@ -201,11 +198,10 @@ const OTCAnalysis = () => {
   const handleApplyFilters = () => {
     console.log('Applying filters:', filters);
     
-    // Refresh all data sources
     fetchNetworkData();
     fetchSankeyData();
     fetchStatistics();
-    fetchAllDesks(); // ✅ NEW: Also refresh desks
+    fetchAllDesks();
   };
 
   /**
@@ -268,23 +264,55 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * ✅ NEW: Handle discovery completion
+   * ✅ FIXED: Handle discovery completion with full refresh
    */
   const handleDiscoveryComplete = async (result) => {
     console.log('✅ Discovery completed:', result);
     
-    // Refresh network graph and stats
-    await fetchNetworkData();
-    await fetchStatistics();
-    await fetchAllDesks();
-    await fetchDiscoveryStats();
+    // ✅ Show loading indicator
+    console.log('🔄 Refreshing all visualizations...');
     
-    // Show notification
-    alert(`Discovery complete! Found ${result.discovered_count || result.total_discovered || 0} new OTC desks.`);
+    try {
+      // ✅ Refresh ALL data in parallel
+      await Promise.all([
+        fetchNetworkData(),
+        fetchSankeyData(),
+        fetchStatistics(),
+        fetchAllDesks(),
+        fetchDiscoveryStats(),
+        // Also refresh visualizations
+        (async () => {
+          const heatmap = await fetchHeatmap();
+          setHeatmapData(heatmap?.heatmap || []);
+        })(),
+        (async () => {
+          const timeline = await fetchTimeline();
+          setTimelineData(timeline?.events || []);
+        })(),
+        (async () => {
+          const distributions = await fetchDistributions();
+          setDistributionsData(distributions);
+        })()
+      ]);
+      
+      console.log('✅ All visualizations refreshed!');
+      
+      // ✅ Show success message with details
+      const discovered = result.discovered_count || result.total_discovered || 0;
+      alert(
+        `🎉 Discovery Complete!\n\n` +
+        `Found ${discovered} new OTC desk${discovered !== 1 ? 's' : ''}.\n` +
+        `All visualizations have been updated.`
+      );
+      
+    } catch (error) {
+      console.error('❌ Error refreshing after discovery:', error);
+      alert('Discovery completed, but some visualizations failed to refresh. Try refreshing manually.');
+    }
   };
 
   /**
-   * ✅ NEW: Handle view wallet from discovery
+   * Handle view wallet from discovery
    */
   const handleViewWalletFromDiscovery = (address) => {
     console.log('View wallet from discovery:', address);
@@ -292,34 +320,46 @@ const OTCAnalysis = () => {
     fetchWalletProfile(address);
     fetchWalletDetails(address);
     setIsSidebarOpen(true);
-    setIsDiscoveryOpen(false); // Close discovery panel
+    setIsDiscoveryOpen(false);
   };
 
   /**
    * Refresh all data
    */
-  const handleRefreshAll = () => {
+  const handleRefreshAll = async () => {
     console.log('🔄 Refreshing all data...');
     
-    fetchNetworkData();
-    fetchSankeyData();
-    fetchStatistics();
-    fetchAllDesks(); // ✅ NEW
-    fetchDiscoveryStats(); // ✅ NEW
-    
-    // Refresh additional visualizations
-    fetchHeatmap().then(data => setHeatmapData(data?.heatmap || []));
-    fetchTimeline().then(data => setTimelineData(data?.events || []));
-    fetchDistributions().then(data => setDistributionsData(data));
+    try {
+      await Promise.all([
+        fetchNetworkData(),
+        fetchSankeyData(),
+        fetchStatistics(),
+        fetchAllDesks(),
+        fetchDiscoveryStats(),
+        (async () => {
+          const heatmap = await fetchHeatmap();
+          setHeatmapData(heatmap?.heatmap || []);
+        })(),
+        (async () => {
+          const timeline = await fetchTimeline();
+          setTimelineData(timeline?.events || []);
+        })(),
+        (async () => {
+          const distributions = await fetchDistributions();
+          setDistributionsData(distributions);
+        })()
+      ]);
+      
+      console.log('✅ All data refreshed!');
+    } catch (error) {
+      console.error('❌ Error refreshing:', error);
+    }
   };
 
   // ============================================================================
   // 🎨 COMPUTED VALUES
   // ============================================================================
 
-  /**
-   * ✅ FIXED: Check if wallet is in watchlist using wallet_address field
-   */
   const isWalletInWatchlist = selectedWallet 
     ? watchlist.some(w => w.wallet_address === selectedWallet.address)
     : false;
@@ -329,7 +369,6 @@ const OTCAnalysis = () => {
   const hasHeatmapData = heatmapData?.length > 0;
   const hasTimelineData = timelineData?.length > 0;
 
-  // ✅ NEW: Discovery stats
   const verifiedDesks = allDesks.filter(d => d.desk_category === 'verified');
   const discoveredDesksCount = discoveredDesks.length;
 
@@ -339,9 +378,7 @@ const OTCAnalysis = () => {
 
   return (
     <div className="otc-analysis-page">
-      {/* ====================================================================== */}
       {/* PAGE HEADER */}
-      {/* ====================================================================== */}
       <div className="page-header">
         <div className="header-content">
           <h1 className="page-title">
@@ -352,7 +389,6 @@ const OTCAnalysis = () => {
             Real-time monitoring and analysis of over-the-counter cryptocurrency transactions
           </p>
           
-          {/* ✅ NEW: Discovery stats badge */}
           {discoveryStats && (
             <div className="discovery-stats-badge">
               <span className="badge-icon">🔍</span>
@@ -379,7 +415,6 @@ const OTCAnalysis = () => {
             {loading.network || loading.sankey || loading.statistics ? '⏳' : '🔄'} Refresh All
           </button>
           
-          {/* ✅ NEW: Discovery trigger button */}
           <OTCDiscoveryPanel 
             knownDesks={verifiedDesks}
             onDiscoveryComplete={handleDiscoveryComplete}
@@ -388,17 +423,13 @@ const OTCAnalysis = () => {
         </div>
       </div>
 
-      {/* ====================================================================== */}
       {/* METRICS OVERVIEW */}
-      {/* ====================================================================== */}
       <OTCMetricsOverview 
         statistics={statistics}
         loading={loading.statistics}
       />
 
-      {/* ====================================================================== */}
       {/* MAIN CONTENT GRID */}
-      {/* ====================================================================== */}
       <div className="main-content-grid">
         {/* LEFT COLUMN - Filters & Alerts */}
         <div className="left-column">
@@ -406,7 +437,7 @@ const OTCAnalysis = () => {
             filters={filters}
             onFilterChange={handleFilterChange}
             onApply={handleApplyFilters}
-            discoveredDesksCount={discoveredDesksCount} // ✅ NEW: Pass discovered count
+            discoveredDesksCount={discoveredDesksCount}
           />
 
           <AlertFeed
@@ -418,9 +449,7 @@ const OTCAnalysis = () => {
 
         {/* RIGHT COLUMN - Visualizations */}
         <div className="right-column">
-          {/* ================================================================ */}
           {/* NETWORK GRAPH */}
-          {/* ================================================================ */}
           <div className="graph-section">
             <div className="section-header">
               <h2 className="section-title">
@@ -463,7 +492,7 @@ const OTCAnalysis = () => {
                 onNodeClick={handleNodeClick}
                 onNodeHover={handleNodeHover}
                 selectedNode={selectedWallet}
-                discoveredDesks={discoveredDesks} // ✅ NEW: Pass discovered desks for visual distinction
+                discoveredDesks={discoveredDesks}
               />
             ) : (
               <div className="empty-state">
@@ -474,9 +503,7 @@ const OTCAnalysis = () => {
             )}
           </div>
 
-          {/* ================================================================ */}
           {/* ADDITIONAL VISUALIZATIONS */}
-          {/* ================================================================ */}
           <div className="visualizations-grid">
             {/* SANKEY FLOW */}
             <div className="visualization-card">
@@ -593,9 +620,7 @@ const OTCAnalysis = () => {
         </div>
       </div>
 
-      {/* ====================================================================== */}
       {/* WALLET DETAIL SIDEBAR */}
-      {/* ====================================================================== */}
       {isSidebarOpen && selectedWallet && (
         <OTCWalletDetailSidebar
           wallet={selectedWallet}
