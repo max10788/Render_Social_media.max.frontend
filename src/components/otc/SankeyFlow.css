@@ -2,7 +2,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 600px;
+  min-height: 500px;
   background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
   border-radius: 12px;
   padding: 20px;
@@ -19,104 +19,133 @@
 }
 
 /* ============================================================================
-   LEGEND STYLES
+   VISUALIZATION MODE SELECTOR
    ============================================================================ */
 
-.sankey-legend {
+.visualization-mode-selector {
   position: absolute;
   top: 20px;
-  right: 20px;
-  background: rgba(26, 26, 26, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(78, 205, 196, 0.3);
+  border-radius: 12px;
+  padding: 6px;
   backdrop-filter: blur(10px);
-  z-index: 10;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 100;
 }
 
-.legend-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: #a0a0a0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.legend-items {
+.mode-button {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.legend-item {
-  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
-  border-radius: 6px;
+  justify-content: center;
+  gap: 4px;
+  min-width: 80px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  color: #a0a0a0;
 }
 
-.legend-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  transform: translateX(4px);
+.mode-button:hover {
+  background: rgba(78, 205, 196, 0.1);
+  border-color: rgba(78, 205, 196, 0.3);
+  color: #4ECDC4;
+  transform: translateY(-2px);
 }
 
-.legend-item.active {
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+.mode-button.active {
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(78, 205, 196, 0.1));
+  border-color: rgba(78, 205, 196, 0.5);
+  color: #4ECDC4;
+  box-shadow: 0 2px 8px rgba(78, 205, 196, 0.3);
 }
 
-.legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s ease;
+.mode-icon {
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 700;
 }
 
-.legend-item:hover .legend-color {
-  transform: scale(1.15);
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-.legend-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: #e0e0e0;
-  user-select: none;
+.mode-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* ============================================================================
-   NODE & LINK ANIMATIONS
+   SANKEY NODES & LINKS
    ============================================================================ */
 
 .sankey-node {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
 }
 
 .sankey-node:hover {
-  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.8));
-}
-
-.sankey-link {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sankey-link:hover {
   filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.6));
 }
 
+.sankey-link {
+  transition: all 0.3s ease;
+}
+
+.sankey-link:hover {
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
+}
+
 /* ============================================================================
-   TOOLTIP STYLES - ENHANCED
+   ARC DIAGRAM STYLES
+   ============================================================================ */
+
+.arc-node {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+  transition: all 0.3s ease;
+}
+
+.arc-node:hover {
+  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.8));
+}
+
+.arc-link {
+  transition: all 0.3s ease;
+}
+
+.arc-link:hover {
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+}
+
+/* ============================================================================
+   CHORD DIAGRAM STYLES
+   ============================================================================ */
+
+.chord-node {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+  transition: all 0.3s ease;
+}
+
+.chord-node:hover {
+  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.8));
+}
+
+.chord-link {
+  transition: all 0.3s ease;
+}
+
+.chord-link:hover {
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+}
+
+/* ============================================================================
+   ENHANCED TOOLTIP
    ============================================================================ */
 
 .sankey-tooltip {
@@ -206,12 +235,6 @@
   flex: 1;
 }
 
-.tooltip-value.mono {
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 12px;
-  color: #4ECDC4;
-}
-
 .tooltip-value-large {
   color: #FFD93D;
   font-weight: 700;
@@ -225,47 +248,6 @@
   margin: 4px -12px;
   border-radius: 6px;
   border-left: 3px solid #FFD93D;
-}
-
-.tooltip-divider {
-  height: 1px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(255, 255, 255, 0.1) 20%, 
-    rgba(255, 255, 255, 0.1) 80%, 
-    transparent 100%
-  );
-  margin: 6px 0;
-}
-
-.tooltip-arrow {
-  text-align: center;
-  font-size: 18px;
-  color: #4ECDC4;
-  font-weight: 700;
-  margin: 4px 0;
-}
-
-.tooltip-category {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: -4px;
-  margin-bottom: 8px;
-}
-
-.category-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #ffffff;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 /* ============================================================================
@@ -310,91 +292,61 @@
   margin-bottom: 8px;
 }
 
-.empty-subtext {
-  font-size: 14px;
-  color: #808080;
-}
-
-/* ============================================================================
-   LOADING STATE
-   ============================================================================ */
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  gap: 20px;
-}
-
-.loading-spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #4ECDC4;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-text {
-  font-size: 15px;
-  font-weight: 500;
-  color: #a0a0a0;
-}
-
 /* ============================================================================
    RESPONSIVE DESIGN
    ============================================================================ */
 
-@media (max-width: 1200px) {
-  .sankey-legend {
-    right: 10px;
-    top: 10px;
-    padding: 12px;
+@media (max-width: 1024px) {
+  .sankey-flow-container {
+    min-height: 450px;
   }
   
-  .legend-title {
-    font-size: 11px;
-    margin-bottom: 10px;
+  .visualization-mode-selector {
+    top: 15px;
+    gap: 6px;
+    padding: 5px;
   }
   
-  .legend-item {
-    gap: 8px;
-    padding: 5px 6px;
+  .mode-button {
+    min-width: 70px;
+    padding: 8px 12px;
   }
   
-  .legend-color {
-    width: 14px;
-    height: 14px;
+  .mode-icon {
+    font-size: 18px;
   }
   
-  .legend-label {
-    font-size: 12px;
+  .mode-label {
+    font-size: 10px;
   }
 }
 
 @media (max-width: 768px) {
   .sankey-flow-container {
     padding: 15px;
-    min-height: 500px;
+    min-height: 400px;
   }
   
-  .sankey-legend {
-    position: static;
-    margin-bottom: 15px;
-    width: 100%;
+  .visualization-mode-selector {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    transform: none;
+    justify-content: space-between;
   }
   
-  .legend-items {
-    flex-direction: row;
-    flex-wrap: wrap;
+  .mode-button {
+    min-width: 60px;
+    padding: 8px 10px;
+    gap: 2px;
+  }
+  
+  .mode-icon {
+    font-size: 16px;
+  }
+  
+  .mode-label {
+    font-size: 9px;
   }
   
   .sankey-tooltip.enhanced {
@@ -427,8 +379,7 @@
    ACCESSIBILITY
    ============================================================================ */
 
-.sankey-node:focus-visible,
-.sankey-link:focus-visible {
+.mode-button:focus-visible {
   outline: 2px solid #4ECDC4;
   outline-offset: 2px;
 }
@@ -436,8 +387,11 @@
 @media (prefers-reduced-motion: reduce) {
   .sankey-node,
   .sankey-link,
-  .legend-item,
-  .legend-color {
+  .arc-node,
+  .arc-link,
+  .chord-node,
+  .chord-link,
+  .mode-button {
     transition: none;
     animation: none;
   }
@@ -457,12 +411,57 @@
     box-shadow: none;
   }
   
-  .sankey-legend {
-    background: white;
-    border-color: #ccc;
+  .visualization-mode-selector {
+    display: none;
   }
   
   .sankey-tooltip {
     display: none;
   }
+}
+
+/* ============================================================================
+   ANIMATIONS FOR ENTER/EXIT
+   ============================================================================ */
+
+@keyframes nodeEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes linkEnter {
+  from {
+    opacity: 0;
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+  }
+  to {
+    opacity: 0.6;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ============================================================================
+   GLOW EFFECTS
+   ============================================================================ */
+
+@keyframes nodeGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(78, 205, 196, 0.8));
+  }
+}
+
+.sankey-node.active,
+.arc-node.active,
+.chord-node.active {
+  animation: nodeGlow 2s ease-in-out infinite;
 }
