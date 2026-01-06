@@ -100,7 +100,7 @@ const NetworkGraph = ({
               return isDiscoveredDesk(address) ? baseSize * 1.15 : baseSize;
             },
             
-            // Background with gradient effect
+            // Background color
             'background-color': (ele) => {
               const address = ele.data('address');
               const entityType = ele.data('entity_type');
@@ -110,19 +110,6 @@ const NetworkGraph = ({
               }
               
               return entityColors[entityType] || entityColors.unknown;
-            },
-            
-            // Background gradient (using multiple backgrounds)
-            'background-gradient-direction': 'to-bottom-right',
-            'background-gradient-stop-colors': (ele) => {
-              const address = ele.data('address');
-              const entityType = ele.data('entity_type');
-              const color = isDiscoveredDesk(address) 
-                ? entityColors.discovered 
-                : (entityColors[entityType] || entityColors.unknown);
-              
-              // Create lighter version for gradient
-              return `${color} ${color}dd`;
             },
             
             // Label
@@ -176,16 +163,11 @@ const NetworkGraph = ({
             'text-halign': 'center',
             'text-margin-y': 5,
             'font-size': '11px',
-            'font-weight': '700',
+            'font-weight': 'bold',
             'text-outline-width': 2.5,
             'text-outline-color': '#000000',
             'text-wrap': 'wrap',
             'text-max-width': '120px',
-            
-            // Animation properties
-            'transition-property': 'background-color, border-color, width, height, border-width',
-            'transition-duration': '0.3s',
-            'transition-timing-function': 'ease-in-out',
             
             // Shadow effect
             'overlay-opacity': 0
@@ -203,22 +185,6 @@ const NetworkGraph = ({
           }
         },
         
-        // Hovered node
-        {
-          selector: 'node:hover',
-          style: {
-            'border-width': 5,
-            'overlay-opacity': 0.15,
-            'overlay-color': (ele) => {
-              const address = ele.data('address');
-              const entityType = ele.data('entity_type');
-              return isDiscoveredDesk(address) 
-                ? entityColors.discovered 
-                : (entityColors[entityType] || entityColors.unknown);
-            }
-          }
-        },
-        
         // ============================================================================
         // ENHANCED EDGE STYLES - MAKE THEM VISIBLE!
         // ============================================================================
@@ -232,26 +198,12 @@ const NetworkGraph = ({
               return Math.max(2, Math.min(12, Math.log(amount + 1) / 1.5));
             },
             
-            // Line color with gradient
+            // Line color
             'line-color': (ele) => {
               const sourceType = ele.source().data('entity_type');
-              const targetType = ele.target().data('entity_type');
-              
               // Use source color
               return entityColors[sourceType] || entityColors.unknown;
             },
-            
-            // Gradient fill
-            'line-gradient-stop-colors': (ele) => {
-              const sourceType = ele.source().data('entity_type');
-              const targetType = ele.target().data('entity_type');
-              
-              const sourceColor = entityColors[sourceType] || entityColors.unknown;
-              const targetColor = entityColors[targetType] || entityColors.unknown;
-              
-              return `${sourceColor} ${targetColor}`;
-            },
-            'line-gradient-stop-positions': '0% 100%',
             
             // Arrow styling
             'target-arrow-color': (ele) => {
@@ -275,12 +227,7 @@ const NetworkGraph = ({
               
               // Solid for high confidence, dashed for low
               return (isSuspected || confidence > 60) ? 'solid' : 'dashed';
-            },
-            
-            // Animation
-            'transition-property': 'width, opacity, line-color',
-            'transition-duration': '0.3s',
-            'transition-timing-function': 'ease-in-out'
+            }
           }
         },
         
@@ -299,20 +246,7 @@ const NetworkGraph = ({
           }
         },
         
-        // Hovered edge
-        {
-          selector: 'edge:hover',
-          style: {
-            'width': (ele) => {
-              const amount = ele.data('transfer_amount_usd') || 1000;
-              return Math.max(5, Math.min(18, Math.log(amount + 1) / 1.1));
-            },
-            'opacity': 1,
-            'z-index': 998
-          }
-        },
-        
-        // Highlighted edges (when node is hovered)
+        // Highlighted edges (when node is hovered) - using class
         {
           selector: 'edge.highlighted',
           style: {
@@ -321,11 +255,12 @@ const NetworkGraph = ({
               return Math.max(4, Math.min(14, Math.log(amount + 1) / 1.3));
             },
             'opacity': 1,
-            'z-index': 997
+            'z-index': 997,
+            'line-color': '#4ECDC4'
           }
         },
         
-        // Dimmed edges (when other edges are highlighted)
+        // Dimmed edges (when other edges are highlighted) - using class
         {
           selector: 'edge.dimmed',
           style: {
