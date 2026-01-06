@@ -49,6 +49,18 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
 
     svg.attr('width', width).attr('height', height);
 
+    // Create zoom-able group
+    const zoomGroup = svg.append('g');
+
+    // Zoom & Pan behavior
+    const zoom = d3.zoom()
+      .scaleExtent([0.1, 4])
+      .on('zoom', (event) => {
+        zoomGroup.attr('transform', event.transform);
+      });
+
+    svg.call(zoom);
+
     const categoryColors = {
       'OTC Desk': '#FF6B6B',
       'OTC Desks': '#FF6B6B',
@@ -84,7 +96,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
     simulationRef.current = simulation;
 
     // Draw links (straight lines)
-    const linkElements = svg.append('g')
+    const linkElements = zoomGroup.append('g')
       .selectAll('line')
       .data(links)
       .join('line')
@@ -116,7 +128,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       });
 
     // Draw nodes (draggable bubbles)
-    const nodeElements = svg.append('g')
+    const nodeElements = zoomGroup.append('g')
       .selectAll('circle')
       .data(validNodes)
       .join('circle')
@@ -150,7 +162,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       });
 
     // Labels
-    const labelElements = svg.append('g')
+    const labelElements = zoomGroup.append('g')
       .selectAll('text')
       .data(validNodes)
       .join('text')
@@ -224,6 +236,45 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
 
   return (
     <div className="sankey-flow-container" ref={containerRef}>
+      {/* Zoom Controls */}
+      <div className="zoom-controls">
+        <button 
+          className="zoom-btn"
+          onClick={() => {
+            const svg = d3.select(svgRef.current);
+            svg.transition().call(d3.zoom().scaleBy, 1.3);
+          }}
+          title="Zoom In"
+        >
+          ➕
+        </button>
+        <button 
+          className="zoom-btn"
+          onClick={() => {
+            const svg = d3.select(svgRef.current);
+            svg.transition().call(d3.zoom().scaleBy, 0.7);
+          }}
+          title="Zoom Out"
+        >
+          ➖
+        </button>
+        <button 
+          className="zoom-btn"
+          onClick={() => {
+            const svg = d3.select(svgRef.current);
+            svg.transition().call(d3.zoom().transform, d3.zoomIdentity);
+          }}
+          title="Reset"
+        >
+          🔄
+        </button>
+      </div>
+
+      {/* Instructions */}
+      <div className="controls-hint">
+        🖱️ Scroll to zoom • Drag to pan • Click nodes to move
+      </div>
+
       <svg ref={svgRef} className="sankey-svg"></svg>
 
       {tooltip && (
