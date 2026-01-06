@@ -1,467 +1,54 @@
 .sankey-flow-container {
   position: relative;
   width: 100%;
-  height: 100%;
-  min-height: 500px;
+  height: 500px;
   background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
   border-radius: 12px;
   padding: 20px;
   overflow: hidden;
-  box-shadow: 
-    0 4px 24px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
 .sankey-svg {
   width: 100%;
   height: 100%;
-  display: block;
 }
-
-/* ============================================================================
-   VISUALIZATION MODE SELECTOR
-   ============================================================================ */
-
-.visualization-mode-selector {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  background: rgba(20, 20, 20, 0.95);
-  border: 1px solid rgba(78, 205, 196, 0.3);
-  border-radius: 12px;
-  padding: 6px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  z-index: 100;
-}
-
-.mode-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-width: 80px;
-  padding: 10px 16px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: #a0a0a0;
-}
-
-.mode-button:hover {
-  background: rgba(78, 205, 196, 0.1);
-  border-color: rgba(78, 205, 196, 0.3);
-  color: #4ECDC4;
-  transform: translateY(-2px);
-}
-
-.mode-button.active {
-  background: linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(78, 205, 196, 0.1));
-  border-color: rgba(78, 205, 196, 0.5);
-  color: #4ECDC4;
-  box-shadow: 0 2px 8px rgba(78, 205, 196, 0.3);
-}
-
-.mode-icon {
-  font-size: 20px;
-  line-height: 1;
-  font-weight: 700;
-}
-
-.mode-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* ============================================================================
-   SANKEY NODES & LINKS
-   ============================================================================ */
-
-.sankey-node {
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-  transition: all 0.3s ease;
-}
-
-.sankey-node:hover {
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.6));
-}
-
-.sankey-link {
-  transition: all 0.3s ease;
-}
-
-.sankey-link:hover {
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
-}
-
-/* ============================================================================
-   ARC DIAGRAM STYLES
-   ============================================================================ */
-
-.arc-node {
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
-  transition: all 0.3s ease;
-}
-
-.arc-node:hover {
-  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.8));
-}
-
-.arc-link {
-  transition: all 0.3s ease;
-}
-
-.arc-link:hover {
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
-}
-
-/* ============================================================================
-   CHORD DIAGRAM STYLES
-   ============================================================================ */
-
-.chord-node {
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
-  transition: all 0.3s ease;
-}
-
-.chord-node:hover {
-  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.8));
-}
-
-.chord-link {
-  transition: all 0.3s ease;
-}
-
-.chord-link:hover {
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
-}
-
-/* ============================================================================
-   ENHANCED TOOLTIP
-   ============================================================================ */
 
 .sankey-tooltip {
   position: fixed;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(78, 205, 196, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  color: #e0e0e0;
+  font-size: 13px;
   pointer-events: none;
   z-index: 1000;
-  animation: tooltipFadeIn 0.2s ease-out;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
-.sankey-tooltip.enhanced {
-  background: linear-gradient(135deg, rgba(20, 20, 20, 0.98) 0%, rgba(10, 10, 10, 0.98) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  padding: 0;
-  min-width: 280px;
-  max-width: 350px;
-  box-shadow: 
-    0 12px 48px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  overflow: hidden;
+.sankey-tooltip div {
+  margin: 4px 0;
 }
-
-@keyframes tooltipFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.tooltip-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.tooltip-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  background: linear-gradient(135deg, rgba(40, 40, 40, 0.8) 0%, rgba(30, 30, 30, 0.8) 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.tooltip-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.tooltip-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: 0.3px;
-}
-
-.tooltip-body {
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.tooltip-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-}
-
-.tooltip-label {
-  color: #a0a0a0;
-  font-weight: 500;
-  min-width: 80px;
-}
-
-.tooltip-value {
-  color: #e8e8e8;
-  font-weight: 600;
-  text-align: right;
-  flex: 1;
-}
-
-.tooltip-value-large {
-  color: #FFD93D;
-  font-weight: 700;
-  font-size: 16px;
-  text-shadow: 0 0 8px rgba(255, 217, 61, 0.3);
-}
-
-.tooltip-row.highlight {
-  background: linear-gradient(90deg, rgba(255, 217, 61, 0.08) 0%, rgba(255, 217, 61, 0.02) 100%);
-  padding: 10px 12px;
-  margin: 4px -12px;
-  border-radius: 6px;
-  border-left: 3px solid #FFD93D;
-}
-
-/* ============================================================================
-   EMPTY STATE
-   ============================================================================ */
 
 .sankey-flow-container.empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 500px;
 }
 
 .empty-state {
   text-align: center;
-  padding: 40px;
 }
 
 .empty-icon {
   font-size: 64px;
-  display: block;
-  margin-bottom: 20px;
-  opacity: 0.5;
-  animation: emptyPulse 2s ease-in-out infinite;
-}
-
-@keyframes emptyPulse {
-  0%, 100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.3;
-    transform: scale(1.05);
-  }
+  opacity: 0.3;
 }
 
 .empty-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: #e0e0e0;
-  margin-bottom: 8px;
-}
-
-/* ============================================================================
-   RESPONSIVE DESIGN
-   ============================================================================ */
-
-@media (max-width: 1024px) {
-  .sankey-flow-container {
-    min-height: 450px;
-  }
-  
-  .visualization-mode-selector {
-    top: 15px;
-    gap: 6px;
-    padding: 5px;
-  }
-  
-  .mode-button {
-    min-width: 70px;
-    padding: 8px 12px;
-  }
-  
-  .mode-icon {
-    font-size: 18px;
-  }
-  
-  .mode-label {
-    font-size: 10px;
-  }
-}
-
-@media (max-width: 768px) {
-  .sankey-flow-container {
-    padding: 15px;
-    min-height: 400px;
-  }
-  
-  .visualization-mode-selector {
-    top: 10px;
-    left: 10px;
-    right: 10px;
-    transform: none;
-    justify-content: space-between;
-  }
-  
-  .mode-button {
-    min-width: 60px;
-    padding: 8px 10px;
-    gap: 2px;
-  }
-  
-  .mode-icon {
-    font-size: 16px;
-  }
-  
-  .mode-label {
-    font-size: 9px;
-  }
-  
-  .sankey-tooltip.enhanced {
-    min-width: 240px;
-    max-width: 280px;
-  }
-  
-  .tooltip-header {
-    padding: 12px 14px;
-  }
-  
-  .tooltip-body {
-    padding: 12px 14px;
-  }
-}
-
-/* ============================================================================
-   DARK MODE ENHANCEMENTS
-   ============================================================================ */
-
-@media (prefers-color-scheme: dark) {
-  .sankey-flow-container {
-    box-shadow: 
-      0 4px 24px rgba(0, 0, 0, 0.6),
-      inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  }
-}
-
-/* ============================================================================
-   ACCESSIBILITY
-   ============================================================================ */
-
-.mode-button:focus-visible {
-  outline: 2px solid #4ECDC4;
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sankey-node,
-  .sankey-link,
-  .arc-node,
-  .arc-link,
-  .chord-node,
-  .chord-link,
-  .mode-button {
-    transition: none;
-    animation: none;
-  }
-  
-  .sankey-tooltip {
-    animation: none;
-  }
-}
-
-/* ============================================================================
-   PRINT STYLES
-   ============================================================================ */
-
-@media print {
-  .sankey-flow-container {
-    background: white;
-    box-shadow: none;
-  }
-  
-  .visualization-mode-selector {
-    display: none;
-  }
-  
-  .sankey-tooltip {
-    display: none;
-  }
-}
-
-/* ============================================================================
-   ANIMATIONS FOR ENTER/EXIT
-   ============================================================================ */
-
-@keyframes nodeEnter {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes linkEnter {
-  from {
-    opacity: 0;
-    stroke-dasharray: 1000;
-    stroke-dashoffset: 1000;
-  }
-  to {
-    opacity: 0.6;
-    stroke-dashoffset: 0;
-  }
-}
-
-/* ============================================================================
-   GLOW EFFECTS
-   ============================================================================ */
-
-@keyframes nodeGlow {
-  0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.5));
-  }
-  50% {
-    filter: drop-shadow(0 0 16px rgba(78, 205, 196, 0.8));
-  }
-}
-
-.sankey-node.active,
-.arc-node.active,
-.chord-node.active {
-  animation: nodeGlow 2s ease-in-out infinite;
+  color: #666;
+  font-size: 16px;
+  margin-top: 16px;
 }
