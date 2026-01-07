@@ -138,7 +138,8 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
           target: d.target,
           value: d.value,
           transaction_count: d.transaction_count || 1,
-          source_type: d.source_type || 'blockchain'
+          source_type: d.source_type || 'blockchain',
+          transactions: d.transactions || [] // Include transactions array if available
         });
         
         // Also call parent callback if provided
@@ -332,18 +333,44 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
           <div className="link-details-body">
             <div className="link-details-row">
               <span className="link-details-label">From:</span>
-              <span className="link-details-value address">
-                {selectedLink.source.name || selectedLink.source.id}
+              <span className="link-details-value">
+                {selectedLink.source.name || 'Unknown'}
               </span>
+            </div>
+            
+            <div className="link-details-row">
+              <span className="link-details-label">Address:</span>
+              <a 
+                href={`https://etherscan.io/address/${selectedLink.source.id || selectedLink.source.address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link-details-value address-full"
+                title="View on Etherscan"
+              >
+                {selectedLink.source.id || selectedLink.source.address}
+              </a>
             </div>
             
             <div className="link-details-arrow">↓</div>
             
             <div className="link-details-row">
               <span className="link-details-label">To:</span>
-              <span className="link-details-value address">
-                {selectedLink.target.name || selectedLink.target.id}
+              <span className="link-details-value">
+                {selectedLink.target.name || 'Unknown'}
               </span>
+            </div>
+            
+            <div className="link-details-row">
+              <span className="link-details-label">Address:</span>
+              <a 
+                href={`https://etherscan.io/address/${selectedLink.target.id || selectedLink.target.address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link-details-value address-full"
+                title="View on Etherscan"
+              >
+                {selectedLink.target.id || selectedLink.target.address}
+              </a>
             </div>
             
             <div className="link-details-divider"></div>
@@ -369,24 +396,36 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
               </span>
             </div>
             
-            <div className="link-details-footer">
-              <a 
-                href={`https://etherscan.io/address/${selectedLink.source.id || selectedLink.source.address}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="link-details-button"
-              >
-                🔍 View Source on Etherscan
-              </a>
-              <a 
-                href={`https://etherscan.io/address/${selectedLink.target.id || selectedLink.target.address}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="link-details-button"
-              >
-                🔍 View Target on Etherscan
-              </a>
-            </div>
+            {/* Transaction Hashes Section */}
+            {selectedLink.transactions && selectedLink.transactions.length > 0 && (
+              <>
+                <div className="link-details-divider"></div>
+                <div className="link-details-section-title">
+                  📝 Transaction Hashes ({selectedLink.transactions.length})
+                </div>
+                <div className="link-details-hashes">
+                  {selectedLink.transactions.slice(0, 5).map((tx, idx) => (
+                    <div key={idx} className="link-details-hash-row">
+                      <span className="link-details-hash-number">#{idx + 1}</span>
+                      <a 
+                        href={`https://etherscan.io/tx/${tx.hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="link-details-hash"
+                        title={`${formatValue(tx.value_usd || 0)} - ${tx.timestamp || 'Unknown time'}`}
+                      >
+                        {tx.hash}
+                      </a>
+                    </div>
+                  ))}
+                  {selectedLink.transactions.length > 5 && (
+                    <div className="link-details-more">
+                      + {selectedLink.transactions.length - 5} more transactions
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
