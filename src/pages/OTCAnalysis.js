@@ -72,6 +72,7 @@ const OTCAnalysis = () => {
   // ============================================================================
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
+  const [isSankeyFullscreen, setIsSankeyFullscreen] = useState(false); // NEW: Sankey fullscreen state
   
   // Additional visualizations state
   const [heatmapData, setHeatmapData] = useState(null);
@@ -239,6 +240,13 @@ const OTCAnalysis = () => {
    */
   const handleSankeyLinkClick = (link) => {
     console.log('Sankey link clicked:', link);
+  };
+
+  /**
+   * NEW: Toggle Sankey fullscreen
+   */
+  const handleToggleSankeyFullscreen = () => {
+    setIsSankeyFullscreen(!isSankeyFullscreen);
   };
 
   /**
@@ -512,13 +520,22 @@ const OTCAnalysis = () => {
                   <span className="section-icon">💱</span>
                   Money Flow Analysis
                 </h2>
-                <button 
-                  className="action-button"
-                  onClick={fetchSankeyData}
-                  disabled={loading.sankey}
-                >
-                  {loading.sankey ? '⏳' : '🔄'}
-                </button>
+                <div className="section-actions">
+                  <button 
+                    className="action-button"
+                    onClick={handleToggleSankeyFullscreen}
+                    title="Fullscreen"
+                  >
+                    ⛶
+                  </button>
+                  <button 
+                    className="action-button"
+                    onClick={fetchSankeyData}
+                    disabled={loading.sankey}
+                  >
+                    {loading.sankey ? '⏳' : '🔄'}
+                  </button>
+                </div>
               </div>
               
               {loading.sankey ? (
@@ -531,6 +548,8 @@ const OTCAnalysis = () => {
                   data={sankeyData}
                   onNodeClick={handleSankeyNodeClick}
                   onLinkClick={handleSankeyLinkClick}
+                  isFullscreenMode={isSankeyFullscreen}
+                  onToggleFullscreen={handleToggleSankeyFullscreen}
                 />
               ) : (
                 <div className="empty-state">
