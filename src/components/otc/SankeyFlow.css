@@ -9,6 +9,39 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
+/* ============================================================================
+   SANKEY FULLSCREEN MODE (Container Fullscreen)
+   ============================================================================ */
+
+.sankey-flow-container.sankey-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  border-radius: 0;
+  z-index: 9999;
+  padding: 20px;
+  background: linear-gradient(135deg, #0a0a0a 0%, #000000 100%);
+  box-shadow: none;
+  animation: expandToFullscreen 0.3s ease-out;
+}
+
+@keyframes expandToFullscreen {
+  from {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .sankey-svg {
   width: 100%;
   height: 100%;
@@ -29,6 +62,12 @@
   z-index: 10;
 }
 
+.sankey-fullscreen .zoom-controls {
+  bottom: 30px;
+  right: 30px;
+  gap: 10px;
+}
+
 .zoom-btn {
   width: 40px;
   height: 40px;
@@ -45,10 +84,30 @@
   justify-content: center;
 }
 
+.sankey-fullscreen .zoom-btn {
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+}
+
 .zoom-btn:hover {
   background: rgba(78, 205, 196, 0.1);
   border-color: #4ECDC4;
   transform: translateY(-2px);
+}
+
+/* Exit Fullscreen Button */
+.zoom-btn.exit-fullscreen-btn {
+  background: rgba(255, 107, 107, 0.2);
+  border-color: rgba(255, 107, 107, 0.5);
+  color: #FF6B6B;
+  font-size: 24px;
+}
+
+.zoom-btn.exit-fullscreen-btn:hover {
+  background: rgba(255, 107, 107, 0.3);
+  border-color: #FF6B6B;
+  transform: scale(1.1);
 }
 
 /* Controls Hint */
@@ -65,6 +124,13 @@
   font-size: 12px;
   backdrop-filter: blur(10px);
   z-index: 10;
+  white-space: nowrap;
+}
+
+.sankey-fullscreen .controls-hint {
+  top: 30px;
+  padding: 10px 20px;
+  font-size: 13px;
 }
 
 .sankey-tooltip {
@@ -155,7 +221,15 @@
   transition: all 0.3s ease;
 }
 
-/* Fullscreen Mode */
+/* Panel positioning when Sankey is in fullscreen mode */
+.sankey-fullscreen .link-details-panel-enhanced {
+  top: 100px;
+  right: 30px;
+  width: 800px;
+  max-height: calc(100vh - 140px);
+}
+
+/* Panel Fullscreen Mode (panel itself goes fullscreen within Sankey container) */
 .link-details-panel-enhanced.fullscreen {
   position: fixed;
   top: 0;
@@ -168,6 +242,12 @@
   margin: 0 auto;
   border-radius: 0;
   animation: expandToFullscreen 0.3s ease-out;
+}
+
+.sankey-fullscreen .link-details-panel-enhanced.fullscreen {
+  /* Panel fullscreen inside Sankey fullscreen */
+  z-index: 101;
+  max-width: 1600px;
 }
 
 @keyframes expandToFullscreen {
