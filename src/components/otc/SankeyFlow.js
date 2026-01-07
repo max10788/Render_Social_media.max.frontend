@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
-import './SankeyFlow.css';
+import './SankeyFlow_enhanced.css';
 
 const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   const svgRef = useRef(null);
@@ -13,6 +13,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   const [sortBy, setSortBy] = useState('timestamp'); // timestamp, amount, gas
   const [sortOrder, setSortOrder] = useState('desc'); // asc, desc
   const [copiedItem, setCopiedItem] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false); // NEW: Fullscreen mode
   const simulationRef = useRef(null);
 
   useEffect(() => {
@@ -239,6 +240,24 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLink?.source?.address, selectedLink?.target?.address]);
+  
+  // Keyboard support for ESC key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isFullscreen) {
+          setIsFullscreen(false);
+        } else if (selectedLink) {
+          setSelectedLink(null);
+        }
+      }
+    };
+    
+    if (selectedLink) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [selectedLink, isFullscreen]);
   
   const loadTransactionDetails = async (link) => {
     if (link.transactions && link.transactions.length > 0) {
@@ -476,17 +495,37 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         </div>
       )}
 
+      {/* Fullscreen Backdrop */}
+      {selectedLink && isFullscreen && (
+        <div 
+          className="fullscreen-backdrop"
+          onClick={() => setIsFullscreen(false)}
+        />
+      )}
+
       {selectedLink && (
-        <div className="link-details-panel-enhanced">
+        <div className={`link-details-panel-enhanced ${isFullscreen ? 'fullscreen' : ''}`}>
           {/* Header */}
           <div className="link-details-header">
             <span className="link-details-title">💸 Transfer Details</span>
-            <button 
-              className="link-details-close"
-              onClick={() => setSelectedLink(null)}
-            >
-              ✕
-            </button>
+            <div className="header-controls">
+              <button 
+                className="fullscreen-toggle"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+              >
+                {isFullscreen ? '⛶' : '⛶'}
+              </button>
+              <button 
+                className="link-details-close"
+                onClick={() => {
+                  setSelectedLink(null);
+                  setIsFullscreen(false);
+                }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
           
           <div className="link-details-body">
