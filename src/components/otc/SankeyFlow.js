@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
-import './SankeyFlow_enhanced.css';
+import './SankeyFlow.css';
+
 
 const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   const svgRef = useRef(null);
