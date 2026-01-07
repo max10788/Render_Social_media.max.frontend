@@ -80,7 +80,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
 
     const getNodeColor = (category) => categoryColors[category] || '#95A5A6';
 
-    // Prepare links
+    // Prepare links - PRESERVE ALL PROPERTIES
     const links = (data.links || [])
       .filter(link => {
         const sourceExists = validNodes.some(n => n.id === link.source || n.name === link.source);
@@ -88,8 +88,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         return sourceExists && targetExists && link.value > 0;
       })
       .map(link => ({
-        source: link.source,
-        target: link.target,
+        ...link,  // ✅ Preserve all original properties (transaction_count, source_type, etc.)
         value: Number(link.value)
       }));
 
@@ -133,14 +132,19 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       .on('click', (event, d) => {
         event.stopPropagation(); // Prevent background click
         
-        // Set selected link for details panel
+        console.log('Sankey link clicked:', d);
+        
+        // Set selected link for details panel - preserve ALL properties
         setSelectedLink({
-          source: d.source,
-          target: d.target,
+          ...d,  // ✅ Preserve all link properties
+          source: d.source,  // Node object (will be used for display)
+          target: d.target,  // Node object (will be used for display)
           value: d.value,
           transaction_count: d.transaction_count || 1,
-          source_type: d.source_type || 'blockchain',
-          transactions: d.transactions || [] // Include transactions array if available
+          source_type: d.source_type || 'unknown',
+          source_address: d.source_address || d.source?.address,
+          target_address: d.target_address || d.target?.address,
+          transactions: d.transactions || []
         });
         
         // Also call parent callback if provided
@@ -249,11 +253,11 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   
   useEffect(() => {
     // Load transactions when a link is selected
-    if (selectedLink && selectedLink.source_address && selectedLink.target_address) {
+    if (selectedLink && (selectedLink.source?.address || selectedLink.source_address)) {
       loadTransactionDetails(selectedLink);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLink?.source_address, selectedLink?.target_address]);
+  }, [selectedLink?.source?.address, selectedLink?.target?.address]);
   
   const loadTransactionDetails = async (link) => {
     // Skip if already has transactions
@@ -262,12 +266,21 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       return;
     }
     
+    // Get addresses from node objects
+    const sourceAddress = link.source?.address || link.source_address;
+    const targetAddress = link.target?.address || link.target_address;
+    
+    if (!sourceAddress || !targetAddress) {
+      console.warn('⚠️ Missing addresses:', { sourceAddress, targetAddress });
+      return;
+    }
+    
     setLoadingTransactions(true);
     
     try {
       console.log('📡 Loading transactions for link:', {
-        from: link.source_address?.substring(0, 10) + '...',
-        to: link.target_address?.substring(0, 10) + '...'
+        from: sourceAddress.substring(0, 10) + '...',
+        to: targetAddress.substring(0, 10) + '...'
       });
       
       // Import service dynamically
@@ -275,8 +288,8 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       
       // Fetch transactions between the two addresses
       const result = await otcAnalysisService.getTransactionsBetween(
-        link.source_address,
-        link.target_address,
+        sourceAddress,
+        targetAddress,
         5  // Limit to 5 transactions
       );
       
@@ -401,13 +414,13 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
             <div className="link-details-row">
               <span className="link-details-label">Address:</span>
               <a 
-                href={`https://etherscan.io/address/${selectedLink.source.id || selectedLink.source.address}`}
+                href={`https://etherscan.io/address/${selectedLink.source.address || selectedLink.source.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="link-details-value address-full"
                 title="View on Etherscan"
               >
-                {selectedLink.source.id || selectedLink.source.address}
+                {selectedLink.source.address || selectedLink.source.id}
               </a>
             </div>
             
@@ -423,13 +436,13 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
             <div className="link-details-row">
               <span className="link-details-label">Address:</span>
               <a 
-                href={`https://etherscan.io/address/${selectedLink.target.id || selectedLink.target.address}`}
+                href={`https://etherscan.io/address/${selectedLink.target.address || selectedLink.target.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="link-details-value address-full"
                 title="View on Etherscan"
               >
-                {selectedLink.target.id || selectedLink.target.address}
+                {selectedLink.target.address || selectedLink.target.id}
               </a>
             </div>
             
