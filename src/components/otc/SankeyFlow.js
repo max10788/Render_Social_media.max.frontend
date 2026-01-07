@@ -1,9 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
-import './SankeyFlow.css';
+import './SankeyFlow_enhanced.css';
 
-
-const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
+const SankeyFlow = ({ data, onNodeClick, onLinkClick, isFullscreenMode = false, onToggleFullscreen }) => {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -14,24 +13,44 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   const [sortBy, setSortBy] = useState('timestamp'); // timestamp, amount, gas
   const [sortOrder, setSortOrder] = useState('desc'); // asc, desc
   const [copiedItem, setCopiedItem] = useState(null);
-  const [isFullscreen, setIsFullscreen] = useState(false); // NEW: Fullscreen mode
+  const [isPanelFullscreen, setIsPanelFullscreen] = useState(false); // Panel fullscreen (not container)
   const simulationRef = useRef(null);
 
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.clientWidth,
-          height: 500
-        });
+        if (isFullscreenMode) {
+          // Use full viewport in fullscreen mode
+          setDimensions({
+            width: window.innerWidth - 40, // Padding
+            height: window.innerHeight - 200 // Reserve space for header
+          });
+        } else {
+          // Use container size in normal mode
+          setDimensions({
+            width: containerRef.current.clientWidth,
+            height: 500
+          });
+        }
       }
     };
 
     updateDimensions();
     const resizeObserver = new ResizeObserver(updateDimensions);
     if (containerRef.current) resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
-  }, []);
+    
+    // Also listen to window resize in fullscreen mode
+    if (isFullscreenMode) {
+      window.addEventListener('resize', updateDimensions);
+    }
+    
+    return () => {
+      resizeObserver.disconnect();
+      if (isFullscreenMode) {
+        window.removeEventListener('resize', updateDimensions);
+      }
+    };
+  }, [isFullscreenMode]);
 
   useEffect(() => {
     if (!data || !dimensions.width || !svgRef.current) return;
@@ -246,19 +265,21 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (isFullscreen) {
-          setIsFullscreen(false);
+        if (isPanelFullscreen) {
+          setIsPanelFullscreen(false);
         } else if (selectedLink) {
           setSelectedLink(null);
+        } else if (isFullscreenMode && onToggleFullscreen) {
+          onToggleFullscreen();
         }
       }
     };
     
-    if (selectedLink) {
+    if (selectedLink || isFullscreenMode) {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [selectedLink, isFullscreen]);
+  }, [selectedLink, isPanelFullscreen, isFullscreenMode, onToggleFullscreen]);
   
   const loadTransactionDetails = async (link) => {
     if (link.transactions && link.transactions.length > 0) {
@@ -435,7 +456,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   const sortedTransactions = getSortedTransactions();
 
   return (
-    <div className="sankey-flow-container" ref={containerRef}>
+    <div className={`sankey-flow-container ${isFullscreenMode ? 'sankey-fullscreen' : ''}`} ref={containerRef}>
       <div className="zoom-controls">
         <button 
           className="zoom-btn"
@@ -467,10 +488,21 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         >
           🔄
         </button>
+        
+        {/* Exit Fullscreen Button (only show when in fullscreen) */}
+        {isFullscreenMode && onToggleFullscreen && (
+          <button 
+            className="zoom-btn exit-fullscreen-btn"
+            onClick={onToggleFullscreen}
+            title="Exit Fullscreen (ESC)"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       <div className="controls-hint">
-        🖱️ Scroll to zoom • Drag to pan • Click links for details
+        🖱️ Scroll to zoom • Drag to pan • Click links for details {isFullscreenMode && '• ESC to exit'}
       </div>
 
       <svg ref={svgRef} className="sankey-svg"></svg>
@@ -496,32 +528,32 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         </div>
       )}
 
-      {/* Fullscreen Backdrop */}
-      {selectedLink && isFullscreen && (
+      {/* Panel Fullscreen Backdrop (only for panel fullscreen, not container fullscreen) */}
+      {selectedLink && isPanelFullscreen && (
         <div 
           className="fullscreen-backdrop"
-          onClick={() => setIsFullscreen(false)}
+          onClick={() => setIsPanelFullscreen(false)}
         />
       )}
 
       {selectedLink && (
-        <div className={`link-details-panel-enhanced ${isFullscreen ? 'fullscreen' : ''}`}>
+        <div className={`link-details-panel-enhanced ${isPanelFullscreen ? 'fullscreen' : ''}`}>
           {/* Header */}
           <div className="link-details-header">
             <span className="link-details-title">💸 Transfer Details</span>
             <div className="header-controls">
               <button 
                 className="fullscreen-toggle"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                onClick={() => setIsPanelFullscreen(!isPanelFullscreen)}
+                title={isPanelFullscreen ? "Exit Panel Fullscreen" : "Panel Fullscreen"}
               >
-                {isFullscreen ? '⛶' : '⛶'}
+                {isPanelFullscreen ? '⛶' : '⛶'}
               </button>
               <button 
                 className="link-details-close"
                 onClick={() => {
                   setSelectedLink(null);
-                  setIsFullscreen(false);
+                  setIsPanelFullscreen(false);
                 }}
               >
                 ✕
