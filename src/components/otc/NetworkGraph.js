@@ -537,21 +537,26 @@ const NetworkGraph = ({
       };
     }).filter(Boolean);
 
+    // ✅ FIX: Handle both flat and nested data structures for edges
     const edges = rawEdges.map(edge => {
-      if (!edge || !edge.source || !edge.target) {
-        console.warn('Invalid edge:', edge);
+      // Handle both { data: { source, target } } and { source, target } formats
+      const edgeData = edge.data || edge;
+      
+      if (!edgeData || !edgeData.source || !edgeData.target) {
+        console.warn('Invalid edge - missing source or target:', edge);
         return null;
       }
 
       return {
         data: {
-          id: `${edge.source}-${edge.target}`,
-          source: edge.source,
-          target: edge.target,
-          transfer_amount_usd: Number(edge.transfer_amount_usd) || 1000,
-          is_suspected_otc: Boolean(edge.is_suspected_otc),
-          edge_count: Number(edge.edge_count) || 1,
-          transaction_count: Number(edge.transaction_count) || 1
+          id: `${edgeData.source}-${edgeData.target}`,
+          source: edgeData.source,
+          target: edgeData.target,
+          // Handle both 'transfer_amount_usd' and 'value' properties
+          transfer_amount_usd: Number(edgeData.transfer_amount_usd || edgeData.value) || 1000,
+          is_suspected_otc: Boolean(edgeData.is_suspected_otc),
+          edge_count: Number(edgeData.edge_count) || 1,
+          transaction_count: Number(edgeData.transaction_count) || 1
         }
       };
     }).filter(Boolean);
