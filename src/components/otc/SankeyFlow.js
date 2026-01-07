@@ -8,6 +8,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [tooltip, setTooltip] = useState(null);
   const [selectedLink, setSelectedLink] = useState(null); // NEW: For link details panel
+  const [loadingTransactions, setLoadingTransactions] = useState(false); // NEW: TX loading state
   const simulationRef = useRef(null);
 
   useEffect(() => {
@@ -242,6 +243,65 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
     return `$${value.toFixed(2)}`;
   };
 
+  // ============================================================================
+  // ✅ NEW: Load transaction details on demand
+  // ============================================================================
+  
+  useEffect(() => {
+    // Load transactions when a link is selected
+    if (selectedLink && selectedLink.source_address && selectedLink.target_address) {
+      loadTransactionDetails(selectedLink);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLink?.source_address, selectedLink?.target_address]);
+  
+  const loadTransactionDetails = async (link) => {
+    // Skip if already has transactions
+    if (link.transactions && link.transactions.length > 0) {
+      console.log('✅ Link already has transactions:', link.transactions.length);
+      return;
+    }
+    
+    setLoadingTransactions(true);
+    
+    try {
+      console.log('📡 Loading transactions for link:', {
+        from: link.source_address?.substring(0, 10) + '...',
+        to: link.target_address?.substring(0, 10) + '...'
+      });
+      
+      // Import service dynamically
+      const otcAnalysisService = (await import('../services/otcAnalysisService')).default;
+      
+      // Fetch transactions between the two addresses
+      const result = await otcAnalysisService.getTransactionsBetween(
+        link.source_address,
+        link.target_address,
+        5  // Limit to 5 transactions
+      );
+      
+      console.log('✅ Transactions loaded:', result.metadata);
+      
+      // Update selected link with transaction data
+      setSelectedLink(prev => ({
+        ...prev,
+        transactions: result.transactions || [],
+        transaction_count: result.metadata?.total_found || prev.transaction_count
+      }));
+      
+    } catch (error) {
+      console.error('❌ Failed to load transactions:', error);
+      // Keep link open even if loading fails
+      setSelectedLink(prev => ({
+        ...prev,
+        transactions: [],
+        transactionLoadError: error.message
+      }));
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
   if (!data || !data.nodes || data.nodes.length === 0) {
     return (
       <div className="sankey-flow-container empty">
@@ -397,33 +457,49 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
             </div>
             
             {/* Transaction Hashes Section */}
-            {selectedLink.transactions && selectedLink.transactions.length > 0 && (
+            {(selectedLink.transactions || loadingTransactions) && (
               <>
                 <div className="link-details-divider"></div>
                 <div className="link-details-section-title">
-                  📝 Transaction Hashes ({selectedLink.transactions.length})
+                  📝 Transaction Hashes {selectedLink.transactions?.length > 0 && `(${selectedLink.transactions.length})`}
                 </div>
-                <div className="link-details-hashes">
-                  {selectedLink.transactions.slice(0, 5).map((tx, idx) => (
-                    <div key={idx} className="link-details-hash-row">
-                      <span className="link-details-hash-number">#{idx + 1}</span>
-                      <a 
-                        href={`https://etherscan.io/tx/${tx.hash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="link-details-hash"
-                        title={`${formatValue(tx.value_usd || 0)} - ${tx.timestamp || 'Unknown time'}`}
-                      >
-                        {tx.hash}
-                      </a>
-                    </div>
-                  ))}
-                  {selectedLink.transactions.length > 5 && (
-                    <div className="link-details-more">
-                      + {selectedLink.transactions.length - 5} more transactions
-                    </div>
-                  )}
-                </div>
+                
+                {loadingTransactions ? (
+                  <div className="link-details-loading">
+                    <div className="loading-spinner"></div>
+                    <span>Loading transaction details...</span>
+                  </div>
+                ) : selectedLink.transactionLoadError ? (
+                  <div className="link-details-error">
+                    ⚠️ Failed to load transactions
+                  </div>
+                ) : selectedLink.transactions && selectedLink.transactions.length > 0 ? (
+                  <div className="link-details-hashes">
+                    {selectedLink.transactions.slice(0, 5).map((tx, idx) => (
+                      <div key={idx} className="link-details-hash-row">
+                        <span className="link-details-hash-number">#{idx + 1}</span>
+                        <a 
+                          href={`https://etherscan.io/tx/${tx.hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="link-details-hash"
+                          title={`${formatValue(tx.value_usd || 0)} - ${tx.timestamp || 'Unknown time'}`}
+                        >
+                          {tx.hash}
+                        </a>
+                      </div>
+                    ))}
+                    {selectedLink.transactions.length > 5 && (
+                      <div className="link-details-more">
+                        + {selectedLink.transactions.length - 5} more transactions
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="link-details-no-data">
+                    No transactions found between these addresses
+                  </div>
+                )}
               </>
             )}
           </div>
