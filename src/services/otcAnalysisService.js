@@ -477,6 +477,53 @@ class OTCAnalysisService {
       throw error;
     }
   }
+
+
+  /**
+   * Get transactions between two specific wallet addresses
+   * Used for on-demand loading when user clicks on Sankey Flow link
+   * 
+   * @param {string} fromAddress - Source wallet address
+   * @param {string} toAddress - Target wallet address
+   * @param {number} limit - Max transactions to return (1-20)
+   * @param {Object} dateRange - Optional date filtering
+   * @returns {Promise<Object>} Transaction list with metadata
+   */
+  async getTransactionsBetween(fromAddress, toAddress, limit = 5, dateRange = {}) {
+    try {
+      const params = {
+        from_address: fromAddress,
+        to_address: toAddress,
+        limit: limit
+      };
+      
+      // Add date range if provided
+      if (dateRange.startDate) {
+        params.start_date = dateRange.startDate;
+      }
+      if (dateRange.endDate) {
+        params.end_date = dateRange.endDate;
+      }
+      
+      console.log('🔍 Fetching transactions between wallets:', {
+        from: fromAddress.substring(0, 10) + '...',
+        to: toAddress.substring(0, 10) + '...',
+        limit
+      });
+      
+      const response = await this.apiClient.get('/api/otc/transactions', { params });
+      
+      console.log('✅ Transactions loaded:', {
+        total: response.data.metadata?.total_found || 0,
+        returned: response.data.transactions?.length || 0
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching transactions between wallets:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
