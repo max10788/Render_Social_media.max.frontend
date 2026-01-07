@@ -1,14 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
-import './SankeyFlow.css';
+import './SankeyFlow_enhanced.css';
 
 const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   const svgRef = useRef(null);
   const containerRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [tooltip, setTooltip] = useState(null);
-  const [selectedLink, setSelectedLink] = useState(null); // NEW: For link details panel
-  const [loadingTransactions, setLoadingTransactions] = useState(false); // NEW: TX loading state
+  const [selectedLink, setSelectedLink] = useState(null);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [expandedTxIds, setExpandedTxIds] = useState(new Set());
+  const [sortBy, setSortBy] = useState('timestamp'); // timestamp, amount, gas
+  const [sortOrder, setSortOrder] = useState('desc'); // asc, desc
+  const [copiedItem, setCopiedItem] = useState(null);
   const simulationRef = useRef(null);
 
   useEffect(() => {
@@ -51,10 +55,8 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
 
     svg.attr('width', width).attr('height', height);
 
-    // Create zoom-able group
     const zoomGroup = svg.append('g');
 
-    // Zoom & Pan behavior
     const zoom = d3.zoom()
       .scaleExtent([0.1, 4])
       .on('zoom', (event) => {
@@ -63,7 +65,6 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
 
     svg.call(zoom);
 
-    // Close link details panel when clicking background
     svg.on('click', () => {
       setSelectedLink(null);
     });
@@ -80,7 +81,6 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
 
     const getNodeColor = (category) => categoryColors[category] || '#95A5A6';
 
-    // Prepare links - PRESERVE ALL PROPERTIES
     const links = (data.links || [])
       .filter(link => {
         const sourceExists = validNodes.some(n => n.id === link.source || n.name === link.source);
@@ -88,20 +88,18 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         return sourceExists && targetExists && link.value > 0;
       })
       .map(link => ({
-        ...link,  // ✅ Preserve all original properties (transaction_count, source_type, etc.)
+        ...link,
         value: Number(link.value)
       }));
 
-    // Force simulation - INCREASED spacing for better visibility
     const simulation = d3.forceSimulation(validNodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(250)) // 150 -> 250
-      .force('charge', d3.forceManyBody().strength(-800)) // -300 -> -800 (more repulsion)
+      .force('link', d3.forceLink(links).id(d => d.id).distance(250))
+      .force('charge', d3.forceManyBody().strength(-800))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide().radius(d => Math.max(25, Math.log(d.value + 1) * 3.5)));
 
     simulationRef.current = simulation;
 
-    // Draw links (straight lines)
     const linkElements = zoomGroup.append('g')
       .selectAll('line')
       .data(links)
@@ -130,15 +128,12 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         setTooltip(null);
       })
       .on('click', (event, d) => {
-        event.stopPropagation(); // Prevent background click
+        event.stopPropagation();
         
-        console.log('Sankey link clicked:', d);
-        
-        // Set selected link for details panel - preserve ALL properties
         setSelectedLink({
-          ...d,  // ✅ Preserve all link properties
-          source: d.source,  // Node object (will be used for display)
-          target: d.target,  // Node object (will be used for display)
+          ...d,
+          source: d.source,
+          target: d.target,
           value: d.value,
           transaction_count: d.transaction_count || 1,
           source_type: d.source_type || 'unknown',
@@ -147,11 +142,12 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
           transactions: d.transactions || []
         });
         
-        // Also call parent callback if provided
+        // Reset expanded state when new link is selected
+        setExpandedTxIds(new Set());
+        
         if (onLinkClick) onLinkClick(d);
       });
 
-    // Draw nodes (draggable bubbles)
     const nodeElements = zoomGroup.append('g')
       .selectAll('circle')
       .data(validNodes)
@@ -185,7 +181,6 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         if (onNodeClick) onNodeClick(d);
       });
 
-    // Labels
     const labelElements = zoomGroup.append('g')
       .selectAll('text')
       .data(validNodes)
@@ -198,7 +193,6 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       .attr('dy', -20)
       .style('pointer-events', 'none');
 
-    // Update positions on tick
     simulation.on('tick', () => {
       linkElements
         .attr('x1', d => d.source.x)
@@ -239,20 +233,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
     };
   }, [data, dimensions, onNodeClick, onLinkClick]);
 
-  const formatValue = (value) => {
-    if (!value || isNaN(value)) return '$0';
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
-    return `$${value.toFixed(2)}`;
-  };
-
-  // ============================================================================
-  // ✅ NEW: Load transaction details on demand
-  // ============================================================================
-  
   useEffect(() => {
-    // Load transactions when a link is selected
     if (selectedLink && (selectedLink.source?.address || selectedLink.source_address)) {
       loadTransactionDetails(selectedLink);
     }
@@ -260,42 +241,28 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   }, [selectedLink?.source?.address, selectedLink?.target?.address]);
   
   const loadTransactionDetails = async (link) => {
-    // Skip if already has transactions
     if (link.transactions && link.transactions.length > 0) {
-      console.log('✅ Link already has transactions:', link.transactions.length);
       return;
     }
     
-    // Get addresses from node objects
     const sourceAddress = link.source?.address || link.source_address;
     const targetAddress = link.target?.address || link.target_address;
     
     if (!sourceAddress || !targetAddress) {
-      console.warn('⚠️ Missing addresses:', { sourceAddress, targetAddress });
       return;
     }
     
     setLoadingTransactions(true);
     
     try {
-      console.log('📡 Loading transactions for link:', {
-        from: sourceAddress.substring(0, 10) + '...',
-        to: targetAddress.substring(0, 10) + '...'
-      });
-      
-      // Import service dynamically
       const otcAnalysisService = (await import('../services/otcAnalysisService')).default;
       
-      // Fetch transactions between the two addresses
       const result = await otcAnalysisService.getTransactionsBetween(
         sourceAddress,
         targetAddress,
-        5  // Limit to 5 transactions
+        20  // Load more transactions for better stats
       );
       
-      console.log('✅ Transactions loaded:', result.metadata);
-      
-      // Update selected link with transaction data
       setSelectedLink(prev => ({
         ...prev,
         transactions: result.transactions || [],
@@ -304,7 +271,6 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
       
     } catch (error) {
       console.error('❌ Failed to load transactions:', error);
-      // Keep link open even if loading fails
       setSelectedLink(prev => ({
         ...prev,
         transactions: [],
@@ -313,6 +279,125 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
     } finally {
       setLoadingTransactions(false);
     }
+  };
+
+  const formatValue = (value) => {
+    if (!value || isNaN(value)) return '$0';
+    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
+    return `$${value.toFixed(2)}`;
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'Unknown';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getRelativeTime = (timestamp) => {
+    if (!timestamp) return 'Unknown';
+    const now = new Date();
+    const date = new Date(timestamp);
+    const seconds = Math.floor((now - date) / 1000);
+    
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    if (seconds < 2592000) return `${Math.floor(seconds / 86400)} days ago`;
+    return formatDate(timestamp);
+  };
+
+  const truncateHash = (hash) => {
+    if (!hash) return '';
+    return `${hash.substring(0, 10)}...${hash.substring(hash.length - 8)}`;
+  };
+
+  const copyToClipboard = async (text, type) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedItem(type);
+      setTimeout(() => setCopiedItem(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const toggleExpand = (txHash) => {
+    setExpandedTxIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(txHash)) {
+        newSet.delete(txHash);
+      } else {
+        newSet.add(txHash);
+      }
+      return newSet;
+    });
+  };
+
+  const getSortedTransactions = () => {
+    if (!selectedLink?.transactions) return [];
+    
+    const txs = [...selectedLink.transactions];
+    
+    txs.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'timestamp':
+          const timeA = new Date(a.timestamp || 0).getTime();
+          const timeB = new Date(b.timestamp || 0).getTime();
+          comparison = timeA - timeB;
+          break;
+        case 'amount':
+          comparison = (a.value_usd || 0) - (b.value_usd || 0);
+          break;
+        case 'gas':
+          comparison = (a.gas_used || 0) - (b.gas_used || 0);
+          break;
+        default:
+          comparison = 0;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    return txs;
+  };
+
+  const calculateStats = () => {
+    if (!selectedLink?.transactions || selectedLink.transactions.length === 0) {
+      return {
+        totalVolume: selectedLink?.value || 0,
+        avgTxSize: 0,
+        firstTx: null,
+        lastTx: null,
+        txCount: selectedLink?.transaction_count || 0
+      };
+    }
+
+    const txs = selectedLink.transactions;
+    const totalVolume = txs.reduce((sum, tx) => sum + (tx.value_usd || 0), 0);
+    const avgTxSize = totalVolume / txs.length;
+    
+    const timestamps = txs
+      .map(tx => tx.timestamp)
+      .filter(Boolean)
+      .sort();
+    
+    return {
+      totalVolume,
+      avgTxSize,
+      firstTx: timestamps[0],
+      lastTx: timestamps[timestamps.length - 1],
+      txCount: txs.length
+    };
   };
 
   if (!data || !data.nodes || data.nodes.length === 0) {
@@ -326,9 +411,11 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
     );
   }
 
+  const stats = selectedLink ? calculateStats() : null;
+  const sortedTransactions = getSortedTransactions();
+
   return (
     <div className="sankey-flow-container" ref={containerRef}>
-      {/* Zoom Controls */}
       <div className="zoom-controls">
         <button 
           className="zoom-btn"
@@ -362,9 +449,8 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         </button>
       </div>
 
-      {/* Instructions */}
       <div className="controls-hint">
-        🖱️ Scroll to zoom • Drag to pan • Click nodes to move
+        🖱️ Scroll to zoom • Drag to pan • Click links for details
       </div>
 
       <svg ref={svgRef} className="sankey-svg"></svg>
@@ -390,9 +476,9 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         </div>
       )}
 
-      {/* Link Details Panel */}
       {selectedLink && (
-        <div className="link-details-panel">
+        <div className="link-details-panel-enhanced">
+          {/* Header */}
           <div className="link-details-header">
             <span className="link-details-title">💸 Transfer Details</span>
             <button 
@@ -404,77 +490,154 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
           </div>
           
           <div className="link-details-body">
-            <div className="link-details-row">
-              <span className="link-details-label">From:</span>
-              <span className="link-details-value">
-                {selectedLink.source.name || 'Unknown'}
-              </span>
+            {/* Addresses Section */}
+            <div className="addresses-section">
+              <div className="address-item">
+                <div className="address-label">From</div>
+                <div className="address-name">{selectedLink.source.name || 'Unknown'}</div>
+                <div className="address-value-row">
+                  <a 
+                    href={`https://etherscan.io/address/${selectedLink.source.address || selectedLink.source.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="address-value"
+                    title="View on Etherscan"
+                  >
+                    {selectedLink.source.address || selectedLink.source.id}
+                  </a>
+                  <button
+                    className="copy-btn"
+                    onClick={() => copyToClipboard(selectedLink.source.address || selectedLink.source.id, 'source')}
+                    title="Copy address"
+                  >
+                    {copiedItem === 'source' ? '✓' : '📋'}
+                  </button>
+                </div>
+              </div>
+              
+              <div className="address-arrow">↓</div>
+              
+              <div className="address-item">
+                <div className="address-label">To</div>
+                <div className="address-name">{selectedLink.target.name || 'Unknown'}</div>
+                <div className="address-value-row">
+                  <a 
+                    href={`https://etherscan.io/address/${selectedLink.target.address || selectedLink.target.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="address-value"
+                    title="View on Etherscan"
+                  >
+                    {selectedLink.target.address || selectedLink.target.id}
+                  </a>
+                  <button
+                    className="copy-btn"
+                    onClick={() => copyToClipboard(selectedLink.target.address || selectedLink.target.id, 'target')}
+                    title="Copy address"
+                  >
+                    {copiedItem === 'target' ? '✓' : '📋'}
+                  </button>
+                </div>
+              </div>
             </div>
-            
-            <div className="link-details-row">
-              <span className="link-details-label">Address:</span>
-              <a 
-                href={`https://etherscan.io/address/${selectedLink.source.address || selectedLink.source.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="link-details-value address-full"
-                title="View on Etherscan"
-              >
-                {selectedLink.source.address || selectedLink.source.id}
-              </a>
+
+            {/* Statistics Section */}
+            {stats && (
+              <div className="stats-section">
+                <div className="stat-card">
+                  <div className="stat-icon">💰</div>
+                  <div className="stat-content">
+                    <div className="stat-value">{formatValue(stats.totalVolume)}</div>
+                    <div className="stat-label">Total Volume</div>
+                  </div>
+                </div>
+                
+                <div className="stat-card">
+                  <div className="stat-icon">🔢</div>
+                  <div className="stat-content">
+                    <div className="stat-value">{stats.txCount}</div>
+                    <div className="stat-label">Total TXs</div>
+                  </div>
+                </div>
+                
+                <div className="stat-card">
+                  <div className="stat-icon">📊</div>
+                  <div className="stat-content">
+                    <div className="stat-value">{formatValue(stats.avgTxSize)}</div>
+                    <div className="stat-label">Avg TX Size</div>
+                  </div>
+                </div>
+                
+                <div className="stat-card">
+                  <div className="stat-icon">⏱️</div>
+                  <div className="stat-content">
+                    <div className="stat-value">{stats.lastTx ? getRelativeTime(stats.lastTx) : 'Unknown'}</div>
+                    <div className="stat-label">Last TX</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Type Badge */}
+            <div className="type-section">
+              <span className="type-badge">{selectedLink.source_type}</span>
             </div>
-            
-            <div className="link-details-arrow">↓</div>
-            
-            <div className="link-details-row">
-              <span className="link-details-label">To:</span>
-              <span className="link-details-value">
-                {selectedLink.target.name || 'Unknown'}
-              </span>
-            </div>
-            
-            <div className="link-details-row">
-              <span className="link-details-label">Address:</span>
-              <a 
-                href={`https://etherscan.io/address/${selectedLink.target.address || selectedLink.target.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="link-details-value address-full"
-                title="View on Etherscan"
-              >
-                {selectedLink.target.address || selectedLink.target.id}
-              </a>
-            </div>
-            
-            <div className="link-details-divider"></div>
-            
-            <div className="link-details-row highlight">
-              <span className="link-details-label">💰 Amount:</span>
-              <span className="link-details-value-large">
-                {formatValue(selectedLink.value)}
-              </span>
-            </div>
-            
-            <div className="link-details-row">
-              <span className="link-details-label">🔢 Transactions:</span>
-              <span className="link-details-value">
-                {selectedLink.transaction_count}
-              </span>
-            </div>
-            
-            <div className="link-details-row">
-              <span className="link-details-label">🏷️ Type:</span>
-              <span className="link-details-value badge">
-                {selectedLink.source_type}
-              </span>
-            </div>
-            
-            {/* Transaction Hashes Section */}
+
+            {/* Transactions Section */}
             {(selectedLink.transactions || loadingTransactions) && (
               <>
-                <div className="link-details-divider"></div>
-                <div className="link-details-section-title">
-                  📝 Transaction Hashes {selectedLink.transactions?.length > 0 && `(${selectedLink.transactions.length})`}
+                <div className="transactions-header">
+                  <div className="transactions-title">
+                    📝 Transactions {sortedTransactions.length > 0 && `(${sortedTransactions.length})`}
+                  </div>
+                  
+                  {/* Sort Controls */}
+                  {sortedTransactions.length > 0 && (
+                    <div className="sort-controls">
+                      <button
+                        className={`sort-btn ${sortBy === 'timestamp' ? 'active' : ''}`}
+                        onClick={() => {
+                          if (sortBy === 'timestamp') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('timestamp');
+                            setSortOrder('desc');
+                          }
+                        }}
+                        title="Sort by time"
+                      >
+                        ⏰ {sortBy === 'timestamp' && (sortOrder === 'desc' ? '↓' : '↑')}
+                      </button>
+                      <button
+                        className={`sort-btn ${sortBy === 'amount' ? 'active' : ''}`}
+                        onClick={() => {
+                          if (sortBy === 'amount') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('amount');
+                            setSortOrder('desc');
+                          }
+                        }}
+                        title="Sort by amount"
+                      >
+                        💵 {sortBy === 'amount' && (sortOrder === 'desc' ? '↓' : '↑')}
+                      </button>
+                      <button
+                        className={`sort-btn ${sortBy === 'gas' ? 'active' : ''}`}
+                        onClick={() => {
+                          if (sortBy === 'gas') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('gas');
+                            setSortOrder('desc');
+                          }
+                        }}
+                        title="Sort by gas"
+                      >
+                        ⛽ {sortBy === 'gas' && (sortOrder === 'desc' ? '↓' : '↑')}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 {loadingTransactions ? (
@@ -486,27 +649,108 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
                   <div className="link-details-error">
                     ⚠️ Failed to load transactions
                   </div>
-                ) : selectedLink.transactions && selectedLink.transactions.length > 0 ? (
-                  <div className="link-details-hashes">
-                    {selectedLink.transactions.slice(0, 5).map((tx, idx) => (
-                      <div key={idx} className="link-details-hash-row">
-                        <span className="link-details-hash-number">#{idx + 1}</span>
-                        <a 
-                          href={`https://etherscan.io/tx/${tx.hash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="link-details-hash"
-                          title={`${formatValue(tx.value_usd || 0)} - ${tx.timestamp || 'Unknown time'}`}
+                ) : sortedTransactions.length > 0 ? (
+                  <div className="transactions-list">
+                    {sortedTransactions.map((tx, idx) => {
+                      const isExpanded = expandedTxIds.has(tx.hash);
+                      return (
+                        <div 
+                          key={tx.hash} 
+                          className={`transaction-item ${isExpanded ? 'expanded' : ''}`}
                         >
-                          {tx.hash}
-                        </a>
-                      </div>
-                    ))}
-                    {selectedLink.transactions.length > 5 && (
-                      <div className="link-details-more">
-                        + {selectedLink.transactions.length - 5} more transactions
-                      </div>
-                    )}
+                          {/* Compact View */}
+                          <div 
+                            className="transaction-compact"
+                            onClick={() => toggleExpand(tx.hash)}
+                          >
+                            <div className="tx-main-info">
+                              <span className="tx-number">#{idx + 1}</span>
+                              <span className="tx-hash-short">{truncateHash(tx.hash)}</span>
+                              <span className="tx-amount-main">{formatValue(tx.value_usd || 0)}</span>
+                            </div>
+                            <div className="tx-meta-info">
+                              <span className="tx-time">{getRelativeTime(tx.timestamp)}</span>
+                              <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+                            </div>
+                          </div>
+
+                          {/* Expanded View */}
+                          {isExpanded && (
+                            <div className="transaction-details">
+                              <div className="tx-detail-row">
+                                <span className="tx-detail-label">Hash:</span>
+                                <div className="tx-detail-value-row">
+                                  <a 
+                                    href={`https://etherscan.io/tx/${tx.hash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="tx-hash-full"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {tx.hash}
+                                  </a>
+                                  <button
+                                    className="copy-btn-small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyToClipboard(tx.hash, `tx-${tx.hash}`);
+                                    }}
+                                  >
+                                    {copiedItem === `tx-${tx.hash}` ? '✓' : '📋'}
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="tx-detail-row">
+                                <span className="tx-detail-label">Amount:</span>
+                                <span className="tx-detail-value">
+                                  {formatValue(tx.value_usd || 0)}
+                                  {tx.value_eth && (
+                                    <span className="tx-detail-secondary">
+                                      {' '}({tx.value_eth.toFixed(4)} {tx.token_symbol || 'ETH'})
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+
+                              <div className="tx-detail-row">
+                                <span className="tx-detail-label">Timestamp:</span>
+                                <span className="tx-detail-value">{formatDate(tx.timestamp)}</span>
+                              </div>
+
+                              {tx.block_number && (
+                                <div className="tx-detail-row">
+                                  <span className="tx-detail-label">Block:</span>
+                                  <a 
+                                    href={`https://etherscan.io/block/${tx.block_number}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="tx-detail-value tx-link"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    #{tx.block_number}
+                                  </a>
+                                </div>
+                              )}
+
+                              {tx.gas_used && (
+                                <div className="tx-detail-row">
+                                  <span className="tx-detail-label">Gas Used:</span>
+                                  <span className="tx-detail-value">{tx.gas_used.toLocaleString()}</span>
+                                </div>
+                              )}
+
+                              {tx.token_symbol && tx.token_symbol !== 'ETH' && (
+                                <div className="tx-detail-row">
+                                  <span className="tx-detail-label">Token:</span>
+                                  <span className="tx-detail-value badge-small">{tx.token_symbol}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="link-details-no-data">
@@ -514,6 +758,20 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
                   </div>
                 )}
               </>
+            )}
+
+            {/* View All on Etherscan */}
+            {selectedLink.source?.address && selectedLink.target?.address && (
+              <div className="panel-footer">
+                <a
+                  href={`https://etherscan.io/txs?a=${selectedLink.source.address}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="view-all-btn"
+                >
+                  🔍 View All on Etherscan
+                </a>
+              </div>
             )}
           </div>
         </div>
