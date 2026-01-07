@@ -7,6 +7,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
   const containerRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [tooltip, setTooltip] = useState(null);
+  const [selectedLink, setSelectedLink] = useState(null); // NEW: For link details panel
   const simulationRef = useRef(null);
 
   useEffect(() => {
@@ -61,6 +62,11 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
 
     svg.call(zoom);
 
+    // Close link details panel when clicking background
+    svg.on('click', () => {
+      setSelectedLink(null);
+    });
+
     const categoryColors = {
       'OTC Desk': '#FF6B6B',
       'OTC Desks': '#FF6B6B',
@@ -86,12 +92,12 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         value: Number(link.value)
       }));
 
-    // Force simulation
+    // Force simulation - INCREASED spacing for better visibility
     const simulation = d3.forceSimulation(validNodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(150))
-      .force('charge', d3.forceManyBody().strength(-300))
+      .force('link', d3.forceLink(links).id(d => d.id).distance(250)) // 150 -> 250
+      .force('charge', d3.forceManyBody().strength(-800)) // -300 -> -800 (more repulsion)
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(d => Math.max(20, Math.log(d.value + 1) * 3)));
+      .force('collision', d3.forceCollide().radius(d => Math.max(25, Math.log(d.value + 1) * 3.5)));
 
     simulationRef.current = simulation;
 
@@ -124,6 +130,18 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
         setTooltip(null);
       })
       .on('click', (event, d) => {
+        event.stopPropagation(); // Prevent background click
+        
+        // Set selected link for details panel
+        setSelectedLink({
+          source: d.source,
+          target: d.target,
+          value: d.value,
+          transaction_count: d.transaction_count || 1,
+          source_type: d.source_type || 'blockchain'
+        });
+        
+        // Also call parent callback if provided
         if (onLinkClick) onLinkClick(d);
       });
 
@@ -295,6 +313,81 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick }) => {
               <div>{formatValue(tooltip.content.value)}</div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Link Details Panel */}
+      {selectedLink && (
+        <div className="link-details-panel">
+          <div className="link-details-header">
+            <span className="link-details-title">💸 Transfer Details</span>
+            <button 
+              className="link-details-close"
+              onClick={() => setSelectedLink(null)}
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="link-details-body">
+            <div className="link-details-row">
+              <span className="link-details-label">From:</span>
+              <span className="link-details-value address">
+                {selectedLink.source.name || selectedLink.source.id}
+              </span>
+            </div>
+            
+            <div className="link-details-arrow">↓</div>
+            
+            <div className="link-details-row">
+              <span className="link-details-label">To:</span>
+              <span className="link-details-value address">
+                {selectedLink.target.name || selectedLink.target.id}
+              </span>
+            </div>
+            
+            <div className="link-details-divider"></div>
+            
+            <div className="link-details-row highlight">
+              <span className="link-details-label">💰 Amount:</span>
+              <span className="link-details-value-large">
+                {formatValue(selectedLink.value)}
+              </span>
+            </div>
+            
+            <div className="link-details-row">
+              <span className="link-details-label">🔢 Transactions:</span>
+              <span className="link-details-value">
+                {selectedLink.transaction_count}
+              </span>
+            </div>
+            
+            <div className="link-details-row">
+              <span className="link-details-label">🏷️ Type:</span>
+              <span className="link-details-value badge">
+                {selectedLink.source_type}
+              </span>
+            </div>
+            
+            <div className="link-details-footer">
+              <a 
+                href={`https://etherscan.io/address/${selectedLink.source.id || selectedLink.source.address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link-details-button"
+              >
+                🔍 View Source on Etherscan
+              </a>
+              <a 
+                href={`https://etherscan.io/address/${selectedLink.target.id || selectedLink.target.address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link-details-button"
+              >
+                🔍 View Target on Etherscan
+              </a>
+            </div>
+          </div>
         </div>
       )}
     </div>
