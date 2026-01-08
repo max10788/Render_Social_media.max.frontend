@@ -390,33 +390,66 @@ export const useOTCData = () => {
     setErrors(prev => ({ ...prev, desks: null }));
     
     try {
-      const response = await otcAnalysisService.getAllOTCDesks({
-        tags: ['verified', 'verified_otc_desk'],  // ✅ NEU: Nur verifizierte Desks
+      // ✅ 1. Hole Registry Desks
+      const desksResponse = await otcAnalysisService.getAllOTCDesks({
+        tags: ['verified', 'verified_otc_desk'],
         includeDiscovered: filters.showDiscovered,
         includeDbValidated: true,
         minConfidence: filters.minConfidence / 100
       });
       
-      let desks = response.data.desks || [];
+      // ✅ 2. Hole DB Wallets (NEUER CALL)
+      const walletsResponse = await fetch(
+        '/api/otc/wallets?tags=verified&include_active=true'
+      ).then(res => res.json());
       
-      // ✅ Filter by desk category
-      if (filters.deskCategory !== 'all') {
-        desks = desks.filter(desk => desk.desk_category === filters.deskCategory);
-      }
+      // ✅ 3. Konvertiere Registry Desks zu Wallet-Format
+      const registryDesks = (desksResponse.data?.desks || []).flatMap(desk => 
+        (desk.addresses || []).map(addr => ({
+          address: addr,
+          label: desk.display_name || desk.name,
+          entity_type: desk.type || 'otc_desk',
+          desk_category: desk.desk_category || 'verified',
+          confidence_score: (desk.confidence || 0.9) * 100,
+          is_active: desk.active || true,
+          tags: ['verified_otc_desk'],
+          source: 'registry'
+        }))
+      );
       
-      setAllDesks(desks);
+      // ✅ 4. Konvertiere DB Wallets zu gleichem Format
+      const dbWallets = (walletsResponse.data?.wallets || walletsResponse.wallets || []).map(wallet => ({
+        address: wallet.address,
+        label: wallet.label || wallet.entity_name,
+        entity_type: wallet.entity_type || 'otc_desk',
+        desk_category: 'verified',
+        confidence_score: (wallet.confidence || 1) * 100,
+        is_active: wallet.is_active || true,
+        tags: wallet.tags || ['verified'],
+        source: 'database'
+      }));
       
-      // ✅ Separate discovered desks
-      const discovered = desks.filter(desk => desk.desk_category === 'discovered');
+      // ✅ 5. Merge beide Listen
+      const allDesks = [...registryDesks, ...dbWallets];
+      
+      // ✅ 6. Filter nach Kategorie
+      const filteredDesks = filters.deskCategory !== 'all'
+        ? allDesks.filter(desk => desk.desk_category === filters.deskCategory)
+        : allDesks;
+      
+      setAllDesks(filteredDesks);
+      
+      const discovered = filteredDesks.filter(desk => desk.desk_category === 'discovered');
       setDiscoveredDesks(discovered);
       
-      console.log('✅ Desks loaded:', {
-        total: desks.length,
-        discovered: discovered.length,
-        verified: desks.filter(d => d.desk_category === 'verified').length
+      console.log('✅ Desks merged:', {
+        registry: registryDesks.length,
+        database: dbWallets.length,
+        total: filteredDesks.length,
+        discovered: discovered.length
       });
       
-      return desks;
+      return filteredDesks;
     } catch (error) {
       setErrors(prev => ({ ...prev, desks: error.message }));
       console.error('Error fetching desks:', error);
