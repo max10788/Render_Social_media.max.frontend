@@ -390,7 +390,7 @@ export const useOTCData = () => {
     setErrors(prev => ({ ...prev, desks: null }));
     
     try {
-      // ✅ 1. Hole Registry Desks
+      // ✅ 1. Hole Registry Desks (von /api/otc/desks)
       const desksResponse = await otcAnalysisService.getAllOTCDesks({
         tags: ['verified', 'verified_otc_desk'],
         includeDiscovered: filters.showDiscovered,
@@ -398,44 +398,75 @@ export const useOTCData = () => {
         minConfidence: filters.minConfidence / 100
       });
       
-      // ✅ 2. Hole DB Wallets (NEUER CALL)
-      const walletsResponse = await fetch(
-        '/api/otc/wallets?tags=verified&include_active=true'
-      ).then(res => res.json());
+      let registryDesks = [];
+      let dbDesks = [];
       
-      // ✅ 3. Konvertiere Registry Desks zu Wallet-Format
-      const registryDesks = (desksResponse.data?.desks || []).flatMap(desk => 
-        (desk.addresses || []).map(addr => ({
-          address: addr,
-          label: desk.display_name || desk.name,
-          entity_type: desk.type || 'otc_desk',
-          desk_category: desk.desk_category || 'verified',
-          confidence_score: (desk.confidence || 0.9) * 100,
-          is_active: desk.active || true,
-          tags: ['verified_otc_desk'],
-          source: 'registry'
-        }))
+      // ✅ 2. Konvertiere Registry Desks zu Wallet-Format
+      if (desksResponse?.data?.desks) {
+        registryDesks = desksResponse.data.desks.flatMap(desk => 
+          (desk.addresses || []).map(addr => ({
+            address: addr,
+            label: desk.display_name || desk.name,
+            entity_type: desk.type || 'otc_desk',
+            desk_category: desk.desk_category || 'verified',
+            confidence_score: (desk.confidence || 0.9) * 100,
+            is_active: desk.active || true,
+            tags: ['verified_otc_desk'],
+            source: 'registry',
+            total_volume_usd: 0,
+            transaction_count: 0
+          }))
+        );
+      }
+      
+      // ✅ 3. Hole Database Desks (von /api/otc/desks/database)
+      try {
+        const dbQueryParams = new URLSearchParams({
+          tags: 'verified',
+          include_active: true
+        });
+        
+        const dbResponse = await fetch(`/api/otc/desks/database?${dbQueryParams}`);
+        
+        if (dbResponse.ok) {
+          const dbData = await dbResponse.json();
+          
+          // Database Desks haben bereits wallet-ähnliche Struktur
+          const dbDesksRaw = dbData.data?.desks || dbData.desks || [];
+          
+          dbDesks = dbDesksRaw.map(desk => ({
+            address: desk.address || desk.addresses?.[0],
+            label: desk.label || desk.display_name || desk.name,
+            entity_type: desk.entity_type || desk.type || 'otc_desk',
+            desk_category: desk.desk_category || 'verified',
+            confidence_score: (desk.confidence_score || desk.confidence || 1) * 100,
+            is_active: desk.is_active ?? desk.active ?? true,
+            tags: desk.tags || ['verified'],
+            source: 'database',
+            total_volume_usd: desk.total_volume_usd || desk.total_volume || 0,
+            transaction_count: desk.transaction_count || 0
+          }));
+          
+          console.log('✅ Loaded DB desks:', dbDesks.length);
+        } else {
+          console.warn('⚠️ /api/otc/desks/database returned error:', dbResponse.status);
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Could not load database desks:', dbError.message);
+      }
+      
+      // ✅ 4. Merge beide Listen
+      const allDesks = [...registryDesks, ...dbDesks];
+      
+      // ✅ 5. Dedupliziere nach Address (falls Duplikate)
+      const uniqueDesks = Array.from(
+        new Map(allDesks.map(desk => [desk.address.toLowerCase(), desk])).values()
       );
-      
-      // ✅ 4. Konvertiere DB Wallets zu gleichem Format
-      const dbWallets = (walletsResponse.data?.wallets || walletsResponse.wallets || []).map(wallet => ({
-        address: wallet.address,
-        label: wallet.label || wallet.entity_name,
-        entity_type: wallet.entity_type || 'otc_desk',
-        desk_category: 'verified',
-        confidence_score: (wallet.confidence || 1) * 100,
-        is_active: wallet.is_active || true,
-        tags: wallet.tags || ['verified'],
-        source: 'database'
-      }));
-      
-      // ✅ 5. Merge beide Listen
-      const allDesks = [...registryDesks, ...dbWallets];
       
       // ✅ 6. Filter nach Kategorie
       const filteredDesks = filters.deskCategory !== 'all'
-        ? allDesks.filter(desk => desk.desk_category === filters.deskCategory)
-        : allDesks;
+        ? uniqueDesks.filter(desk => desk.desk_category === filters.deskCategory)
+        : uniqueDesks;
       
       setAllDesks(filteredDesks);
       
@@ -444,8 +475,9 @@ export const useOTCData = () => {
       
       console.log('✅ Desks merged:', {
         registry: registryDesks.length,
-        database: dbWallets.length,
-        total: filteredDesks.length,
+        database: dbDesks.length,
+        unique: uniqueDesks.length,
+        filtered: filteredDesks.length,
         discovered: discovered.length
       });
       
