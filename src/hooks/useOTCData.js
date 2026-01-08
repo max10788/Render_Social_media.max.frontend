@@ -391,6 +391,7 @@ export const useOTCData = () => {
     
     try {
       const response = await otcAnalysisService.getAllOTCDesks({
+        tags: ['verified', 'verified_otc_desk'],  // ✅ NEU: Nur verifizierte Desks
         includeDiscovered: filters.showDiscovered,
         includeDbValidated: true,
         minConfidence: filters.minConfidence / 100
