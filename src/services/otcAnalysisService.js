@@ -354,6 +354,7 @@ class OTCAnalysisService {
    * Get all OTC desks (including discovered)
    * 
    * @param {Object} params - Query parameters
+   * @param {Array<string>} params.tags - Filter by tags (e.g., ['verified', 'verified_otc_desk'])
    * @param {boolean} params.includeDiscovered - Include discovered desks
    * @param {boolean} params.includeDbValidated - Include DB validated desks
    * @param {number} params.minConfidence - Minimum confidence threshold (0.0-1.0)
@@ -366,6 +367,12 @@ class OTCAnalysisService {
         include_db_validated: params.includeDbValidated ?? true,
         min_confidence: params.minConfidence ?? 0.7
       };
+      
+      // ✅ NEU: Tags hinzufügen (wenn vorhanden)
+      if (params.tags && Array.isArray(params.tags) && params.tags.length > 0) {
+        // Axios erlaubt Arrays in params - werden automatisch als ?tags=x&tags=y serialisiert
+        queryParams.tags = params.tags;
+      }
       
       const response = await this.apiClient.get('/api/otc/desks', { 
         params: queryParams 
