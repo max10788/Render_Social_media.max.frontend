@@ -362,28 +362,36 @@ class OTCAnalysisService {
    */
   async getAllOTCDesks(params = {}) {
     try {
-      const queryParams = {
+      const queryParams = new URLSearchParams({
         include_discovered: params.includeDiscovered ?? true,
         include_db_validated: params.includeDbValidated ?? true,
         min_confidence: params.minConfidence ?? 0.7
-      };
-      
-      // ✅ NEU: Tags hinzufügen (wenn vorhanden)
-      if (params.tags && Array.isArray(params.tags) && params.tags.length > 0) {
-        // Axios erlaubt Arrays in params - werden automatisch als ?tags=x&tags=y serialisiert
-        queryParams.tags = params.tags;
-      }
-      
-      const response = await this.apiClient.get('/api/otc/desks', { 
-        params: queryParams 
       });
       
-      return response.data;
+      // ✅ NEU: Tags manuell hinzufügen (für fetch)
+      if (params.tags && Array.isArray(params.tags) && params.tags.length > 0) {
+        params.tags.forEach(tag => queryParams.append('tags', tag));
+      }
+      
+      const response = await fetch(`/api/otc/desks?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error('Error fetching OTC desks:', error);
       throw error;
     }
   }
+
 
   /**
    * Get only discovered OTC desks
