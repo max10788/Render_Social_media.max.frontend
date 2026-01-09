@@ -362,30 +362,32 @@ class OTCAnalysisService {
    */
   async getAllOTCDesks(params = {}) {
     try {
-      const queryParams = new URLSearchParams({
+      // ✅ FIX: Baue Query-Parameter als Objekt für axios
+      const queryParams = {
         include_discovered: params.includeDiscovered ?? true,
         include_db_validated: params.includeDbValidated ?? true,
         min_confidence: params.minConfidence ?? 0.7
-      });
+      };
       
-      // ✅ NEU: Tags manuell hinzufügen (für fetch)
+      // ✅ FIX: Tags als Array direkt übergeben (axios handled das)
       if (params.tags && Array.isArray(params.tags) && params.tags.length > 0) {
-        params.tags.forEach(tag => queryParams.append('tags', tag));
+        // Axios serialisiert Arrays automatisch als ?tags=x&tags=y
+        queryParams.tags = params.tags;
       }
       
-      const response = await fetch(`/api/otc/desks?${queryParams}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      console.log('🔍 Fetching OTC desks with params:', queryParams);
+      
+      // ✅ FIX: Nutze this.apiClient (hat bereits BASE_URL)
+      const response = await this.apiClient.get('/api/otc/desks', { 
+        params: queryParams 
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      console.log('✅ OTC desks loaded:', {
+        total: response.data.data?.total_count || 0,
+        desks: response.data.data?.desks?.length || 0
+      });
       
-      const data = await response.json();
-      return data;
+      return response.data;
     } catch (error) {
       console.error('Error fetching OTC desks:', error);
       throw error;
