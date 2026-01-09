@@ -225,11 +225,33 @@ const OTCDiscoveryPanel = ({
                 disabled={isRunning}
               >
                 <option value="">-- Select a desk --</option>
-                {knownDesks.map(desk => (
-                  <option key={desk.addresses[0]} value={desk.addresses[0]}>
-                    {desk.display_name} ({desk.addresses[0].slice(0, 10)}...)
-                  </option>
-                ))}
+                
+                {/* Gruppiere nach Source für bessere Übersicht */}
+                {knownDesks.filter(d => d.source === 'registry').length > 0 && (
+                  <optgroup label="📚 Registry Desks">
+                    {knownDesks
+                      .filter(d => d.source === 'registry')
+                      .map(desk => (
+                        <option key={desk.address} value={desk.address}>
+                          {desk.label} ({desk.address.slice(0, 10)}...)
+                        </option>
+                      ))
+                    }
+                  </optgroup>
+                )}
+                
+                {knownDesks.filter(d => d.source === 'database').length > 0 && (
+                  <optgroup label="💾 Database Desks">
+                    {knownDesks
+                      .filter(d => d.source === 'database')
+                      .map(desk => (
+                        <option key={desk.address} value={desk.address}>
+                          {desk.label} ({desk.address.slice(0, 10)}...)
+                        </option>
+                      ))
+                    }
+                  </optgroup>
+                )}
               </select>
             </div>
           )}
