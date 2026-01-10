@@ -424,7 +424,7 @@ const OTCAnalysis = () => {
           </button>
           
           <OTCDiscoveryPanel 
-            knownDesks={verifiedDesks}
+            knownDesks={allDesks}  // ✅ Übergebe ALLE Desks statt nur verified
             onDiscoveryComplete={handleDiscoveryComplete}
             onViewWallet={handleViewWalletFromDiscovery}
           />
