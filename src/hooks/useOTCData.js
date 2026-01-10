@@ -383,7 +383,7 @@ export const useOTCData = () => {
   // ============================================================================
   
   /**
-   * Fetch all OTC desks (including discovered)
+   * ✅ UPDATED: Fetch all OTC desks with intelligent desk_category mapping
    */
   const fetchAllDesks = useCallback(async () => {
     setLoading(prev => ({ ...prev, desks: true }));
@@ -411,36 +411,55 @@ export const useOTCData = () => {
             desk_category: desk.desk_category || 'verified',
             confidence_score: (desk.confidence || 0.9) * 100,
             is_active: desk.active || true,
-            tags: ['verified_otc_desk'],
+            tags: desk.tags || ['verified_otc_desk'],
             source: 'registry',
-            total_volume_usd: 0,
-            transaction_count: 0
+            total_volume_usd: desk.discovery_volume || 0,
+            transaction_count: desk.transaction_count || 0
           }))
         );
       }
       
-      // ✅ 3. Hole Database Desks (NEUE SERVICE-METHODE)
+      // ✅ 3. Hole Database Desks mit INTELLIGENTEM MAPPING
       try {
         const dbResponse = await otcAnalysisService.getDatabaseDesks({
-          tags: ['verified'],
+          tags: [], // ✅ Keine Tag-Filter, hole ALLE
           includeActive: true,
           minConfidence: 0.0
         });
         
         const dbDesksRaw = dbResponse.data?.desks || dbResponse.desks || [];
         
-        dbDesks = dbDesksRaw.map(desk => ({
-          address: desk.address || desk.addresses?.[0],
-          label: desk.label || desk.display_name || desk.name || desk.entity_name,
-          entity_type: desk.entity_type || desk.type || 'otc_desk',
-          desk_category: desk.desk_category || 'verified',
-          confidence_score: (desk.confidence_score || desk.confidence || 1) * 100,
-          is_active: desk.is_active ?? desk.active ?? true,
-          tags: desk.tags || ['verified'],
-          source: 'database',
-          total_volume_usd: desk.total_volume_usd || desk.total_volume || 0,
-          transaction_count: desk.transaction_count || 0
-        }));
+        // ✅ FIXED: Intelligentes desk_category Mapping basierend auf Tags
+        dbDesks = dbDesksRaw.map(desk => {
+          const tags = desk.tags || [];
+          
+          // ✅ Bestimme desk_category aus Tags
+          let desk_category = 'unknown';
+          
+          if (tags.includes('verified') || tags.includes('verified_otc_desk')) {
+            desk_category = 'verified';
+          } else if (tags.includes('discovered')) {
+            desk_category = 'discovered';
+          } else if (tags.includes('db_validated')) {
+            desk_category = 'db_validated';
+          } else if (desk.desk_category) {
+            // Fallback auf explizites Feld
+            desk_category = desk.desk_category;
+          }
+          
+          return {
+            address: desk.address || desk.addresses?.[0],
+            label: desk.label || desk.display_name || desk.name || desk.entity_name,
+            entity_type: desk.entity_type || desk.type || 'otc_desk',
+            desk_category: desk_category, // ✅ Intelligent gemappt
+            confidence_score: (desk.confidence_score || desk.confidence || 1) * 100,
+            is_active: desk.is_active ?? desk.active ?? true,
+            tags: tags,
+            source: 'database',
+            total_volume_usd: desk.total_volume_usd || desk.total_volume || 0,
+            transaction_count: desk.transaction_count || 0
+          };
+        });
         
         console.log('✅ Loaded DB desks:', dbDesks.length);
       } catch (dbError) {
@@ -455,13 +474,14 @@ export const useOTCData = () => {
         new Map(allDesks.map(desk => [desk.address.toLowerCase(), desk])).values()
       );
       
-      // ✅ 6. Filter nach Kategorie
+      // ✅ 6. Filter nach Kategorie (falls Filter aktiv)
       const filteredDesks = filters.deskCategory !== 'all'
         ? uniqueDesks.filter(desk => desk.desk_category === filters.deskCategory)
         : uniqueDesks;
       
       setAllDesks(filteredDesks);
       
+      // ✅ 7. Separiere discovered Desks für separaten State
       const discovered = filteredDesks.filter(desk => desk.desk_category === 'discovered');
       setDiscoveredDesks(discovered);
       
@@ -470,7 +490,12 @@ export const useOTCData = () => {
         database: dbDesks.length,
         unique: uniqueDesks.length,
         filtered: filteredDesks.length,
-        discovered: discovered.length
+        discovered: discovered.length,
+        categories: {
+          verified: uniqueDesks.filter(d => d.desk_category === 'verified').length,
+          discovered: uniqueDesks.filter(d => d.desk_category === 'discovered').length,
+          db_validated: uniqueDesks.filter(d => d.desk_category === 'db_validated').length
+        }
       });
       
       return filteredDesks;
