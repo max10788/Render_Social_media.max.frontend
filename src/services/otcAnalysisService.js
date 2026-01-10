@@ -394,6 +394,48 @@ class OTCAnalysisService {
     }
   }
 
+    /**
+   * Get database OTC desks (user-created desks from PostgreSQL)
+   * 
+   * @param {Object} params - Query parameters
+   * @param {Array<string>} params.tags - Filter by tags (e.g., ['verified'])
+   * @param {boolean} params.includeActive - Only active desks
+   * @param {number} params.minConfidence - Minimum confidence (0.0-1.0)
+   * @param {number} params.limit - Max results
+   * @param {number} params.offset - Pagination offset
+   * @returns {Promise<Object>} Database desks
+   */
+  async getDatabaseDesks(params = {}) {
+    try {
+      const queryParams = {
+        include_active: params.includeActive ?? true,
+        min_confidence: params.minConfidence ?? 0.0,
+        limit: params.limit ?? 100,
+        offset: params.offset ?? 0
+      };
+      
+      // ✅ Tags als Array für axios
+      if (params.tags && Array.isArray(params.tags) && params.tags.length > 0) {
+        queryParams.tags = params.tags;
+      }
+      
+      console.log('🔍 Fetching database desks with params:', queryParams);
+      
+      const response = await this.apiClient.get('/api/otc/desks/database', { 
+        params: queryParams 
+      });
+      
+      console.log('✅ Database desks loaded:', {
+        total: response.data.data?.total_count || 0,
+        desks: response.data.data?.desks?.length || 0
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching database desks:', error);
+      throw error;
+    }
+  }
 
   /**
    * Get only discovered OTC desks
