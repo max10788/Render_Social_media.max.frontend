@@ -419,38 +419,30 @@ export const useOTCData = () => {
         );
       }
       
-      // ✅ 3. Hole Database Desks (von /api/otc/desks/database)
+      // ✅ 3. Hole Database Desks (NEUE SERVICE-METHODE)
       try {
-        const dbQueryParams = new URLSearchParams({
-          tags: 'verified',
-          include_active: true
+        const dbResponse = await otcAnalysisService.getDatabaseDesks({
+          tags: ['verified'],
+          includeActive: true,
+          minConfidence: 0.0
         });
         
-        const dbResponse = await fetch(`/api/otc/desks/database?${dbQueryParams}`);
+        const dbDesksRaw = dbResponse.data?.desks || dbResponse.desks || [];
         
-        if (dbResponse.ok) {
-          const dbData = await dbResponse.json();
-          
-          // Database Desks haben bereits wallet-ähnliche Struktur
-          const dbDesksRaw = dbData.data?.desks || dbData.desks || [];
-          
-          dbDesks = dbDesksRaw.map(desk => ({
-            address: desk.address || desk.addresses?.[0],
-            label: desk.label || desk.display_name || desk.name,
-            entity_type: desk.entity_type || desk.type || 'otc_desk',
-            desk_category: desk.desk_category || 'verified',
-            confidence_score: (desk.confidence_score || desk.confidence || 1) * 100,
-            is_active: desk.is_active ?? desk.active ?? true,
-            tags: desk.tags || ['verified'],
-            source: 'database',
-            total_volume_usd: desk.total_volume_usd || desk.total_volume || 0,
-            transaction_count: desk.transaction_count || 0
-          }));
-          
-          console.log('✅ Loaded DB desks:', dbDesks.length);
-        } else {
-          console.warn('⚠️ /api/otc/desks/database returned error:', dbResponse.status);
-        }
+        dbDesks = dbDesksRaw.map(desk => ({
+          address: desk.address || desk.addresses?.[0],
+          label: desk.label || desk.display_name || desk.name || desk.entity_name,
+          entity_type: desk.entity_type || desk.type || 'otc_desk',
+          desk_category: desk.desk_category || 'verified',
+          confidence_score: (desk.confidence_score || desk.confidence || 1) * 100,
+          is_active: desk.is_active ?? desk.active ?? true,
+          tags: desk.tags || ['verified'],
+          source: 'database',
+          total_volume_usd: desk.total_volume_usd || desk.total_volume || 0,
+          transaction_count: desk.transaction_count || 0
+        }));
+        
+        console.log('✅ Loaded DB desks:', dbDesks.length);
       } catch (dbError) {
         console.warn('⚠️ Could not load database desks:', dbError.message);
       }
