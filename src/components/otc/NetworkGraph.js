@@ -31,10 +31,22 @@ const NetworkGraph = ({
     discovered: '#A78BFA'
   };
 
+  // ✅ FIX 1: Korrigierte isDiscoveredDesk Funktion
   const isDiscoveredDesk = (address) => {
-    return discoveredDesks.some(desk => 
-      desk.addresses && desk.addresses.includes(address)
-    );
+    if (!address) return false;
+    
+    const normalizedAddress = address.toLowerCase();
+    
+    return discoveredDesks.some(desk => {
+      // ✅ Handle both singular address and plural addresses
+      if (desk.address) {
+        return desk.address.toLowerCase() === normalizedAddress;
+      }
+      if (desk.addresses && Array.isArray(desk.addresses)) {
+        return desk.addresses.some(addr => addr.toLowerCase() === normalizedAddress);
+      }
+      return false;
+    });
   };
 
   // Calculate statistics
@@ -43,6 +55,8 @@ const NetworkGraph = ({
     
     const nodeCount = data.nodes.length;
     const edgeCount = (data.edges || []).length;
+    
+    // ✅ FIX: Verwende korrigierte isDiscoveredDesk Funktion
     const discoveredCount = data.nodes.filter(n => 
       isDiscoveredDesk(n.address)
     ).length;
@@ -57,20 +71,39 @@ const NetworkGraph = ({
       discovered: discoveredCount,
       totalVolume
     });
+    
+    // ✅ DEBUG: Stats logging
+    console.log('📊 Graph Stats Updated:', {
+      nodes: nodeCount,
+      edges: edgeCount,
+      discovered: discoveredCount,
+      discoveredDesksProvided: discoveredDesks.length,
+      totalVolume: totalVolume
+    });
+    
+    // ✅ DEBUG: Log discovered desks structure
+    if (discoveredDesks.length > 0) {
+      console.log('🔍 Discovered Desks Sample:', discoveredDesks.slice(0, 3).map(d => ({
+        address: d.address,
+        addresses: d.addresses,
+        label: d.label,
+        desk_category: d.desk_category
+      })));
+    }
   }, [data, discoveredDesks]);
 
   useEffect(() => {
     if (!containerRef.current || !data) return;
 
     if (!data.nodes || !Array.isArray(data.nodes)) {
-      console.error('Invalid graph data: nodes must be an array');
+      console.error('❌ Invalid graph data: nodes must be an array');
       return;
     }
 
     console.log('🎨 Rendering Network Graph:', {
       nodes: data.nodes.length,
       edges: (data.edges || []).length,
-      discovered: discoveredDesks.length
+      discoveredDesks: discoveredDesks.length
     });
 
     // Initialize Cytoscape with enhanced styling
@@ -318,7 +351,7 @@ const NetworkGraph = ({
       const node = evt.target;
       const nodeData = node.data();
       
-      console.log('Node clicked:', nodeData);
+      console.log('👆 Node clicked:', nodeData);
       
       if (onNodeClick && typeof onNodeClick === 'function') {
         try {
@@ -503,9 +536,10 @@ const NetworkGraph = ({
     }
   }, [selectedNode]);
 
+  // ✅ FIX 2: Enhanced formatGraphData mit vollständiger Edge-Validierung
   const formatGraphData = (graphData) => {
     if (!graphData) {
-      console.warn('No graph data provided');
+      console.warn('⚠️ No graph data provided');
       return [];
     }
 
@@ -517,15 +551,24 @@ const NetworkGraph = ({
       inputEdges: rawEdges.length
     });
 
+    // ✅ Step 1: Create nodes and build address lookup
+    const nodeAddressSet = new Set();
+    const nodeAddressMap = new Map(); // For case-insensitive lookup
+    
     const nodes = rawNodes.map(node => {
       if (!node || !node.address) {
-        console.warn('Invalid node:', node);
+        console.warn('⚠️ Invalid node (no address):', node);
         return null;
       }
 
+      // ✅ Normalize address for consistent comparison
+      const normalizedAddress = node.address.toLowerCase();
+      nodeAddressSet.add(normalizedAddress);
+      nodeAddressMap.set(normalizedAddress, node.address); // Store original case
+
       return {
         data: {
-          id: node.address,
+          id: node.address, // Keep original case for display
           address: node.address,
           label: node.label || null,
           entity_type: node.entity_type || 'unknown',
@@ -537,22 +580,76 @@ const NetworkGraph = ({
       };
     }).filter(Boolean);
 
-    // ✅ FIX: Handle both flat and nested data structures for edges
-    const edges = rawEdges.map(edge => {
+    console.log('✅ Nodes processed:', {
+      total: nodes.length,
+      uniqueAddresses: nodeAddressSet.size
+    });
+    
+    // ✅ DEBUG: Log sample node addresses
+    if (nodes.length > 0) {
+      console.log('📋 Sample node addresses:', 
+        Array.from(nodeAddressSet).slice(0, 5)
+      );
+    }
+
+    // ✅ Step 2: Validate and create edges
+    let validEdges = 0;
+    let invalidEdges = 0;
+    const invalidEdgeReasons = {
+      missingSource: 0,
+      missingTarget: 0,
+      missingBoth: 0,
+      malformed: 0
+    };
+
+    const edges = rawEdges.map((edge, index) => {
       // Handle both { data: { source, target } } and { source, target } formats
       const edgeData = edge.data || edge;
       
       if (!edgeData || !edgeData.source || !edgeData.target) {
-        console.warn('Invalid edge - missing source or target:', edge);
+        console.warn(`⚠️ Edge #${index}: Missing source or target`, edge);
+        invalidEdges++;
+        invalidEdgeReasons.malformed++;
         return null;
       }
 
+      // ✅ CRITICAL: Validate that both source and target nodes exist
+      const sourceNormalized = edgeData.source.toLowerCase();
+      const targetNormalized = edgeData.target.toLowerCase();
+      
+      const sourceExists = nodeAddressSet.has(sourceNormalized);
+      const targetExists = nodeAddressSet.has(targetNormalized);
+      
+      if (!sourceExists && !targetExists) {
+        console.warn(`❌ Edge #${index}: Neither source nor target node exists`, {
+          source: edgeData.source,
+          target: edgeData.target
+        });
+        invalidEdges++;
+        invalidEdgeReasons.missingBoth++;
+        return null;
+      }
+      
+      if (!sourceExists) {
+        console.warn(`❌ Edge #${index}: Source node not found: ${edgeData.source}`);
+        invalidEdges++;
+        invalidEdgeReasons.missingSource++;
+        return null;
+      }
+      
+      if (!targetExists) {
+        console.warn(`❌ Edge #${index}: Target node not found: ${edgeData.target}`);
+        invalidEdges++;
+        invalidEdgeReasons.missingTarget++;
+        return null;
+      }
+
+      validEdges++;
       return {
         data: {
           id: `${edgeData.source}-${edgeData.target}`,
-          source: edgeData.source,
+          source: edgeData.source, // Use original case to match node IDs
           target: edgeData.target,
-          // Handle both 'transfer_amount_usd' and 'value' properties
           transfer_amount_usd: Number(edgeData.transfer_amount_usd || edgeData.value) || 1000,
           is_suspected_otc: Boolean(edgeData.is_suspected_otc),
           edge_count: Number(edgeData.edge_count) || 1,
@@ -561,10 +658,30 @@ const NetworkGraph = ({
       };
     }).filter(Boolean);
 
-    console.log('✅ Formatted graph data:', {
-      outputNodes: nodes.length,
-      outputEdges: edges.length
+    console.log('✅ Edges processed:', {
+      input: rawEdges.length,
+      valid: validEdges,
+      invalid: invalidEdges,
+      invalidReasons: invalidEdgeReasons
     });
+
+    // ✅ CRITICAL: Warning if all edges are invalid
+    if (edges.length === 0 && rawEdges.length > 0) {
+      console.error('❌ ❌ ❌ ALL EDGES INVALID! ❌ ❌ ❌');
+      console.error('This means edge source/target addresses do not match any node addresses.');
+      console.error('Check for:');
+      console.error('  1. Case mismatches (0xABC vs 0xabc)');
+      console.error('  2. Truncated addresses in edges vs full addresses in nodes');
+      console.error('  3. Backend returning wrong address format');
+      console.log('📋 Sample node addresses:', Array.from(nodeAddressSet).slice(0, 5));
+      console.log('📋 Sample raw edges:', rawEdges.slice(0, 3));
+    }
+    
+    // ✅ DEBUG: Log edge validation rate
+    if (rawEdges.length > 0) {
+      const validationRate = (validEdges / rawEdges.length * 100).toFixed(1);
+      console.log(`📊 Edge validation rate: ${validationRate}%`);
+    }
 
     return [...nodes, ...edges];
   };
