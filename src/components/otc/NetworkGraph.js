@@ -645,6 +645,26 @@ const NetworkGraph = ({
       console.log(`📊 Edge validation rate: ${validationRate}%`);
     }
 
+   // ✅ DEBUG: Check entity_type distribution
+    const entityTypeCounts = {};
+    nodes.forEach(node => {
+      const type = node.data.entity_type || 'unknown';
+      entityTypeCounts[type] = (entityTypeCounts[type] || 0) + 1;
+    });
+    
+    console.log('📊 Entity Type Distribution:', entityTypeCounts);
+    // Should show: { otc_desk: X, institutional: Y, exchange: Z, unknown: W }
+    // NOT just: { otc_desk: 100 }
+    
+    // ✅ DEBUG: Sample some nodes
+    console.log('📋 Sample nodes (first 5):', 
+      nodes.slice(0, 5).map(n => ({
+        address: n.data.address.substring(0, 10) + '...',
+        label: n.data.label,
+        entity_type: n.data.entity_type
+      }))
+    );
+    
     return [...nodes, ...edges];
   };
 
