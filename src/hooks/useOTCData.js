@@ -6,6 +6,7 @@ import { format, subDays } from 'date-fns';
  * Custom hook for OTC Analysis data management
  * 
  * ✅ UPDATED: Added Discovery System integration
+ * ✅ UPDATED: Added Network Graph Wallet Filters
  * ✅ FIXED: Watchlist handling to match backend structure
  */
 export const useOTCData = () => {
@@ -18,10 +19,17 @@ export const useOTCData = () => {
     entityTypes: ['otc_desk', 'institutional', 'exchange', 'unknown'],
     tokens: ['ETH', 'USDT', 'USDC'],
     maxNodes: 500,
+    
     // Discovery filters
     showDiscovered: true,
     showVerified: true,
-    deskCategory: 'all' // 'all', 'verified', 'discovered', 'db_validated'
+    deskCategory: 'all', // 'all', 'verified', 'discovered', 'db_validated'
+    
+    // ✅ NEW: Network Graph Wallet Filters
+    showDbValidated: true,
+    includeTags: [],        // Only show wallets WITH these tags (empty = all allowed)
+    excludeTags: [],        // Hide wallets WITH these tags
+    walletAddresses: []     // Show ONLY these addresses (overrides all other filters)
   });
 
   // Data state
@@ -44,7 +52,6 @@ export const useOTCData = () => {
     statistics: false,
     wallet: false,
     walletDetails: false,
-    // Discovery loading states
     discovery: false,
     desks: false,
     discoveryStats: false
@@ -56,7 +63,6 @@ export const useOTCData = () => {
     statistics: null,
     wallet: null,
     walletDetails: null,
-    // Discovery error states
     discovery: null,
     desks: null
   });
@@ -67,19 +73,16 @@ export const useOTCData = () => {
   const ensureSafeData = useCallback((data) => {
     if (!data) return null;
     
-    // Ensure tags is always an array
     if (data.tags && !Array.isArray(data.tags)) {
       console.warn('Converting non-array tags to array:', data.tags);
       data.tags = [];
     }
     
-    // Ensure activity_data is array
     if (data.activity_data && !Array.isArray(data.activity_data)) {
       console.warn('Converting non-array activity_data to array');
       data.activity_data = [];
     }
     
-    // Ensure transfer_size_data is array
     if (data.transfer_size_data && !Array.isArray(data.transfer_size_data)) {
       console.warn('Converting non-array transfer_size_data to array');
       data.transfer_size_data = [];
@@ -96,14 +99,32 @@ export const useOTCData = () => {
   }, []);
 
   /**
-   * Fetch network graph data
+   * ✅ UPDATED: Fetch network graph data with wallet filters
    */
   const fetchNetworkData = useCallback(async () => {
     setLoading(prev => ({ ...prev, network: true }));
     setErrors(prev => ({ ...prev, network: null }));
     
     try {
-      const data = await otcAnalysisService.getNetworkGraph(filters);
+      console.log('🔧 Active wallet filters:', {
+        showDiscovered: filters.showDiscovered,
+        showVerified: filters.showVerified,
+        showDbValidated: filters.showDbValidated,
+        includeTags: filters.includeTags,
+        excludeTags: filters.excludeTags,
+        walletAddresses: filters.walletAddresses
+      });
+      
+      // ✅ UPDATED: Pass wallet filters to service
+      const data = await otcAnalysisService.getNetworkGraph({
+        ...filters,
+        showDiscovered: filters.showDiscovered,
+        showVerified: filters.showVerified,
+        showDbValidated: filters.showDbValidated,
+        includeTags: filters.includeTags,
+        excludeTags: filters.excludeTags,
+        walletAddresses: filters.walletAddresses
+      });
       
       // ✅ Validate data structure
       if (data && typeof data === 'object') {
@@ -113,9 +134,12 @@ export const useOTCData = () => {
           metadata: data.metadata || {}
         };
         
-        console.log('Network data loaded:', {
-          nodeCount: safeData.nodes.length,
-          edgeCount: safeData.edges.length
+        console.log('📊 Network data received:', {
+          totalNodes: safeData.nodes.length,
+          totalEdges: safeData.edges.length,
+          discovered: safeData.nodes.filter(n => n.tags?.includes('discovered')).length,
+          verified: safeData.nodes.filter(n => n.tags?.includes('verified')).length,
+          dbValidated: safeData.nodes.filter(n => n.desk_category === 'db_validated').length
         });
         
         setNetworkData(safeData);
@@ -268,12 +292,10 @@ export const useOTCData = () => {
 
   /**
    * ✅ FIXED: Fetch watchlist
-   * Backend returns: { items: [{ id, wallet_address, notes, ... }] }
    */
   const fetchWatchlist = useCallback(async () => {
     try {
       const data = await otcAnalysisService.getWatchlist();
-      // Keep items as-is with wallet_address field
       const safeData = Array.isArray(data) ? data : (data?.items || []);
       setWatchlist(safeData);
       console.log('✅ Watchlist loaded:', safeData.length, 'items');
@@ -303,8 +325,6 @@ export const useOTCData = () => {
 
   /**
    * ✅ FIXED: Remove from watchlist
-   * Backend expects DELETE /api/otc/watchlist/{id} (not address)
-   * So we need to find the item by wallet_address to get its id
    */
   const removeFromWatchlist = useCallback(async (address) => {
     if (!address) {
@@ -312,14 +332,12 @@ export const useOTCData = () => {
     }
     
     try {
-      // Find the watchlist item by wallet_address to get its id
       const item = watchlist.find(w => w.wallet_address === address);
       
       if (!item) {
         throw new Error('Wallet not in watchlist');
       }
       
-      // Remove using the id, not the address
       await otcAnalysisService.removeFromWatchlist(item.id);
       await fetchWatchlist();
       console.log('✅ Removed from watchlist:', address, '(id:', item.id, ')');
@@ -390,7 +408,6 @@ export const useOTCData = () => {
     setErrors(prev => ({ ...prev, desks: null }));
     
     try {
-      // ✅ 1. Hole Registry Desks (von /api/otc/desks)
       const desksResponse = await otcAnalysisService.getAllOTCDesks({
         tags: ['verified', 'verified_otc_desk'],
         includeDiscovered: filters.showDiscovered,
@@ -401,7 +418,6 @@ export const useOTCData = () => {
       let registryDesks = [];
       let dbDesks = [];
       
-      // ✅ 2. Konvertiere Registry Desks zu Wallet-Format
       if (desksResponse?.data?.desks) {
         registryDesks = desksResponse.data.desks.flatMap(desk => 
           (desk.addresses || []).map(addr => ({
@@ -419,21 +435,18 @@ export const useOTCData = () => {
         );
       }
       
-      // ✅ 3. Hole Database Desks mit INTELLIGENTEM MAPPING
       try {
         const dbResponse = await otcAnalysisService.getDatabaseDesks({
-          tags: [], // ✅ Keine Tag-Filter, hole ALLE
+          tags: [],
           includeActive: true,
           minConfidence: 0.0
         });
         
         const dbDesksRaw = dbResponse.data?.desks || dbResponse.desks || [];
         
-        // ✅ FIXED: Intelligentes desk_category Mapping basierend auf Tags
         dbDesks = dbDesksRaw.map(desk => {
           const tags = desk.tags || [];
           
-          // ✅ Bestimme desk_category aus Tags
           let desk_category = 'unknown';
           
           if (tags.includes('verified') || tags.includes('verified_otc_desk')) {
@@ -443,7 +456,6 @@ export const useOTCData = () => {
           } else if (tags.includes('db_validated')) {
             desk_category = 'db_validated';
           } else if (desk.desk_category) {
-            // Fallback auf explizites Feld
             desk_category = desk.desk_category;
           }
           
@@ -451,7 +463,7 @@ export const useOTCData = () => {
             address: desk.address || desk.addresses?.[0],
             label: desk.label || desk.display_name || desk.name || desk.entity_name,
             entity_type: desk.entity_type || desk.type || 'otc_desk',
-            desk_category: desk_category, // ✅ Intelligent gemappt
+            desk_category: desk_category,
             confidence_score: (desk.confidence_score || desk.confidence || 1) * 100,
             is_active: desk.is_active ?? desk.active ?? true,
             tags: tags,
@@ -466,23 +478,18 @@ export const useOTCData = () => {
         console.warn('⚠️ Could not load database desks:', dbError.message);
       }
       
-      // ✅ 4. Merge beide Listen
       const allDesks = [...registryDesks, ...dbDesks];
       
-      // ✅ 5. Dedupliziere nach Address
       const uniqueDesks = Array.from(
         new Map(allDesks.map(desk => [desk.address.toLowerCase(), desk])).values()
       );
       
-      // ✅ 6. Filter nach Kategorie (falls Filter aktiv)
       const filteredDesks = filters.deskCategory !== 'all'
         ? uniqueDesks.filter(desk => desk.desk_category === filters.deskCategory)
         : uniqueDesks;
       
       setAllDesks(filteredDesks);
       
-      // ✅ FIX: Discovered Desks IMMER aus uniqueDesks (nicht filteredDesks!)
-      // So bekommen wir ALLE discovered, egal welcher Filter aktiv ist
       const discovered = uniqueDesks.filter(desk => desk.desk_category === 'discovered');
       setDiscoveredDesks(discovered);
       
@@ -500,7 +507,6 @@ export const useOTCData = () => {
         }
       });
       
-      // ✅ DEBUG: Log ALL discovered desks with full details
       if (discovered.length > 0) {
         console.log('🔍 Discovered Desks (Full Details):', discovered.map(d => ({
           address: d.address,
@@ -518,6 +524,7 @@ export const useOTCData = () => {
           source: d.source
         })));
       }      
+      
       return filteredDesks;
     } catch (error) {
       setErrors(prev => ({ ...prev, desks: error.message }));
@@ -568,7 +575,6 @@ export const useOTCData = () => {
         discovered: result.discovered_count
       });
       
-      // Refresh desks and stats after discovery
       await fetchAllDesks();
       await fetchDiscoveryStats();
       
@@ -601,7 +607,6 @@ export const useOTCData = () => {
         totalDiscovered: results.reduce((sum, r) => sum + (r.discovered_count || 0), 0)
       });
       
-      // Refresh data
       await fetchAllDesks();
       await fetchDiscoveryStats();
       
@@ -637,30 +642,19 @@ export const useOTCData = () => {
   ]);
 
   return {
-    // Data
     networkData,
     sankeyData,
     statistics,
     watchlist,
     selectedWallet,
     walletDetails,
-    
-    // Discovery data
     allDesks,
     discoveredDesks,
     discoveryStats,
-    
-    // Filters
     filters,
     updateFilters,
-    
-    // Loading states
     loading,
-    
-    // Errors
     errors,
-    
-    // Actions
     fetchNetworkData,
     fetchSankeyData,
     fetchStatistics,
@@ -672,8 +666,6 @@ export const useOTCData = () => {
     fetchDistributions,
     fetchHeatmap,
     fetchTimeline,
-    
-    // Discovery actions
     fetchAllDesks,
     fetchDiscoveryStats,
     runDiscovery,
