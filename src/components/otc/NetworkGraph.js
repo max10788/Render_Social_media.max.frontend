@@ -674,7 +674,6 @@ const NetworkGraph = ({
   
     return [...nodes, ...edges];
   };
-  };
 
   const truncateAddress = (address) => {
     if (!address || typeof address !== 'string') return '';
