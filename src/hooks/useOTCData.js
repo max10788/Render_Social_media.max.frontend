@@ -200,15 +200,19 @@ export const useOTCData = () => {
     
     let edgeDebugCount = 0;
     const filteredEdges = (data.edges || []).filter(edge => {
+      // ✅ FIX: Extract data object first (edges can be {data: {...}} or direct objects)
+      const edgeData = edge.data || edge;
+      
       // Support different edge field names
-      const sourceAddr = (edge.from || edge.source || edge.from_address)?.toLowerCase();
-      const targetAddr = (edge.to || edge.target || edge.to_address)?.toLowerCase();
+      const sourceAddr = (edgeData.from || edgeData.source || edgeData.from_address)?.toLowerCase();
+      const targetAddr = (edgeData.to || edgeData.target || edgeData.to_address)?.toLowerCase();
       
       const isVisible = visibleAddresses.has(sourceAddr) && visibleAddresses.has(targetAddr);
       
       // Debug first few edges
-      if (edgeDebugCount < 3 && isVisible) {
+      if (edgeDebugCount < 3) {
         console.log('🔍 Edge check:', {
+          hasData: !!edge.data,
           source: sourceAddr?.substring(0, 10) + '...',
           target: targetAddr?.substring(0, 10) + '...',
           sourceVisible: visibleAddresses.has(sourceAddr),
