@@ -32,13 +32,13 @@ const NetworkGraph = ({
   };
 
   // ✅ FIX 1: Korrigierte isDiscoveredDesk Funktion
+
   const isDiscoveredDesk = (address) => {
     if (!address) return false;
     
     const normalizedAddress = address.toLowerCase();
     
-    return discoveredDesks.some(desk => {
-      // ✅ Handle both singular address and plural addresses
+    const result = discoveredDesks.some(desk => {
       if (desk.address) {
         return desk.address.toLowerCase() === normalizedAddress;
       }
@@ -47,6 +47,17 @@ const NetworkGraph = ({
       }
       return false;
     });
+    
+    // ✅ DEBUG: Log first few checks
+    if (discoveredDesks.length > 0 && Math.random() < 0.1) { // 10% sample
+      console.log('🔍 isDiscoveredDesk check:', {
+        address: address.substring(0, 10) + '...',
+        isDiscovered: result,
+        totalDiscoveredDesks: discoveredDesks.length
+      });
+    }
+    
+    return result;
   };
 
   // Calculate statistics
