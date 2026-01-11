@@ -491,7 +491,7 @@ export const useOTCData = () => {
         database: dbDesks.length,
         unique: uniqueDesks.length,
         filtered: filteredDesks.length,
-        discovered: discovered.length, // ✅ Sollte jetzt korrekt sein
+        discovered: discovered.length,
         categories: {
           verified: uniqueDesks.filter(d => d.desk_category === 'verified').length,
           discovered: uniqueDesks.filter(d => d.desk_category === 'discovered').length,
@@ -500,16 +500,24 @@ export const useOTCData = () => {
         }
       });
       
-      // ✅ DEBUG: Log discovered desks
+      // ✅ DEBUG: Log ALL discovered desks with full details
       if (discovered.length > 0) {
-        console.log('🔍 Discovered Desks:', discovered.map(d => ({
-          address: d.address.substring(0, 10) + '...',
+        console.log('🔍 Discovered Desks (Full Details):', discovered.map(d => ({
+          address: d.address,
           label: d.label,
           category: d.desk_category,
-          tags: d.tags
+          tags: d.tags,
+          source: d.source
         })));
-      }
-      
+      } else {
+        console.log('⚠️ NO discovered desks found!');
+        console.log('Sample of all desks:', uniqueDesks.slice(0, 5).map(d => ({
+          address: d.address.substring(0, 10) + '...',
+          category: d.desk_category,
+          tags: d.tags,
+          source: d.source
+        })));
+      }      
       return filteredDesks;
     } catch (error) {
       setErrors(prev => ({ ...prev, desks: error.message }));
