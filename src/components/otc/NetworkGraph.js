@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
-import fcose from 'cytoscape-fcose';
+import dagre from 'cytoscape-dagre'; // ✅ CHANGED: Import dagre instead of fcose
 import './NetworkGraph.css';
 
-// Register layout algorithm
-cytoscape.use(fcose);
+// ✅ CHANGED: Register dagre layout algorithm
+cytoscape.use(dagre);
 
 const NetworkGraph = ({ 
   data, 
@@ -56,7 +56,6 @@ const NetworkGraph = ({
     const nodeCount = data.nodes.length;
     const edgeCount = (data.edges || []).length;
     
-    // ✅ FIX: Verwende korrigierte isDiscoveredDesk Funktion
     const discoveredCount = data.nodes.filter(n => 
       isDiscoveredDesk(n.address)
     ).length;
@@ -72,7 +71,6 @@ const NetworkGraph = ({
       totalVolume
     });
     
-    // ✅ DEBUG: Stats logging
     console.log('📊 Graph Stats Updated:', {
       nodes: nodeCount,
       edges: edgeCount,
@@ -81,7 +79,6 @@ const NetworkGraph = ({
       totalVolume: totalVolume
     });
     
-    // ✅ DEBUG: Log discovered desks structure
     if (discoveredDesks.length > 0) {
       console.log('🔍 Discovered Desks Sample:', discoveredDesks.slice(0, 3).map(d => ({
         address: d.address,
@@ -100,7 +97,7 @@ const NetworkGraph = ({
       return;
     }
 
-    console.log('🎨 Rendering Network Graph:', {
+    console.log('🎨 Rendering Network Graph with Dagre Layout:', {
       nodes: data.nodes.length,
       edges: (data.edges || []).length,
       discoveredDesks: discoveredDesks.length
@@ -119,7 +116,7 @@ const NetworkGraph = ({
         {
           selector: 'node',
           style: {
-            // Size based on volume (SMALLER than before)
+            // Size based on volume
             'width': (ele) => {
               const volume = ele.data('total_volume_usd') || 0;
               const baseSize = Math.max(30, Math.min(80, Math.log(volume + 1) * 5));
@@ -219,26 +216,21 @@ const NetworkGraph = ({
         },
         
         // ============================================================================
-        // ENHANCED EDGE STYLES - MAKE THEM VISIBLE!
+        // ENHANCED EDGE STYLES
         // ============================================================================
         {
           selector: 'edge',
           style: {
-            // CRITICAL: Make edges visible
             'width': (ele) => {
               const amount = ele.data('transfer_amount_usd') || 1000;
-              // Use logarithmic scale, with minimum width of 2
               return Math.max(2, Math.min(12, Math.log(amount + 1) / 1.5));
             },
             
-            // Line color
             'line-color': (ele) => {
               const sourceType = ele.source().data('entity_type');
-              // Use source color
               return entityColors[sourceType] || entityColors.unknown;
             },
             
-            // Arrow styling
             'target-arrow-color': (ele) => {
               const targetType = ele.target().data('entity_type');
               return entityColors[targetType] || entityColors.unknown;
@@ -246,25 +238,19 @@ const NetworkGraph = ({
             'target-arrow-shape': 'triangle',
             'arrow-scale': 1.2,
             
-            // Curve style for better visibility
             'curve-style': 'bezier',
             'control-point-step-size': 60,
             
-            // CRITICAL: Set visible opacity
             'opacity': 0.7,
             
-            // Line style based on confidence
             'line-style': (ele) => {
               const isSuspected = ele.data('is_suspected_otc');
               const confidence = ele.source().data('confidence_score') || 50;
-              
-              // Solid for high confidence, dashed for low
               return (isSuspected || confidence > 60) ? 'solid' : 'dashed';
             }
           }
         },
         
-        // Selected edge
         {
           selector: 'edge:selected',
           style: {
@@ -279,7 +265,6 @@ const NetworkGraph = ({
           }
         },
         
-        // Highlighted edges (when node is hovered) - using class
         {
           selector: 'edge.highlighted',
           style: {
@@ -293,7 +278,6 @@ const NetworkGraph = ({
           }
         },
         
-        // Dimmed edges (when other edges are highlighted) - using class
         {
           selector: 'edge.dimmed',
           style: {
@@ -302,37 +286,40 @@ const NetworkGraph = ({
         }
       ],
       
+      // ✅ CHANGED: Dagre Layout Configuration
       layout: {
-        name: 'fcose',
-        quality: 'proof',
-        randomize: false,
+        name: 'dagre',
+        
+        // Dagre-specific options
+        nodeSep: 80,           // Horizontal spacing between nodes
+        edgeSep: 40,           // Spacing between edges
+        rankSep: 150,          // Vertical spacing between ranks
+        rankDir: 'TB',         // Direction: TB (top-bottom), LR (left-right), BT, RL
+        
+        // Alignment
+        align: undefined,      // Alignment of nodes: 'UL' (up-left), 'UR', 'DL', 'DR'
+        
+        // Node dimensions
+        nodeDimensionsIncludeLabels: true,
+        
+        // Animation
         animate: true,
         animationDuration: 1500,
         animationEasing: 'ease-out',
+        
+        // Fitting
         fit: true,
         padding: 60,
-        nodeDimensionsIncludeLabels: true,
         
-        // Force-directed parameters
-        idealEdgeLength: (edge) => {
+        // Ranking algorithm
+        ranker: 'network-simplex', // 'network-simplex', 'tight-tree', 'longest-path'
+        
+        // Edge weight (influences positioning)
+        edgeWeight: (edge) => {
           const amount = edge.data('transfer_amount_usd') || 1000;
-          // Larger transfers = shorter ideal length
-          return Math.max(100, 200 - Math.log(amount + 1) * 5);
-        },
-        edgeElasticity: (edge) => 0.45,
-        
-        // Clustering
-        nestingFactor: 0.1,
-        gravity: 0.4,
-        numIter: 3000,
-        initialTemp: 200,
-        coolingFactor: 0.95,
-        minTemp: 1.0,
-        
-        // Separation
-        nodeRepulsion: (node) => 8000,
-        idealEdgeLength: 120,
-        edgeElasticity: 0.45
+          // Higher weight = edges try to be shorter
+          return Math.log(amount + 1);
+        }
       },
       
       minZoom: 0.2,
@@ -343,10 +330,9 @@ const NetworkGraph = ({
     cyRef.current = cy;
 
     // ============================================================================
-    // ENHANCED EVENT LISTENERS
+    // EVENT LISTENERS (unchanged)
     // ============================================================================
 
-    // Node click
     cy.on('tap', 'node', (evt) => {
       const node = evt.target;
       const nodeData = node.data();
@@ -362,7 +348,6 @@ const NetworkGraph = ({
       }
     });
 
-    // Node hover with enhanced highlighting
     cy.on('mouseover', 'node', (evt) => {
       const node = evt.target;
       const nodeData = node.data();
@@ -377,19 +362,14 @@ const NetworkGraph = ({
         }
       }
       
-      // Highlight connected edges
       try {
         const connectedEdges = node.connectedEdges();
         const allEdges = cy.edges();
         
         if (connectedEdges && connectedEdges.length > 0) {
-          // Highlight connected edges
           connectedEdges.addClass('highlighted');
-          
-          // Dim other edges
           allEdges.not(connectedEdges).addClass('dimmed');
           
-          // Highlight connected nodes
           const connectedNodes = connectedEdges.connectedNodes().not(node);
           connectedNodes.style({
             'border-width': 4,
@@ -401,18 +381,13 @@ const NetworkGraph = ({
       }
     });
 
-    // Node mouseout
     cy.on('mouseout', 'node', (evt) => {
-      const node = evt.target;
-      
       setHoveredNode(null);
       
-      // Reset all edges
       try {
         const allEdges = cy.edges();
         allEdges.removeClass('highlighted dimmed');
         
-        // Reset all nodes
         const allNodes = cy.nodes();
         allNodes.style({
           'border-width': (ele) => {
@@ -426,11 +401,8 @@ const NetworkGraph = ({
       }
     });
 
-    // Edge hover
     cy.on('mouseover', 'edge', (evt) => {
       const edge = evt.target;
-      
-      // Highlight source and target nodes
       const sourceNode = edge.source();
       const targetNode = edge.target();
       
@@ -444,13 +416,10 @@ const NetworkGraph = ({
         'overlay-opacity': 0.15
       });
       
-      // Dim other edges
       cy.edges().not(edge).addClass('dimmed');
     });
 
-    // Edge mouseout
     cy.on('mouseout', 'edge', (evt) => {
-      // Reset everything
       cy.edges().removeClass('dimmed');
       cy.nodes().style({
         'border-width': (ele) => {
@@ -461,7 +430,6 @@ const NetworkGraph = ({
       });
     });
 
-    // Context menu
     cy.on('cxttap', 'node', (evt) => {
       const node = evt.target;
       const renderedPosition = node.renderedPosition();
@@ -473,14 +441,12 @@ const NetworkGraph = ({
       });
     });
 
-    // Click outside to close context menu
     cy.on('tap', (evt) => {
       if (evt.target === cy) {
         setContextMenu(null);
       }
     });
 
-    // Fit graph after layout
     cy.on('layoutstop', () => {
       setTimeout(() => {
         if (cyRef.current) {
@@ -490,7 +456,7 @@ const NetworkGraph = ({
             
             const nodeCount = cyRef.current.nodes().length;
             const edgeCount = cyRef.current.edges().length;
-            console.log('✅ Graph fitted:', { nodes: nodeCount, edges: edgeCount });
+            console.log('✅ Dagre layout completed:', { nodes: nodeCount, edges: edgeCount });
           } catch (error) {
             console.error('Error fitting graph:', error);
           }
@@ -498,7 +464,6 @@ const NetworkGraph = ({
       }, 100);
     });
 
-    // Cleanup
     return () => {
       if (cyRef.current) {
         try {
@@ -510,7 +475,6 @@ const NetworkGraph = ({
     };
   }, [data, onNodeClick, onNodeHover, discoveredDesks]);
 
-  // Update selection
   useEffect(() => {
     if (!cyRef.current || !selectedNode) return;
 
@@ -536,7 +500,6 @@ const NetworkGraph = ({
     }
   }, [selectedNode]);
 
-  // ✅ FIX 2: Enhanced formatGraphData mit vollständiger Edge-Validierung
   const formatGraphData = (graphData) => {
     if (!graphData) {
       console.warn('⚠️ No graph data provided');
@@ -551,9 +514,8 @@ const NetworkGraph = ({
       inputEdges: rawEdges.length
     });
 
-    // ✅ Step 1: Create nodes and build address lookup
     const nodeAddressSet = new Set();
-    const nodeAddressMap = new Map(); // For case-insensitive lookup
+    const nodeAddressMap = new Map();
     
     const nodes = rawNodes.map(node => {
       if (!node || !node.address) {
@@ -561,14 +523,13 @@ const NetworkGraph = ({
         return null;
       }
 
-      // ✅ Normalize address for consistent comparison
       const normalizedAddress = node.address.toLowerCase();
       nodeAddressSet.add(normalizedAddress);
-      nodeAddressMap.set(normalizedAddress, node.address); // Store original case
+      nodeAddressMap.set(normalizedAddress, node.address);
 
       return {
         data: {
-          id: node.address, // Keep original case for display
+          id: node.address,
           address: node.address,
           label: node.label || null,
           entity_type: node.entity_type || 'unknown',
@@ -585,14 +546,12 @@ const NetworkGraph = ({
       uniqueAddresses: nodeAddressSet.size
     });
     
-    // ✅ DEBUG: Log sample node addresses
     if (nodes.length > 0) {
       console.log('📋 Sample node addresses:', 
         Array.from(nodeAddressSet).slice(0, 5)
       );
     }
 
-    // ✅ Step 2: Validate and create edges
     let validEdges = 0;
     let invalidEdges = 0;
     const invalidEdgeReasons = {
@@ -603,7 +562,6 @@ const NetworkGraph = ({
     };
 
     const edges = rawEdges.map((edge, index) => {
-      // Handle both { data: { source, target } } and { source, target } formats
       const edgeData = edge.data || edge;
       
       if (!edgeData || !edgeData.source || !edgeData.target) {
@@ -613,7 +571,6 @@ const NetworkGraph = ({
         return null;
       }
 
-      // ✅ CRITICAL: Validate that both source and target nodes exist
       const sourceNormalized = edgeData.source.toLowerCase();
       const targetNormalized = edgeData.target.toLowerCase();
       
@@ -648,7 +605,7 @@ const NetworkGraph = ({
       return {
         data: {
           id: `${edgeData.source}-${edgeData.target}`,
-          source: edgeData.source, // Use original case to match node IDs
+          source: edgeData.source,
           target: edgeData.target,
           transfer_amount_usd: Number(edgeData.transfer_amount_usd || edgeData.value) || 1000,
           is_suspected_otc: Boolean(edgeData.is_suspected_otc),
@@ -665,19 +622,13 @@ const NetworkGraph = ({
       invalidReasons: invalidEdgeReasons
     });
 
-    // ✅ CRITICAL: Warning if all edges are invalid
     if (edges.length === 0 && rawEdges.length > 0) {
       console.error('❌ ❌ ❌ ALL EDGES INVALID! ❌ ❌ ❌');
-      console.error('This means edge source/target addresses do not match any node addresses.');
-      console.error('Check for:');
-      console.error('  1. Case mismatches (0xABC vs 0xabc)');
-      console.error('  2. Truncated addresses in edges vs full addresses in nodes');
-      console.error('  3. Backend returning wrong address format');
+      console.error('Edge source/target addresses do not match node addresses.');
       console.log('📋 Sample node addresses:', Array.from(nodeAddressSet).slice(0, 5));
       console.log('📋 Sample raw edges:', rawEdges.slice(0, 3));
     }
     
-    // ✅ DEBUG: Log edge validation rate
     if (rawEdges.length > 0) {
       const validationRate = (validEdges / rawEdges.length * 100).toFixed(1);
       console.log(`📊 Edge validation rate: ${validationRate}%`);
@@ -699,16 +650,12 @@ const NetworkGraph = ({
     
     switch(action) {
       case 'track':
-        // Add to watchlist
         break;
       case 'expand':
-        // Fetch 1-hop neighbors
         break;
       case 'flow':
-        // Show flow analysis
         break;
       case 'export':
-        // Export subgraph
         break;
     }
     
@@ -727,7 +674,6 @@ const NetworkGraph = ({
     <div className="network-graph-container">
       <div className="network-graph" ref={containerRef}></div>
       
-      {/* Statistics Panel */}
       {stats && (
         <div className="graph-stats-panel">
           <div className="stat-item">
@@ -763,7 +709,6 @@ const NetworkGraph = ({
         </div>
       )}
 
-      {/* Hovered Node Info */}
       {hoveredNode && (
         <div className="hover-info-panel">
           <div className="hover-info-header">
@@ -805,7 +750,6 @@ const NetworkGraph = ({
         </div>
       )}
       
-      {/* Context Menu */}
       {contextMenu && (
         <div 
           className={`context-menu ${isDiscoveredDesk(contextMenu.node.address) ? 'discovered' : ''}`}
@@ -830,7 +774,6 @@ const NetworkGraph = ({
         </div>
       )}
 
-      {/* Legend */}
       <div className="graph-legend enhanced">
         <h4 className="legend-title">ENTITY TYPES</h4>
         {Object.entries(entityColors).filter(([type]) => 
@@ -858,7 +801,6 @@ const NetworkGraph = ({
         ))}
       </div>
 
-      {/* Controls */}
       <div className="graph-controls enhanced">
         <button 
           onClick={() => cyRef.current?.fit(60)} 
