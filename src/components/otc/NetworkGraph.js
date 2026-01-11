@@ -5,7 +5,16 @@ import './NetworkGraph.css';
 
 cytoscape.use(dagre);
 
-const NetworkGraphEnhanced = ({ 
+/**
+ * ✅ COMPLETE NetworkGraph with Apply Filters System
+ * 
+ * Features:
+ * - Staged filtering (pending vs active filters)
+ * - Apply/Cancel/Reset buttons
+ * - Visual feedback for unapplied changes
+ * - All original features preserved
+ */
+const NetworkGraph = ({ 
   data, 
   onNodeClick, 
   onNodeHover, 
@@ -19,16 +28,15 @@ const NetworkGraphEnhanced = ({
   const [hoveredNode, setHoveredNode] = useState(null);
   
   // ============================================================================
-  // FILTER STATE - WITH APPLY BUTTON LOGIC
+  // FILTER STATE - Apply Filters System
   // ============================================================================
-  // Active filters (actually applied to the graph)
+  // ✅ IMPORTANT: Default filters show ALL nodes (safe defaults)
   const [activeFilters, setActiveFilters] = useState({
-    tags: [],
-    entityTypes: [],
-    confidenceRange: [0, 100]
+    tags: [],                    // Empty = show all
+    entityTypes: [],             // Empty = show all
+    confidenceRange: [0, 100]    // 0-100 = show all
   });
   
-  // Pending filters (being edited in the UI, not yet applied)
   const [pendingFilters, setPendingFilters] = useState({
     tags: [],
     entityTypes: [],
@@ -56,6 +64,7 @@ const NetworkGraphEnhanced = ({
   // FILTER ACTIONS
   // ============================================================================
   const applyFilters = () => {
+    console.log('🔧 Applying filters:', pendingFilters);
     setActiveFilters({
       tags: [...pendingFilters.tags],
       entityTypes: [...pendingFilters.entityTypes],
@@ -65,6 +74,7 @@ const NetworkGraphEnhanced = ({
   };
 
   const resetFilters = () => {
+    console.log('🔄 Resetting filters to defaults');
     const defaultFilters = {
       tags: [],
       entityTypes: [],
@@ -76,6 +86,7 @@ const NetworkGraphEnhanced = ({
   };
 
   const cancelChanges = () => {
+    console.log('✕ Cancelling filter changes');
     setPendingFilters({
       tags: [...activeFilters.tags],
       entityTypes: [...activeFilters.entityTypes],
@@ -85,10 +96,9 @@ const NetworkGraphEnhanced = ({
   };
 
   // ============================================================================
-  // ENHANCED COLOR SCHEMES
+  // COLOR SCHEMES
   // ============================================================================
   
-  // Entity Type Colors
   const entityColors = {
     otc_desk: '#FF6B6B',
     institutional: '#4ECDC4',
@@ -101,33 +111,21 @@ const NetworkGraphEnhanced = ({
     discovered: '#10B981'
   };
 
-  // Tag-based Colors (Priority system: more specific tags override entity colors)
   const tagColors = {
-    // Verification status
     'verified': '#22C55E',
     'verified_otc_desk': '#16A34A',
-    
-    // Discovery status
     'discovered': '#10B981',
     'HIGH_CONFIDENCE_OTC': '#059669',
     'LIKELY_OTC': '#14B8A6',
     'INTERESTING_FLAG': '#06B6D4',
     'REVIEW_RECOMMENDED': '#F59E0B',
-    
-    // Exchange related
     'Exchange': '#FFE66D',
     'Top Adress': '#FCD34D',
-    
-    // Trading related
     'market_maker': '#A78BFA',
     'prop_trading': '#F472B6',
     'high_volume': '#EF4444',
-    
-    // Analysis related
     'last_tx_analysis': '#8B5CF6',
     'registry': '#6366F1',
-    
-    // Token/Contract related (lighter colors)
     'moralis:ChainLink Token': '#3B82F6',
     'moralis:SAND (SAND)': '#60A5FA',
     'moralis:SHIBA INU (SHIB)': '#93C5FD',
@@ -139,7 +137,6 @@ const NetworkGraphEnhanced = ({
     'moralis:EOS: Token Sale': '#E0E7FF'
   };
 
-  // Priority order for tag colors (higher index = higher priority)
   const tagPriority = [
     'last_tx_analysis',
     'registry',
@@ -175,12 +172,10 @@ const NetworkGraphEnhanced = ({
     });
   };
 
-  // Get the most important color for a node based on its tags and entity type
   const getNodeColor = (node) => {
     const tags = node.tags || [];
     const entityType = node.entity_type;
     
-    // Find highest priority tag that has a color
     for (let i = tagPriority.length - 1; i >= 0; i--) {
       const priorityTag = tagPriority[i];
       if (tags.includes(priorityTag) && tagColors[priorityTag]) {
@@ -188,24 +183,20 @@ const NetworkGraphEnhanced = ({
       }
     }
     
-    // Check for any moralis tags
     const moralisTag = tags.find(tag => tag.startsWith('moralis:'));
     if (moralisTag && tagColors[moralisTag]) {
       return tagColors[moralisTag];
     }
     
-    // Check other tags
     for (const tag of tags) {
       if (tagColors[tag]) {
         return tagColors[tag];
       }
     }
     
-    // Fall back to entity type color
     return entityColors[entityType] || entityColors.unknown;
   };
 
-  // Get node border style based on verification status
   const getNodeBorderStyle = (node) => {
     const tags = node.tags || [];
     if (tags.includes('verified') || tags.includes('verified_otc_desk')) {
@@ -217,7 +208,6 @@ const NetworkGraphEnhanced = ({
     return 'solid';
   };
 
-  // Get icon for node based on tags and entity type
   const getNodeIcon = (node) => {
     const tags = node.tags || [];
     
@@ -241,22 +231,22 @@ const NetworkGraphEnhanced = ({
   };
 
   // ============================================================================
-  // FILTER LOGIC - Uses activeFilters (not pendingFilters!)
+  // FILTER LOGIC - Uses activeFilters
   // ============================================================================
 
   const shouldShowNode = (node) => {
-    // Confidence filter
+    // ✅ Confidence filter
     const confidence = (node.confidence || node.confidence_score || 0) * 100;
     if (confidence < activeFilters.confidenceRange[0] || confidence > activeFilters.confidenceRange[1]) {
       return false;
     }
 
-    // Entity type filter
+    // ✅ Entity type filter (only if types are selected)
     if (activeFilters.entityTypes.length > 0 && !activeFilters.entityTypes.includes(node.entity_type)) {
       return false;
     }
 
-    // Tag filter
+    // ✅ Tag filter (only if tags are selected)
     if (activeFilters.tags.length > 0) {
       const nodeTags = node.tags || [];
       const hasSelectedTag = activeFilters.tags.some(tag => nodeTags.includes(tag));
@@ -289,6 +279,11 @@ const NetworkGraphEnhanced = ({
 
     setAvailableTags(Array.from(tags).sort());
     setAvailableEntityTypes(Array.from(entityTypes).sort());
+
+    console.log('📊 Available filters extracted:', {
+      tags: tags.size,
+      entityTypes: entityTypes.size
+    });
   }, [data]);
 
   // ============================================================================
@@ -322,6 +317,12 @@ const NetworkGraphEnhanced = ({
       verified: verifiedCount,
       totalVolume
     });
+
+    console.log('📊 Stats updated:', {
+      visible: nodeCount,
+      total: data.nodes.length,
+      edges: edgeCount
+    });
   }, [data, discoveredDesks, activeFilters]);
 
   // ============================================================================
@@ -335,17 +336,16 @@ const NetworkGraphEnhanced = ({
     const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
   
     const nodeAddressSet = new Set();
-    const nodeAddressMap = new Map();
     
     // Filter and format nodes
     const nodes = rawNodes
-      .filter(shouldShowNode)
+      .filter(node => {
+        if (!node || !node.address) return false;
+        return shouldShowNode(node);
+      })
       .map(node => {
-        if (!node || !node.address) return null;
-  
         const normalizedAddress = node.address.toLowerCase();
         nodeAddressSet.add(normalizedAddress);
-        nodeAddressMap.set(normalizedAddress, node.address);
   
         let cleanLabel = node.label;
         if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
@@ -368,36 +368,42 @@ const NetworkGraphEnhanced = ({
             last_active: node.last_active
           }
         };
+      });
+  
+    // Filter edges to only include visible nodes
+    const edges = rawEdges
+      .map((edge) => {
+        const edgeData = edge.data || edge;
+        
+        if (!edgeData || !edgeData.source || !edgeData.target) {
+          return null;
+        }
+  
+        const sourceNormalized = edgeData.source.toLowerCase();
+        const targetNormalized = edgeData.target.toLowerCase();
+        
+        if (!nodeAddressSet.has(sourceNormalized) || !nodeAddressSet.has(targetNormalized)) {
+          return null;
+        }
+  
+        return {
+          data: {
+            id: `${edgeData.source}-${edgeData.target}`,
+            source: edgeData.source,
+            target: edgeData.target,
+            transfer_amount_usd: Number(edgeData.transfer_amount_usd || edgeData.value) || 1000,
+            is_suspected_otc: Boolean(edgeData.is_suspected_otc),
+            edge_count: Number(edgeData.edge_count) || 1,
+            transaction_count: Number(edgeData.transaction_count) || 1
+          }
+        };
       })
       .filter(Boolean);
   
-    // Filter edges to only include visible nodes
-    const edges = rawEdges.map((edge, index) => {
-      const edgeData = edge.data || edge;
-      
-      if (!edgeData || !edgeData.source || !edgeData.target) {
-        return null;
-      }
-  
-      const sourceNormalized = edgeData.source.toLowerCase();
-      const targetNormalized = edgeData.target.toLowerCase();
-      
-      if (!nodeAddressSet.has(sourceNormalized) || !nodeAddressSet.has(targetNormalized)) {
-        return null;
-      }
-  
-      return {
-        data: {
-          id: `${edgeData.source}-${edgeData.target}`,
-          source: edgeData.source,
-          target: edgeData.target,
-          transfer_amount_usd: Number(edgeData.transfer_amount_usd || edgeData.value) || 1000,
-          is_suspected_otc: Boolean(edgeData.is_suspected_otc),
-          edge_count: Number(edgeData.edge_count) || 1,
-          transaction_count: Number(edgeData.transaction_count) || 1
-        }
-      };
-    }).filter(Boolean);
+    console.log('✅ Formatted graph data:', {
+      nodes: nodes.length,
+      edges: edges.length
+    });
   
     return [...nodes, ...edges];
   };
@@ -414,48 +420,38 @@ const NetworkGraphEnhanced = ({
       return;
     }
 
+    console.log('🚀 Initializing Cytoscape with', data.nodes.length, 'nodes');
+
     const cy = cytoscape({
       container: containerRef.current,
       
       elements: formatGraphData(data),
       
       style: [
-        // ============================================================================
-        // NODE STYLES
-        // ============================================================================
         {
           selector: 'node',
           style: {
             'width': (ele) => {
               const volume = ele.data('total_volume_usd') || 0;
-              const baseSize = Math.max(35, Math.min(90, Math.log(volume + 1) * 5));
-              return baseSize;
+              return Math.max(35, Math.min(90, Math.log(volume + 1) * 5));
             },
             'height': (ele) => {
               const volume = ele.data('total_volume_usd') || 0;
-              const baseSize = Math.max(35, Math.min(90, Math.log(volume + 1) * 5));
-              return baseSize;
+              return Math.max(35, Math.min(90, Math.log(volume + 1) * 5));
             },
-            
-            'background-color': (ele) => {
-              return getNodeColor(ele.data());
-            },
-            
+            'background-color': (ele) => getNodeColor(ele.data()),
             'label': (ele) => {
               const nodeData = ele.data();
               const label = nodeData.label;
               const address = nodeData.address;
               const icon = getNodeIcon(nodeData);
-              
               const displayLabel = label || truncateAddress(address);
               return icon ? `${icon} ${displayLabel}` : displayLabel;
             },
-            
             'opacity': (ele) => {
               const confidence = ele.data('confidence_score') || 50;
               return Math.max(0.75, confidence / 100);
             },
-            
             'border-width': (ele) => {
               const tags = ele.data('tags') || [];
               if (tags.includes('verified') || tags.includes('verified_otc_desk')) return 5;
@@ -463,19 +459,13 @@ const NetworkGraphEnhanced = ({
               return 3;
             },
             'border-color': (ele) => {
-              const isActive = ele.data('is_active');
               const tags = ele.data('tags') || [];
-              
               if (tags.includes('verified') || tags.includes('verified_otc_desk')) {
                 return '#22C55E';
               }
-              
-              return isActive ? '#ffffff' : getNodeColor(ele.data());
+              return getNodeColor(ele.data());
             },
-            'border-style': (ele) => {
-              return getNodeBorderStyle(ele.data());
-            },
-            
+            'border-style': (ele) => getNodeBorderStyle(ele.data()),
             'color': '#ffffff',
             'text-valign': 'bottom',
             'text-halign': 'center',
@@ -489,7 +479,6 @@ const NetworkGraphEnhanced = ({
             'overlay-opacity': 0
           }
         },
-        
         {
           selector: 'node:selected',
           style: {
@@ -499,10 +488,6 @@ const NetworkGraphEnhanced = ({
             'overlay-color': '#ffffff'
           }
         },
-        
-        // ============================================================================
-        // EDGE STYLES
-        // ============================================================================
         {
           selector: 'edge',
           style: {
@@ -526,7 +511,6 @@ const NetworkGraphEnhanced = ({
             'line-style': 'solid'
           }
         },
-        
         {
           selector: 'edge:selected',
           style: {
@@ -540,7 +524,6 @@ const NetworkGraphEnhanced = ({
             'z-index': 999
           }
         },
-        
         {
           selector: 'edge.highlighted',
           style: {
@@ -552,7 +535,6 @@ const NetworkGraphEnhanced = ({
             'z-index': 997
           }
         },
-        
         {
           selector: 'edge.dimmed',
           style: {
@@ -588,23 +570,21 @@ const NetworkGraphEnhanced = ({
 
     cyRef.current = cy;
 
+    console.log('✅ Cytoscape initialized:', {
+      nodes: cy.nodes().length,
+      edges: cy.edges().length
+    });
+
     // Event listeners
     cy.on('tap', 'node', (evt) => {
       const node = evt.target;
-      const nodeData = node.data();
-      if (onNodeClick && typeof onNodeClick === 'function') {
-        onNodeClick(nodeData);
-      }
+      if (onNodeClick) onNodeClick(node.data());
     });
 
     cy.on('mouseover', 'node', (evt) => {
       const node = evt.target;
-      const nodeData = node.data();
-      setHoveredNode(nodeData);
-      
-      if (onNodeHover && typeof onNodeHover === 'function') {
-        onNodeHover(nodeData);
-      }
+      setHoveredNode(node.data());
+      if (onNodeHover) onNodeHover(node.data());
       
       const connectedEdges = node.connectedEdges();
       const allEdges = cy.edges();
@@ -615,7 +595,7 @@ const NetworkGraphEnhanced = ({
       }
     });
 
-    cy.on('mouseout', 'node', (evt) => {
+    cy.on('mouseout', 'node', () => {
       setHoveredNode(null);
       cy.edges().removeClass('highlighted dimmed');
     });
@@ -718,9 +698,7 @@ const NetworkGraphEnhanced = ({
     <div className="network-graph-container enhanced">
       <div className="network-graph" ref={containerRef}></div>
       
-      {/* ============================================================================
-          STATISTICS PANEL
-          ============================================================================ */}
+      {/* STATISTICS PANEL */}
       {stats && (
         <div className="graph-stats-panel">
           <div className="stat-item">
@@ -770,15 +748,11 @@ const NetworkGraphEnhanced = ({
         </div>
       )}
 
-      {/* ============================================================================
-          HOVER INFO PANEL
-          ============================================================================ */}
+      {/* HOVER INFO PANEL */}
       {hoveredNode && (
         <div className="hover-info-panel">
           <div className="hover-info-header">
-            <span className="hover-info-icon">
-              {getNodeIcon(hoveredNode)}
-            </span>
+            <span className="hover-info-icon">{getNodeIcon(hoveredNode)}</span>
             <span className="hover-info-title">
               {hoveredNode.entity_name || hoveredNode.label || truncateAddress(hoveredNode.address)}
             </span>
@@ -792,9 +766,7 @@ const NetworkGraphEnhanced = ({
             </div>
             <div className="hover-info-row">
               <span className="hover-label">Volume:</span>
-              <span className="hover-value">
-                {formatValue(hoveredNode.total_volume_usd)}
-              </span>
+              <span className="hover-value">{formatValue(hoveredNode.total_volume_usd)}</span>
             </div>
             <div className="hover-info-row">
               <span className="hover-label">Transactions:</span>
@@ -805,9 +777,7 @@ const NetworkGraphEnhanced = ({
             {hoveredNode.confidence_score && (
               <div className="hover-info-row">
                 <span className="hover-label">Confidence:</span>
-                <span className="hover-value">
-                  {hoveredNode.confidence_score.toFixed(1)}%
-                </span>
+                <span className="hover-value">{hoveredNode.confidence_score.toFixed(1)}%</span>
               </div>
             )}
             {hoveredNode.tags && hoveredNode.tags.length > 0 && (
@@ -829,9 +799,7 @@ const NetworkGraphEnhanced = ({
         </div>
       )}
       
-      {/* ============================================================================
-          FILTER PANEL WITH APPLY BUTTON
-          ============================================================================ */}
+      {/* FILTER PANEL WITH APPLY BUTTON */}
       <div className={`filter-panel ${showFilters ? 'open' : ''}`}>
         <div className="filter-header">
           <h3 className="filter-title">
@@ -991,9 +959,7 @@ const NetworkGraphEnhanced = ({
         )}
       </div>
 
-      {/* ============================================================================
-          LEGEND
-          ============================================================================ */}
+      {/* LEGEND */}
       <div className="graph-legend enhanced">
         <h4 className="legend-title">ENTITY TYPES</h4>
         {Object.entries(entityColors).map(([type, color]) => {
@@ -1006,7 +972,6 @@ const NetworkGraphEnhanced = ({
               className={`legend-item ${activeFilters.entityTypes.includes(type) ? 'active' : ''}`}
               onClick={() => {
                 toggleEntityType(type);
-                // Auto-apply when clicking legend
                 setTimeout(() => applyFilters(), 100);
               }}
             >
@@ -1026,9 +991,7 @@ const NetworkGraphEnhanced = ({
         })}
       </div>
 
-      {/* ============================================================================
-          CONTROLS
-          ============================================================================ */}
+      {/* CONTROLS */}
       <div className="graph-controls enhanced">
         <button 
           onClick={() => cyRef.current?.fit(60)} 
@@ -1069,9 +1032,7 @@ const NetworkGraphEnhanced = ({
         </button>
       </div>
 
-      {/* ============================================================================
-          CONTEXT MENU
-          ============================================================================ */}
+      {/* CONTEXT MENU */}
       {contextMenu && (
         <div 
           className="context-menu"
@@ -1099,4 +1060,4 @@ const NetworkGraphEnhanced = ({
   );
 };
 
-export default NetworkGraphEnhanced;
+export default NetworkGraph;
