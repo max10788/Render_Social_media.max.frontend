@@ -19,14 +19,70 @@ const NetworkGraphEnhanced = ({
   const [hoveredNode, setHoveredNode] = useState(null);
   
   // ============================================================================
-  // FILTER STATE
+  // FILTER STATE - WITH APPLY BUTTON LOGIC
   // ============================================================================
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [selectedEntityTypes, setSelectedEntityTypes] = useState([]);
-  const [confidenceRange, setConfidenceRange] = useState([0, 100]);
+  // Active filters (actually applied to the graph)
+  const [activeFilters, setActiveFilters] = useState({
+    tags: [],
+    entityTypes: [],
+    confidenceRange: [0, 100]
+  });
+  
+  // Pending filters (being edited in the UI, not yet applied)
+  const [pendingFilters, setPendingFilters] = useState({
+    tags: [],
+    entityTypes: [],
+    confidenceRange: [0, 100]
+  });
+  
   const [showFilters, setShowFilters] = useState(false);
   const [availableTags, setAvailableTags] = useState([]);
   const [availableEntityTypes, setAvailableEntityTypes] = useState([]);
+  const [hasUnappliedChanges, setHasUnappliedChanges] = useState(false);
+
+  // ============================================================================
+  // DETECT UNAPPLIED CHANGES
+  // ============================================================================
+  useEffect(() => {
+    const tagsChanged = JSON.stringify(activeFilters.tags.sort()) !== JSON.stringify(pendingFilters.tags.sort());
+    const typesChanged = JSON.stringify(activeFilters.entityTypes.sort()) !== JSON.stringify(pendingFilters.entityTypes.sort());
+    const rangeChanged = activeFilters.confidenceRange[0] !== pendingFilters.confidenceRange[0] || 
+                        activeFilters.confidenceRange[1] !== pendingFilters.confidenceRange[1];
+    
+    setHasUnappliedChanges(tagsChanged || typesChanged || rangeChanged);
+  }, [activeFilters, pendingFilters]);
+
+  // ============================================================================
+  // FILTER ACTIONS
+  // ============================================================================
+  const applyFilters = () => {
+    setActiveFilters({
+      tags: [...pendingFilters.tags],
+      entityTypes: [...pendingFilters.entityTypes],
+      confidenceRange: [...pendingFilters.confidenceRange]
+    });
+    setHasUnappliedChanges(false);
+  };
+
+  const resetFilters = () => {
+    const defaultFilters = {
+      tags: [],
+      entityTypes: [],
+      confidenceRange: [0, 100]
+    };
+    setPendingFilters(defaultFilters);
+    setActiveFilters(defaultFilters);
+    setHasUnappliedChanges(false);
+  };
+
+  const cancelChanges = () => {
+    setPendingFilters({
+      tags: [...activeFilters.tags],
+      entityTypes: [...activeFilters.entityTypes],
+      confidenceRange: [...activeFilters.confidenceRange]
+    });
+    setHasUnappliedChanges(false);
+  };
 
   // ============================================================================
   // ENHANCED COLOR SCHEMES
@@ -185,25 +241,25 @@ const NetworkGraphEnhanced = ({
   };
 
   // ============================================================================
-  // FILTER LOGIC
+  // FILTER LOGIC - Uses activeFilters (not pendingFilters!)
   // ============================================================================
 
   const shouldShowNode = (node) => {
     // Confidence filter
     const confidence = (node.confidence || node.confidence_score || 0) * 100;
-    if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+    if (confidence < activeFilters.confidenceRange[0] || confidence > activeFilters.confidenceRange[1]) {
       return false;
     }
 
     // Entity type filter
-    if (selectedEntityTypes.length > 0 && !selectedEntityTypes.includes(node.entity_type)) {
+    if (activeFilters.entityTypes.length > 0 && !activeFilters.entityTypes.includes(node.entity_type)) {
       return false;
     }
 
     // Tag filter
-    if (selectedTags.length > 0) {
+    if (activeFilters.tags.length > 0) {
       const nodeTags = node.tags || [];
-      const hasSelectedTag = selectedTags.some(tag => nodeTags.includes(tag));
+      const hasSelectedTag = activeFilters.tags.some(tag => nodeTags.includes(tag));
       if (!hasSelectedTag) {
         return false;
       }
@@ -266,7 +322,7 @@ const NetworkGraphEnhanced = ({
       verified: verifiedCount,
       totalVolume
     });
-  }, [data, discoveredDesks, selectedTags, selectedEntityTypes, confidenceRange]);
+  }, [data, discoveredDesks, activeFilters]);
 
   // ============================================================================
   // FORMAT GRAPH DATA
@@ -594,7 +650,7 @@ const NetworkGraphEnhanced = ({
         cyRef.current.destroy();
       }
     };
-  }, [data, onNodeClick, onNodeHover, discoveredDesks, selectedTags, selectedEntityTypes, confidenceRange]);
+  }, [data, onNodeClick, onNodeHover, discoveredDesks, activeFilters]);
 
   // ============================================================================
   // HANDLE NODE SELECTION
@@ -630,25 +686,28 @@ const NetworkGraphEnhanced = ({
   };
 
   const toggleTag = (tag) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    );
+    setPendingFilters(prev => ({
+      ...prev,
+      tags: prev.tags.includes(tag) 
+        ? prev.tags.filter(t => t !== tag)
+        : [...prev.tags, tag]
+    }));
   };
 
   const toggleEntityType = (type) => {
-    setSelectedEntityTypes(prev => 
-      prev.includes(type) 
-        ? prev.filter(t => t !== type)
-        : [...prev, type]
-    );
+    setPendingFilters(prev => ({
+      ...prev,
+      entityTypes: prev.entityTypes.includes(type) 
+        ? prev.entityTypes.filter(t => t !== type)
+        : [...prev.entityTypes, type]
+    }));
   };
 
-  const clearFilters = () => {
-    setSelectedTags([]);
-    setSelectedEntityTypes([]);
-    setConfidenceRange([0, 100]);
+  const updateConfidenceRange = (newRange) => {
+    setPendingFilters(prev => ({
+      ...prev,
+      confidenceRange: newRange
+    }));
   };
 
   // ============================================================================
@@ -771,13 +830,16 @@ const NetworkGraphEnhanced = ({
       )}
       
       {/* ============================================================================
-          FILTER PANEL
+          FILTER PANEL WITH APPLY BUTTON
           ============================================================================ */}
       <div className={`filter-panel ${showFilters ? 'open' : ''}`}>
         <div className="filter-header">
           <h3 className="filter-title">
             <span className="filter-icon">🔧</span>
             Filters
+            {hasUnappliedChanges && (
+              <span className="filter-badge">●</span>
+            )}
           </h3>
           <button 
             className="filter-toggle"
@@ -794,7 +856,7 @@ const NetworkGraphEnhanced = ({
               <div className="filter-section-header">
                 <span className="filter-section-title">Confidence Range</span>
                 <span className="filter-section-value">
-                  {confidenceRange[0]}% - {confidenceRange[1]}%
+                  {pendingFilters.confidenceRange[0]}% - {pendingFilters.confidenceRange[1]}%
                 </span>
               </div>
               <div className="confidence-sliders">
@@ -802,16 +864,16 @@ const NetworkGraphEnhanced = ({
                   type="range"
                   min="0"
                   max="100"
-                  value={confidenceRange[0]}
-                  onChange={(e) => setConfidenceRange([parseInt(e.target.value), confidenceRange[1]])}
+                  value={pendingFilters.confidenceRange[0]}
+                  onChange={(e) => updateConfidenceRange([parseInt(e.target.value), pendingFilters.confidenceRange[1]])}
                   className="confidence-slider"
                 />
                 <input
                   type="range"
                   min="0"
                   max="100"
-                  value={confidenceRange[1]}
-                  onChange={(e) => setConfidenceRange([confidenceRange[0], parseInt(e.target.value)])}
+                  value={pendingFilters.confidenceRange[1]}
+                  onChange={(e) => updateConfidenceRange([pendingFilters.confidenceRange[0], parseInt(e.target.value)])}
                   className="confidence-slider"
                 />
               </div>
@@ -821,10 +883,10 @@ const NetworkGraphEnhanced = ({
             <div className="filter-section">
               <div className="filter-section-header">
                 <span className="filter-section-title">Entity Types</span>
-                {selectedEntityTypes.length > 0 && (
+                {pendingFilters.entityTypes.length > 0 && (
                   <button 
                     className="filter-clear-btn"
-                    onClick={() => setSelectedEntityTypes([])}
+                    onClick={() => setPendingFilters(prev => ({ ...prev, entityTypes: [] }))}
                   >
                     Clear
                   </button>
@@ -834,11 +896,11 @@ const NetworkGraphEnhanced = ({
                 {availableEntityTypes.map(type => (
                   <button
                     key={type}
-                    className={`filter-option ${selectedEntityTypes.includes(type) ? 'selected' : ''}`}
+                    className={`filter-option ${pendingFilters.entityTypes.includes(type) ? 'selected' : ''}`}
                     onClick={() => toggleEntityType(type)}
                     style={{
-                      borderColor: selectedEntityTypes.includes(type) ? entityColors[type] : 'transparent',
-                      background: selectedEntityTypes.includes(type) 
+                      borderColor: pendingFilters.entityTypes.includes(type) ? entityColors[type] : 'transparent',
+                      background: pendingFilters.entityTypes.includes(type) 
                         ? `${entityColors[type]}22` 
                         : 'rgba(40,40,40,0.8)'
                     }}
@@ -860,14 +922,14 @@ const NetworkGraphEnhanced = ({
               <div className="filter-section-header">
                 <span className="filter-section-title">
                   Tags
-                  {selectedTags.length > 0 && (
-                    <span className="filter-count">({selectedTags.length})</span>
+                  {pendingFilters.tags.length > 0 && (
+                    <span className="filter-count">({pendingFilters.tags.length})</span>
                   )}
                 </span>
-                {selectedTags.length > 0 && (
+                {pendingFilters.tags.length > 0 && (
                   <button 
                     className="filter-clear-btn"
-                    onClick={() => setSelectedTags([])}
+                    onClick={() => setPendingFilters(prev => ({ ...prev, tags: [] }))}
                   >
                     Clear
                   </button>
@@ -877,13 +939,13 @@ const NetworkGraphEnhanced = ({
                 {availableTags.map(tag => (
                   <button
                     key={tag}
-                    className={`filter-option tag ${selectedTags.includes(tag) ? 'selected' : ''}`}
+                    className={`filter-option tag ${pendingFilters.tags.includes(tag) ? 'selected' : ''}`}
                     onClick={() => toggleTag(tag)}
                     style={{
-                      borderColor: selectedTags.includes(tag) 
+                      borderColor: pendingFilters.tags.includes(tag) 
                         ? (tagColors[tag] || '#4ECDC4') 
                         : 'transparent',
-                      background: selectedTags.includes(tag) 
+                      background: pendingFilters.tags.includes(tag) 
                         ? `${tagColors[tag] || '#4ECDC4'}22` 
                         : 'rgba(40,40,40,0.8)'
                     }}
@@ -894,13 +956,37 @@ const NetworkGraphEnhanced = ({
               </div>
             </div>
 
-            {/* Clear All Button */}
-            {(selectedTags.length > 0 || selectedEntityTypes.length > 0 || 
-              confidenceRange[0] > 0 || confidenceRange[1] < 100) && (
-              <button className="filter-clear-all-btn" onClick={clearFilters}>
-                Clear All Filters
-              </button>
-            )}
+            {/* ACTION BUTTONS */}
+            <div className="filter-actions">
+              {hasUnappliedChanges && (
+                <>
+                  <button 
+                    className="filter-apply-btn"
+                    onClick={applyFilters}
+                  >
+                    ✓ Apply Filters
+                  </button>
+                  <button 
+                    className="filter-cancel-btn"
+                    onClick={cancelChanges}
+                  >
+                    ✕ Cancel
+                  </button>
+                </>
+              )}
+              
+              {(activeFilters.tags.length > 0 || 
+                activeFilters.entityTypes.length > 0 || 
+                activeFilters.confidenceRange[0] > 0 || 
+                activeFilters.confidenceRange[1] < 100) && (
+                <button 
+                  className="filter-reset-btn" 
+                  onClick={resetFilters}
+                >
+                  🔄 Reset All
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -917,8 +1003,12 @@ const NetworkGraphEnhanced = ({
           return (
             <div 
               key={type} 
-              className={`legend-item ${selectedEntityTypes.includes(type) ? 'active' : ''}`}
-              onClick={() => toggleEntityType(type)}
+              className={`legend-item ${activeFilters.entityTypes.includes(type) ? 'active' : ''}`}
+              onClick={() => {
+                toggleEntityType(type);
+                // Auto-apply when clicking legend
+                setTimeout(() => applyFilters(), 100);
+              }}
             >
               <span 
                 className="legend-color" 
