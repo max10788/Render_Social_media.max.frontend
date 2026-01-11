@@ -894,3 +894,260 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
 }
+
+/* ============================================================================
+   FILTER PANEL - APPLY BUTTON ENHANCEMENTS
+   ============================================================================ */
+
+/* Filter Badge (indicates unapplied changes) */
+.filter-badge {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #EF4444;
+  border-radius: 50%;
+  margin-left: 8px;
+  animation: pulse-badge 2s infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+/* Filter Actions Container */
+.filter-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Apply Filters Button (Primary Action) */
+.filter-apply-btn {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.filter-apply-btn:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  transform: translateY(-2px);
+}
+
+.filter-apply-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Cancel Button */
+.filter-cancel-btn {
+  padding: 10px 18px;
+  background: rgba(107, 114, 128, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-cancel-btn:hover {
+  background: rgba(107, 114, 128, 0.3);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Reset All Button */
+.filter-reset-btn {
+  padding: 10px 18px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.filter-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #DC2626;
+}
+
+/* Enhanced Filter Panel Header */
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(30, 30, 30, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filter-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+}
+
+/* Filter State Indicator */
+.filter-panel.open .filter-header {
+  background: rgba(20, 20, 20, 0.98);
+}
+
+/* Highlight active filters in the UI */
+.filter-option.selected {
+  position: relative;
+}
+
+.filter-option.selected::before {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 10px;
+  color: white;
+  background: rgba(16, 185, 129, 0.9);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+/* Pending vs Active Filter Visual Distinction */
+.filter-panel.open .filter-content {
+  position: relative;
+}
+
+.filter-panel.open.has-changes .filter-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #F59E0B, #EF4444);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Button States */
+.filter-apply-btn:disabled,
+.filter-cancel-btn:disabled,
+.filter-reset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .filter-actions {
+    gap: 6px;
+  }
+
+  .filter-apply-btn,
+  .filter-cancel-btn,
+  .filter-reset-btn {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+}
+
+/* Enhanced Clear Button in Filter Sections */
+.filter-clear-btn {
+  padding: 4px 12px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Filter Count Badge */
+.filter-count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #10B981;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Enhanced Legend Items (clickable with auto-apply) */
+.legend-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 6px 10px;
+  margin: 4px 0;
+  border-radius: 6px;
+}
+
+.legend-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
+}
+
+.legend-item.active {
+  background: rgba(16, 185, 129, 0.15);
+  border-left: 3px solid #10B981;
+  padding-left: 12px;
+}
+
+.legend-item.active .legend-color {
+  box-shadow: 0 0 16px currentColor !important;
+  transform: scale(1.1);
+}
