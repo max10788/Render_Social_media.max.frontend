@@ -565,7 +565,7 @@ const NetworkGraph = ({
       uniqueAddresses: nodeAddressSet.size
     });
     
-    // ✅ DEBUG: Entity type distribution
+    // ✅ DEBUG: Entity type distribution (ONLY ONCE!)
     const entityTypeCounts = {};
     nodes.forEach(node => {
       const type = node.data.entity_type || 'unknown';
@@ -582,18 +582,14 @@ const NetworkGraph = ({
         entity_type: n.data.entity_type
       }))
     );
-
-    console.log('✅ Nodes processed:', {
-      total: nodes.length,
-      uniqueAddresses: nodeAddressSet.size
-    });
     
     if (nodes.length > 0) {
       console.log('📋 Sample node addresses:', 
         Array.from(nodeAddressSet).slice(0, 5)
       );
     }
-
+  
+    // ✅ Edge Processing
     let validEdges = 0;
     let invalidEdges = 0;
     const invalidEdgeReasons = {
@@ -602,7 +598,7 @@ const NetworkGraph = ({
       missingBoth: 0,
       malformed: 0
     };
-
+  
     const edges = rawEdges.map((edge, index) => {
       const edgeData = edge.data || edge;
       
@@ -612,7 +608,7 @@ const NetworkGraph = ({
         invalidEdgeReasons.malformed++;
         return null;
       }
-
+  
       const sourceNormalized = edgeData.source.toLowerCase();
       const targetNormalized = edgeData.target.toLowerCase();
       
@@ -642,7 +638,7 @@ const NetworkGraph = ({
         invalidEdgeReasons.missingTarget++;
         return null;
       }
-
+  
       validEdges++;
       return {
         data: {
@@ -656,14 +652,14 @@ const NetworkGraph = ({
         }
       };
     }).filter(Boolean);
-
+  
     console.log('✅ Edges processed:', {
       input: rawEdges.length,
       valid: validEdges,
       invalid: invalidEdges,
       invalidReasons: invalidEdgeReasons
     });
-
+  
     if (edges.length === 0 && rawEdges.length > 0) {
       console.error('❌ ❌ ❌ ALL EDGES INVALID! ❌ ❌ ❌');
       console.error('Edge source/target addresses do not match node addresses.');
@@ -675,28 +671,9 @@ const NetworkGraph = ({
       const validationRate = (validEdges / rawEdges.length * 100).toFixed(1);
       console.log(`📊 Edge validation rate: ${validationRate}%`);
     }
-
-   // ✅ DEBUG: Check entity_type distribution
-    const entityTypeCounts = {};
-    nodes.forEach(node => {
-      const type = node.data.entity_type || 'unknown';
-      entityTypeCounts[type] = (entityTypeCounts[type] || 0) + 1;
-    });
-    
-    console.log('📊 Entity Type Distribution:', entityTypeCounts);
-    // Should show: { otc_desk: X, institutional: Y, exchange: Z, unknown: W }
-    // NOT just: { otc_desk: 100 }
-    
-    // ✅ DEBUG: Sample some nodes
-    console.log('📋 Sample nodes (first 5):', 
-      nodes.slice(0, 5).map(n => ({
-        address: n.data.address.substring(0, 10) + '...',
-        label: n.data.label,
-        entity_type: n.data.entity_type
-      }))
-    );
-    
+  
     return [...nodes, ...edges];
+  };
   };
 
   const truncateAddress = (address) => {
