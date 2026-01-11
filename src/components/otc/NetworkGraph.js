@@ -516,15 +516,15 @@ const NetworkGraph = ({
       console.warn('⚠️ No graph data provided');
       return [];
     }
-
+  
     const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
     const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
-
+  
     console.log('📊 Formatting graph data:', {
       inputNodes: rawNodes.length,
       inputEdges: rawEdges.length
     });
-
+  
     const nodeAddressSet = new Set();
     const nodeAddressMap = new Map();
     
@@ -533,16 +533,23 @@ const NetworkGraph = ({
         console.warn('⚠️ Invalid node (no address):', node);
         return null;
       }
-
+  
       const normalizedAddress = node.address.toLowerCase();
       nodeAddressSet.add(normalizedAddress);
       nodeAddressMap.set(normalizedAddress, node.address);
-
+  
+      // ✅ FIX: Clean up label - remove "Discovered" prefix if it's just a default
+      let cleanLabel = node.label;
+      if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
+        // This is a backend default label, use truncated address instead
+        cleanLabel = null;
+      }
+  
       return {
         data: {
           id: node.address,
           address: node.address,
-          label: node.label || null,
+          label: cleanLabel, // ✅ Now null if it was "Discovered 0x..."
           entity_type: node.entity_type || 'unknown',
           total_volume_usd: Number(node.total_volume_usd) || 0,
           confidence_score: Number(node.confidence_score) || 50,
@@ -551,6 +558,29 @@ const NetworkGraph = ({
         }
       };
     }).filter(Boolean);
+  
+    console.log('✅ Nodes processed:', {
+      total: nodes.length,
+      uniqueAddresses: nodeAddressSet.size
+    });
+    
+    // ✅ DEBUG: Entity type distribution
+    const entityTypeCounts = {};
+    nodes.forEach(node => {
+      const type = node.data.entity_type || 'unknown';
+      entityTypeCounts[type] = (entityTypeCounts[type] || 0) + 1;
+    });
+    
+    console.log('📊 Entity Type Distribution:', entityTypeCounts);
+    
+    // ✅ DEBUG: Sample cleaned nodes
+    console.log('📋 Sample nodes (first 5):', 
+      nodes.slice(0, 5).map(n => ({
+        address: n.data.address.substring(0, 10) + '...',
+        label: n.data.label || 'NO LABEL',
+        entity_type: n.data.entity_type
+      }))
+    );
 
     console.log('✅ Nodes processed:', {
       total: nodes.length,
