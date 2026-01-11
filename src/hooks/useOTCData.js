@@ -198,6 +198,7 @@ export const useOTCData = () => {
       visibleNodes: visibleAddresses.size
     });
     
+    let edgeDebugCount = 0;
     const filteredEdges = (data.edges || []).filter(edge => {
       // Support different edge field names
       const sourceAddr = (edge.from || edge.source || edge.from_address)?.toLowerCase();
@@ -206,7 +207,7 @@ export const useOTCData = () => {
       const isVisible = visibleAddresses.has(sourceAddr) && visibleAddresses.has(targetAddr);
       
       // Debug first few edges
-      if (filteredEdges.length < 3) {
+      if (edgeDebugCount < 3 && isVisible) {
         console.log('🔍 Edge check:', {
           source: sourceAddr?.substring(0, 10) + '...',
           target: targetAddr?.substring(0, 10) + '...',
@@ -214,6 +215,7 @@ export const useOTCData = () => {
           targetVisible: visibleAddresses.has(targetAddr),
           isVisible
         });
+        edgeDebugCount++;
       }
       
       return isVisible;
