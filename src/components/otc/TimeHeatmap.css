@@ -1,384 +1,346 @@
-.time-heatmap-container {
-  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
-  border-radius: 12px;
-  border: 1px solid rgba(78, 205, 196, 0.2);
-  padding: 24px;
-  overflow: hidden;
-}
+/* TimeHeatmap.css - Custom CSS Alternative */
 
-.time-heatmap-container.empty {
-  min-height: 400px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* ============================================================================
+   ALTERNATIVE CSS SOLUTION
+   Use this if Tailwind's group-hover isn't working properly
+   ============================================================================ */
+
+/* Container */
+.time-heatmap-container {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
 }
 
 /* Header */
-.heatmap-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-  gap: 16px;
+.time-heatmap-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.heatmap-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0;
+.time-heatmap-title {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.title-icon {
-  font-size: 22px;
-}
-
-/* Legend */
-.heatmap-legend {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.legend-label {
-  font-size: 12px;
-  color: #b0b0b0;
+  gap: 0.5rem;
+  font-size: 1.125rem;
   font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.25rem;
 }
 
-.legend-gradient {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.time-heatmap-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
 }
 
-.legend-min,
-.legend-max {
-  font-size: 11px;
-  color: #666;
-}
-
-.gradient-bar {
-  width: 100px;
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, 
-    #0a3a3a 0%,
-    #137373 25%,
-    #2aacac 50%,
-    #4ECDC4 75%,
-    #6ED9D1 100%
-  );
-  border: 1px solid rgba(78, 205, 196, 0.3);
+/* Content */
+.time-heatmap-content {
+  padding: 1.5rem;
 }
 
 /* Grid Container */
-.heatmap-grid-container {
+.time-heatmap-grid {
   overflow-x: auto;
-  overflow-y: visible;
+  margin-bottom: 1rem;
 }
 
-.heatmap-grid-container::-webkit-scrollbar {
-  height: 6px;
+.time-heatmap-grid-inner {
+  display: inline-block;
+  min-width: 100%;
 }
 
-.heatmap-grid-container::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.heatmap-grid-container::-webkit-scrollbar-thumb {
-  background: rgba(78, 205, 196, 0.3);
-  border-radius: 3px;
-}
-
-/* Hour Labels */
-.hour-labels {
+/* Hour Labels Row */
+.time-heatmap-hour-labels {
   display: flex;
-  margin-bottom: 4px;
+  margin-bottom: 0.25rem;
 }
 
-.empty-corner {
-  width: 100px;
+.time-heatmap-hour-label-spacer {
+  width: 3rem;
   flex-shrink: 0;
 }
 
-.hour-label {
-  flex: 1;
-  min-width: 32px;
+.time-heatmap-hour-label {
+  width: 2rem;
   text-align: center;
-  font-size: 11px;
-  color: #666;
-  font-weight: 600;
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
 }
 
-/* Heatmap Rows */
-.heatmap-row {
-  display: flex;
-  margin-bottom: 4px;
-}
-
-.day-label {
-  width: 100px;
-  flex-shrink: 0;
+/* Day Row */
+.time-heatmap-day-row {
   display: flex;
   align-items: center;
-  font-size: 12px;
-  color: #e0e0e0;
-  font-weight: 600;
-  padding-right: 12px;
+  margin-bottom: 0.25rem;
 }
 
-.heatmap-cells {
-  display: flex;
-  flex: 1;
-  gap: 2px;
+.time-heatmap-day-label {
+  width: 3rem;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: #374151;
+  font-weight: 500;
+  padding-right: 0.5rem;
+  text-align: right;
 }
 
-/* Heatmap Cells */
-.heatmap-cell {
-  flex: 1;
-  min-width: 32px;
-  height: 40px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+/* ============================================================================
+   HEATMAP CELLS - THE CRITICAL PART
+   ============================================================================ */
+
+.time-heatmap-cell-wrapper {
   position: relative;
-  border: 1px solid rgba(0, 0, 0, 0.3);
+  width: 2rem;
+  height: 2rem;
+  /* ✅ IMPORTANT: This is the "group" equivalent */
 }
 
-.heatmap-cell.empty {
-  cursor: default;
-  opacity: 0.3;
+.time-heatmap-cell {
+  width: 100%;
+  height: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
-.heatmap-cell:not(.empty):hover,
-.heatmap-cell.hovered {
+/* Cell Colors */
+.time-heatmap-cell.intensity-0 { background-color: #f9fafb; }
+.time-heatmap-cell.intensity-1 { background-color: #dbeafe; }
+.time-heatmap-cell.intensity-2 { background-color: #93c5fd; }
+.time-heatmap-cell.intensity-3 { background-color: #60a5fa; }
+.time-heatmap-cell.intensity-4 { background-color: #3b82f6; }
+.time-heatmap-cell.intensity-5 { background-color: #2563eb; }
+
+/* Cell Hover Effect */
+.time-heatmap-cell-wrapper:hover .time-heatmap-cell {
   transform: scale(1.1);
+  box-shadow: 0 0 0 2px #3b82f6;
   z-index: 10;
-  box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
-  border-color: #4ECDC4;
+  position: relative;
 }
 
-/* Cell Tooltip */
-.cell-tooltip {
+/* ============================================================================
+   TOOLTIP - THE FIX!
+   ============================================================================ */
+
+.time-heatmap-tooltip {
+  /* Positioning */
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(26, 26, 26, 0.98);
-  border: 1px solid rgba(78, 205, 196, 0.3);
-  border-radius: 6px;
-  padding: 8px 12px;
+  margin-bottom: 0.5rem;
+  
+  /* Styling */
+  padding: 0.5rem 0.75rem;
+  background-color: #1f2937;
+  color: white;
+  font-size: 0.75rem;
+  border-radius: 0.375rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
   white-space: nowrap;
+  
+  /* Behavior */
   pointer-events: none;
-  z-index: 100;
-  animation: tooltipFadeIn 0.2s ease;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  
+  /* ✅ THE FIX: Hidden by default */
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.cell-tooltip::after {
+/* ✅ Show tooltip on hover */
+.time-heatmap-cell-wrapper:hover .time-heatmap-tooltip {
+  opacity: 1;
+}
+
+/* Tooltip Content */
+.time-heatmap-tooltip-time {
+  font-weight: 600;
+  margin-bottom: 0.125rem;
+}
+
+.time-heatmap-tooltip-value {
+  color: #93c5fd;
+}
+
+/* Tooltip Arrow */
+.time-heatmap-tooltip::after {
   content: '';
   position: absolute;
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: rgba(26, 26, 26, 0.98);
+  border: 0.25rem solid transparent;
+  border-top-color: #1f2937;
 }
 
-@keyframes tooltipFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-5px);
+/* ============================================================================
+   LEGEND
+   ============================================================================ */
+
+.time-heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 1rem;
+}
+
+.time-heatmap-legend-colors {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.time-heatmap-legend-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.time-heatmap-legend-scale {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.time-heatmap-legend-box {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+}
+
+.time-heatmap-legend-text {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-left: 0.25rem;
+}
+
+/* Peak Hours */
+.time-heatmap-peak {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #eff6ff;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+}
+
+.time-heatmap-peak-icon {
+  width: 1rem;
+  height: 1rem;
+  color: #2563eb;
+}
+
+.time-heatmap-peak-text {
+  font-size: 0.875rem;
+  color: #1e3a8a;
+  font-weight: 500;
+}
+
+/* ============================================================================
+   PATTERNS
+   ============================================================================ */
+
+.time-heatmap-patterns {
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 1rem;
+}
+
+.time-heatmap-patterns-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.time-heatmap-patterns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.time-heatmap-pattern {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background-color: #f9fafb;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+}
+
+.time-heatmap-pattern-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.time-heatmap-pattern-text {
+  font-size: 0.875rem;
+  color: #374151;
+  line-height: 1.25rem;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .time-heatmap-cell-wrapper {
+    width: 1.5rem;
+    height: 1.5rem;
   }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
+  
+  .time-heatmap-hour-label {
+    width: 1.5rem;
+  }
+  
+  .time-heatmap-day-label {
+    width: 2.5rem;
+    font-size: 0.625rem;
+  }
+  
+  .time-heatmap-tooltip {
+    font-size: 0.625rem;
+    padding: 0.375rem 0.5rem;
   }
 }
 
-.tooltip-day {
-  font-size: 11px;
-  color: #b0b0b0;
-  font-weight: 600;
-  margin-bottom: 2px;
-}
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
 
-.tooltip-time {
-  font-size: 12px;
-  color: #e0e0e0;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.tooltip-value {
-  font-size: 14px;
-  color: #4ECDC4;
-  font-weight: 700;
-}
-
-.tooltip-count {
-  font-size: 10px;
-  color: #666;
-  margin-top: 2px;
-}
-
-/* Peak Indicators */
-.peak-indicators {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(78, 205, 196, 0.1);
-}
-
-.peak-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #b0b0b0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
-}
-
-.peak-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.peak-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: rgba(78, 205, 196, 0.05);
-  border: 1px solid rgba(78, 205, 196, 0.2);
-  border-radius: 6px;
-}
-
-.peak-rank {
-  font-size: 12px;
-  font-weight: 700;
-  color: #FFE66D;
-  min-width: 30px;
-}
-
-.peak-time {
-  flex: 1;
-  font-size: 12px;
-  color: #e0e0e0;
-  font-weight: 600;
-}
-
-.peak-value {
-  font-size: 13px;
-  color: #4ECDC4;
-  font-weight: 700;
-}
-
-/* Pattern Annotations */
-.pattern-annotations {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(78, 205, 196, 0.1);
-}
-
-.pattern-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #b0b0b0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
-}
-
-.pattern-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pattern-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: rgba(255, 230, 109, 0.05);
-  border: 1px solid rgba(255, 230, 109, 0.2);
-  border-radius: 6px;
-}
-
-.pattern-icon {
-  font-size: 16px;
-}
-
-.pattern-text {
-  font-size: 12px;
-  color: #e0e0e0;
-  line-height: 1.4;
-}
-
-/* Empty State */
-.empty-state {
+.time-heatmap-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  height: 16rem;
+  color: #6b7280;
 }
 
-.empty-icon {
-  font-size: 64px;
+.time-heatmap-empty-icon {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1rem;
   opacity: 0.5;
 }
 
-.empty-text {
-  color: #666;
-  font-size: 14px;
-  margin: 0;
+.time-heatmap-empty-text {
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-  .hour-label {
-    min-width: 28px;
-  }
-
-  .heatmap-cell {
-    min-width: 28px;
-    height: 36px;
-  }
-}
-
-@media (max-width: 768px) {
-  .time-heatmap-container {
-    padding: 16px;
-  }
-
-  .heatmap-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .day-label {
-    width: 80px;
-    font-size: 11px;
-  }
-
-  .empty-corner {
-    width: 80px;
-  }
-
-  .hour-label {
-    min-width: 24px;
-    font-size: 10px;
-  }
-
-  .heatmap-cell {
-    min-width: 24px;
-    height: 32px;
-  }
+.time-heatmap-empty-subtext {
+  font-size: 0.875rem;
+  color: #9ca3af;
 }
