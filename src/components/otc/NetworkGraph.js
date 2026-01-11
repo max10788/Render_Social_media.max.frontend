@@ -329,121 +329,121 @@ const NetworkGraph = ({
   // FORMAT GRAPH DATA
   // ============================================================================
 
-const formatGraphData = (graphData) => {
-    if (!graphData) return [];
-  
-    const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
-    const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
-  
-    console.log('🔍 formatGraphData called:', {
-      rawNodes: rawNodes.length,
-      rawEdges: rawEdges.length,
-      activeFilters: {
-        tags: activeFilters.tags.length,
-        entityTypes: activeFilters.entityTypes.length,
-        confidenceRange: activeFilters.confidenceRange
-      }
-    });
-  
-    // ✅ STEP 1: Filter nodes FIRST
-    const visibleNodes = rawNodes.filter(node => {
-      if (!node || !node.address) return false;
-      return shouldShowNode(node);
-    });
+  const formatGraphData = (graphData) => {
+      if (!graphData) return [];
     
-    console.log('✅ After shouldShowNode filter:', {
-      visible: visibleNodes.length,
-      filtered_out: rawNodes.length - visibleNodes.length
-    });
+      const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
+      const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
     
-    // ✅ STEP 2: Build visible address set
-    const visibleAddressSet = new Set(
-      visibleNodes.map(node => node.address.toLowerCase())
-    );
-    
-    console.log('📋 Visible addresses:', Array.from(visibleAddressSet).slice(0, 3));
-    
-    // ✅ STEP 3: Format nodes
-    const formattedNodes = visibleNodes.map(node => {
-      let cleanLabel = node.label;
-      if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
-        cleanLabel = null;
-      }
-
-      return {
-        data: {
-          id: node.address,
-          address: node.address,
-          label: cleanLabel,
-          entity_type: node.entity_type || 'unknown',
-          entity_name: node.entity_name,
-          total_volume_usd: Number(node.total_volume_usd || node.total_volume) || 0,
-          confidence_score: (node.confidence || node.confidence_score || 0.5) * 100,
-          is_active: Boolean(node.is_active),
-          transaction_count: Number(node.transaction_count) || 0,
-          tags: node.tags || [],
-          first_seen: node.first_seen,
-          last_active: node.last_active
+      console.log('🔍 formatGraphData called:', {
+        rawNodes: rawNodes.length,
+        rawEdges: rawEdges.length,
+        activeFilters: {
+          tags: activeFilters.tags.length,
+          entityTypes: activeFilters.entityTypes.length,
+          confidenceRange: activeFilters.confidenceRange
         }
-      };
-    });
-  
-    // ✅ STEP 4: Filter edges based on VISIBLE nodes
-    let debugCount = 0;
-    const formattedEdges = rawEdges
-      .map((edge) => {
-        // Extract edge data
-        const edgeData = edge.data || edge;
-        
-        if (!edgeData || !edgeData.source || !edgeData.target) {
-          return null;
-        }
-  
-        const sourceNormalized = edgeData.source.toLowerCase();
-        const targetNormalized = edgeData.target.toLowerCase();
-        
-        const sourceVisible = visibleAddressSet.has(sourceNormalized);
-        const targetVisible = visibleAddressSet.has(targetNormalized);
-        
-        // Debug first 3 edges
-        if (debugCount < 3) {
-          console.log(`🔍 Edge #${debugCount + 1}:`, {
-            source: sourceNormalized.substring(0, 10) + '...',
-            target: targetNormalized.substring(0, 10) + '...',
-            sourceVisible,
-            targetVisible,
-            willInclude: sourceVisible && targetVisible
-          });
-          debugCount++;
-        }
-        
-        if (!sourceVisible || !targetVisible) {
-          return null;
+      });
+    
+      // ✅ STEP 1: Filter nodes FIRST
+      const visibleNodes = rawNodes.filter(node => {
+        if (!node || !node.address) return false;
+        return shouldShowNode(node);
+      });
+      
+      console.log('✅ After shouldShowNode filter:', {
+        visible: visibleNodes.length,
+        filtered_out: rawNodes.length - visibleNodes.length
+      });
+      
+      // ✅ STEP 2: Build visible address set
+      const visibleAddressSet = new Set(
+        visibleNodes.map(node => node.address.toLowerCase())
+      );
+      
+      console.log('📋 Visible addresses:', Array.from(visibleAddressSet).slice(0, 3));
+      
+      // ✅ STEP 3: Format nodes
+      const formattedNodes = visibleNodes.map(node => {
+        let cleanLabel = node.label;
+        if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
+          cleanLabel = null;
         }
   
         return {
           data: {
-            id: `${edgeData.source}-${edgeData.target}`,
-            source: edgeData.source,
-            target: edgeData.target,
-            transfer_amount_usd: Number(edgeData.transfer_amount_usd || edgeData.value) || 1000,
-            is_suspected_otc: Boolean(edgeData.is_suspected_otc),
-            edge_count: Number(edgeData.edge_count) || 1,
-            transaction_count: Number(edgeData.transaction_count) || 1
+            id: node.address,
+            address: node.address,
+            label: cleanLabel,
+            entity_type: node.entity_type || 'unknown',
+            entity_name: node.entity_name,
+            total_volume_usd: Number(node.total_volume_usd || node.total_volume) || 0,
+            confidence_score: (node.confidence || node.confidence_score || 0.5) * 100,
+            is_active: Boolean(node.is_active),
+            transaction_count: Number(node.transaction_count) || 0,
+            tags: node.tags || [],
+            first_seen: node.first_seen,
+            last_active: node.last_active
           }
         };
-      })
-      .filter(Boolean);
+      });
+    
+      // ✅ STEP 4: Filter edges based on VISIBLE nodes
+      let debugCount = 0;
+      const formattedEdges = rawEdges
+        .map((edge) => {
+          // Extract edge data
+          const edgeData = edge.data || edge;
+          
+          if (!edgeData || !edgeData.source || !edgeData.target) {
+            return null;
+          }
+    
+          const sourceNormalized = edgeData.source.toLowerCase();
+          const targetNormalized = edgeData.target.toLowerCase();
+          
+          const sourceVisible = visibleAddressSet.has(sourceNormalized);
+          const targetVisible = visibleAddressSet.has(targetNormalized);
+          
+          // Debug first 3 edges
+          if (debugCount < 3) {
+            console.log(`🔍 Edge #${debugCount + 1}:`, {
+              source: sourceNormalized.substring(0, 10) + '...',
+              target: targetNormalized.substring(0, 10) + '...',
+              sourceVisible,
+              targetVisible,
+              willInclude: sourceVisible && targetVisible
+            });
+            debugCount++;
+          }
+          
+          if (!sourceVisible || !targetVisible) {
+            return null;
+          }
+    
+          return {
+            data: {
+              id: `${edgeData.source}-${edgeData.target}`,
+              source: edgeData.source,
+              target: edgeData.target,
+              transfer_amount_usd: Number(edgeData.transfer_amount_usd || edgeData.value) || 1000,
+              is_suspected_otc: Boolean(edgeData.is_suspected_otc),
+              edge_count: Number(edgeData.edge_count) || 1,
+              transaction_count: Number(edgeData.transaction_count) || 1
+            }
+          };
+        })
+        .filter(Boolean);
+    
+      console.log('✅ Final formatted data:', {
+        nodes: formattedNodes.length,
+        edges: formattedEdges.length,
+        edgeFilteredOut: rawEdges.length - formattedEdges.length
+      });
+    
+      return [...formattedNodes, ...formattedEdges];
+    };
   
-    console.log('✅ Final formatted data:', {
-      nodes: formattedNodes.length,
-      edges: formattedEdges.length,
-      edgeFilteredOut: rawEdges.length - formattedEdges.length
-    });
-  
-    return [...formattedNodes, ...formattedEdges];
-  };
-
   // ============================================================================
   // INITIALIZE CYTOSCAPE
   // ============================================================================
