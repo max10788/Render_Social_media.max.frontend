@@ -6,8 +6,8 @@ const BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-m
  * OTC Analysis Service
  * Handles all API calls for OTC Analysis features
  * 
+ * ✅ UPDATED: Simplified getNetworkGraph - wallet filtering happens client-side
  * ✅ FIXED: Added proper parameter conversion for all endpoints
- * ✅ UPDATED: Added Network Graph Wallet Filter support
  * ✅ FIXED: Updated wallet and watchlist URLs to match backend
  * ✅ FIXED: Discovery endpoints now use '/discover' not '/discovery'
  * ✅ FIXED: Debug endpoint uses '/debug' not '/discovery/debug'
@@ -37,37 +37,19 @@ class OTCAnalysisService {
   // ============================================================================
 
   /**
-   * ✅ UPDATED: Get network graph data with wallet filters
+   * ✅ SIMPLIFIED: Get network graph data (wallet filtering happens client-side)
+   * Only sends basic filters to backend, returns ALL wallets matching these criteria
    */
   async getNetworkGraph(filters = {}) {
     try {
       const params = {
-        // Existing params
         start_date: filters.fromDate,
         end_date: filters.toDate,
         min_confidence: filters.minConfidence / 100,
         min_transfer_size: filters.minTransferSize,
         entity_types: filters.entityTypes?.join(','),
         tokens: filters.tokens?.join(','),
-        max_nodes: filters.maxNodes,
-        
-        // ✅ NEW: Wallet filtering params
-        show_discovered: filters.showDiscovered ?? true,
-        show_verified: filters.showVerified ?? true,
-        show_db_validated: filters.showDbValidated ?? true,
-        
-        // ✅ NEW: Tags as comma-separated if present
-        include_tags: filters.includeTags?.length > 0 
-          ? filters.includeTags.join(',') 
-          : undefined,
-        exclude_tags: filters.excludeTags?.length > 0 
-          ? filters.excludeTags.join(',') 
-          : undefined,
-        
-        // ✅ NEW: Wallet addresses as comma-separated
-        wallet_addresses: filters.walletAddresses?.length > 0 
-          ? filters.walletAddresses.join(',') 
-          : undefined
+        max_nodes: filters.maxNodes
       };
 
       // Remove undefined values
@@ -75,9 +57,15 @@ class OTCAnalysisService {
         params[key] === undefined && delete params[key]
       );
 
-      console.log('🔍 Fetching network with params:', params);
+      console.log('🔍 Fetching ALL network data with params:', params);
 
       const response = await this.apiClient.get('/api/otc/network', { params });
+      
+      console.log('✅ Network data received from backend:', {
+        nodes: response.data?.nodes?.length || 0,
+        edges: response.data?.edges?.length || 0
+      });
+      
       return response.data;
     } catch (error) {
       console.error('Error fetching network graph:', error);
