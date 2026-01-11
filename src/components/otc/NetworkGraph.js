@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
-import './NetworkGraphEnhanced.css';
+import './NetworkGraph.css';
 
 cytoscape.use(dagre);
 
