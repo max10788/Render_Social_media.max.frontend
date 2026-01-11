@@ -7,6 +7,7 @@ const BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-m
  * Handles all API calls for OTC Analysis features
  * 
  * ✅ FIXED: Added proper parameter conversion for all endpoints
+ * ✅ UPDATED: Added Network Graph Wallet Filter support
  * ✅ FIXED: Updated wallet and watchlist URLs to match backend
  * ✅ FIXED: Discovery endpoints now use '/discover' not '/discovery'
  * ✅ FIXED: Debug endpoint uses '/debug' not '/discovery/debug'
@@ -16,13 +17,12 @@ class OTCAnalysisService {
     this.baseURL = BASE_URL;
     this.apiClient = axios.create({
       baseURL: this.baseURL,
-      timeout: 120000, // 60s timeout for discovery calls
+      timeout: 120000,
       headers: {
         'Content-Type': 'application/json',
       },
     });
 
-    // Response interceptor for error handling
     this.apiClient.interceptors.response.use(
       response => response,
       error => {
@@ -37,19 +37,45 @@ class OTCAnalysisService {
   // ============================================================================
 
   /**
-   * Get network graph data
+   * ✅ UPDATED: Get network graph data with wallet filters
    */
   async getNetworkGraph(filters = {}) {
     try {
       const params = {
+        // Existing params
         start_date: filters.fromDate,
         end_date: filters.toDate,
         min_confidence: filters.minConfidence / 100,
         min_transfer_size: filters.minTransferSize,
         entity_types: filters.entityTypes?.join(','),
         tokens: filters.tokens?.join(','),
-        max_nodes: filters.maxNodes
+        max_nodes: filters.maxNodes,
+        
+        // ✅ NEW: Wallet filtering params
+        show_discovered: filters.showDiscovered ?? true,
+        show_verified: filters.showVerified ?? true,
+        show_db_validated: filters.showDbValidated ?? true,
+        
+        // ✅ NEW: Tags as comma-separated if present
+        include_tags: filters.includeTags?.length > 0 
+          ? filters.includeTags.join(',') 
+          : undefined,
+        exclude_tags: filters.excludeTags?.length > 0 
+          ? filters.excludeTags.join(',') 
+          : undefined,
+        
+        // ✅ NEW: Wallet addresses as comma-separated
+        wallet_addresses: filters.walletAddresses?.length > 0 
+          ? filters.walletAddresses.join(',') 
+          : undefined
       };
+
+      // Remove undefined values
+      Object.keys(params).forEach(key => 
+        params[key] === undefined && delete params[key]
+      );
+
+      console.log('🔍 Fetching network with params:', params);
 
       const response = await this.apiClient.get('/api/otc/network', { params });
       return response.data;
@@ -64,7 +90,6 @@ class OTCAnalysisService {
    */
   async getSankeyFlow(params = {}) {
     try {
-      // ✅ Convert camelCase to snake_case for backend
       const queryParams = {
         start_date: params.fromDate || params.startDate,
         end_date: params.toDate || params.endDate,
@@ -94,7 +119,6 @@ class OTCAnalysisService {
    */
   async getStatistics(params = {}) {
     try {
-      // ✅ Convert parameters
       const queryParams = {
         start_date: params.fromDate || params.startDate,
         end_date: params.toDate || params.endDate
@@ -166,7 +190,6 @@ class OTCAnalysisService {
         wallet_address: address
       };
       
-      // Add notes parameter if label is provided
       if (label) {
         params.notes = label;
       }
@@ -264,10 +287,6 @@ class OTCAnalysisService {
    * and discover new OTC desk candidates
    * 
    * ✅ FIXED: Changed URL from '/api/otc/discovery/simple' to '/api/otc/discover/simple'
-   * 
-   * @param {string} otcAddress - Ethereum address of known OTC desk
-   * @param {number} numTransactions - Number of transactions to analyze (1-20)
-   * @returns {Promise<Object>} Discovery results with discovered wallets
    */
   async discoverFromLastTransactions(otcAddress, numTransactions = 5) {
     try {
@@ -293,11 +312,6 @@ class OTCAnalysisService {
 
   /**
    * Mass Discovery - Run discovery for multiple OTC desks
-   * 
-   * @param {Array<string>} otcAddresses - Array of OTC desk addresses
-   * @param {number} numTransactions - Number of transactions per desk
-   * @param {Function} onProgress - Progress callback (optional)
-   * @returns {Promise<Array>} Array of discovery results
    */
   async massDiscovery(otcAddresses, numTransactions = 5, onProgress = null) {
     const results = [];
@@ -306,7 +320,6 @@ class OTCAnalysisService {
       const address = otcAddresses[i];
       
       try {
-        // Progress callback
         if (onProgress) {
           onProgress({
             current: i + 1,
@@ -323,7 +336,6 @@ class OTCAnalysisService {
           ...result
         });
         
-        // Rate limiting - wait 3 seconds between requests
         if (i < otcAddresses.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
@@ -352,32 +364,21 @@ class OTCAnalysisService {
 
   /**
    * Get all OTC desks (including discovered)
-   * 
-   * @param {Object} params - Query parameters
-   * @param {Array<string>} params.tags - Filter by tags (e.g., ['verified', 'verified_otc_desk'])
-   * @param {boolean} params.includeDiscovered - Include discovered desks
-   * @param {boolean} params.includeDbValidated - Include DB validated desks
-   * @param {number} params.minConfidence - Minimum confidence threshold (0.0-1.0)
-   * @returns {Promise<Object>} All OTC desks with categories
    */
   async getAllOTCDesks(params = {}) {
     try {
-      // ✅ FIX: Baue Query-Parameter als Objekt für axios
       const queryParams = {
         include_discovered: params.includeDiscovered ?? true,
         include_db_validated: params.includeDbValidated ?? true,
         min_confidence: params.minConfidence ?? 0.7
       };
       
-      // ✅ FIX: Tags als Array direkt übergeben (axios handled das)
       if (params.tags && Array.isArray(params.tags) && params.tags.length > 0) {
-        // Axios serialisiert Arrays automatisch als ?tags=x&tags=y
         queryParams.tags = params.tags;
       }
       
       console.log('🔍 Fetching OTC desks with params:', queryParams);
       
-      // ✅ FIX: Nutze this.apiClient (hat bereits BASE_URL)
       const response = await this.apiClient.get('/api/otc/desks', { 
         params: queryParams 
       });
@@ -394,16 +395,8 @@ class OTCAnalysisService {
     }
   }
 
-    /**
+  /**
    * Get database OTC desks (user-created desks from PostgreSQL)
-   * 
-   * @param {Object} params - Query parameters
-   * @param {Array<string>} params.tags - Filter by tags (e.g., ['verified'])
-   * @param {boolean} params.includeActive - Only active desks
-   * @param {number} params.minConfidence - Minimum confidence (0.0-1.0)
-   * @param {number} params.limit - Max results
-   * @param {number} params.offset - Pagination offset
-   * @returns {Promise<Object>} Database desks
    */
   async getDatabaseDesks(params = {}) {
     try {
@@ -414,7 +407,6 @@ class OTCAnalysisService {
         offset: params.offset ?? 0
       };
       
-      // ✅ Tags als Array für axios
       if (params.tags && Array.isArray(params.tags) && params.tags.length > 0) {
         queryParams.tags = params.tags;
       }
@@ -441,9 +433,6 @@ class OTCAnalysisService {
    * Get only discovered OTC desks
    * 
    * ✅ FIXED: Added logging for better debugging
-   * 
-   * @param {number} minConfidence - Minimum confidence (0-100)
-   * @returns {Promise<Array>} Discovered desks
    */
   async getDiscoveredDesks(minConfidence = 50) {
     try {
@@ -453,7 +442,6 @@ class OTCAnalysisService {
         minConfidence: minConfidence / 100
       });
       
-      // Filter only discovered category
       const discoveredDesks = response.data.desks.filter(
         desk => desk.desk_category === 'discovered'
       );
@@ -475,10 +463,6 @@ class OTCAnalysisService {
    * Debug: Get raw transaction data for a wallet
    * 
    * ✅ FIXED: Changed URL from '/api/otc/discovery/debug/transactions' to '/api/otc/debug/transactions'
-   * 
-   * @param {string} address - Ethereum address
-   * @param {number} limit - Number of transactions (1-20)
-   * @returns {Promise<Object>} Raw transaction data
    */
   async debugTransactions(address, limit = 5) {
     try {
@@ -505,8 +489,6 @@ class OTCAnalysisService {
   /**
    * Get discovery statistics
    * Aggregates data about discovered wallets
-   * 
-   * @returns {Promise<Object>} Discovery statistics
    */
   async getDiscoveryStatistics() {
     try {
@@ -515,7 +497,6 @@ class OTCAnalysisService {
       const discovered = desks.data.desks.filter(d => d.desk_category === 'discovered');
       const verified = desks.data.desks.filter(d => d.desk_category === 'verified');
       
-      // Calculate stats
       const stats = {
         total_discovered: discovered.length,
         total_verified: verified.length,
@@ -537,16 +518,9 @@ class OTCAnalysisService {
     }
   }
 
-
   /**
    * Get transactions between two specific wallet addresses
    * Used for on-demand loading when user clicks on Sankey Flow link
-   * 
-   * @param {string} fromAddress - Source wallet address
-   * @param {string} toAddress - Target wallet address
-   * @param {number} limit - Max transactions to return (1-20)
-   * @param {Object} dateRange - Optional date filtering
-   * @returns {Promise<Object>} Transaction list with metadata
    */
   async getTransactionsBetween(fromAddress, toAddress, limit = 5, dateRange = {}) {
     try {
@@ -556,7 +530,6 @@ class OTCAnalysisService {
         limit: limit
       };
       
-      // Add date range if provided
       if (dateRange.startDate) {
         params.start_date = dateRange.startDate;
       }
