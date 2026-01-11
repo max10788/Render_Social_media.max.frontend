@@ -2,10 +2,10 @@
    NETWORK GRAPH CONTAINER
    ============================================================================ */
 
-.network-graph-container {
+.network-graph-container.enhanced {
   position: relative;
   width: 100%;
-  height: 650px;
+  height: 700px;
   background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
   border-radius: 16px;
   border: 1px solid rgba(78, 205, 196, 0.3);
@@ -72,13 +72,23 @@
 }
 
 .stat-item.discovered {
-  border-color: rgba(167, 139, 250, 0.4);
-  background: linear-gradient(135deg, rgba(20, 20, 20, 0.95), rgba(30, 20, 35, 0.95));
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, rgba(20, 20, 20, 0.95), rgba(20, 35, 30, 0.95));
 }
 
 .stat-item.discovered:hover {
-  border-color: rgba(167, 139, 250, 0.7);
-  box-shadow: 0 6px 24px rgba(167, 139, 250, 0.4);
+  border-color: rgba(16, 185, 129, 0.7);
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
+}
+
+.stat-item.verified {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: linear-gradient(135deg, rgba(20, 20, 20, 0.95), rgba(20, 35, 25, 0.95));
+}
+
+.stat-item.verified:hover {
+  border-color: rgba(34, 197, 94, 0.7);
+  box-shadow: 0 6px 24px rgba(34, 197, 94, 0.4);
 }
 
 .stat-icon {
@@ -100,6 +110,13 @@
   color: #ffffff;
   letter-spacing: 0.3px;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.stat-secondary {
+  font-size: 14px;
+  color: #888;
+  font-weight: 500;
+  margin-left: 4px;
 }
 
 .stat-label {
@@ -124,7 +141,8 @@
   padding: 0;
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  min-width: 280px;
+  min-width: 300px;
+  max-width: 400px;
   z-index: 20;
   animation: hoverPanelFadeIn 0.2s ease-out;
   overflow: hidden;
@@ -194,14 +212,341 @@
   flex: 1;
 }
 
+.hover-info-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hover-tag {
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(100, 100, 100, 0.3);
+  border: 1px solid rgba(100, 100, 100, 0.5);
+  color: #e0e0e0;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease;
+}
+
+.hover-tag:hover {
+  transform: scale(1.05);
+}
+
+.hover-tag.more {
+  background: rgba(78, 205, 196, 0.2);
+  border-color: rgba(78, 205, 196, 0.5);
+  color: #4ECDC4;
+}
+
 /* ============================================================================
-   ENHANCED LEGEND
+   FILTER PANEL
+   ============================================================================ */
+
+.filter-panel {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 320px;
+  max-height: calc(100% - 40px);
+  background: linear-gradient(135deg, rgba(20, 20, 20, 0.98), rgba(26, 26, 26, 0.98));
+  border: 1px solid rgba(78, 205, 196, 0.3);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 25;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.filter-panel:not(.open) {
+  width: 60px;
+  height: 60px;
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.filter-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.filter-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e0e0e0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-panel:not(.open) .filter-title {
+  display: none;
+}
+
+.filter-icon {
+  font-size: 18px;
+}
+
+.filter-toggle {
+  background: rgba(78, 205, 196, 0.2);
+  border: 1px solid rgba(78, 205, 196, 0.4);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #4ECDC4;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.filter-toggle:hover {
+  background: rgba(78, 205, 196, 0.3);
+  border-color: rgba(78, 205, 196, 0.6);
+  transform: scale(1.05);
+}
+
+.filter-content {
+  padding: 16px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.filter-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.filter-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.filter-content::-webkit-scrollbar-thumb {
+  background: rgba(78, 205, 196, 0.3);
+  border-radius: 3px;
+}
+
+.filter-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(78, 205, 196, 0.5);
+}
+
+/* Filter Section */
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.filter-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #a0a0a0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-section-value {
+  font-size: 11px;
+  color: #4ECDC4;
+  font-weight: 600;
+}
+
+.filter-count {
+  font-size: 11px;
+  color: #4ECDC4;
+  font-weight: 600;
+  margin-left: 6px;
+  padding: 2px 6px;
+  background: rgba(78, 205, 196, 0.2);
+  border-radius: 6px;
+}
+
+.filter-clear-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 6px;
+  color: #EF4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+
+.filter-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+/* Confidence Sliders */
+.confidence-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.confidence-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  cursor: pointer;
+}
+
+.confidence-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4ECDC4;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(78, 205, 196, 0.5);
+  transition: all 0.2s ease;
+}
+
+.confidence-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 2px 12px rgba(78, 205, 196, 0.7);
+}
+
+.confidence-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4ECDC4;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(78, 205, 196, 0.5);
+  transition: all 0.2s ease;
+}
+
+.confidence-slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 2px 12px rgba(78, 205, 196, 0.7);
+}
+
+/* Filter Options */
+.filter-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-options.tags {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(40, 40, 40, 0.8);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.filter-option:hover {
+  background: rgba(50, 50, 50, 0.9);
+  transform: translateX(4px);
+}
+
+.filter-option.selected {
+  border-color: #4ECDC4;
+  background: rgba(78, 205, 196, 0.15);
+  font-weight: 600;
+}
+
+.filter-option-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+}
+
+.filter-option-label {
+  text-transform: capitalize;
+}
+
+.filter-option.tag {
+  padding: 6px 12px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+
+/* Clear All Button */
+.filter-clear-all-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 10px;
+  color: #EF4444;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.filter-clear-all-btn:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.3));
+  border-color: rgba(239, 68, 68, 0.6);
+  transform: scale(1.02);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+}
+
+/* ============================================================================
+   LEGEND
    ============================================================================ */
 
 .graph-legend.enhanced {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  bottom: 20px;
+  left: 380px; /* Positioned to the right of filter panel */
   background: linear-gradient(135deg, rgba(20, 20, 20, 0.95), rgba(26, 26, 26, 0.95));
   border: 1px solid rgba(78, 205, 196, 0.3);
   border-radius: 12px;
@@ -209,13 +554,19 @@
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   z-index: 15;
+  max-height: 400px;
+  overflow-y: auto;
   animation: legendFadeIn 0.4s ease-out;
+}
+
+.filter-panel:not(.open) ~ .graph-legend.enhanced {
+  left: 100px;
 }
 
 @keyframes legendFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -255,8 +606,8 @@
 }
 
 .legend-item.active {
-  background: linear-gradient(90deg, rgba(167, 139, 250, 0.15), rgba(167, 139, 250, 0.05));
-  border: 1px solid rgba(167, 139, 250, 0.3);
+  background: linear-gradient(90deg, rgba(78, 205, 196, 0.15), rgba(78, 205, 196, 0.05));
+  border: 1px solid rgba(78, 205, 196, 0.3);
   padding: 10px 12px;
 }
 
@@ -286,16 +637,16 @@
 
 .legend-count {
   font-size: 12px;
-  color: #A78BFA;
+  color: #4ECDC4;
   font-weight: 600;
   margin-left: 4px;
   padding: 2px 6px;
-  background: rgba(167, 139, 250, 0.2);
+  background: rgba(78, 205, 196, 0.2);
   border-radius: 6px;
 }
 
 /* ============================================================================
-   ENHANCED CONTROLS
+   CONTROLS
    ============================================================================ */
 
 .graph-controls.enhanced {
@@ -334,12 +685,6 @@
 
 .control-btn:active {
   transform: translateY(-2px);
-}
-
-.control-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
 }
 
 .control-icon {
@@ -385,11 +730,6 @@
   }
 }
 
-.context-menu.discovered {
-  border-left: 3px solid #A78BFA;
-  border-color: rgba(167, 139, 250, 0.5);
-}
-
 .context-menu-item {
   padding: 12px 16px;
   color: #e0e0e0;
@@ -410,104 +750,23 @@
   transform: translateX(4px);
 }
 
-.context-menu.discovered .context-menu-item:hover {
-  background: linear-gradient(90deg, rgba(167, 139, 250, 0.15), rgba(167, 139, 250, 0.05));
-  color: #A78BFA;
-}
-
-/* ============================================================================
-   LOADING & EMPTY STATES
-   ============================================================================ */
-
-.network-graph-container.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.loading-spinner {
-  width: 64px;
-  height: 64px;
-  border: 5px solid rgba(78, 205, 196, 0.1);
-  border-top-color: #4ECDC4;
-  border-radius: 50%;
-  animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.network-graph-container.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-}
-
-.empty-icon {
-  font-size: 80px;
-  opacity: 0.3;
-  animation: emptyPulse 2s ease-in-out infinite;
-}
-
-@keyframes emptyPulse {
-  0%, 100% {
-    opacity: 0.3;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.2;
-    transform: scale(1.05);
-  }
-}
-
-.empty-text {
-  color: #888;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-/* ============================================================================
-   ANIMATIONS FOR NODES & EDGES
-   ============================================================================ */
-
-/* Pulse animation for discovered nodes */
-@keyframes discover-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.8);
-  }
-  50% {
-    box-shadow: 0 0 0 15px rgba(167, 139, 250, 0);
-  }
-}
-
-/* Glow effect for active nodes */
-@keyframes node-glow {
-  0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(78, 205, 196, 0.6));
-  }
-  50% {
-    filter: drop-shadow(0 0 16px rgba(78, 205, 196, 0.9));
-  }
-}
-
-/* Flow animation for edges (optional enhancement) */
-@keyframes edge-flow {
-  0% {
-    stroke-dashoffset: 0;
-  }
-  100% {
-    stroke-dashoffset: -100;
-  }
-}
-
 /* ============================================================================
    RESPONSIVE DESIGN
    ============================================================================ */
+
+@media (max-width: 1600px) {
+  .filter-panel {
+    width: 280px;
+  }
+  
+  .graph-legend.enhanced {
+    left: 320px;
+  }
+  
+  .filter-panel:not(.open) ~ .graph-legend.enhanced {
+    left: 100px;
+  }
+}
 
 @media (max-width: 1400px) {
   .graph-stats-panel {
@@ -515,112 +774,74 @@
     top: 15px;
   }
   
-  .stat-item {
-    padding: 10px 14px;
+  .filter-panel {
+    width: 260px;
   }
   
-  .stat-icon {
-    font-size: 20px;
-  }
-  
-  .stat-value {
-    font-size: 16px;
+  .graph-legend.enhanced {
+    left: 300px;
+    max-width: 200px;
   }
 }
 
 @media (max-width: 1024px) {
-  .network-graph-container {
-    height: 550px;
+  .network-graph-container.enhanced {
+    height: 600px;
+  }
+  
+  .filter-panel {
+    width: 240px;
+    font-size: 12px;
   }
   
   .graph-legend.enhanced {
-    top: 15px;
-    left: 15px;
-    padding: 14px;
+    left: 20px;
+    bottom: 100px;
+    max-width: 180px;
+  }
+  
+  .filter-panel:not(.open) ~ .graph-legend.enhanced {
+    left: 20px;
+    bottom: 100px;
   }
   
   .hover-info-panel {
-    bottom: 15px;
-    left: 15px;
-    min-width: 240px;
-  }
-  
-  .graph-controls.enhanced {
-    bottom: 15px;
-    right: 15px;
-    gap: 8px;
-  }
-  
-  .control-btn {
-    min-width: 50px;
-    height: 50px;
-  }
-  
-  .control-icon {
-    font-size: 18px;
-  }
-  
-  .control-label {
-    font-size: 9px;
+    min-width: 260px;
   }
 }
 
 @media (max-width: 768px) {
-  .network-graph-container {
-    height: 450px;
-    border-radius: 12px;
+  .network-graph-container.enhanced {
+    height: 500px;
+  }
+  
+  .filter-panel {
+    width: 100%;
+    max-width: 280px;
+    left: 10px;
+    right: 10px;
+  }
+  
+  .graph-legend.enhanced {
+    display: none; /* Hide legend on mobile */
+  }
+  
+  .hover-info-panel {
+    display: none; /* Hide hover info on mobile */
   }
   
   .graph-stats-panel {
+    flex-direction: row;
+    flex-wrap: wrap;
     top: 10px;
     right: 10px;
+    left: 10px;
     gap: 8px;
   }
   
   .stat-item {
-    padding: 8px 12px;
-    gap: 8px;
-  }
-  
-  .stat-icon {
-    font-size: 18px;
-  }
-  
-  .stat-value {
-    font-size: 14px;
-  }
-  
-  .stat-label {
-    font-size: 10px;
-  }
-  
-  .graph-legend.enhanced {
-    top: 10px;
-    left: 10px;
-    padding: 12px;
-  }
-  
-  .legend-title {
-    font-size: 11px;
-    margin-bottom: 12px;
-  }
-  
-  .legend-item {
-    padding: 6px 8px;
-    margin-bottom: 8px;
-  }
-  
-  .legend-color {
-    width: 16px;
-    height: 16px;
-  }
-  
-  .legend-label {
-    font-size: 12px;
-  }
-  
-  .hover-info-panel {
-    display: none; /* Hide on mobile for space */
+    flex: 1;
+    min-width: calc(50% - 4px);
   }
   
   .graph-controls.enhanced {
@@ -633,46 +854,10 @@
   .control-btn {
     min-width: 44px;
     height: 44px;
-    padding: 6px;
-  }
-  
-  .control-icon {
-    font-size: 16px;
   }
   
   .control-label {
     display: none;
-  }
-  
-  .context-menu {
-    min-width: 180px;
-  }
-  
-  .context-menu-item {
-    padding: 10px 14px;
-    font-size: 12px;
-  }
-}
-
-/* ============================================================================
-   DARK MODE ENHANCEMENTS
-   ============================================================================ */
-
-@media (prefers-color-scheme: dark) {
-  .network-graph-container {
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.8),
-      inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  }
-  
-  .stat-item,
-  .hover-info-panel,
-  .graph-legend.enhanced,
-  .control-btn,
-  .context-menu {
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.7),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -682,7 +867,8 @@
 
 .control-btn:focus-visible,
 .legend-item:focus-visible,
-.context-menu-item:focus-visible {
+.context-menu-item:focus-visible,
+.filter-option:focus-visible {
   outline: 2px solid #4ECDC4;
   outline-offset: 2px;
 }
@@ -698,47 +884,13 @@
 }
 
 /* ============================================================================
-   PRINT STYLES
+   DARK MODE ENHANCEMENTS
    ============================================================================ */
 
-@media print {
-  .network-graph-container {
-    background: white;
-    border-color: #ccc;
+@media (prefers-color-scheme: dark) {
+  .network-graph-container.enhanced {
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.8),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
-  
-  .graph-stats-panel,
-  .hover-info-panel,
-  .graph-controls,
-  .context-menu {
-    display: none;
-  }
-  
-  .graph-legend.enhanced {
-    background: white;
-    border-color: #ccc;
-  }
-}
-
-/* ============================================================================
-   CUSTOM SCROLLBAR (for future features)
-   ============================================================================ */
-
-.network-graph-container *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.network-graph-container *::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-}
-
-.network-graph-container *::-webkit-scrollbar-thumb {
-  background: rgba(78, 205, 196, 0.3);
-  border-radius: 4px;
-}
-
-.network-graph-container *::-webkit-scrollbar-thumb:hover {
-  background: rgba(78, 205, 196, 0.5);
 }
