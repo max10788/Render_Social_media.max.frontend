@@ -235,26 +235,56 @@ const NetworkGraph = ({
   // ============================================================================
 
   const shouldShowNode = (node) => {
-    // ✅ Confidence filter
+    // ✅ 1. Confidence filter (IMMER aktiv)
     const confidence = (node.confidence || node.confidence_score || 0) * 100;
     if (confidence < activeFilters.confidenceRange[0] || confidence > activeFilters.confidenceRange[1]) {
+      console.log('❌ Node filtered by confidence:', {
+        address: node.address?.substring(0, 10) + '...',
+        confidence,
+        range: activeFilters.confidenceRange
+      });
       return false;
     }
-
-    // ✅ Entity type filter (only if types are selected)
-    if (activeFilters.entityTypes.length > 0 && !activeFilters.entityTypes.includes(node.entity_type)) {
-      return false;
-    }
-
-    // ✅ Tag filter (only if tags are selected)
-    if (activeFilters.tags.length > 0) {
-      const nodeTags = node.tags || [];
-      const hasSelectedTag = activeFilters.tags.some(tag => nodeTags.includes(tag));
-      if (!hasSelectedTag) {
+  
+    // ✅ 2. Entity type filter (NUR wenn Types ausgewählt sind)
+    // WENN keine Types ausgewählt → zeige ALLE
+    // WENN Types ausgewählt → zeige NUR diese Types
+    if (activeFilters.entityTypes.length > 0) {
+      if (!activeFilters.entityTypes.includes(node.entity_type)) {
+        console.log('❌ Node filtered by entity type:', {
+          address: node.address?.substring(0, 10) + '...',
+          type: node.entity_type,
+          allowed: activeFilters.entityTypes
+        });
         return false;
       }
     }
-
+  
+    // ✅ 3. Tag filter (NUR wenn Tags ausgewählt sind)
+    // WENN keine Tags ausgewählt → zeige ALLE
+    // WENN Tags ausgewählt → zeige NUR Nodes mit mindestens einem der Tags
+    if (activeFilters.tags.length > 0) {
+      const nodeTags = node.tags || [];
+      const hasSelectedTag = activeFilters.tags.some(tag => nodeTags.includes(tag));
+      
+      if (!hasSelectedTag) {
+        console.log('❌ Node filtered by tags:', {
+          address: node.address?.substring(0, 10) + '...',
+          nodeTags,
+          requiredTags: activeFilters.tags
+        });
+        return false;
+      }
+    }
+  
+    // ✅ Node passed all filters
+    console.log('✅ Node PASSED filters:', {
+      address: node.address?.substring(0, 10) + '...',
+      type: node.entity_type,
+      tags: node.tags || [],
+      confidence
+    });
+    
     return true;
   };
 
