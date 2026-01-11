@@ -79,7 +79,7 @@ const OTCAnalysis = () => {
   const [isDiscoveryMode, setIsDiscoveryMode] = useState(false);
   const [savedFilters, setSavedFilters] = useState(null);
   
-  // Additional visualizations state
+  // ✅ FIXED: Additional visualizations state - store complete objects
   const [heatmapData, setHeatmapData] = useState(null);
   const [timelineData, setTimelineData] = useState(null);
   const [distributionsData, setDistributionsData] = useState(null);
@@ -95,39 +95,54 @@ const OTCAnalysis = () => {
   // ============================================================================
   
   /**
-   * Load additional visualizations on mount or filter change
+   * ✅ FIXED: Load additional visualizations on mount or filter change
+   * Now correctly stores complete data objects instead of nested properties
    */
   useEffect(() => {
     const loadAdditionalData = async () => {
-      // Heatmap
+      // ✅ FIXED: Heatmap - store complete object
       setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
       try {
         const heatmap = await fetchHeatmap();
-        setHeatmapData(heatmap?.heatmap || []);
+        setHeatmapData(heatmap || null); // ✅ Complete object with heatmap, peak_hours, patterns
+        console.log('✅ Heatmap loaded:', {
+          hasData: !!heatmap,
+          gridSize: heatmap?.heatmap?.length,
+          hasPeaks: !!heatmap?.peak_hours,
+          hasPatterns: !!heatmap?.patterns
+        });
       } catch (error) {
         console.error('Failed to load heatmap:', error);
+        setHeatmapData(null);
       } finally {
         setVisualizationLoading(prev => ({ ...prev, heatmap: false }));
       }
 
-      // Timeline
+      // ✅ FIXED: Timeline - store complete object
       setVisualizationLoading(prev => ({ ...prev, timeline: true }));
       try {
         const timeline = await fetchTimeline();
-        setTimelineData(timeline?.events || []);
+        setTimelineData(timeline || null); // ✅ Complete object with events, metadata
+        console.log('✅ Timeline loaded:', {
+          hasData: !!timeline,
+          eventCount: timeline?.events?.length
+        });
       } catch (error) {
         console.error('Failed to load timeline:', error);
+        setTimelineData(null);
       } finally {
         setVisualizationLoading(prev => ({ ...prev, timeline: false }));
       }
 
-      // Distributions
+      // ✅ Distributions - already correct
       setVisualizationLoading(prev => ({ ...prev, distributions: true }));
       try {
         const distributions = await fetchDistributions();
-        setDistributionsData(distributions);
+        setDistributionsData(distributions || null);
+        console.log('✅ Distributions loaded:', !!distributions);
       } catch (error) {
         console.error('Failed to load distributions:', error);
+        setDistributionsData(null);
       } finally {
         setVisualizationLoading(prev => ({ ...prev, distributions: false }));
       }
@@ -307,7 +322,7 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * ✅ UPDATED: Handle discovery completion with automatic filter adjustment
+   * ✅ UPDATED: Handle discovery completion with automatic data refresh
    */
   const handleDiscoveryComplete = async (result) => {
     console.log('✅ Discovery completed:', result);
@@ -332,24 +347,25 @@ const OTCAnalysis = () => {
       
       console.log('🔄 Refreshing with discovery-friendly filters...');
       
-      // ✅ 3. Refresh ALL data
+      // ✅ 3. Refresh ALL data including visualizations
       await Promise.all([
         fetchNetworkData(),
         fetchSankeyData(),
         fetchStatistics(),
         fetchAllDesks(),
         fetchDiscoveryStats(),
+        // ✅ FIXED: Properly refresh visualizations
         (async () => {
           const heatmap = await fetchHeatmap();
-          setHeatmapData(heatmap?.heatmap || []);
+          setHeatmapData(heatmap || null);
         })(),
         (async () => {
           const timeline = await fetchTimeline();
-          setTimelineData(timeline?.events || []);
+          setTimelineData(timeline || null);
         })(),
         (async () => {
           const distributions = await fetchDistributions();
-          setDistributionsData(distributions);
+          setDistributionsData(distributions || null);
         })()
       ]);
       
@@ -397,7 +413,7 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * Refresh all data
+   * ✅ UPDATED: Refresh all data including visualizations
    */
   const handleRefreshAll = async () => {
     console.log('🔄 Refreshing all data...');
@@ -409,17 +425,33 @@ const OTCAnalysis = () => {
         fetchStatistics(),
         fetchAllDesks(),
         fetchDiscoveryStats(),
+        // ✅ FIXED: Properly refresh visualizations
         (async () => {
-          const heatmap = await fetchHeatmap();
-          setHeatmapData(heatmap?.heatmap || []);
+          setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
+          try {
+            const heatmap = await fetchHeatmap();
+            setHeatmapData(heatmap || null);
+          } finally {
+            setVisualizationLoading(prev => ({ ...prev, heatmap: false }));
+          }
         })(),
         (async () => {
-          const timeline = await fetchTimeline();
-          setTimelineData(timeline?.events || []);
+          setVisualizationLoading(prev => ({ ...prev, timeline: true }));
+          try {
+            const timeline = await fetchTimeline();
+            setTimelineData(timeline || null);
+          } finally {
+            setVisualizationLoading(prev => ({ ...prev, timeline: false }));
+          }
         })(),
         (async () => {
-          const distributions = await fetchDistributions();
-          setDistributionsData(distributions);
+          setVisualizationLoading(prev => ({ ...prev, distributions: true }));
+          try {
+            const distributions = await fetchDistributions();
+            setDistributionsData(distributions || null);
+          } finally {
+            setVisualizationLoading(prev => ({ ...prev, distributions: false }));
+          }
         })()
       ]);
       
@@ -439,8 +471,11 @@ const OTCAnalysis = () => {
 
   const hasNetworkData = networkData?.nodes?.length > 0;
   const hasSankeyData = sankeyData?.nodes?.length > 0;
-  const hasHeatmapData = heatmapData?.length > 0;
-  const hasTimelineData = timelineData?.length > 0;
+  
+  // ✅ FIXED: Check for complete data objects
+  const hasHeatmapData = heatmapData?.heatmap?.length > 0;
+  const hasTimelineData = timelineData?.events?.length > 0;
+  const hasDistributionsData = !!distributionsData;
 
   const verifiedDesks = allDesks.filter(d => 
     d.desk_category === 'verified' || 
@@ -588,13 +623,13 @@ const OTCAnalysis = () => {
                 </button>
               </div>
             ) : hasNetworkData ? (
-            <NetworkGraph
-              data={networkData}
-              onNodeClick={handleNodeClick}
-              onNodeHover={handleNodeHover}
-              selectedNode={selectedWallet}
-              discoveredDesks={discoveredDesks} // ✅ Should be small array, not all desks!
-            />
+              <NetworkGraph
+                data={networkData}
+                onNodeClick={handleNodeClick}
+                onNodeHover={handleNodeHover}
+                selectedNode={selectedWallet}
+                discoveredDesks={discoveredDesks}
+              />
             ) : (
               <div className="empty-state">
                 <span className="empty-icon">📊</span>
@@ -658,6 +693,23 @@ const OTCAnalysis = () => {
                   <span className="section-icon">🔥</span>
                   Activity Heatmap
                 </h2>
+                <div className="section-actions">
+                  <button 
+                    className="action-button"
+                    onClick={async () => {
+                      setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
+                      try {
+                        const heatmap = await fetchHeatmap();
+                        setHeatmapData(heatmap || null);
+                      } finally {
+                        setVisualizationLoading(prev => ({ ...prev, heatmap: false }));
+                      }
+                    }}
+                    disabled={visualizationLoading.heatmap}
+                  >
+                    {visualizationLoading.heatmap ? '⏳' : '🔄'}
+                  </button>
+                </div>
               </div>
               
               {visualizationLoading.heatmap ? (
@@ -673,6 +725,9 @@ const OTCAnalysis = () => {
               ) : (
                 <div className="empty-state">
                   <p>No heatmap data available</p>
+                  <p className="empty-subtext">
+                    {heatmapData === null ? 'Failed to load data' : 'No activity to display'}
+                  </p>
                 </div>
               )}
             </div>
@@ -684,6 +739,23 @@ const OTCAnalysis = () => {
                   <span className="section-icon">📅</span>
                   Transfer Timeline
                 </h2>
+                <div className="section-actions">
+                  <button 
+                    className="action-button"
+                    onClick={async () => {
+                      setVisualizationLoading(prev => ({ ...prev, timeline: true }));
+                      try {
+                        const timeline = await fetchTimeline();
+                        setTimelineData(timeline || null);
+                      } finally {
+                        setVisualizationLoading(prev => ({ ...prev, timeline: false }));
+                      }
+                    }}
+                    disabled={visualizationLoading.timeline}
+                  >
+                    {visualizationLoading.timeline ? '⏳' : '🔄'}
+                  </button>
+                </div>
               </div>
               
               {visualizationLoading.timeline ? (
@@ -711,6 +783,23 @@ const OTCAnalysis = () => {
                   <span className="section-icon">📊</span>
                   Distributions
                 </h2>
+                <div className="section-actions">
+                  <button 
+                    className="action-button"
+                    onClick={async () => {
+                      setVisualizationLoading(prev => ({ ...prev, distributions: true }));
+                      try {
+                        const distributions = await fetchDistributions();
+                        setDistributionsData(distributions || null);
+                      } finally {
+                        setVisualizationLoading(prev => ({ ...prev, distributions: false }));
+                      }
+                    }}
+                    disabled={visualizationLoading.distributions}
+                  >
+                    {visualizationLoading.distributions ? '⏳' : '🔄'}
+                  </button>
+                </div>
               </div>
               
               {visualizationLoading.distributions ? (
@@ -718,7 +807,7 @@ const OTCAnalysis = () => {
                   <div className="loading-spinner"></div>
                   <p>Loading distributions...</p>
                 </div>
-              ) : distributionsData ? (
+              ) : hasDistributionsData ? (
                 <DistributionCharts
                   data={distributionsData}
                 />
