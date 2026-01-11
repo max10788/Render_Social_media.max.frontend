@@ -153,16 +153,17 @@ const NetworkGraph = ({
               return entityColors[entityType] || entityColors.unknown;
             },
             
-            // Label
+            // ✅ FIXED: Label with discovered icon ONLY if actually in discoveredDesks
             'label': (ele) => {
               const address = ele.data('address');
-              let label = ele.data('label') || truncateAddress(address);
+              const label = ele.data('label');
+              const isDiscovered = isDiscoveredDesk(address);
               
-              if (isDiscoveredDesk(address)) {
-                label = '🔍 ' + label;
-              }
+              // Use label if available, otherwise truncate address
+              const displayLabel = label || truncateAddress(address);
               
-              return label;
+              // Add icon ONLY if actually discovered
+              return isDiscovered ? '🔍 ' + displayLabel : displayLabel;
             },
             
             // Opacity based on confidence
