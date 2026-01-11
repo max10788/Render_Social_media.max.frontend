@@ -11,6 +11,7 @@ import DistributionCharts from '../components/otc/DistributionCharts';
 import OTCDiscoveryPanel from '../components/otc/OTCDiscoveryPanel';
 import { useOTCData } from '../hooks/useOTCData';
 import { useOTCWebSocket } from '../hooks/useOTCWebSocket';
+import { format, subDays } from 'date-fns';
 import './OTCAnalysis.css';
 
 const OTCAnalysis = () => {
@@ -72,7 +73,11 @@ const OTCAnalysis = () => {
   // ============================================================================
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
-  const [isSankeyFullscreen, setIsSankeyFullscreen] = useState(false); // NEW: Sankey fullscreen state
+  const [isSankeyFullscreen, setIsSankeyFullscreen] = useState(false);
+  
+  // ✅ NEW: Discovery mode state
+  const [isDiscoveryMode, setIsDiscoveryMode] = useState(false);
+  const [savedFilters, setSavedFilters] = useState(null);
   
   // Additional visualizations state
   const [heatmapData, setHeatmapData] = useState(null);
@@ -243,7 +248,7 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * NEW: Toggle Sankey fullscreen
+   * Toggle Sankey fullscreen
    */
   const handleToggleSankeyFullscreen = () => {
     setIsSankeyFullscreen(!isSankeyFullscreen);
@@ -272,23 +277,68 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * ✅ FIXED: Handle discovery completion with full refresh
+   * ✅ NEW: Toggle Discovery Mode
+   */
+  const handleToggleDiscoveryMode = () => {
+    if (isDiscoveryMode) {
+      // ✅ Exit Discovery Mode - Restore original filters
+      if (savedFilters) {
+        console.log('🔄 Exiting Discovery Mode - Restoring filters');
+        updateFilters(savedFilters);
+        setSavedFilters(null);
+      }
+      setIsDiscoveryMode(false);
+    } else {
+      // ✅ Enter Discovery Mode - Save current filters and apply discovery filters
+      console.log('🔍 Entering Discovery Mode');
+      setSavedFilters({ ...filters });
+      
+      const discoveryFilters = {
+        ...filters,
+        minConfidence: 0,
+        minTransferSize: 0,
+        fromDate: format(subDays(new Date(), 90), 'yyyy-MM-dd'),
+        showDiscovered: true
+      };
+      
+      updateFilters(discoveryFilters);
+      setIsDiscoveryMode(true);
+    }
+  };
+
+  /**
+   * ✅ UPDATED: Handle discovery completion with automatic filter adjustment
    */
   const handleDiscoveryComplete = async (result) => {
     console.log('✅ Discovery completed:', result);
     
-    // ✅ Show loading indicator
-    console.log('🔄 Refreshing all visualizations...');
-    
     try {
-      // ✅ Refresh ALL data in parallel
+      // ✅ 1. Save current filters if not already in discovery mode
+      if (!isDiscoveryMode) {
+        setSavedFilters({ ...filters });
+      }
+      
+      // ✅ 2. Apply discovery-friendly filters
+      const discoveryFilters = {
+        ...filters,
+        minConfidence: 0,
+        minTransferSize: 0,
+        fromDate: format(subDays(new Date(), 90), 'yyyy-MM-dd'),
+        showDiscovered: true
+      };
+      
+      updateFilters(discoveryFilters);
+      setIsDiscoveryMode(true);
+      
+      console.log('🔄 Refreshing with discovery-friendly filters...');
+      
+      // ✅ 3. Refresh ALL data
       await Promise.all([
         fetchNetworkData(),
         fetchSankeyData(),
         fetchStatistics(),
         fetchAllDesks(),
         fetchDiscoveryStats(),
-        // Also refresh visualizations
         (async () => {
           const heatmap = await fetchHeatmap();
           setHeatmapData(heatmap?.heatmap || []);
@@ -305,12 +355,27 @@ const OTCAnalysis = () => {
       
       console.log('✅ All visualizations refreshed!');
       
-      // ✅ Show success message with details
+      // ✅ 4. If single discovery, navigate to first discovered wallet
+      if (!result.mass_discovery && result.wallets && result.wallets.length > 0) {
+        const firstDiscovered = result.wallets[0];
+        
+        setTimeout(() => {
+          fetchWalletProfile(firstDiscovered.address);
+          fetchWalletDetails(firstDiscovered.address);
+          setIsSidebarOpen(true);
+          
+          console.log('📍 Navigated to discovered wallet:', firstDiscovered.address);
+        }, 1500);
+      }
+      
+      // ✅ 5. Show success notification
       const discovered = result.discovered_count || result.total_discovered || 0;
       alert(
         `🎉 Discovery Complete!\n\n` +
-        `Found ${discovered} new OTC desk${discovered !== 1 ? 's' : ''}.\n` +
-        `All visualizations have been updated.`
+        `Found ${discovered} new OTC desk${discovered !== 1 ? 's' : ''}.\n\n` +
+        `Discovery Mode is now ACTIVE.\n` +
+        `All discovered wallets are now visible in the graph.\n\n` +
+        `Use the "Discovery Mode" button to toggle back to normal filters.`
       );
       
     } catch (error) {
@@ -377,7 +442,11 @@ const OTCAnalysis = () => {
   const hasHeatmapData = heatmapData?.length > 0;
   const hasTimelineData = timelineData?.length > 0;
 
-  const verifiedDesks = allDesks.filter(d => d.desk_category === 'verified');
+  const verifiedDesks = allDesks.filter(d => 
+    d.desk_category === 'verified' || 
+    d.tags?.includes('verified') || 
+    d.tags?.includes('verified_otc_desk')
+  );
   const discoveredDesksCount = discoveredDesks.length;
 
   // ============================================================================
@@ -415,6 +484,24 @@ const OTCAnalysis = () => {
             </span>
           </div>
           
+          {/* ✅ NEW: Discovery Mode Toggle */}
+          {discoveredDesks.length > 0 && (
+            <button 
+              className={`discovery-mode-toggle ${isDiscoveryMode ? 'active' : ''}`}
+              onClick={handleToggleDiscoveryMode}
+              title={isDiscoveryMode 
+                ? "Exit Discovery Mode (restore original filters)" 
+                : "Enter Discovery Mode (show all discovered wallets)"
+              }
+            >
+              <span className="toggle-icon">🔍</span>
+              <span className="toggle-text">
+                {isDiscoveryMode ? 'Discovery Mode ON' : 'Discovery Mode'}
+              </span>
+              <span className="toggle-count">({discoveredDesks.length})</span>
+            </button>
+          )}
+          
           <button 
             className="refresh-all-button"
             onClick={handleRefreshAll}
@@ -424,7 +511,7 @@ const OTCAnalysis = () => {
           </button>
           
           <OTCDiscoveryPanel 
-            knownDesks={allDesks}  // ✅ Übergebe ALLE Desks statt nur verified
+            knownDesks={allDesks}
             onDiscoveryComplete={handleDiscoveryComplete}
             onViewWallet={handleViewWalletFromDiscovery}
           />
@@ -463,6 +550,12 @@ const OTCAnalysis = () => {
               <h2 className="section-title">
                 <span className="section-icon">🕸️</span>
                 Transaction Network
+                {/* ✅ NEW: Discovery Mode Indicator */}
+                {isDiscoveryMode && (
+                  <span className="discovery-mode-badge">
+                    🔍 Discovery Mode
+                  </span>
+                )}
               </h2>
               <div className="section-actions">
                 <button 
