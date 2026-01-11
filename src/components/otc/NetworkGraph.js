@@ -329,50 +329,70 @@ const NetworkGraph = ({
   // FORMAT GRAPH DATA
   // ============================================================================
 
-  const formatGraphData = (graphData) => {
+const formatGraphData = (graphData) => {
     if (!graphData) return [];
   
     const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
     const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
   
-    const nodeAddressSet = new Set();
+    console.log('🔍 formatGraphData called:', {
+      rawNodes: rawNodes.length,
+      rawEdges: rawEdges.length,
+      activeFilters: {
+        tags: activeFilters.tags.length,
+        entityTypes: activeFilters.entityTypes.length,
+        confidenceRange: activeFilters.confidenceRange
+      }
+    });
+  
+    // ✅ STEP 1: Filter nodes FIRST
+    const visibleNodes = rawNodes.filter(node => {
+      if (!node || !node.address) return false;
+      return shouldShowNode(node);
+    });
     
-    // Filter and format nodes
-    const nodes = rawNodes
-      .filter(node => {
-        if (!node || !node.address) return false;
-        return shouldShowNode(node);
-      })
-      .map(node => {
-        const normalizedAddress = node.address.toLowerCase();
-        nodeAddressSet.add(normalizedAddress);
-  
-        let cleanLabel = node.label;
-        if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
-          cleanLabel = null;
+    console.log('✅ After shouldShowNode filter:', {
+      visible: visibleNodes.length,
+      filtered_out: rawNodes.length - visibleNodes.length
+    });
+    
+    // ✅ STEP 2: Build visible address set
+    const visibleAddressSet = new Set(
+      visibleNodes.map(node => node.address.toLowerCase())
+    );
+    
+    console.log('📋 Visible addresses:', Array.from(visibleAddressSet).slice(0, 3));
+    
+    // ✅ STEP 3: Format nodes
+    const formattedNodes = visibleNodes.map(node => {
+      let cleanLabel = node.label;
+      if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
+        cleanLabel = null;
+      }
+
+      return {
+        data: {
+          id: node.address,
+          address: node.address,
+          label: cleanLabel,
+          entity_type: node.entity_type || 'unknown',
+          entity_name: node.entity_name,
+          total_volume_usd: Number(node.total_volume_usd || node.total_volume) || 0,
+          confidence_score: (node.confidence || node.confidence_score || 0.5) * 100,
+          is_active: Boolean(node.is_active),
+          transaction_count: Number(node.transaction_count) || 0,
+          tags: node.tags || [],
+          first_seen: node.first_seen,
+          last_active: node.last_active
         }
+      };
+    });
   
-        return {
-          data: {
-            id: node.address,
-            address: node.address,
-            label: cleanLabel,
-            entity_type: node.entity_type || 'unknown',
-            entity_name: node.entity_name,
-            total_volume_usd: Number(node.total_volume_usd || node.total_volume) || 0,
-            confidence_score: (node.confidence || node.confidence_score || 0.5) * 100,
-            is_active: Boolean(node.is_active),
-            transaction_count: Number(node.transaction_count) || 0,
-            tags: node.tags || [],
-            first_seen: node.first_seen,
-            last_active: node.last_active
-          }
-        };
-      });
-  
-    // Filter edges to only include visible nodes
-    const edges = rawEdges
+    // ✅ STEP 4: Filter edges based on VISIBLE nodes
+    let debugCount = 0;
+    const formattedEdges = rawEdges
       .map((edge) => {
+        // Extract edge data
         const edgeData = edge.data || edge;
         
         if (!edgeData || !edgeData.source || !edgeData.target) {
@@ -382,7 +402,22 @@ const NetworkGraph = ({
         const sourceNormalized = edgeData.source.toLowerCase();
         const targetNormalized = edgeData.target.toLowerCase();
         
-        if (!nodeAddressSet.has(sourceNormalized) || !nodeAddressSet.has(targetNormalized)) {
+        const sourceVisible = visibleAddressSet.has(sourceNormalized);
+        const targetVisible = visibleAddressSet.has(targetNormalized);
+        
+        // Debug first 3 edges
+        if (debugCount < 3) {
+          console.log(`🔍 Edge #${debugCount + 1}:`, {
+            source: sourceNormalized.substring(0, 10) + '...',
+            target: targetNormalized.substring(0, 10) + '...',
+            sourceVisible,
+            targetVisible,
+            willInclude: sourceVisible && targetVisible
+          });
+          debugCount++;
+        }
+        
+        if (!sourceVisible || !targetVisible) {
           return null;
         }
   
@@ -400,12 +435,13 @@ const NetworkGraph = ({
       })
       .filter(Boolean);
   
-    console.log('✅ Formatted graph data:', {
-      nodes: nodes.length,
-      edges: edges.length
+    console.log('✅ Final formatted data:', {
+      nodes: formattedNodes.length,
+      edges: formattedEdges.length,
+      edgeFilteredOut: rawEdges.length - formattedEdges.length
     });
   
-    return [...nodes, ...edges];
+    return [...formattedNodes, ...formattedEdges];
   };
 
   // ============================================================================
