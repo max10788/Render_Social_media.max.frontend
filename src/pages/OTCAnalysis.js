@@ -588,13 +588,13 @@ const OTCAnalysis = () => {
                 </button>
               </div>
             ) : hasNetworkData ? (
-              <NetworkGraph
-                data={networkData}
-                onNodeClick={handleNodeClick}
-                onNodeHover={handleNodeHover}
-                selectedNode={selectedWallet}
-                discoveredDesks={discoveredDesks}
-              />
+            <NetworkGraph
+              data={networkData}
+              onNodeClick={handleNodeClick}
+              onNodeHover={handleNodeHover}
+              selectedNode={selectedWallet}
+              discoveredDesks={discoveredDesks} // ✅ Should be small array, not all desks!
+            />
             ) : (
               <div className="empty-state">
                 <span className="empty-icon">📊</span>
