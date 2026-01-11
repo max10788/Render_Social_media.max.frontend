@@ -5,8 +5,8 @@ import { format, subDays } from 'date-fns';
 /**
  * Custom hook for OTC Analysis data management
  * 
+ * ✅ UPDATED: Client-side wallet filtering for Network Graph
  * ✅ UPDATED: Added Discovery System integration
- * ✅ UPDATED: Added Network Graph Wallet Filters
  * ✅ FIXED: Watchlist handling to match backend structure
  */
 export const useOTCData = () => {
@@ -23,17 +23,18 @@ export const useOTCData = () => {
     // Discovery filters
     showDiscovered: true,
     showVerified: true,
+    showDbValidated: true,
     deskCategory: 'all', // 'all', 'verified', 'discovered', 'db_validated'
     
-    // ✅ NEW: Network Graph Wallet Filters
-    showDbValidated: true,
+    // ✅ NEW: Network Graph Wallet Filters (CLIENT-SIDE)
     includeTags: [],        // Only show wallets WITH these tags (empty = all allowed)
     excludeTags: [],        // Hide wallets WITH these tags
     walletAddresses: []     // Show ONLY these addresses (overrides all other filters)
   });
 
   // Data state
-  const [networkData, setNetworkData] = useState(null);
+  const [rawNetworkData, setRawNetworkData] = useState(null); // ✅ NEW: Raw unfiltered data
+  const [networkData, setNetworkData] = useState(null);       // ✅ Filtered data
   const [sankeyData, setSankeyData] = useState(null);
   const [statistics, setStatistics] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
@@ -92,6 +93,127 @@ export const useOTCData = () => {
   }, []);
 
   /**
+   * ✅ NEW: Client-side wallet filtering logic
+   */
+  const applyWalletFilters = useCallback((data, filterSettings) => {
+    if (!data || !data.nodes) return data;
+
+    let filteredNodes = [...data.nodes];
+
+    console.log('🔍 Applying client-side filters:', {
+      totalNodes: filteredNodes.length,
+      filters: {
+        showDiscovered: filterSettings.showDiscovered,
+        showVerified: filterSettings.showVerified,
+        showDbValidated: filterSettings.showDbValidated,
+        includeTags: filterSettings.includeTags,
+        excludeTags: filterSettings.excludeTags,
+        walletAddresses: filterSettings.walletAddresses?.length || 0
+      }
+    });
+
+    // ✅ PRIORITY 1: Specific wallet addresses (overrides everything)
+    if (filterSettings.walletAddresses && filterSettings.walletAddresses.length > 0) {
+      const addressSet = new Set(
+        filterSettings.walletAddresses.map(addr => addr.toLowerCase())
+      );
+      
+      filteredNodes = filteredNodes.filter(node => 
+        addressSet.has(node.address?.toLowerCase())
+      );
+      
+      console.log('✅ Filtered by wallet addresses:', {
+        requested: filterSettings.walletAddresses.length,
+        found: filteredNodes.length
+      });
+    } else {
+      // ✅ STEP 2: Category filters (discovered, verified, db_validated)
+      filteredNodes = filteredNodes.filter(node => {
+        const category = node.desk_category || 'unknown';
+        const tags = node.tags || [];
+        
+        // Check category
+        if (category === 'discovered' && !filterSettings.showDiscovered) return false;
+        if (category === 'db_validated' && !filterSettings.showDbValidated) return false;
+        
+        // Check if verified (by tag or category)
+        const isVerified = category === 'verified' || 
+                          tags.includes('verified') || 
+                          tags.includes('verified_otc_desk');
+        if (isVerified && !filterSettings.showVerified) return false;
+        
+        return true;
+      });
+
+      console.log('✅ After category filter:', {
+        remaining: filteredNodes.length,
+        discovered: filteredNodes.filter(n => n.desk_category === 'discovered').length,
+        verified: filteredNodes.filter(n => n.tags?.includes('verified')).length,
+        dbValidated: filteredNodes.filter(n => n.desk_category === 'db_validated').length
+      });
+
+      // ✅ STEP 3: Include tags filter (AND logic - must have at least one of these tags)
+      if (filterSettings.includeTags && filterSettings.includeTags.length > 0) {
+        filteredNodes = filteredNodes.filter(node => {
+          const tags = node.tags || [];
+          return filterSettings.includeTags.some(tag => tags.includes(tag));
+        });
+        
+        console.log('✅ After include tags filter:', {
+          remaining: filteredNodes.length,
+          tags: filterSettings.includeTags
+        });
+      }
+
+      // ✅ STEP 4: Exclude tags filter
+      if (filterSettings.excludeTags && filterSettings.excludeTags.length > 0) {
+        filteredNodes = filteredNodes.filter(node => {
+          const tags = node.tags || [];
+          return !filterSettings.excludeTags.some(tag => tags.includes(tag));
+        });
+        
+        console.log('✅ After exclude tags filter:', {
+          remaining: filteredNodes.length,
+          excludedTags: filterSettings.excludeTags
+        });
+      }
+    }
+
+    // ✅ Filter edges to only include connections between visible nodes
+    const visibleAddresses = new Set(
+      filteredNodes.map(n => n.address?.toLowerCase())
+    );
+    
+    const filteredEdges = (data.edges || []).filter(edge => 
+      visibleAddresses.has(edge.from?.toLowerCase()) && 
+      visibleAddresses.has(edge.to?.toLowerCase())
+    );
+
+    console.log('📊 Final filtered result:', {
+      nodes: filteredNodes.length,
+      edges: filteredEdges.length,
+      categories: {
+        discovered: filteredNodes.filter(n => n.desk_category === 'discovered').length,
+        verified: filteredNodes.filter(n => n.tags?.includes('verified')).length,
+        dbValidated: filteredNodes.filter(n => n.desk_category === 'db_validated').length
+      }
+    });
+
+    return {
+      nodes: filteredNodes,
+      edges: filteredEdges,
+      metadata: {
+        ...data.metadata,
+        filtered: true,
+        original_node_count: data.nodes.length,
+        original_edge_count: data.edges?.length || 0,
+        filtered_node_count: filteredNodes.length,
+        filtered_edge_count: filteredEdges.length
+      }
+    };
+  }, []);
+
+  /**
    * Update filters
    */
   const updateFilters = useCallback((newFilters) => {
@@ -99,31 +221,38 @@ export const useOTCData = () => {
   }, []);
 
   /**
-   * ✅ UPDATED: Fetch network graph data with wallet filters
+   * ✅ NEW: Apply filters manually (called when user clicks "Apply Filters" button)
+   */
+  const applyFilters = useCallback(() => {
+    if (!rawNetworkData) {
+      console.warn('⚠️ No raw network data available to filter');
+      return;
+    }
+
+    console.log('🔄 Applying filters manually...');
+    const filtered = applyWalletFilters(rawNetworkData, filters);
+    setNetworkData(filtered);
+  }, [rawNetworkData, filters, applyWalletFilters]);
+
+  /**
+   * ✅ UPDATED: Fetch network graph data (fetch ALL, filter client-side)
    */
   const fetchNetworkData = useCallback(async () => {
     setLoading(prev => ({ ...prev, network: true }));
     setErrors(prev => ({ ...prev, network: null }));
     
     try {
-      console.log('🔧 Active wallet filters:', {
-        showDiscovered: filters.showDiscovered,
-        showVerified: filters.showVerified,
-        showDbValidated: filters.showDbValidated,
-        includeTags: filters.includeTags,
-        excludeTags: filters.excludeTags,
-        walletAddresses: filters.walletAddresses
-      });
+      console.log('🔍 Fetching ALL network data from backend...');
       
-      // ✅ UPDATED: Pass wallet filters to service
+      // ✅ Fetch ALL data without wallet filters (only basic filters)
       const data = await otcAnalysisService.getNetworkGraph({
-        ...filters,
-        showDiscovered: filters.showDiscovered,
-        showVerified: filters.showVerified,
-        showDbValidated: filters.showDbValidated,
-        includeTags: filters.includeTags,
-        excludeTags: filters.excludeTags,
-        walletAddresses: filters.walletAddresses
+        fromDate: filters.fromDate,
+        toDate: filters.toDate,
+        minConfidence: filters.minConfidence,
+        minTransferSize: filters.minTransferSize,
+        entityTypes: filters.entityTypes,
+        tokens: filters.tokens,
+        maxNodes: filters.maxNodes
       });
       
       // ✅ Validate data structure
@@ -134,27 +263,47 @@ export const useOTCData = () => {
           metadata: data.metadata || {}
         };
         
-        console.log('📊 Network data received:', {
+        console.log('✅ Raw network data loaded:', {
           totalNodes: safeData.nodes.length,
           totalEdges: safeData.edges.length,
-          discovered: safeData.nodes.filter(n => n.tags?.includes('discovered')).length,
-          verified: safeData.nodes.filter(n => n.tags?.includes('verified')).length,
-          dbValidated: safeData.nodes.filter(n => n.desk_category === 'db_validated').length
+          categories: {
+            discovered: safeData.nodes.filter(n => n.desk_category === 'discovered').length,
+            verified: safeData.nodes.filter(n => n.tags?.includes('verified') || n.tags?.includes('verified_otc_desk')).length,
+            dbValidated: safeData.nodes.filter(n => n.desk_category === 'db_validated').length
+          }
         });
         
-        setNetworkData(safeData);
+        // ✅ Store raw data
+        setRawNetworkData(safeData);
+        
+        // ✅ Apply filters immediately
+        const filtered = applyWalletFilters(safeData, filters);
+        setNetworkData(filtered);
+        
       } else {
         console.error('Invalid network data structure:', data);
+        setRawNetworkData({ nodes: [], edges: [], metadata: {} });
         setNetworkData({ nodes: [], edges: [], metadata: {} });
       }
     } catch (error) {
       setErrors(prev => ({ ...prev, network: error.message }));
       console.error('Error fetching network data:', error);
+      setRawNetworkData({ nodes: [], edges: [], metadata: {} });
       setNetworkData({ nodes: [], edges: [], metadata: {} });
     } finally {
       setLoading(prev => ({ ...prev, network: false }));
     }
-  }, [filters]);
+  }, [
+    filters.fromDate, 
+    filters.toDate, 
+    filters.minConfidence, 
+    filters.minTransferSize,
+    filters.entityTypes,
+    filters.tokens,
+    filters.maxNodes,
+    filters,
+    applyWalletFilters
+  ]);
 
   /**
    * Fetch Sankey flow data
@@ -498,32 +647,8 @@ export const useOTCData = () => {
         database: dbDesks.length,
         unique: uniqueDesks.length,
         filtered: filteredDesks.length,
-        discovered: discovered.length,
-        categories: {
-          verified: uniqueDesks.filter(d => d.desk_category === 'verified').length,
-          discovered: uniqueDesks.filter(d => d.desk_category === 'discovered').length,
-          db_validated: uniqueDesks.filter(d => d.desk_category === 'db_validated').length,
-          unknown: uniqueDesks.filter(d => d.desk_category === 'unknown').length
-        }
+        discovered: discovered.length
       });
-      
-      if (discovered.length > 0) {
-        console.log('🔍 Discovered Desks (Full Details):', discovered.map(d => ({
-          address: d.address,
-          label: d.label,
-          category: d.desk_category,
-          tags: d.tags,
-          source: d.source
-        })));
-      } else {
-        console.log('⚠️ NO discovered desks found!');
-        console.log('Sample of all desks:', uniqueDesks.slice(0, 5).map(d => ({
-          address: d.address.substring(0, 10) + '...',
-          category: d.desk_category,
-          tags: d.tags,
-          source: d.source
-        })));
-      }      
       
       return filteredDesks;
     } catch (error) {
@@ -643,6 +768,7 @@ export const useOTCData = () => {
 
   return {
     networkData,
+    rawNetworkData, // ✅ NEW: Expose raw data
     sankeyData,
     statistics,
     watchlist,
@@ -653,6 +779,7 @@ export const useOTCData = () => {
     discoveryStats,
     filters,
     updateFilters,
+    applyFilters, // ✅ NEW: Manual filter application
     loading,
     errors,
     fetchNetworkData,
