@@ -102,6 +102,7 @@ export const useOTCData = () => {
 
     console.log('🔍 Applying client-side filters:', {
       totalNodes: filteredNodes.length,
+      totalEdges: data.edges?.length || 0,
       filters: {
         showDiscovered: filterSettings.showDiscovered,
         showVerified: filterSettings.showVerified,
@@ -111,6 +112,14 @@ export const useOTCData = () => {
         walletAddresses: filterSettings.walletAddresses?.length || 0
       }
     });
+
+    // ✅ DEBUG: Log first edge structure
+    if (data.edges && data.edges.length > 0) {
+      console.log('🔍 Edge structure sample:', {
+        firstEdge: data.edges[0],
+        fields: Object.keys(data.edges[0])
+      });
+    }
 
     // ✅ PRIORITY 1: Specific wallet addresses (overrides everything)
     if (filterSettings.walletAddresses && filterSettings.walletAddresses.length > 0) {
@@ -179,15 +188,36 @@ export const useOTCData = () => {
       }
     }
 
-    // ✅ Filter edges to only include connections between visible nodes
+    // ✅ FIXED: Filter edges with support for multiple field names
     const visibleAddresses = new Set(
       filteredNodes.map(n => n.address?.toLowerCase())
     );
     
-    const filteredEdges = (data.edges || []).filter(edge => 
-      visibleAddresses.has(edge.from?.toLowerCase()) && 
-      visibleAddresses.has(edge.to?.toLowerCase())
-    );
+    console.log('🔍 Filtering edges:', {
+      totalEdges: data.edges?.length || 0,
+      visibleNodes: visibleAddresses.size
+    });
+    
+    const filteredEdges = (data.edges || []).filter(edge => {
+      // Support different edge field names
+      const sourceAddr = (edge.from || edge.source || edge.from_address)?.toLowerCase();
+      const targetAddr = (edge.to || edge.target || edge.to_address)?.toLowerCase();
+      
+      const isVisible = visibleAddresses.has(sourceAddr) && visibleAddresses.has(targetAddr);
+      
+      // Debug first few edges
+      if (filteredEdges.length < 3) {
+        console.log('🔍 Edge check:', {
+          source: sourceAddr?.substring(0, 10) + '...',
+          target: targetAddr?.substring(0, 10) + '...',
+          sourceVisible: visibleAddresses.has(sourceAddr),
+          targetVisible: visibleAddresses.has(targetAddr),
+          isVisible
+        });
+      }
+      
+      return isVisible;
+    });
 
     console.log('📊 Final filtered result:', {
       nodes: filteredNodes.length,
