@@ -469,7 +469,7 @@ export const useOTCData = () => {
       // ✅ 4. Merge beide Listen
       const allDesks = [...registryDesks, ...dbDesks];
       
-      // ✅ 5. Dedupliziere nach Address (falls Duplikate)
+      // ✅ 5. Dedupliziere nach Address
       const uniqueDesks = Array.from(
         new Map(allDesks.map(desk => [desk.address.toLowerCase(), desk])).values()
       );
@@ -481,8 +481,9 @@ export const useOTCData = () => {
       
       setAllDesks(filteredDesks);
       
-      // ✅ 7. Separiere discovered Desks für separaten State
-      const discovered = filteredDesks.filter(desk => desk.desk_category === 'discovered');
+      // ✅ FIX: Discovered Desks IMMER aus uniqueDesks (nicht filteredDesks!)
+      // So bekommen wir ALLE discovered, egal welcher Filter aktiv ist
+      const discovered = uniqueDesks.filter(desk => desk.desk_category === 'discovered');
       setDiscoveredDesks(discovered);
       
       console.log('✅ Desks merged:', {
@@ -490,13 +491,24 @@ export const useOTCData = () => {
         database: dbDesks.length,
         unique: uniqueDesks.length,
         filtered: filteredDesks.length,
-        discovered: discovered.length,
+        discovered: discovered.length, // ✅ Sollte jetzt korrekt sein
         categories: {
           verified: uniqueDesks.filter(d => d.desk_category === 'verified').length,
           discovered: uniqueDesks.filter(d => d.desk_category === 'discovered').length,
-          db_validated: uniqueDesks.filter(d => d.desk_category === 'db_validated').length
+          db_validated: uniqueDesks.filter(d => d.desk_category === 'db_validated').length,
+          unknown: uniqueDesks.filter(d => d.desk_category === 'unknown').length
         }
       });
+      
+      // ✅ DEBUG: Log discovered desks
+      if (discovered.length > 0) {
+        console.log('🔍 Discovered Desks:', discovered.map(d => ({
+          address: d.address.substring(0, 10) + '...',
+          label: d.label,
+          category: d.desk_category,
+          tags: d.tags
+        })));
+      }
       
       return filteredDesks;
     } catch (error) {
