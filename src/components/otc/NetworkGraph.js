@@ -6,13 +6,13 @@ import './NetworkGraph.css';
 cytoscape.use(dagre);
 
 /**
- * ✅ COMPLETE NetworkGraph with Apply Filters System
+ * ✅ FIXED NetworkGraph - Confidence berechnet korrekt
  * 
  * Features:
  * - Staged filtering (pending vs active filters)
  * - Apply/Cancel/Reset buttons
  * - Visual feedback for unapplied changes
- * - All original features preserved
+ * - ✅ FIXED: Confidence values are already percentages (0-100), don't multiply!
  */
 const NetworkGraph = ({ 
   data, 
@@ -30,7 +30,6 @@ const NetworkGraph = ({
   // ============================================================================
   // FILTER STATE - Apply Filters System
   // ============================================================================
-  // ✅ IMPORTANT: Default filters show ALL nodes (safe defaults)
   const [activeFilters, setActiveFilters] = useState({
     tags: [],                    // Empty = show all
     entityTypes: [],             // Empty = show all
@@ -231,24 +230,23 @@ const NetworkGraph = ({
   };
 
   // ============================================================================
-  // FILTER LOGIC - Uses activeFilters
+  // ✅ FIXED: FILTER LOGIC - Confidence ist bereits Prozent!
   // ============================================================================
 
   const shouldShowNode = (node) => {
-    // ✅ 1. Confidence filter (IMMER aktiv)
-    const confidence = (node.confidence || node.confidence_score || 0) * 100;
+    // ✅ FIX #1: Backend sendet bereits Prozentwerte (0-100), NICHT multiplizieren!
+    const confidence = node.confidence_score || node.confidence || 0;
+    
     if (confidence < activeFilters.confidenceRange[0] || confidence > activeFilters.confidenceRange[1]) {
       console.log('❌ Node filtered by confidence:', {
         address: node.address?.substring(0, 10) + '...',
-        confidence,
+        confidence: confidence.toFixed(2),
         range: activeFilters.confidenceRange
       });
       return false;
     }
   
-    // ✅ 2. Entity type filter (NUR wenn Types ausgewählt sind)
-    // WENN keine Types ausgewählt → zeige ALLE
-    // WENN Types ausgewählt → zeige NUR diese Types
+    // Entity type filter (NUR wenn Types ausgewählt sind)
     if (activeFilters.entityTypes.length > 0) {
       if (!activeFilters.entityTypes.includes(node.entity_type)) {
         console.log('❌ Node filtered by entity type:', {
@@ -260,9 +258,7 @@ const NetworkGraph = ({
       }
     }
   
-    // ✅ 3. Tag filter (NUR wenn Tags ausgewählt sind)
-    // WENN keine Tags ausgewählt → zeige ALLE
-    // WENN Tags ausgewählt → zeige NUR Nodes mit mindestens einem der Tags
+    // Tag filter (NUR wenn Tags ausgewählt sind)
     if (activeFilters.tags.length > 0) {
       const nodeTags = node.tags || [];
       const hasSelectedTag = activeFilters.tags.some(tag => nodeTags.includes(tag));
@@ -277,12 +273,10 @@ const NetworkGraph = ({
       }
     }
   
-    // ✅ Node passed all filters
     console.log('✅ Node PASSED filters:', {
       address: node.address?.substring(0, 10) + '...',
       type: node.entity_type,
-      tags: node.tags || [],
-      confidence
+      confidence: confidence.toFixed(2)
     });
     
     return true;
@@ -356,123 +350,122 @@ const NetworkGraph = ({
   }, [data, discoveredDesks, activeFilters]);
 
   // ============================================================================
-  // FORMAT GRAPH DATA
+  // ✅ FIXED: FORMAT GRAPH DATA
   // ============================================================================
 
   const formatGraphData = (graphData) => {
-      if (!graphData) return [];
+    if (!graphData) return [];
+  
+    const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
+    const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
+  
+    console.log('🔍 formatGraphData called:', {
+      rawNodes: rawNodes.length,
+      rawEdges: rawEdges.length,
+      activeFilters: {
+        tags: activeFilters.tags.length,
+        entityTypes: activeFilters.entityTypes.length,
+        confidenceRange: activeFilters.confidenceRange
+      }
+    });
+  
+    // ✅ STEP 1: Filter nodes FIRST
+    const visibleNodes = rawNodes.filter(node => {
+      if (!node || !node.address) return false;
+      return shouldShowNode(node);
+    });
     
-      const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
-      const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
+    console.log('✅ After shouldShowNode filter:', {
+      visible: visibleNodes.length,
+      filtered_out: rawNodes.length - visibleNodes.length
+    });
     
-      console.log('🔍 formatGraphData called:', {
-        rawNodes: rawNodes.length,
-        rawEdges: rawEdges.length,
-        activeFilters: {
-          tags: activeFilters.tags.length,
-          entityTypes: activeFilters.entityTypes.length,
-          confidenceRange: activeFilters.confidenceRange
+    // ✅ STEP 2: Build visible address set
+    const visibleAddressSet = new Set(
+      visibleNodes.map(node => node.address.toLowerCase())
+    );
+    
+    console.log('📋 Visible addresses:', Array.from(visibleAddressSet).slice(0, 3));
+    
+    // ✅ STEP 3: Format nodes
+    const formattedNodes = visibleNodes.map(node => {
+      let cleanLabel = node.label;
+      if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
+        cleanLabel = null;
+      }
+
+      return {
+        data: {
+          id: node.address,
+          address: node.address,
+          label: cleanLabel,
+          entity_type: node.entity_type || 'unknown',
+          entity_name: node.entity_name,
+          total_volume_usd: Number(node.total_volume_usd || node.total_volume) || 0,
+          // ✅ FIX #2: Confidence ist bereits 0-100, NICHT multiplizieren!
+          confidence_score: node.confidence_score || node.confidence || 50,
+          is_active: Boolean(node.is_active),
+          transaction_count: Number(node.transaction_count) || 0,
+          tags: node.tags || [],
+          first_seen: node.first_seen,
+          last_active: node.last_active
         }
-      });
-    
-      // ✅ STEP 1: Filter nodes FIRST
-      const visibleNodes = rawNodes.filter(node => {
-        if (!node || !node.address) return false;
-        return shouldShowNode(node);
-      });
-      
-      console.log('✅ After shouldShowNode filter:', {
-        visible: visibleNodes.length,
-        filtered_out: rawNodes.length - visibleNodes.length
-      });
-      
-      // ✅ STEP 2: Build visible address set
-      const visibleAddressSet = new Set(
-        visibleNodes.map(node => node.address.toLowerCase())
-      );
-      
-      console.log('📋 Visible addresses:', Array.from(visibleAddressSet).slice(0, 3));
-      
-      // ✅ STEP 3: Format nodes
-      const formattedNodes = visibleNodes.map(node => {
-        let cleanLabel = node.label;
-        if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
-          cleanLabel = null;
+      };
+    });
+  
+    // ✅ STEP 4: Filter edges based on VISIBLE nodes
+    let debugCount = 0;
+    const formattedEdges = rawEdges
+      .map((edge) => {
+        const edgeData = edge.data || edge;
+        
+        if (!edgeData || !edgeData.source || !edgeData.target) {
+          return null;
+        }
+  
+        const sourceNormalized = edgeData.source.toLowerCase();
+        const targetNormalized = edgeData.target.toLowerCase();
+        
+        const sourceVisible = visibleAddressSet.has(sourceNormalized);
+        const targetVisible = visibleAddressSet.has(targetNormalized);
+        
+        if (debugCount < 3) {
+          console.log(`🔍 Edge #${debugCount + 1}:`, {
+            source: sourceNormalized.substring(0, 10) + '...',
+            target: targetNormalized.substring(0, 10) + '...',
+            sourceVisible,
+            targetVisible,
+            willInclude: sourceVisible && targetVisible
+          });
+          debugCount++;
+        }
+        
+        if (!sourceVisible || !targetVisible) {
+          return null;
         }
   
         return {
           data: {
-            id: node.address,
-            address: node.address,
-            label: cleanLabel,
-            entity_type: node.entity_type || 'unknown',
-            entity_name: node.entity_name,
-            total_volume_usd: Number(node.total_volume_usd || node.total_volume) || 0,
-            confidence_score: (node.confidence || node.confidence_score || 0.5) * 100,
-            is_active: Boolean(node.is_active),
-            transaction_count: Number(node.transaction_count) || 0,
-            tags: node.tags || [],
-            first_seen: node.first_seen,
-            last_active: node.last_active
+            id: `${edgeData.source}-${edgeData.target}`,
+            source: edgeData.source,
+            target: edgeData.target,
+            transfer_amount_usd: Number(edgeData.transfer_amount_usd || edgeData.value) || 1000,
+            is_suspected_otc: Boolean(edgeData.is_suspected_otc),
+            edge_count: Number(edgeData.edge_count) || 1,
+            transaction_count: Number(edgeData.transaction_count) || 1
           }
         };
-      });
-    
-      // ✅ STEP 4: Filter edges based on VISIBLE nodes
-      let debugCount = 0;
-      const formattedEdges = rawEdges
-        .map((edge) => {
-          // Extract edge data
-          const edgeData = edge.data || edge;
-          
-          if (!edgeData || !edgeData.source || !edgeData.target) {
-            return null;
-          }
-    
-          const sourceNormalized = edgeData.source.toLowerCase();
-          const targetNormalized = edgeData.target.toLowerCase();
-          
-          const sourceVisible = visibleAddressSet.has(sourceNormalized);
-          const targetVisible = visibleAddressSet.has(targetNormalized);
-          
-          // Debug first 3 edges
-          if (debugCount < 3) {
-            console.log(`🔍 Edge #${debugCount + 1}:`, {
-              source: sourceNormalized.substring(0, 10) + '...',
-              target: targetNormalized.substring(0, 10) + '...',
-              sourceVisible,
-              targetVisible,
-              willInclude: sourceVisible && targetVisible
-            });
-            debugCount++;
-          }
-          
-          if (!sourceVisible || !targetVisible) {
-            return null;
-          }
-    
-          return {
-            data: {
-              id: `${edgeData.source}-${edgeData.target}`,
-              source: edgeData.source,
-              target: edgeData.target,
-              transfer_amount_usd: Number(edgeData.transfer_amount_usd || edgeData.value) || 1000,
-              is_suspected_otc: Boolean(edgeData.is_suspected_otc),
-              edge_count: Number(edgeData.edge_count) || 1,
-              transaction_count: Number(edgeData.transaction_count) || 1
-            }
-          };
-        })
-        .filter(Boolean);
-    
-      console.log('✅ Final formatted data:', {
-        nodes: formattedNodes.length,
-        edges: formattedEdges.length,
-        edgeFilteredOut: rawEdges.length - formattedEdges.length
-      });
-    
-      return [...formattedNodes, ...formattedEdges];
-    };
+      })
+      .filter(Boolean);
+  
+    console.log('✅ Final formatted data:', {
+      nodes: formattedNodes.length,
+      edges: formattedEdges.length,
+      edgeFilteredOut: rawEdges.length - formattedEdges.length
+    });
+  
+    return [...formattedNodes, ...formattedEdges];
+  };
   
   // ============================================================================
   // INITIALIZE CYTOSCAPE
@@ -514,9 +507,10 @@ const NetworkGraph = ({
               const displayLabel = label || truncateAddress(address);
               return icon ? `${icon} ${displayLabel}` : displayLabel;
             },
+            // ✅ FIX #3: Confidence ist bereits 0-100, normalisieren auf 0.75-1.0
             'opacity': (ele) => {
               const confidence = ele.data('confidence_score') || 50;
-              return Math.max(0.75, confidence / 100);
+              return Math.max(0.75, Math.min(1.0, confidence / 100));
             },
             'border-width': (ele) => {
               const tags = ele.data('tags') || [];
@@ -843,6 +837,7 @@ const NetworkGraph = ({
             {hoveredNode.confidence_score && (
               <div className="hover-info-row">
                 <span className="hover-label">Confidence:</span>
+                {/* ✅ FIX #4: Zeige Wert direkt, ist bereits Prozent */}
                 <span className="hover-value">{hoveredNode.confidence_score.toFixed(1)}%</span>
               </div>
             )}
