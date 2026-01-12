@@ -14,6 +14,17 @@ import { useOTCWebSocket } from '../hooks/useOTCWebSocket';
 import { format, subDays } from 'date-fns';
 import './OTCAnalysis.css';
 
+/**
+ * ✅ COMPLETE OTC Analysis Page with High-Volume Wallet Support
+ * 
+ * NEW FEATURES:
+ * - Wallet Discovery Integration
+ * - Enhanced Filter Management with applyFilters()
+ * - Wallet Classification Support
+ * - Tag-based Filtering
+ * - Discovery Mode Toggle
+ * - Wallet Discovery Stats
+ */
 const OTCAnalysis = () => {
   // ============================================================================
   // 🎣 HOOKS
@@ -21,20 +32,28 @@ const OTCAnalysis = () => {
   const {
     // Data
     networkData,
+    rawNetworkData,              // ✅ NEW
     sankeyData,
     statistics,
     watchlist,
     selectedWallet,
     walletDetails,
     
-    // Discovery data
+    // OTC Desk Discovery data
     allDesks,
     discoveredDesks,
     discoveryStats,
     
+    // ✅ NEW: High-Volume Wallet Discovery data
+    discoveredWallets,
+    walletDiscoveryStats,
+    walletTagDescriptions,
+    allEntities,
+    
     // Filters
     filters,
     updateFilters,
+    applyFilters,                 // ✅ NEW: Manual filter application
     
     // Loading & Errors
     loading,
@@ -55,11 +74,19 @@ const OTCAnalysis = () => {
     fetchHeatmap,
     fetchTimeline,
     
-    // Discovery actions
+    // OTC Desk Discovery actions
     fetchAllDesks,
     fetchDiscoveryStats,
     runDiscovery,
-    runMassDiscovery
+    runMassDiscovery,
+    
+    // ✅ NEW: Wallet Discovery actions
+    fetchDiscoveredWallets,
+    fetchWalletTagDescriptions,
+    fetchWalletDiscoveryStats,
+    runWalletDiscovery,
+    runMassWalletDiscovery,
+    fetchAllEntities
   } = useOTCData();
 
   const {
@@ -75,11 +102,15 @@ const OTCAnalysis = () => {
   const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const [isSankeyFullscreen, setIsSankeyFullscreen] = useState(false);
   
-  // ✅ NEW: Discovery mode state
+  // Discovery mode state
   const [isDiscoveryMode, setIsDiscoveryMode] = useState(false);
   const [savedFilters, setSavedFilters] = useState(null);
   
-  // ✅ FIXED: Additional visualizations state - store complete objects
+  // ✅ NEW: Wallet Discovery UI state
+  const [showWalletDiscovery, setShowWalletDiscovery] = useState(false);
+  const [walletDiscoveryProgress, setWalletDiscoveryProgress] = useState(null);
+  
+  // Additional visualizations state
   const [heatmapData, setHeatmapData] = useState(null);
   const [timelineData, setTimelineData] = useState(null);
   const [distributionsData, setDistributionsData] = useState(null);
@@ -95,21 +126,18 @@ const OTCAnalysis = () => {
   // ============================================================================
   
   /**
-   * ✅ FIXED: Load additional visualizations on mount or filter change
-   * Now correctly stores complete data objects instead of nested properties
+   * Load additional visualizations on mount or filter change
    */
   useEffect(() => {
     const loadAdditionalData = async () => {
-      // ✅ FIXED: Heatmap - store complete object
+      // Heatmap
       setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
       try {
         const heatmap = await fetchHeatmap();
-        setHeatmapData(heatmap || null); // ✅ Complete object with heatmap, peak_hours, patterns
+        setHeatmapData(heatmap || null);
         console.log('✅ Heatmap loaded:', {
           hasData: !!heatmap,
-          gridSize: heatmap?.heatmap?.length,
-          hasPeaks: !!heatmap?.peak_hours,
-          hasPatterns: !!heatmap?.patterns
+          gridSize: heatmap?.heatmap?.length
         });
       } catch (error) {
         console.error('Failed to load heatmap:', error);
@@ -118,11 +146,11 @@ const OTCAnalysis = () => {
         setVisualizationLoading(prev => ({ ...prev, heatmap: false }));
       }
 
-      // ✅ FIXED: Timeline - store complete object
+      // Timeline
       setVisualizationLoading(prev => ({ ...prev, timeline: true }));
       try {
         const timeline = await fetchTimeline();
-        setTimelineData(timeline || null); // ✅ Complete object with events, metadata
+        setTimelineData(timeline || null);
         console.log('✅ Timeline loaded:', {
           hasData: !!timeline,
           eventCount: timeline?.events?.length
@@ -134,7 +162,7 @@ const OTCAnalysis = () => {
         setVisualizationLoading(prev => ({ ...prev, timeline: false }));
       }
 
-      // ✅ Distributions - already correct
+      // Distributions
       setVisualizationLoading(prev => ({ ...prev, distributions: true }));
       try {
         const distributions = await fetchDistributions();
@@ -150,6 +178,15 @@ const OTCAnalysis = () => {
 
     loadAdditionalData();
   }, [filters.fromDate, filters.toDate, fetchHeatmap, fetchTimeline, fetchDistributions]);
+
+  /**
+   * ✅ NEW: Load wallet tag descriptions on mount
+   */
+  useEffect(() => {
+    if (!walletTagDescriptions) {
+      fetchWalletTagDescriptions();
+    }
+  }, [walletTagDescriptions, fetchWalletTagDescriptions]);
 
   // ============================================================================
   // 🎯 HANDLERS
@@ -175,7 +212,7 @@ const OTCAnalysis = () => {
    * Handle node hover (optional)
    */
   const handleNodeHover = (node) => {
-    console.log('Node hovered:', node);
+    // Optional: Show quick info tooltip
   };
 
   /**
@@ -207,22 +244,30 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * Handle filter changes
+   * ✅ UPDATED: Handle filter changes (no auto-apply)
    */
   const handleFilterChange = (newFilters) => {
+    console.log('Filter changed:', newFilters);
     updateFilters(newFilters);
+    // ✅ Do NOT auto-apply - user must click "Apply Filters" button
   };
 
   /**
-   * Apply filters - refresh all data
+   * ✅ UPDATED: Apply filters using the new applyFilters() function
    */
   const handleApplyFilters = () => {
     console.log('Applying filters:', filters);
     
+    // ✅ NEW: Use the applyFilters() function from hook
+    // This triggers client-side filtering in NetworkGraph
+    applyFilters();
+    
+    // ✅ Still refresh server-side data
     fetchNetworkData();
     fetchSankeyData();
     fetchStatistics();
     fetchAllDesks();
+    fetchDiscoveredWallets();  // ✅ NEW
   };
 
   /**
@@ -292,19 +337,20 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * ✅ NEW: Toggle Discovery Mode
+   * ✅ UPDATED: Toggle Discovery Mode
    */
   const handleToggleDiscoveryMode = () => {
     if (isDiscoveryMode) {
-      // ✅ Exit Discovery Mode - Restore original filters
+      // Exit Discovery Mode - Restore original filters
       if (savedFilters) {
         console.log('🔄 Exiting Discovery Mode - Restoring filters');
         updateFilters(savedFilters);
+        applyFilters();  // ✅ Apply restored filters
         setSavedFilters(null);
       }
       setIsDiscoveryMode(false);
     } else {
-      // ✅ Enter Discovery Mode - Save current filters and apply discovery filters
+      // Enter Discovery Mode - Save current filters and apply discovery filters
       console.log('🔍 Entering Discovery Mode');
       setSavedFilters({ ...filters });
       
@@ -313,48 +359,58 @@ const OTCAnalysis = () => {
         minConfidence: 0,
         minTransferSize: 0,
         fromDate: format(subDays(new Date(), 90), 'yyyy-MM-dd'),
-        showDiscovered: true
+        showDiscovered: true,
+        showHighVolumeWallets: true,  // ✅ NEW
+        walletClassifications: [],     // ✅ NEW: Show all wallet types
+        includeTags: [],               // ✅ NEW: Clear tag filters
+        excludeTags: []                // ✅ NEW: Clear tag filters
       };
       
       updateFilters(discoveryFilters);
+      applyFilters();  // ✅ Apply discovery filters
       setIsDiscoveryMode(true);
     }
   };
 
   /**
-   * ✅ UPDATED: Handle discovery completion with automatic data refresh
+   * ✅ UPDATED: Handle OTC desk discovery completion
    */
   const handleDiscoveryComplete = async (result) => {
-    console.log('✅ Discovery completed:', result);
+    console.log('✅ OTC Desk Discovery completed:', result);
     
     try {
-      // ✅ 1. Save current filters if not already in discovery mode
+      // Save current filters if not already in discovery mode
       if (!isDiscoveryMode) {
         setSavedFilters({ ...filters });
       }
       
-      // ✅ 2. Apply discovery-friendly filters
+      // Apply discovery-friendly filters
       const discoveryFilters = {
         ...filters,
         minConfidence: 0,
         minTransferSize: 0,
         fromDate: format(subDays(new Date(), 90), 'yyyy-MM-dd'),
-        showDiscovered: true
+        showDiscovered: true,
+        showHighVolumeWallets: true,
+        walletClassifications: [],
+        includeTags: [],
+        excludeTags: []
       };
       
       updateFilters(discoveryFilters);
+      applyFilters();
       setIsDiscoveryMode(true);
       
       console.log('🔄 Refreshing with discovery-friendly filters...');
       
-      // ✅ 3. Refresh ALL data including visualizations
+      // Refresh ALL data
       await Promise.all([
         fetchNetworkData(),
         fetchSankeyData(),
         fetchStatistics(),
         fetchAllDesks(),
         fetchDiscoveryStats(),
-        // ✅ FIXED: Properly refresh visualizations
+        fetchDiscoveredWallets(),  // ✅ NEW
         (async () => {
           const heatmap = await fetchHeatmap();
           setHeatmapData(heatmap || null);
@@ -371,7 +427,7 @@ const OTCAnalysis = () => {
       
       console.log('✅ All visualizations refreshed!');
       
-      // ✅ 4. If single discovery, navigate to first discovered wallet
+      // Navigate to first discovered wallet if single discovery
       if (!result.mass_discovery && result.wallets && result.wallets.length > 0) {
         const firstDiscovered = result.wallets[0];
         
@@ -384,10 +440,10 @@ const OTCAnalysis = () => {
         }, 1500);
       }
       
-      // ✅ 5. Show success notification
+      // Show success notification
       const discovered = result.discovered_count || result.total_discovered || 0;
       alert(
-        `🎉 Discovery Complete!\n\n` +
+        `🎉 OTC Desk Discovery Complete!\n\n` +
         `Found ${discovered} new OTC desk${discovered !== 1 ? 's' : ''}.\n\n` +
         `Discovery Mode is now ACTIVE.\n` +
         `All discovered wallets are now visible in the graph.\n\n` +
@@ -397,6 +453,148 @@ const OTCAnalysis = () => {
     } catch (error) {
       console.error('❌ Error refreshing after discovery:', error);
       alert('Discovery completed, but some visualizations failed to refresh. Try refreshing manually.');
+    }
+  };
+
+  /**
+   * ✅ NEW: Handle wallet discovery from OTC desk
+   */
+  const handleWalletDiscovery = async (otcAddress) => {
+    console.log('🔍 Starting wallet discovery for:', otcAddress);
+    
+    setWalletDiscoveryProgress({
+      status: 'processing',
+      address: otcAddress,
+      discovered: 0
+    });
+    
+    try {
+      const result = await runWalletDiscovery(
+        otcAddress,
+        10,        // Analyze last 10 transactions
+        1000000,   // Min $1M volume threshold
+        true       // Enable filtering
+      );
+      
+      console.log('✅ Wallet discovery completed:', result);
+      
+      setWalletDiscoveryProgress({
+        status: 'completed',
+        address: otcAddress,
+        discovered: result.discovered_count || 0,
+        totalVolume: result.summary?.total_volume_discovered || 0
+      });
+      
+      // Refresh network data to show new wallets
+      await fetchNetworkData();
+      await fetchDiscoveredWallets();
+      
+      // Show success message
+      const discovered = result.discovered_count || 0;
+      alert(
+        `🎉 Wallet Discovery Complete!\n\n` +
+        `Found ${discovered} high-volume wallet${discovered !== 1 ? 's' : ''} ` +
+        `from ${otcAddress.substring(0, 10)}...\n\n` +
+        `Total Volume: $${((result.summary?.total_volume_discovered || 0) / 1000000).toFixed(2)}M\n\n` +
+        `The discovered wallets are now visible in the graph.`
+      );
+      
+      // Reset progress after 3 seconds
+      setTimeout(() => {
+        setWalletDiscoveryProgress(null);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('❌ Wallet discovery failed:', error);
+      
+      setWalletDiscoveryProgress({
+        status: 'failed',
+        address: otcAddress,
+        error: error.message
+      });
+      
+      alert(`Failed to discover wallets: ${error.message}`);
+      
+      // Reset progress after 3 seconds
+      setTimeout(() => {
+        setWalletDiscoveryProgress(null);
+      }, 3000);
+    }
+  };
+
+  /**
+   * ✅ NEW: Handle mass wallet discovery
+   */
+  const handleMassWalletDiscovery = async (otcAddresses) => {
+    console.log('🚀 Starting mass wallet discovery for', otcAddresses.length, 'desks');
+    
+    setWalletDiscoveryProgress({
+      status: 'processing',
+      total: otcAddresses.length,
+      current: 0,
+      discovered: 0
+    });
+    
+    try {
+      const results = await runMassWalletDiscovery(
+        otcAddresses,
+        10,
+        1000000,
+        (progress) => {
+          setWalletDiscoveryProgress({
+            status: 'processing',
+            total: progress.total,
+            current: progress.current,
+            address: progress.address,
+            discovered: 0  // Will be updated at the end
+          });
+        }
+      );
+      
+      const totalDiscovered = results.reduce((sum, r) => sum + (r.discovered_count || 0), 0);
+      const totalVolume = results.reduce((sum, r) => sum + (r.total_volume_discovered || 0), 0);
+      
+      console.log('✅ Mass wallet discovery completed:', {
+        totalDiscovered,
+        totalVolume
+      });
+      
+      setWalletDiscoveryProgress({
+        status: 'completed',
+        total: otcAddresses.length,
+        discovered: totalDiscovered,
+        totalVolume: totalVolume
+      });
+      
+      // Refresh network data
+      await fetchNetworkData();
+      await fetchDiscoveredWallets();
+      
+      alert(
+        `🎉 Mass Wallet Discovery Complete!\n\n` +
+        `Analyzed ${otcAddresses.length} OTC desks\n` +
+        `Found ${totalDiscovered} high-volume wallets\n` +
+        `Total Volume: $${(totalVolume / 1000000).toFixed(2)}M\n\n` +
+        `All discovered wallets are now visible in the graph.`
+      );
+      
+      setTimeout(() => {
+        setWalletDiscoveryProgress(null);
+      }, 3000);
+      
+    } catch (error) {
+      console.error('❌ Mass wallet discovery failed:', error);
+      
+      setWalletDiscoveryProgress({
+        status: 'failed',
+        error: error.message
+      });
+      
+      alert(`Mass wallet discovery failed: ${error.message}`);
+      
+      setTimeout(() => {
+        setWalletDiscoveryProgress(null);
+      }, 3000);
     }
   };
 
@@ -413,7 +611,7 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * ✅ UPDATED: Refresh all data including visualizations
+   * ✅ UPDATED: Refresh all data including new wallet discovery data
    */
   const handleRefreshAll = async () => {
     console.log('🔄 Refreshing all data...');
@@ -425,7 +623,9 @@ const OTCAnalysis = () => {
         fetchStatistics(),
         fetchAllDesks(),
         fetchDiscoveryStats(),
-        // ✅ FIXED: Properly refresh visualizations
+        fetchDiscoveredWallets(),           // ✅ NEW
+        fetchWalletDiscoveryStats(),        // ✅ NEW
+        fetchWalletTagDescriptions(),       // ✅ NEW
         (async () => {
           setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
           try {
@@ -472,7 +672,6 @@ const OTCAnalysis = () => {
   const hasNetworkData = networkData?.nodes?.length > 0;
   const hasSankeyData = sankeyData?.nodes?.length > 0;
   
-  // ✅ FIXED: Check for complete data objects
   const hasHeatmapData = heatmapData?.heatmap?.length > 0;
   const hasTimelineData = timelineData?.events?.length > 0;
   const hasDistributionsData = !!distributionsData;
@@ -483,6 +682,15 @@ const OTCAnalysis = () => {
     d.tags?.includes('verified_otc_desk')
   );
   const discoveredDesksCount = discoveredDesks.length;
+  
+  // ✅ NEW: Wallet statistics
+  const discoveredWalletsCount = discoveredWallets?.length || 0;
+  const walletsByClassification = {
+    mega_whale: discoveredWallets?.filter(w => w.classification === 'mega_whale').length || 0,
+    whale: discoveredWallets?.filter(w => w.classification === 'whale').length || 0,
+    institutional: discoveredWallets?.filter(w => w.classification === 'institutional').length || 0,
+    large_wallet: discoveredWallets?.filter(w => w.classification === 'large_wallet').length || 0
+  };
 
   // ============================================================================
   // 🎨 RENDER
@@ -501,11 +709,16 @@ const OTCAnalysis = () => {
             Real-time monitoring and analysis of over-the-counter cryptocurrency transactions
           </p>
           
-          {discoveryStats && (
+          {/* ✅ UPDATED: Enhanced discovery stats badge */}
+          {(discoveryStats || walletDiscoveryStats) && (
             <div className="discovery-stats-badge">
               <span className="badge-icon">🔍</span>
               <span className="badge-text">
-                {discoveryStats.total_discovered} Discovered · {verifiedDesks.length} Verified
+                {discoveryStats?.total_discovered || 0} OTC Desks · {verifiedDesks.length} Verified
+                {/* ✅ NEW: Show wallet stats */}
+                {discoveredWalletsCount > 0 && (
+                  <> · {discoveredWalletsCount} HV Wallets</>
+                )}
               </span>
             </div>
           )}
@@ -519,21 +732,23 @@ const OTCAnalysis = () => {
             </span>
           </div>
           
-          {/* ✅ NEW: Discovery Mode Toggle */}
-          {discoveredDesks.length > 0 && (
+          {/* ✅ UPDATED: Discovery Mode Toggle with wallet count */}
+          {(discoveredDesks.length > 0 || discoveredWalletsCount > 0) && (
             <button 
               className={`discovery-mode-toggle ${isDiscoveryMode ? 'active' : ''}`}
               onClick={handleToggleDiscoveryMode}
               title={isDiscoveryMode 
                 ? "Exit Discovery Mode (restore original filters)" 
-                : "Enter Discovery Mode (show all discovered wallets)"
+                : "Enter Discovery Mode (show all discovered entities)"
               }
             >
               <span className="toggle-icon">🔍</span>
               <span className="toggle-text">
                 {isDiscoveryMode ? 'Discovery Mode ON' : 'Discovery Mode'}
               </span>
-              <span className="toggle-count">({discoveredDesks.length})</span>
+              <span className="toggle-count">
+                ({discoveredDesks.length} desks, {discoveredWalletsCount} wallets)
+              </span>
             </button>
           )}
           
@@ -553,6 +768,41 @@ const OTCAnalysis = () => {
         </div>
       </div>
 
+      {/* ✅ NEW: Wallet Discovery Progress Indicator */}
+      {walletDiscoveryProgress && (
+        <div className={`discovery-progress-banner ${walletDiscoveryProgress.status}`}>
+          <div className="progress-content">
+            {walletDiscoveryProgress.status === 'processing' && (
+              <>
+                <span className="progress-icon">⏳</span>
+                <span className="progress-text">
+                  Discovering high-volume wallets...
+                  {walletDiscoveryProgress.total && (
+                    <> ({walletDiscoveryProgress.current}/{walletDiscoveryProgress.total})</>
+                  )}
+                </span>
+              </>
+            )}
+            {walletDiscoveryProgress.status === 'completed' && (
+              <>
+                <span className="progress-icon">✅</span>
+                <span className="progress-text">
+                  Discovery complete! Found {walletDiscoveryProgress.discovered} wallets
+                </span>
+              </>
+            )}
+            {walletDiscoveryProgress.status === 'failed' && (
+              <>
+                <span className="progress-icon">❌</span>
+                <span className="progress-text">
+                  Discovery failed: {walletDiscoveryProgress.error}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* METRICS OVERVIEW */}
       <OTCMetricsOverview 
         statistics={statistics}
@@ -568,6 +818,8 @@ const OTCAnalysis = () => {
             onFilterChange={handleFilterChange}
             onApply={handleApplyFilters}
             discoveredDesksCount={discoveredDesksCount}
+            discoveredWalletsCount={discoveredWalletsCount}  // ✅ NEW
+            walletsByClassification={walletsByClassification}  // ✅ NEW
           />
 
           <AlertFeed
@@ -585,10 +837,16 @@ const OTCAnalysis = () => {
               <h2 className="section-title">
                 <span className="section-icon">🕸️</span>
                 Transaction Network
-                {/* ✅ NEW: Discovery Mode Indicator */}
+                {/* Discovery Mode Indicator */}
                 {isDiscoveryMode && (
                   <span className="discovery-mode-badge">
                     🔍 Discovery Mode
+                  </span>
+                )}
+                {/* ✅ NEW: Wallet count indicator */}
+                {discoveredWalletsCount > 0 && (
+                  <span className="wallet-count-badge">
+                    🐋 {discoveredWalletsCount} HV Wallets
                   </span>
                 )}
               </h2>
@@ -725,9 +983,6 @@ const OTCAnalysis = () => {
               ) : (
                 <div className="empty-state">
                   <p>No heatmap data available</p>
-                  <p className="empty-subtext">
-                    {heatmapData === null ? 'Failed to load data' : 'No activity to display'}
-                  </p>
                 </div>
               )}
             </div>
@@ -830,6 +1085,7 @@ const OTCAnalysis = () => {
           onClose={handleCloseSidebar}
           onAddToWatchlist={handleAddToWatchlist}
           isInWatchlist={isWalletInWatchlist}
+          onDiscoverWallets={handleWalletDiscovery}  // ✅ NEW
         />
       )}
     </div>
