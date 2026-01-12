@@ -3,14 +3,14 @@ import axios from 'axios';
 const BASE_URL = process.env.REACT_APP_API_URL || 'https://render-social-media-max-backend-m1un.onrender.com';
 
 /**
- * OTC Analysis Service
- * Handles all API calls for OTC Analysis features
+ * ✅ EXTENDED OTC Analysis Service
  * 
- * ✅ UPDATED: Simplified getNetworkGraph - wallet filtering happens client-side
- * ✅ FIXED: Added proper parameter conversion for all endpoints
- * ✅ FIXED: Updated wallet and watchlist URLs to match backend
- * ✅ FIXED: Discovery endpoints now use '/discover' not '/discovery'
- * ✅ FIXED: Debug endpoint uses '/debug' not '/discovery/debug'
+ * NEW FEATURES:
+ * - High-Volume Wallet Discovery endpoints
+ * - Wallet tag descriptions and categorization
+ * - Wallet search by tags
+ * - Discovery statistics for wallets
+ * - Utility functions for wallet display
  */
 class OTCAnalysisService {
   constructor() {
@@ -33,13 +33,9 @@ class OTCAnalysisService {
   }
 
   // ============================================================================
-  // EXISTING ENDPOINTS
+  // EXISTING ENDPOINTS (keeping all from original)
   // ============================================================================
 
-  /**
-   * ✅ SIMPLIFIED: Get network graph data (wallet filtering happens client-side)
-   * Only sends basic filters to backend, returns ALL wallets matching these criteria
-   */
   async getNetworkGraph(filters = {}) {
     try {
       const params = {
@@ -52,7 +48,6 @@ class OTCAnalysisService {
         max_nodes: filters.maxNodes
       };
 
-      // Remove undefined values
       Object.keys(params).forEach(key => 
         params[key] === undefined && delete params[key]
       );
@@ -73,9 +68,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * ✅ FIXED: Get Sankey flow data with proper parameter conversion
-   */
   async getSankeyFlow(params = {}) {
     try {
       const queryParams = {
@@ -102,9 +94,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * Get statistics
-   */
   async getStatistics(params = {}) {
     try {
       const queryParams = {
@@ -122,10 +111,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * ✅ FIXED: Get wallet profile (basic)
-   * Updated URL: /api/otc/wallet/:address/profile
-   */
   async getWalletProfile(address) {
     try {
       const response = await this.apiClient.get(`/api/otc/wallet/${address}/profile`);
@@ -136,10 +121,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * ✅ FIXED: Get wallet details (with charts)
-   * Updated URL: /api/otc/wallet/:address/details
-   */
   async getWalletDetails(address) {
     try {
       const response = await this.apiClient.get(`/api/otc/wallet/${address}/details`);
@@ -150,10 +131,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * ✅ FIXED: Get watchlist
-   * Updated URL: /api/otc/watchlist?user_id=dev_user_123
-   */
   async getWatchlist() {
     try {
       const response = await this.apiClient.get('/api/otc/watchlist', {
@@ -166,11 +143,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * ✅ FIXED: Add to watchlist
-   * Updated URL: /api/otc/watchlist?user_id=dev_user_123&wallet_address=...&notes=...
-   * Changed from POST with body to POST with query params
-   */
   async addToWatchlist(address, label = null) {
     try {
       const params = {
@@ -190,11 +162,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * ✅ FIXED: Remove from watchlist
-   * Updated URL: /api/otc/watchlist/:itemId
-   * ⚠️ IMPORTANT: Parameter changed from 'address' to 'itemId'
-   */
   async removeFromWatchlist(itemId) {
     try {
       const response = await this.apiClient.delete(`/api/otc/watchlist/${itemId}`);
@@ -205,9 +172,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * ✅ FIXED: Get distributions with proper parameter conversion
-   */
   async getDistributions(params = {}) {
     try {
       const queryParams = {
@@ -225,9 +189,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * ✅ FIXED: Get activity heatmap with proper parameter conversion
-   */
   async getActivityHeatmap(params = {}) {
     try {
       const queryParams = {
@@ -245,9 +206,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * ✅ FIXED: Get transfer timeline with proper parameter conversion
-   */
   async getTransferTimeline(params = {}) {
     try {
       const queryParams = {
@@ -266,16 +224,6 @@ class OTCAnalysisService {
     }
   }
 
-  // ============================================================================
-  // ✅ FIXED: DISCOVERY SYSTEM ENDPOINTS
-  // ============================================================================
-
-  /**
-   * Simple Discovery - Analyze last N transactions of a known OTC desk
-   * and discover new OTC desk candidates
-   * 
-   * ✅ FIXED: Changed URL from '/api/otc/discovery/simple' to '/api/otc/discover/simple'
-   */
   async discoverFromLastTransactions(otcAddress, numTransactions = 5) {
     try {
       const response = await this.apiClient.post('/api/otc/discover/simple', null, {
@@ -298,9 +246,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * Mass Discovery - Run discovery for multiple OTC desks
-   */
   async massDiscovery(otcAddresses, numTransactions = 5, onProgress = null) {
     const results = [];
     
@@ -350,9 +295,6 @@ class OTCAnalysisService {
     return results;
   }
 
-  /**
-   * Get all OTC desks (including discovered)
-   */
   async getAllOTCDesks(params = {}) {
     try {
       const queryParams = {
@@ -383,9 +325,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * Get database OTC desks (user-created desks from PostgreSQL)
-   */
   async getDatabaseDesks(params = {}) {
     try {
       const queryParams = {
@@ -417,11 +356,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * Get only discovered OTC desks
-   * 
-   * ✅ FIXED: Added logging for better debugging
-   */
   async getDiscoveredDesks(minConfidence = 50) {
     try {
       const response = await this.getAllOTCDesks({
@@ -447,11 +381,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * Debug: Get raw transaction data for a wallet
-   * 
-   * ✅ FIXED: Changed URL from '/api/otc/discovery/debug/transactions' to '/api/otc/debug/transactions'
-   */
   async debugTransactions(address, limit = 5) {
     try {
       const response = await this.apiClient.get('/api/otc/debug/transactions', {
@@ -474,10 +403,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * Get discovery statistics
-   * Aggregates data about discovered wallets
-   */
   async getDiscoveryStatistics() {
     try {
       const desks = await this.getAllOTCDesks({ includeDiscovered: true });
@@ -506,10 +431,6 @@ class OTCAnalysisService {
     }
   }
 
-  /**
-   * Get transactions between two specific wallet addresses
-   * Used for on-demand loading when user clicks on Sankey Flow link
-   */
   async getTransactionsBetween(fromAddress, toAddress, limit = 5, dateRange = {}) {
     try {
       const params = {
@@ -543,6 +464,344 @@ class OTCAnalysisService {
       console.error('❌ Error fetching transactions between wallets:', error);
       throw error;
     }
+  }
+
+  // ============================================================================
+  // ✅ NEW: HIGH-VOLUME WALLET DISCOVERY ENDPOINTS
+  // ============================================================================
+
+  /**
+   * Get all discovered high-volume wallets
+   */
+  async getDiscoveredWallets(params = {}) {
+    try {
+      const queryParams = {
+        min_volume_score: params.minVolumeScore,
+        min_total_volume: params.minTotalVolume,
+        limit: params.limit || 100,
+        offset: params.offset || 0
+      };
+
+      if (params.classifications && params.classifications.length > 0) {
+        queryParams.classifications = params.classifications.join(',');
+      }
+
+      if (params.tags && params.tags.length > 0) {
+        queryParams.tags = params.tags.join(',');
+      }
+
+      Object.keys(queryParams).forEach(key => 
+        queryParams[key] === undefined && delete queryParams[key]
+      );
+
+      console.log('🔍 Fetching discovered wallets with params:', queryParams);
+
+      const response = await this.apiClient.get('/api/otc/wallets/discovered', { 
+        params: queryParams 
+      });
+
+      console.log('✅ Discovered wallets loaded:', {
+        total: response.data.total || 0,
+        returned: response.data.wallets?.length || 0
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching discovered wallets:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Discover high-volume wallets from OTC desk transactions
+   */
+  async discoverHighVolumeWallets(
+    otcAddress,
+    numTransactions = 10,
+    minVolumeThreshold = 1000000,
+    filterEnabled = true
+  ) {
+    try {
+      const params = {
+        source_address: otcAddress,
+        num_transactions: numTransactions,
+        min_volume_threshold: minVolumeThreshold,
+        filter_enabled: filterEnabled
+      };
+
+      console.log('🔍 Running wallet discovery:', {
+        source: otcAddress.substring(0, 10) + '...',
+        transactions: numTransactions,
+        threshold: `$${(minVolumeThreshold / 1000000).toFixed(1)}M`
+      });
+
+      const response = await this.apiClient.post('/api/otc/wallets/discover', params);
+
+      console.log('✅ Wallet discovery completed:', {
+        source: otcAddress.substring(0, 10) + '...',
+        discovered: response.data.discovered_count || 0,
+        totalVolume: response.data.summary?.total_volume_discovered || 0
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('❌ Wallet discovery failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mass wallet discovery across multiple OTC desks
+   */
+  async massWalletDiscovery(
+    otcAddresses,
+    numTransactions = 10,
+    minVolumeThreshold = 1000000,
+    onProgress = null
+  ) {
+    const results = [];
+    
+    console.log('🚀 Starting mass wallet discovery:', {
+      desks: otcAddresses.length,
+      transactionsPerDesk: numTransactions,
+      threshold: `$${(minVolumeThreshold / 1000000).toFixed(1)}M`
+    });
+    
+    for (let i = 0; i < otcAddresses.length; i++) {
+      const address = otcAddresses[i];
+      
+      try {
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total: otcAddresses.length,
+            address,
+            status: 'processing'
+          });
+        }
+        
+        const result = await this.discoverHighVolumeWallets(
+          address,
+          numTransactions,
+          minVolumeThreshold
+        );
+        
+        results.push({
+          address,
+          success: true,
+          discovered_count: result.discovered_count || 0,
+          total_volume_discovered: result.summary?.total_volume_discovered || 0,
+          ...result
+        });
+        
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total: otcAddresses.length,
+            address,
+            status: 'completed',
+            result
+          });
+        }
+        
+        if (i < otcAddresses.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+      } catch (error) {
+        results.push({
+          address,
+          success: false,
+          error: error.message
+        });
+        
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total: otcAddresses.length,
+            address,
+            status: 'failed',
+            error: error.message
+          });
+        }
+      }
+    }
+    
+    console.log('✅ Mass wallet discovery completed:', {
+      total: results.length,
+      successful: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      totalDiscovered: results.reduce((sum, r) => sum + (r.discovered_count || 0), 0)
+    });
+    
+    return results;
+  }
+
+  /**
+   * Get wallet tag descriptions and categories
+   */
+  async getWalletTagDescriptions() {
+    try {
+      console.log('🔍 Fetching wallet tag descriptions...');
+      
+      const response = await this.apiClient.get('/api/otc/wallets/tags/descriptions');
+      
+      console.log('✅ Tag descriptions loaded:', {
+        totalTags: response.data.total_tags || 0,
+        categories: Object.keys(response.data.by_category || {}).length
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching tag descriptions:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get wallet discovery statistics
+   */
+  async getWalletDiscoveryStatistics() {
+    try {
+      console.log('🔍 Fetching wallet discovery statistics...');
+      
+      const response = await this.apiClient.get('/api/otc/wallets/discovery/statistics');
+      
+      console.log('✅ Wallet discovery stats:', {
+        totalDiscovered: response.data.total_discovered || 0,
+        classifications: response.data.by_classification || {}
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching wallet discovery statistics:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search wallets by tags
+   */
+  async searchWalletsByTags(params = {}) {
+    try {
+      const body = {
+        include_tags: params.includeTags || [],
+        exclude_tags: params.excludeTags || [],
+        categories: params.categories || [],
+        limit: params.limit || 100
+      };
+      
+      console.log('🔍 Searching wallets by tags:', body);
+      
+      const response = await this.apiClient.post('/api/otc/wallets/search/tags', body);
+      
+      console.log('✅ Tag search completed:', {
+        found: response.data.total || 0,
+        returned: response.data.wallets?.length || 0
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error searching by tags:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get top wallets by volume score
+   */
+  async getTopWalletsByScore(limit = 50, classification = null) {
+    try {
+      const params = { limit };
+      if (classification) {
+        params.classification = classification;
+      }
+      
+      console.log('🔍 Fetching top wallets by score:', params);
+      
+      const response = await this.apiClient.get('/api/otc/wallets/top', { params });
+      
+      console.log('✅ Top wallets loaded:', {
+        count: response.data.wallets?.length || 0
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching top wallets:', error);
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // ✅ NEW: UTILITY FUNCTIONS FOR WALLET TAGS & DISPLAY
+  // ============================================================================
+
+  getTagColorByCategory(category) {
+    const colors = {
+      volume: '#3b82f6',      // blue
+      activity: '#10b981',    // green
+      tokens: '#8b5cf6',      // purple
+      behavior: '#f59e0b',    // orange
+      network: '#06b6d4',     // cyan
+      risk: '#ef4444',        // red
+      temporal: '#6b7280'     // gray
+    };
+    
+    return colors[category] || '#6b7280';
+  }
+
+  getClassificationColor(classification) {
+    const colors = {
+      mega_whale: '#7c3aed',      // purple-600
+      whale: '#2563eb',           // blue-600
+      institutional: '#059669',   // green-600
+      large_wallet: '#d97706',    // amber-600
+      medium_wallet: '#64748b'    // slate-600
+    };
+    
+    return colors[classification] || '#64748b';
+  }
+
+  getClassificationIcon(classification) {
+    const icons = {
+      mega_whale: '🐋',
+      whale: '🐳',
+      institutional: '🏛️',
+      large_wallet: '💼',
+      medium_wallet: '💰'
+    };
+    
+    return icons[classification] || '👤';
+  }
+
+  formatVolume(value) {
+    if (!value || isNaN(value)) return '$0';
+    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+    if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`;
+    return `$${value.toFixed(2)}`;
+  }
+
+  calculateRiskLevel(tags = []) {
+    const highRiskTags = [
+      'systemic_risk_potential',
+      'concentrated_bets',
+      'high_risk_sizing',
+      'high_churn_risk'
+    ];
+    
+    const moderateRiskTags = [
+      'material_market_impact',
+      'large_positions',
+      'elevated_risk'
+    ];
+    
+    const highRiskCount = tags.filter(tag => highRiskTags.includes(tag)).length;
+    const moderateRiskCount = tags.filter(tag => moderateRiskTags.includes(tag)).length;
+    
+    if (highRiskCount > 0) return 'HIGH';
+    if (moderateRiskCount > 0) return 'MODERATE';
+    return 'LOW';
   }
 }
 
