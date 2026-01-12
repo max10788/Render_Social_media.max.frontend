@@ -829,6 +829,7 @@ const NetworkGraph = ({
               <span className="stat-label">Nodes</span>
             </div>
           </div>
+          
           <div className="stat-item">
             <span className="stat-icon">↔️</span>
             <div className="stat-content">
@@ -836,6 +837,41 @@ const NetworkGraph = ({
               <span className="stat-label">Connections</span>
             </div>
           </div>
+          
+          {/* ✅ NEW: High-Volume Wallets Stat */}
+          {stats.wallets > 0 && (
+            <div className="stat-item wallets">
+              <span className="stat-icon">🐋</span>
+              <div className="stat-content">
+                <span className="stat-value">{stats.wallets}</span>
+                <span className="stat-label">HV Wallets</span>
+              </div>
+              {/* Breakdown */}
+              <div className="stat-breakdown">
+                {stats.walletsByClass.mega_whale > 0 && (
+                  <span className="stat-breakdown-item" title="Mega Whales">
+                    🐋 {stats.walletsByClass.mega_whale}
+                  </span>
+                )}
+                {stats.walletsByClass.whale > 0 && (
+                  <span className="stat-breakdown-item" title="Whales">
+                    🐳 {stats.walletsByClass.whale}
+                  </span>
+                )}
+                {stats.walletsByClass.institutional > 0 && (
+                  <span className="stat-breakdown-item" title="Institutional">
+                    🏛️ {stats.walletsByClass.institutional}
+                  </span>
+                )}
+                {stats.walletsByClass.large_wallet > 0 && (
+                  <span className="stat-breakdown-item" title="Large Wallets">
+                    💼 {stats.walletsByClass.large_wallet}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          
           {stats.verified > 0 && (
             <div className="stat-item verified">
               <span className="stat-icon">✓</span>
@@ -845,6 +881,7 @@ const NetworkGraph = ({
               </div>
             </div>
           )}
+          
           {stats.discovered > 0 && (
             <div className="stat-item discovered">
               <span className="stat-icon">🔍</span>
@@ -854,6 +891,7 @@ const NetworkGraph = ({
               </div>
             </div>
           )}
+          
           <div className="stat-item">
             <span className="stat-icon">💰</span>
             <div className="stat-content">
@@ -863,7 +901,6 @@ const NetworkGraph = ({
           </div>
         </div>
       )}
-
       {/* HOVER INFO PANEL */}
       {hoveredNode && (
         <div className="hover-info-panel">
@@ -872,32 +909,112 @@ const NetworkGraph = ({
             <span className="hover-info-title">
               {hoveredNode.entity_name || hoveredNode.label || truncateAddress(hoveredNode.address)}
             </span>
+            {/* ✅ NEW: Classification Badge */}
+            {hoveredNode.classification && (
+              <span 
+                className="hover-info-badge"
+                style={{ 
+                  background: walletClassificationColors[hoveredNode.classification],
+                  color: 'white',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  marginLeft: '8px'
+                }}
+              >
+                {hoveredNode.classification.toUpperCase().replace('_', ' ')}
+              </span>
+            )}
           </div>
+          
           <div className="hover-info-body">
             <div className="hover-info-row">
               <span className="hover-label">Type:</span>
               <span className="hover-value">
-                {hoveredNode.entity_type?.replace('_', ' ').toUpperCase()}
+                {hoveredNode.node_type?.toUpperCase() || hoveredNode.entity_type?.replace('_', ' ').toUpperCase()}
               </span>
             </div>
+            
             <div className="hover-info-row">
               <span className="hover-label">Volume:</span>
-              <span className="hover-value">{formatValue(hoveredNode.total_volume_usd)}</span>
+              <span className="hover-value">{formatValue(hoveredNode.total_volume_usd || hoveredNode.total_volume)}</span>
             </div>
+            
+            {/* ✅ NEW: Volume Score für Wallets */}
+            {hoveredNode.volume_score && (
+              <div className="hover-info-row">
+                <span className="hover-label">Volume Score:</span>
+                <span className="hover-value" style={{
+                  color: hoveredNode.volume_score >= 80 ? '#10b981' : 
+                         hoveredNode.volume_score >= 60 ? '#f59e0b' : '#ef4444'
+                }}>
+                  {hoveredNode.volume_score.toFixed(0)}/100
+                </span>
+              </div>
+            )}
+            
             <div className="hover-info-row">
               <span className="hover-label">Transactions:</span>
               <span className="hover-value">
-                {(hoveredNode.transaction_count || 0).toLocaleString()}
+                {(hoveredNode.transaction_count || hoveredNode.tx_count || 0).toLocaleString()}
               </span>
             </div>
+            
+            {/* ✅ NEW: Average Transaction für Wallets */}
+            {hoveredNode.avg_transaction && (
+              <div className="hover-info-row">
+                <span className="hover-label">Avg Transaction:</span>
+                <span className="hover-value">{formatValue(hoveredNode.avg_transaction)}</span>
+              </div>
+            )}
+            
             {hoveredNode.confidence_score && (
               <div className="hover-info-row">
                 <span className="hover-label">Confidence:</span>
-                {/* ✅ FIX #4: Zeige Wert direkt, ist bereits Prozent */}
                 <span className="hover-value">{hoveredNode.confidence_score.toFixed(1)}%</span>
               </div>
             )}
-            {hoveredNode.tags && hoveredNode.tags.length > 0 && (
+            
+            {/* ✅ NEW: Categorized Tags Display */}
+            {hoveredNode.categorized_tags && (
+              <div className="hover-info-categories">
+                {Object.entries(hoveredNode.categorized_tags).map(([category, categoryTags]) => {
+                  if (category === 'all' || !Array.isArray(categoryTags) || categoryTags.length === 0) return null;
+                  
+                  return (
+                    <div key={category} className="hover-category">
+                      <span className="hover-category-label" style={{
+                        color: tagCategoryColors[category]
+                      }}>
+                        {category.toUpperCase()}:
+                      </span>
+                      <div className="hover-category-tags">
+                        {categoryTags.slice(0, 3).map(tag => (
+                          <span 
+                            key={tag} 
+                            className="hover-tag" 
+                            style={{
+                              background: `${tagCategoryColors[category]}33`,
+                              borderColor: tagCategoryColors[category],
+                              fontSize: '9px'
+                            }}
+                          >
+                            {tag.replace(/_/g, ' ')}
+                          </span>
+                        ))}
+                        {categoryTags.length > 3 && (
+                          <span className="hover-tag more">+{categoryTags.length - 3}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            {/* Fallback: Show regular tags if no categorized_tags */}
+            {!hoveredNode.categorized_tags && hoveredNode.tags && hoveredNode.tags.length > 0 && (
               <div className="hover-info-tags">
                 {hoveredNode.tags.slice(0, 5).map(tag => (
                   <span key={tag} className="hover-tag" style={{
@@ -1075,7 +1192,65 @@ const NetworkGraph = ({
           </div>
         )}
       </div>
-
+      {/* Wallet Classifications */}
+      <div className="filter-section">
+        <div className="filter-section-header">
+          <span className="filter-section-title">Wallet Classifications</span>
+          {pendingFilters.walletClassifications?.length > 0 && (
+            <button 
+              className="filter-clear-btn"
+              onClick={() => setPendingFilters(prev => ({ 
+                ...prev, 
+                walletClassifications: [] 
+              }))}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="filter-options">
+          {['mega_whale', 'whale', 'institutional', 'large_wallet', 'medium_wallet'].map(classification => {
+            const count = data?.nodes?.filter(n => n.classification === classification).length || 0;
+            if (count === 0) return null;
+            
+            return (
+              <button
+                key={classification}
+                className={`filter-option ${
+                  pendingFilters.walletClassifications?.includes(classification) ? 'selected' : ''
+                }`}
+                onClick={() => {
+                  setPendingFilters(prev => {
+                    const current = prev.walletClassifications || [];
+                    return {
+                      ...prev,
+                      walletClassifications: current.includes(classification)
+                        ? current.filter(c => c !== classification)
+                        : [...current, classification]
+                    };
+                  });
+                }}
+                style={{
+                  borderColor: pendingFilters.walletClassifications?.includes(classification) 
+                    ? walletClassificationColors[classification] 
+                    : 'transparent',
+                  background: pendingFilters.walletClassifications?.includes(classification)
+                    ? `${walletClassificationColors[classification]}22`
+                    : 'rgba(40,40,40,0.8)'
+                }}
+              >
+                <span className="filter-option-icon">
+                  {getWalletClassificationIcon(classification)}
+                </span>
+                <span className="filter-option-label">
+                  {classification.replace('_', ' ')}
+                </span>
+                <span className="filter-option-count">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       {/* LEGEND */}
       <div className="graph-legend enhanced">
         <h4 className="legend-title">ENTITY TYPES</h4>
