@@ -281,50 +281,40 @@ const NetworkGraph = ({
   // ============================================================================
 
   const shouldShowNode = (node) => {
-    // ✅ FIX #1: Backend sendet bereits Prozentwerte (0-100), NICHT multiplizieren!
     const confidence = node.confidence_score || node.confidence || 0;
     
     if (confidence < activeFilters.confidenceRange[0] || confidence > activeFilters.confidenceRange[1]) {
-      console.log('❌ Node filtered by confidence:', {
-        address: node.address?.substring(0, 10) + '...',
-        confidence: confidence.toFixed(2),
-        range: activeFilters.confidenceRange
-      });
       return false;
     }
   
-    // Entity type filter (NUR wenn Types ausgewählt sind)
+    // Entity type filter
     if (activeFilters.entityTypes.length > 0) {
       if (!activeFilters.entityTypes.includes(node.entity_type)) {
-        console.log('❌ Node filtered by entity type:', {
-          address: node.address?.substring(0, 10) + '...',
-          type: node.entity_type,
-          allowed: activeFilters.entityTypes
-        });
         return false;
       }
     }
+    
+    // ✅ NEW: Wallet Classification Filter
+    if (activeFilters.walletClassifications.length > 0) {
+      const nodeType = node.node_type;
+      const classification = node.classification;
+      
+      if (nodeType === 'high_volume_wallet' && classification) {
+        if (!activeFilters.walletClassifications.includes(classification)) {
+          return false;
+        }
+      }
+    }
   
-    // Tag filter (NUR wenn Tags ausgewählt sind)
+    // Tag filter
     if (activeFilters.tags.length > 0) {
       const nodeTags = node.tags || [];
       const hasSelectedTag = activeFilters.tags.some(tag => nodeTags.includes(tag));
       
       if (!hasSelectedTag) {
-        console.log('❌ Node filtered by tags:', {
-          address: node.address?.substring(0, 10) + '...',
-          nodeTags,
-          requiredTags: activeFilters.tags
-        });
         return false;
       }
     }
-  
-    console.log('✅ Node PASSED filters:', {
-      address: node.address?.substring(0, 10) + '...',
-      type: node.entity_type,
-      confidence: confidence.toFixed(2)
-    });
     
     return true;
   };
