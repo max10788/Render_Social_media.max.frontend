@@ -110,6 +110,25 @@ const NetworkGraph = ({
     discovered: '#10B981'
   };
 
+  const walletClassificationColors = {
+    mega_whale: '#7c3aed',      // purple-600
+    whale: '#2563eb',           // blue-600  
+    institutional: '#059669',   // green-600
+    large_wallet: '#d97706',    // amber-600
+    medium_wallet: '#64748b'    // slate-600
+  };
+  
+  // ✅ NEW: Tag Category Colors (für categorized_tags)
+  const tagCategoryColors = {
+    volume: '#3b82f6',      // blue
+    activity: '#10b981',    // green
+    tokens: '#8b5cf6',      // purple
+    behavior: '#f59e0b',    // orange
+    network: '#06b6d4',     // cyan
+    risk: '#ef4444',        // red
+    temporal: '#6b7280'     // gray
+  };
+  
   const tagColors = {
     'verified': '#22C55E',
     'verified_otc_desk': '#16A34A',
