@@ -3,14 +3,20 @@ import otcAnalysisService from '../services/otcAnalysisService';
 import { format, subDays } from 'date-fns';
 
 /**
- * Custom hook for OTC Analysis data management
+ * ✅ EXTENDED: Custom hook for OTC Analysis data management
  * 
- * ✅ UPDATED: Client-side wallet filtering for Network Graph
- * ✅ UPDATED: Added Discovery System integration
- * ✅ FIXED: Watchlist handling to match backend structure
+ * NEW FEATURES:
+ * - High-Volume Wallet Discovery & Filtering
+ * - Wallet Classification Filtering (mega_whale, institutional, etc.)
+ * - Advanced Tag-based Filtering
+ * - Combined OTC Desk + High-Volume Wallet Network Graph
+ * - Wallet Tag Descriptions & Categorization
  */
 export const useOTCData = () => {
-  // Filter state
+  // ============================================================================
+  // FILTER STATE
+  // ============================================================================
+  
   const [filters, setFilters] = useState({
     fromDate: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
     toDate: format(new Date(), 'yyyy-MM-dd'),
@@ -20,31 +26,56 @@ export const useOTCData = () => {
     tokens: ['ETH', 'USDT', 'USDC'],
     maxNodes: 500,
     
-    // Discovery filters
+    // OTC Desk Discovery Filters
     showDiscovered: true,
     showVerified: true,
     showDbValidated: true,
     deskCategory: 'all', // 'all', 'verified', 'discovered', 'db_validated'
     
-    // ✅ NEW: Network Graph Wallet Filters (CLIENT-SIDE)
+    // ✅ NEW: High-Volume Wallet Filters
+    showHighVolumeWallets: true,              // Show discovered high-volume wallets
+    walletClassifications: [                   // Which wallet types to show
+      'mega_whale',
+      'whale', 
+      'institutional',
+      'large_wallet'
+    ],
+    minVolumeScore: 60,                        // Minimum volume score (0-100)
+    minTotalVolume: 1000000,                   // Minimum total volume USD
+    
+    // ✅ NEW: Combined Entity Filtering
+    entityFilter: 'all',                       // 'all', 'otc_only', 'wallets_only'
+    
+    // Network Graph Wallet Filters (CLIENT-SIDE)
     includeTags: [],        // Only show wallets WITH these tags (empty = all allowed)
     excludeTags: [],        // Hide wallets WITH these tags
     walletAddresses: []     // Show ONLY these addresses (overrides all other filters)
   });
 
-  // Data state
-  const [rawNetworkData, setRawNetworkData] = useState(null); // ✅ NEW: Raw unfiltered data
-  const [networkData, setNetworkData] = useState(null);       // ✅ Filtered data
+  // ============================================================================
+  // DATA STATE
+  // ============================================================================
+  
+  const [rawNetworkData, setRawNetworkData] = useState(null); // Raw unfiltered data
+  const [networkData, setNetworkData] = useState(null);       // Filtered data
   const [sankeyData, setSankeyData] = useState(null);
   const [statistics, setStatistics] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
   
-  // Discovery state
+  // OTC Desk Discovery State
   const [allDesks, setAllDesks] = useState([]);
   const [discoveredDesks, setDiscoveredDesks] = useState([]);
   const [discoveryStats, setDiscoveryStats] = useState(null);
+  
+  // ✅ NEW: High-Volume Wallet Discovery State
+  const [discoveredWallets, setDiscoveredWallets] = useState([]);
+  const [walletDiscoveryStats, setWalletDiscoveryStats] = useState(null);
+  const [walletTagDescriptions, setWalletTagDescriptions] = useState(null);
+  
+  // ✅ NEW: Combined entities (OTC desks + high-volume wallets)
+  const [allEntities, setAllEntities] = useState([]);
   
   // Loading and error states
   const [loading, setLoading] = useState({
@@ -55,7 +86,10 @@ export const useOTCData = () => {
     walletDetails: false,
     discovery: false,
     desks: false,
-    discoveryStats: false
+    discoveryStats: false,
+    walletDiscovery: false,      // ✅ NEW
+    walletTagDescriptions: false, // ✅ NEW
+    entities: false               // ✅ NEW
   });
   
   const [errors, setErrors] = useState({
@@ -65,11 +99,17 @@ export const useOTCData = () => {
     wallet: null,
     walletDetails: null,
     discovery: null,
-    desks: null
+    desks: null,
+    walletDiscovery: null,        // ✅ NEW
+    entities: null                 // ✅ NEW
   });
 
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
+
   /**
-   * ✅ Helper: Ensure data is safe
+   * Ensure data is safe
    */
   const ensureSafeData = useCallback((data) => {
     if (!data) return null;
@@ -93,33 +133,37 @@ export const useOTCData = () => {
   }, []);
 
   /**
-   * ✅ NEW: Client-side wallet filtering logic
+   * ✅ NEW: Enhanced wallet filtering with high-volume wallet support
    */
   const applyWalletFilters = useCallback((data, filterSettings) => {
     if (!data || !data.nodes) return data;
 
     let filteredNodes = [...data.nodes];
 
-    console.log('🔍 Applying client-side filters:', {
+    console.log('🔍 Applying enhanced filters:', {
       totalNodes: filteredNodes.length,
       totalEdges: data.edges?.length || 0,
       filters: {
+        // OTC Desk filters
         showDiscovered: filterSettings.showDiscovered,
         showVerified: filterSettings.showVerified,
         showDbValidated: filterSettings.showDbValidated,
+        
+        // High-volume wallet filters
+        showHighVolumeWallets: filterSettings.showHighVolumeWallets,
+        walletClassifications: filterSettings.walletClassifications,
+        minVolumeScore: filterSettings.minVolumeScore,
+        minTotalVolume: filterSettings.minTotalVolume,
+        
+        // Entity type filter
+        entityFilter: filterSettings.entityFilter,
+        
+        // Tag filters
         includeTags: filterSettings.includeTags,
         excludeTags: filterSettings.excludeTags,
         walletAddresses: filterSettings.walletAddresses?.length || 0
       }
     });
-
-    // ✅ DEBUG: Log first edge structure
-    if (data.edges && data.edges.length > 0) {
-      console.log('🔍 Edge structure sample:', {
-        firstEdge: data.edges[0],
-        fields: Object.keys(data.edges[0])
-      });
-    }
 
     // ✅ PRIORITY 1: Specific wallet addresses (overrides everything)
     if (filterSettings.walletAddresses && filterSettings.walletAddresses.length > 0) {
@@ -136,32 +180,85 @@ export const useOTCData = () => {
         found: filteredNodes.length
       });
     } else {
-      // ✅ STEP 2: Category filters (discovered, verified, db_validated)
+      // ✅ STEP 2: Entity Type Filter (OTC only, Wallets only, or All)
+      if (filterSettings.entityFilter !== 'all') {
+        filteredNodes = filteredNodes.filter(node => {
+          const nodeType = node.node_type || node.entity_type;
+          
+          if (filterSettings.entityFilter === 'otc_only') {
+            return nodeType === 'otc_desk' || nodeType === 'exchange';
+          }
+          
+          if (filterSettings.entityFilter === 'wallets_only') {
+            return nodeType === 'high_volume_wallet' || node.classification;
+          }
+          
+          return true;
+        });
+        
+        console.log('✅ After entity filter:', {
+          remaining: filteredNodes.length,
+          filter: filterSettings.entityFilter
+        });
+      }
+      
+      // ✅ STEP 3: OTC Desk Category Filters
       filteredNodes = filteredNodes.filter(node => {
+        const nodeType = node.node_type || node.entity_type;
         const category = node.desk_category || 'unknown';
         const tags = node.tags || [];
         
-        // Check category
-        if (category === 'discovered' && !filterSettings.showDiscovered) return false;
-        if (category === 'db_validated' && !filterSettings.showDbValidated) return false;
+        // Skip wallet filtering for OTC desks
+        if (nodeType === 'otc_desk' || nodeType === 'exchange') {
+          if (category === 'discovered' && !filterSettings.showDiscovered) return false;
+          if (category === 'db_validated' && !filterSettings.showDbValidated) return false;
+          
+          const isVerified = category === 'verified' || 
+                            tags.includes('verified') || 
+                            tags.includes('verified_otc_desk');
+          if (isVerified && !filterSettings.showVerified) return false;
+          
+          return true;
+        }
         
-        // Check if verified (by tag or category)
-        const isVerified = category === 'verified' || 
-                          tags.includes('verified') || 
-                          tags.includes('verified_otc_desk');
-        if (isVerified && !filterSettings.showVerified) return false;
+        // ✅ STEP 4: High-Volume Wallet Filters
+        if (nodeType === 'high_volume_wallet' || node.classification) {
+          // Check if we should show high-volume wallets at all
+          if (!filterSettings.showHighVolumeWallets) return false;
+          
+          // Check classification filter
+          const classification = node.classification;
+          if (classification && filterSettings.walletClassifications?.length > 0) {
+            if (!filterSettings.walletClassifications.includes(classification)) {
+              return false;
+            }
+          }
+          
+          // Check volume score
+          const volumeScore = node.volume_score || 0;
+          if (volumeScore < filterSettings.minVolumeScore) return false;
+          
+          // Check total volume
+          const totalVolume = node.total_volume || node.total_volume_usd || 0;
+          if (totalVolume < filterSettings.minTotalVolume) return false;
+          
+          return true;
+        }
         
         return true;
       });
 
-      console.log('✅ After category filter:', {
+      console.log('✅ After OTC/Wallet category filter:', {
         remaining: filteredNodes.length,
-        discovered: filteredNodes.filter(n => n.desk_category === 'discovered').length,
-        verified: filteredNodes.filter(n => n.tags?.includes('verified')).length,
-        dbValidated: filteredNodes.filter(n => n.desk_category === 'db_validated').length
+        otcDesks: filteredNodes.filter(n => 
+          n.node_type === 'otc_desk' || n.entity_type === 'otc_desk'
+        ).length,
+        highVolumeWallets: filteredNodes.filter(n => 
+          n.node_type === 'high_volume_wallet' || n.classification
+        ).length
       });
 
-      // ✅ STEP 3: Include tags filter (AND logic - must have at least one of these tags)
+      // ✅ STEP 5: Include tags filter (must have at least one of these tags)
       if (filterSettings.includeTags && filterSettings.includeTags.length > 0) {
         filteredNodes = filteredNodes.filter(node => {
           const tags = node.tags || [];
@@ -174,7 +271,7 @@ export const useOTCData = () => {
         });
       }
 
-      // ✅ STEP 4: Exclude tags filter
+      // ✅ STEP 6: Exclude tags filter
       if (filterSettings.excludeTags && filterSettings.excludeTags.length > 0) {
         filteredNodes = filteredNodes.filter(node => {
           const tags = node.tags || [];
@@ -188,7 +285,7 @@ export const useOTCData = () => {
       }
     }
 
-    // ✅ FIXED: Filter edges with support for multiple field names
+    // ✅ Filter edges
     const visibleAddresses = new Set(
       filteredNodes.map(n => n.address?.toLowerCase())
     );
@@ -200,16 +297,13 @@ export const useOTCData = () => {
     
     let edgeDebugCount = 0;
     const filteredEdges = (data.edges || []).filter(edge => {
-      // ✅ FIX: Extract data object first (edges can be {data: {...}} or direct objects)
       const edgeData = edge.data || edge;
       
-      // Support different edge field names
       const sourceAddr = (edgeData.from || edgeData.source || edgeData.from_address)?.toLowerCase();
       const targetAddr = (edgeData.to || edgeData.target || edgeData.to_address)?.toLowerCase();
       
       const isVisible = visibleAddresses.has(sourceAddr) && visibleAddresses.has(targetAddr);
       
-      // Debug first few edges
       if (edgeDebugCount < 3) {
         console.log('🔍 Edge check:', {
           hasData: !!edge.data,
@@ -228,10 +322,19 @@ export const useOTCData = () => {
     console.log('📊 Final filtered result:', {
       nodes: filteredNodes.length,
       edges: filteredEdges.length,
-      categories: {
-        discovered: filteredNodes.filter(n => n.desk_category === 'discovered').length,
-        verified: filteredNodes.filter(n => n.tags?.includes('verified')).length,
-        dbValidated: filteredNodes.filter(n => n.desk_category === 'db_validated').length
+      breakdown: {
+        otcDesks: filteredNodes.filter(n => 
+          n.node_type === 'otc_desk' || n.entity_type === 'otc_desk'
+        ).length,
+        highVolumeWallets: filteredNodes.filter(n => 
+          n.node_type === 'high_volume_wallet' || n.classification
+        ).length,
+        byClassification: {
+          mega_whale: filteredNodes.filter(n => n.classification === 'mega_whale').length,
+          whale: filteredNodes.filter(n => n.classification === 'whale').length,
+          institutional: filteredNodes.filter(n => n.classification === 'institutional').length,
+          large_wallet: filteredNodes.filter(n => n.classification === 'large_wallet').length
+        }
       }
     });
 
@@ -257,7 +360,7 @@ export const useOTCData = () => {
   }, []);
 
   /**
-   * ✅ NEW: Apply filters manually (called when user clicks "Apply Filters" button)
+   * Apply filters manually
    */
   const applyFilters = useCallback(() => {
     if (!rawNetworkData) {
@@ -270,8 +373,249 @@ export const useOTCData = () => {
     setNetworkData(filtered);
   }, [rawNetworkData, filters, applyWalletFilters]);
 
+  // ============================================================================
+  // ✅ NEW: HIGH-VOLUME WALLET DISCOVERY FUNCTIONS
+  // ============================================================================
+
   /**
-   * ✅ UPDATED: Fetch network graph data (fetch ALL, filter client-side)
+   * Fetch discovered high-volume wallets
+   */
+  const fetchDiscoveredWallets = useCallback(async () => {
+    setLoading(prev => ({ ...prev, walletDiscovery: true }));
+    setErrors(prev => ({ ...prev, walletDiscovery: null }));
+    
+    try {
+      // This would call your discovery endpoint
+      const response = await otcAnalysisService.getDiscoveredWallets({
+        minVolumeScore: filters.minVolumeScore,
+        minTotalVolume: filters.minTotalVolume,
+        classifications: filters.walletClassifications
+      });
+      
+      const wallets = response.data?.wallets || response.wallets || [];
+      
+      setDiscoveredWallets(wallets);
+      
+      console.log('✅ Discovered wallets loaded:', {
+        total: wallets.length,
+        byClassification: {
+          mega_whale: wallets.filter(w => w.classification === 'mega_whale').length,
+          whale: wallets.filter(w => w.classification === 'whale').length,
+          institutional: wallets.filter(w => w.classification === 'institutional').length,
+          large_wallet: wallets.filter(w => w.classification === 'large_wallet').length
+        }
+      });
+      
+      return wallets;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, walletDiscovery: error.message }));
+      console.error('Error fetching discovered wallets:', error);
+      setDiscoveredWallets([]);
+      return [];
+    } finally {
+      setLoading(prev => ({ ...prev, walletDiscovery: false }));
+    }
+  }, [filters.minVolumeScore, filters.minTotalVolume, filters.walletClassifications]);
+
+  /**
+   * ✅ NEW: Fetch wallet tag descriptions
+   */
+  const fetchWalletTagDescriptions = useCallback(async () => {
+    setLoading(prev => ({ ...prev, walletTagDescriptions: true }));
+    
+    try {
+      const response = await otcAnalysisService.getWalletTagDescriptions();
+      setWalletTagDescriptions(response);
+      
+      console.log('✅ Wallet tag descriptions loaded:', {
+        totalTags: response.total_tags,
+        categories: Object.keys(response.by_category || {})
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('Error fetching wallet tag descriptions:', error);
+      return null;
+    } finally {
+      setLoading(prev => ({ ...prev, walletTagDescriptions: false }));
+    }
+  }, []);
+
+  /**
+   * ✅ NEW: Run wallet discovery from OTC desk transactions
+   */
+  const runWalletDiscovery = useCallback(async (
+    otcAddress, 
+    numTransactions = 10,
+    minVolumeThreshold = 1000000,
+    filterEnabled = true
+  ) => {
+    setLoading(prev => ({ ...prev, walletDiscovery: true }));
+    setErrors(prev => ({ ...prev, walletDiscovery: null }));
+    
+    try {
+      const result = await otcAnalysisService.discoverHighVolumeWallets(
+        otcAddress,
+        numTransactions,
+        minVolumeThreshold,
+        filterEnabled
+      );
+      
+      console.log('✅ Wallet discovery completed:', {
+        sourceAddress: otcAddress,
+        discovered: result.discovered_count,
+        totalVolume: result.summary?.total_volume_discovered
+      });
+      
+      // Refresh discovered wallets list
+      await fetchDiscoveredWallets();
+      
+      return result;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, walletDiscovery: error.message }));
+      console.error('❌ Wallet discovery failed:', error);
+      throw error;
+    } finally {
+      setLoading(prev => ({ ...prev, walletDiscovery: false }));
+    }
+  }, [fetchDiscoveredWallets]);
+
+  /**
+   * ✅ NEW: Run mass wallet discovery on multiple OTC desks
+   */
+  const runMassWalletDiscovery = useCallback(async (
+    otcAddresses,
+    numTransactions = 10,
+    minVolumeThreshold = 1000000,
+    onProgress = null
+  ) => {
+    setLoading(prev => ({ ...prev, walletDiscovery: true }));
+    setErrors(prev => ({ ...prev, walletDiscovery: null }));
+    
+    try {
+      const results = [];
+      
+      for (let i = 0; i < otcAddresses.length; i++) {
+        const address = otcAddresses[i];
+        
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total: otcAddresses.length,
+            address
+          });
+        }
+        
+        try {
+          const result = await runWalletDiscovery(
+            address,
+            numTransactions,
+            minVolumeThreshold
+          );
+          results.push({
+            address,
+            success: true,
+            ...result
+          });
+        } catch (error) {
+          results.push({
+            address,
+            success: false,
+            error: error.message
+          });
+        }
+      }
+      
+      console.log('✅ Mass wallet discovery completed:', {
+        desks: otcAddresses.length,
+        totalDiscovered: results.reduce((sum, r) => sum + (r.discovered_count || 0), 0)
+      });
+      
+      await fetchDiscoveredWallets();
+      
+      return results;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, walletDiscovery: error.message }));
+      console.error('❌ Mass wallet discovery failed:', error);
+      throw error;
+    } finally {
+      setLoading(prev => ({ ...prev, walletDiscovery: false }));
+    }
+  }, [runWalletDiscovery, fetchDiscoveredWallets]);
+
+  /**
+   * ✅ NEW: Fetch wallet discovery statistics
+   */
+  const fetchWalletDiscoveryStats = useCallback(async () => {
+    try {
+      const stats = await otcAnalysisService.getWalletDiscoveryStatistics();
+      setWalletDiscoveryStats(stats);
+      
+      console.log('✅ Wallet discovery stats:', stats);
+      return stats;
+    } catch (error) {
+      console.error('Error fetching wallet discovery stats:', error);
+      return null;
+    }
+  }, []);
+
+  // ============================================================================
+  // ✅ NEW: COMBINED ENTITIES MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Merge OTC desks and high-volume wallets into single entity list
+   */
+  const fetchAllEntities = useCallback(async () => {
+    setLoading(prev => ({ ...prev, entities: true }));
+    setErrors(prev => ({ ...prev, entities: null }));
+    
+    try {
+      // Fetch both OTC desks and high-volume wallets in parallel
+      const [desks, wallets] = await Promise.all([
+        fetchAllDesks(),
+        fetchDiscoveredWallets()
+      ]);
+      
+      // Combine into single entity list
+      const combined = [
+        ...desks.map(desk => ({
+          ...desk,
+          node_type: 'otc_desk',
+          entity_category: 'otc_desk'
+        })),
+        ...wallets.map(wallet => ({
+          ...wallet,
+          node_type: 'high_volume_wallet',
+          entity_category: 'high_volume_wallet'
+        }))
+      ];
+      
+      setAllEntities(combined);
+      
+      console.log('✅ All entities merged:', {
+        total: combined.length,
+        otcDesks: desks.length,
+        highVolumeWallets: wallets.length
+      });
+      
+      return combined;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, entities: error.message }));
+      console.error('Error fetching all entities:', error);
+      setAllEntities([]);
+      return [];
+    } finally {
+      setLoading(prev => ({ ...prev, entities: false }));
+    }
+  }, [fetchAllDesks, fetchDiscoveredWallets]);
+
+  // ============================================================================
+  // EXISTING NETWORK/SANKEY/STATS FUNCTIONS (keeping your existing code)
+  // ============================================================================
+
+  /**
+   * Fetch network graph data (fetch ALL, filter client-side)
    */
   const fetchNetworkData = useCallback(async () => {
     setLoading(prev => ({ ...prev, network: true }));
@@ -280,7 +624,7 @@ export const useOTCData = () => {
     try {
       console.log('🔍 Fetching ALL network data from backend...');
       
-      // ✅ Fetch ALL data without wallet filters (only basic filters)
+      // Fetch ALL data without wallet filters (only basic filters)
       const data = await otcAnalysisService.getNetworkGraph({
         fromDate: filters.fromDate,
         toDate: filters.toDate,
@@ -288,10 +632,13 @@ export const useOTCData = () => {
         minTransferSize: filters.minTransferSize,
         entityTypes: filters.entityTypes,
         tokens: filters.tokens,
-        maxNodes: filters.maxNodes
+        maxNodes: filters.maxNodes,
+        
+        // ✅ NEW: Include high-volume wallets in network graph
+        includeHighVolumeWallets: filters.showHighVolumeWallets
       });
       
-      // ✅ Validate data structure
+      // Validate data structure
       if (data && typeof data === 'object') {
         const safeData = {
           nodes: Array.isArray(data.nodes) ? data.nodes : [],
@@ -302,17 +649,20 @@ export const useOTCData = () => {
         console.log('✅ Raw network data loaded:', {
           totalNodes: safeData.nodes.length,
           totalEdges: safeData.edges.length,
-          categories: {
-            discovered: safeData.nodes.filter(n => n.desk_category === 'discovered').length,
-            verified: safeData.nodes.filter(n => n.tags?.includes('verified') || n.tags?.includes('verified_otc_desk')).length,
-            dbValidated: safeData.nodes.filter(n => n.desk_category === 'db_validated').length
+          nodeTypes: {
+            otcDesks: safeData.nodes.filter(n => 
+              n.node_type === 'otc_desk' || n.entity_type === 'otc_desk'
+            ).length,
+            highVolumeWallets: safeData.nodes.filter(n => 
+              n.node_type === 'high_volume_wallet' || n.classification
+            ).length
           }
         });
         
-        // ✅ Store raw data
+        // Store raw data
         setRawNetworkData(safeData);
         
-        // ✅ Apply filters immediately
+        // Apply filters immediately
         const filtered = applyWalletFilters(safeData, filters);
         setNetworkData(filtered);
         
@@ -337,6 +687,7 @@ export const useOTCData = () => {
     filters.entityTypes,
     filters.tokens,
     filters.maxNodes,
+    filters.showHighVolumeWallets,
     filters,
     applyWalletFilters
   ]);
@@ -476,7 +827,7 @@ export const useOTCData = () => {
   }, [ensureSafeData]);
 
   /**
-   * ✅ FIXED: Fetch watchlist
+   * Fetch watchlist
    */
   const fetchWatchlist = useCallback(async () => {
     try {
@@ -509,7 +860,7 @@ export const useOTCData = () => {
   }, [fetchWatchlist]);
 
   /**
-   * ✅ FIXED: Remove from watchlist
+   * Remove from watchlist
    */
   const removeFromWatchlist = useCallback(async (address) => {
     if (!address) {
@@ -582,11 +933,11 @@ export const useOTCData = () => {
   }, [filters.fromDate, filters.toDate, filters.minConfidence]);
   
   // ============================================================================
-  // ✅ DISCOVERY SYSTEM FUNCTIONS
+  // OTC DESK DISCOVERY FUNCTIONS (keeping your existing code)
   // ============================================================================
   
   /**
-   * ✅ UPDATED: Fetch all OTC desks with intelligent desk_category mapping
+   * Fetch all OTC desks
    */
   const fetchAllDesks = useCallback(async () => {
     setLoading(prev => ({ ...prev, desks: true }));
@@ -781,9 +1132,10 @@ export const useOTCData = () => {
     }
   }, [fetchAllDesks, fetchDiscoveryStats]);
   
-  /**
-   * Initial data fetch
-   */
+  // ============================================================================
+  // INITIAL DATA FETCH
+  // ============================================================================
+  
   useEffect(() => {
     console.log('useOTCData: Initial data fetch');
     
@@ -793,46 +1145,87 @@ export const useOTCData = () => {
     fetchWatchlist();
     fetchAllDesks();
     fetchDiscoveryStats();
+    fetchDiscoveredWallets();      // ✅ NEW
+    fetchWalletTagDescriptions();  // ✅ NEW
   }, [
     fetchNetworkData, 
     fetchSankeyData, 
     fetchStatistics, 
     fetchWatchlist,
     fetchAllDesks,
-    fetchDiscoveryStats
+    fetchDiscoveryStats,
+    fetchDiscoveredWallets,
+    fetchWalletTagDescriptions
   ]);
 
+  // ============================================================================
+  // RETURN
+  // ============================================================================
+
   return {
+    // Network & Visualization Data
     networkData,
-    rawNetworkData, // ✅ NEW: Expose raw data
+    rawNetworkData,
     sankeyData,
     statistics,
+    
+    // Wallet Data
     watchlist,
     selectedWallet,
     walletDetails,
+    
+    // OTC Desk Discovery
     allDesks,
     discoveredDesks,
     discoveryStats,
+    
+    // ✅ NEW: High-Volume Wallet Discovery
+    discoveredWallets,
+    walletDiscoveryStats,
+    walletTagDescriptions,
+    
+    // ✅ NEW: Combined Entities
+    allEntities,
+    
+    // Filters
     filters,
     updateFilters,
-    applyFilters, // ✅ NEW: Manual filter application
+    applyFilters,
+    
+    // Loading & Errors
     loading,
     errors,
+    
+    // Fetch Functions
     fetchNetworkData,
     fetchSankeyData,
     fetchStatistics,
     fetchWalletProfile,
     fetchWalletDetails,
-    addToWatchlist,
-    removeFromWatchlist,
-    setSelectedWallet,
     fetchDistributions,
     fetchHeatmap,
     fetchTimeline,
+    
+    // Watchlist Functions
+    addToWatchlist,
+    removeFromWatchlist,
+    setSelectedWallet,
+    
+    // OTC Desk Discovery Functions
     fetchAllDesks,
     fetchDiscoveryStats,
     runDiscovery,
-    runMassDiscovery
+    runMassDiscovery,
+    
+    // ✅ NEW: Wallet Discovery Functions
+    fetchDiscoveredWallets,
+    fetchWalletTagDescriptions,
+    fetchWalletDiscoveryStats,
+    runWalletDiscovery,
+    runMassWalletDiscovery,
+    
+    // ✅ NEW: Combined Entity Functions
+    fetchAllEntities
   };
 };
 
