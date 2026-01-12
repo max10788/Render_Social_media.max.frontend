@@ -1273,6 +1273,53 @@ const NetworkGraph = ({
         })}
       </div>
 
+      {/* WALLET CLASSIFICATIONS LEGEND */}
+      {stats && stats.wallets > 0 && (
+        <div className="graph-legend wallet-legend enhanced">
+          <h4 className="legend-title">WALLET TYPES</h4>
+          {Object.entries(walletClassificationColors).map(([classification, color]) => {
+            const count = data?.nodes?.filter(n => n.classification === classification).length || 0;
+            if (count === 0) return null;
+            
+            return (
+              <div 
+                key={classification} 
+                className={`legend-item ${
+                  activeFilters.walletClassifications.includes(classification) ? 'active' : ''
+                }`}
+                onClick={() => {
+                  setPendingFilters(prev => {
+                    const current = prev.walletClassifications || [];
+                    return {
+                      ...prev,
+                      walletClassifications: current.includes(classification)
+                        ? current.filter(c => c !== classification)
+                        : [...current, classification]
+                    };
+                  });
+                  setTimeout(() => applyFilters(), 100);
+                }}
+              >
+                <span 
+                  className="legend-color" 
+                  style={{ 
+                    background: color,
+                    boxShadow: `0 0 12px ${color}66`
+                  }}
+                />
+                <span className="legend-icon">
+                  {getWalletClassificationIcon(classification)}
+                </span>
+                <span className="legend-label">
+                  {classification.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  <span className="legend-count">({count})</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* CONTROLS */}
       <div className="graph-controls enhanced">
         <button 
