@@ -248,7 +248,15 @@ const NetworkGraph = ({
   
   const getNodeIcon = (node) => {
     const tags = node.tags || [];
+    const nodeType = node.node_type;
+    const classification = node.classification;
     
+    // ✅ NEW: Wallet classifications haben Vorrang
+    if (nodeType === 'high_volume_wallet' && classification) {
+      return getWalletClassificationIcon(classification);
+    }
+    
+    // Existing tag-based icons
     if (tags.includes('verified') || tags.includes('verified_otc_desk')) return '✓';
     if (tags.includes('HIGH_CONFIDENCE_OTC')) return '⭐';
     if (tags.includes('discovered')) return '🔍';
