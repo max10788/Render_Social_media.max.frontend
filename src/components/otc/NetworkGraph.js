@@ -6,13 +6,15 @@ import './NetworkGraph.css';
 cytoscape.use(dagre);
 
 /**
- * ✅ FIXED NetworkGraph - Confidence berechnet korrekt
+ * ✅ COMPLETE NetworkGraph Component with High-Volume Wallet Support
  * 
- * Features:
- * - Staged filtering (pending vs active filters)
- * - Apply/Cancel/Reset buttons
- * - Visual feedback for unapplied changes
- * - ✅ FIXED: Confidence values are already percentages (0-100), don't multiply!
+ * NEW FEATURES:
+ * - Wallet Classification Support (mega_whale, whale, institutional, large_wallet)
+ * - Categorized Tags Display (volume, activity, tokens, behavior, network, risk, temporal)
+ * - Enhanced Hover Info with Volume Score & Classification
+ * - Dual Legends (Entity Types + Wallet Classifications)
+ * - Extended Statistics with Wallet Breakdown
+ * - Wallet-specific Colors, Icons, and Filtering
  */
 const NetworkGraph = ({ 
   data, 
@@ -28,7 +30,7 @@ const NetworkGraph = ({
   const [hoveredNode, setHoveredNode] = useState(null);
   
   // ============================================================================
-  // FILTER STATE - Apply Filters System
+  // FILTER STATE
   // ============================================================================
   const [activeFilters, setActiveFilters] = useState({
     tags: [],
@@ -47,54 +49,8 @@ const NetworkGraph = ({
   const [showFilters, setShowFilters] = useState(false);
   const [availableTags, setAvailableTags] = useState([]);
   const [availableEntityTypes, setAvailableEntityTypes] = useState([]);
+  const [availableWalletClassifications, setAvailableWalletClassifications] = useState([]);  // ✅ NEW
   const [hasUnappliedChanges, setHasUnappliedChanges] = useState(false);
-
-  // ============================================================================
-  // DETECT UNAPPLIED CHANGES
-  // ============================================================================
-  useEffect(() => {
-    const tagsChanged = JSON.stringify(activeFilters.tags.sort()) !== JSON.stringify(pendingFilters.tags.sort());
-    const typesChanged = JSON.stringify(activeFilters.entityTypes.sort()) !== JSON.stringify(pendingFilters.entityTypes.sort());
-    const rangeChanged = activeFilters.confidenceRange[0] !== pendingFilters.confidenceRange[0] || 
-                        activeFilters.confidenceRange[1] !== pendingFilters.confidenceRange[1];
-    
-    setHasUnappliedChanges(tagsChanged || typesChanged || rangeChanged);
-  }, [activeFilters, pendingFilters]);
-
-  // ============================================================================
-  // FILTER ACTIONS
-  // ============================================================================
-  const applyFilters = () => {
-    console.log('🔧 Applying filters:', pendingFilters);
-    setActiveFilters({
-      tags: [...pendingFilters.tags],
-      entityTypes: [...pendingFilters.entityTypes],
-      confidenceRange: [...pendingFilters.confidenceRange]
-    });
-    setHasUnappliedChanges(false);
-  };
-
-  const resetFilters = () => {
-    console.log('🔄 Resetting filters to defaults');
-    const defaultFilters = {
-      tags: [],
-      entityTypes: [],
-      confidenceRange: [0, 100]
-    };
-    setPendingFilters(defaultFilters);
-    setActiveFilters(defaultFilters);
-    setHasUnappliedChanges(false);
-  };
-
-  const cancelChanges = () => {
-    console.log('✕ Cancelling filter changes');
-    setPendingFilters({
-      tags: [...activeFilters.tags],
-      entityTypes: [...activeFilters.entityTypes],
-      confidenceRange: [...activeFilters.confidenceRange]
-    });
-    setHasUnappliedChanges(false);
-  };
 
   // ============================================================================
   // COLOR SCHEMES
@@ -112,15 +68,16 @@ const NetworkGraph = ({
     discovered: '#10B981'
   };
 
+  // ✅ NEW: Wallet Classification Colors
   const walletClassificationColors = {
     mega_whale: '#7c3aed',      // purple-600
-    whale: '#2563eb',           // blue-600  
+    whale: '#2563eb',           // blue-600
     institutional: '#059669',   // green-600
     large_wallet: '#d97706',    // amber-600
     medium_wallet: '#64748b'    // slate-600
   };
-  
-  // ✅ NEW: Tag Category Colors (für categorized_tags)
+
+  // ✅ NEW: Tag Category Colors
   const tagCategoryColors = {
     volume: '#3b82f6',      // blue
     activity: '#10b981',    // green
@@ -130,7 +87,7 @@ const NetworkGraph = ({
     risk: '#ef4444',        // red
     temporal: '#6b7280'     // gray
   };
-  
+
   const tagColors = {
     'verified': '#22C55E',
     'verified_otc_desk': '#16A34A',
@@ -192,10 +149,23 @@ const NetworkGraph = ({
     });
   };
 
+  // ✅ NEW: Wallet Classification Icon
+  const getWalletClassificationIcon = (classification) => {
+    const icons = {
+      mega_whale: '🐋',
+      whale: '🐳',
+      institutional: '🏛️',
+      large_wallet: '💼',
+      medium_wallet: '💰'
+    };
+    return icons[classification] || '';
+  };
+
+  // ✅ ENHANCED: Node Color with Wallet Classification Support
   const getNodeColor = (node) => {
     const tags = node.tags || [];
     const entityType = node.entity_type;
-    const nodeType = node.node_type; // ✅ NEW: unterscheidet otc_desk vs high_volume_wallet
+    const nodeType = node.node_type;
     const classification = node.classification;
     
     // ✅ PRIORITY 1: High-Volume Wallet Classifications
@@ -203,7 +173,7 @@ const NetworkGraph = ({
       return walletClassificationColors[classification] || walletClassificationColors.medium_wallet;
     }
     
-    // PRIORITY 2: Tag-based colors (existing logic)
+    // PRIORITY 2: Tag-based colors
     for (let i = tagPriority.length - 1; i >= 0; i--) {
       const priorityTag = tagPriority[i];
       if (tags.includes(priorityTag) && tagColors[priorityTag]) {
@@ -225,7 +195,7 @@ const NetworkGraph = ({
     // PRIORITY 3: Entity type fallback
     return entityColors[entityType] || entityColors.unknown;
   };
-  
+
   const getNodeBorderStyle = (node) => {
     const tags = node.tags || [];
     if (tags.includes('verified') || tags.includes('verified_otc_desk')) {
@@ -237,23 +207,13 @@ const NetworkGraph = ({
     return 'solid';
   };
 
-  const getWalletClassificationIcon = (classification) => {
-    const icons = {
-      mega_whale: '🐋',
-      whale: '🐳',
-      institutional: '🏛️',
-      large_wallet: '💼',
-      medium_wallet: '💰'
-    };
-    return icons[classification] || '';
-  };
-  
+  // ✅ ENHANCED: Node Icon with Wallet Classification Support
   const getNodeIcon = (node) => {
     const tags = node.tags || [];
     const nodeType = node.node_type;
     const classification = node.classification;
     
-    // ✅ NEW: Wallet classifications haben Vorrang
+    // ✅ NEW: Wallet classifications have priority
     if (nodeType === 'high_volume_wallet' && classification) {
       return getWalletClassificationIcon(classification);
     }
@@ -279,7 +239,59 @@ const NetworkGraph = ({
   };
 
   // ============================================================================
-  // ✅ FIXED: FILTER LOGIC - Confidence ist bereits Prozent!
+  // DETECT UNAPPLIED CHANGES
+  // ============================================================================
+  useEffect(() => {
+    const tagsChanged = JSON.stringify(activeFilters.tags.sort()) !== JSON.stringify(pendingFilters.tags.sort());
+    const typesChanged = JSON.stringify(activeFilters.entityTypes.sort()) !== JSON.stringify(pendingFilters.entityTypes.sort());
+    const rangeChanged = activeFilters.confidenceRange[0] !== pendingFilters.confidenceRange[0] || 
+                        activeFilters.confidenceRange[1] !== pendingFilters.confidenceRange[1];
+    const walletClassChanged = JSON.stringify(activeFilters.walletClassifications.sort()) !== 
+                               JSON.stringify(pendingFilters.walletClassifications.sort());  // ✅ NEW
+    
+    setHasUnappliedChanges(tagsChanged || typesChanged || rangeChanged || walletClassChanged);
+  }, [activeFilters, pendingFilters]);
+
+  // ============================================================================
+  // FILTER ACTIONS
+  // ============================================================================
+  const applyFilters = () => {
+    console.log('🔧 Applying filters:', pendingFilters);
+    setActiveFilters({
+      tags: [...pendingFilters.tags],
+      entityTypes: [...pendingFilters.entityTypes],
+      confidenceRange: [...pendingFilters.confidenceRange],
+      walletClassifications: [...pendingFilters.walletClassifications]  // ✅ NEW
+    });
+    setHasUnappliedChanges(false);
+  };
+
+  const resetFilters = () => {
+    console.log('🔄 Resetting filters to defaults');
+    const defaultFilters = {
+      tags: [],
+      entityTypes: [],
+      confidenceRange: [0, 100],
+      walletClassifications: []  // ✅ NEW
+    };
+    setPendingFilters(defaultFilters);
+    setActiveFilters(defaultFilters);
+    setHasUnappliedChanges(false);
+  };
+
+  const cancelChanges = () => {
+    console.log('✕ Cancelling filter changes');
+    setPendingFilters({
+      tags: [...activeFilters.tags],
+      entityTypes: [...activeFilters.entityTypes],
+      confidenceRange: [...activeFilters.confidenceRange],
+      walletClassifications: [...activeFilters.walletClassifications]  // ✅ NEW
+    });
+    setHasUnappliedChanges(false);
+  };
+
+  // ============================================================================
+  // ✅ ENHANCED: FILTER LOGIC with Wallet Classification Support
   // ============================================================================
 
   const shouldShowNode = (node) => {
@@ -288,7 +300,7 @@ const NetworkGraph = ({
     if (confidence < activeFilters.confidenceRange[0] || confidence > activeFilters.confidenceRange[1]) {
       return false;
     }
-  
+
     // Entity type filter
     if (activeFilters.entityTypes.length > 0) {
       if (!activeFilters.entityTypes.includes(node.entity_type)) {
@@ -305,9 +317,12 @@ const NetworkGraph = ({
         if (!activeFilters.walletClassifications.includes(classification)) {
           return false;
         }
+      } else {
+        // If wallet classification filter is active but node is not a wallet, hide it
+        return false;
       }
     }
-  
+
     // Tag filter
     if (activeFilters.tags.length > 0) {
       const nodeTags = node.tags || [];
@@ -330,6 +345,7 @@ const NetworkGraph = ({
 
     const tags = new Set();
     const entityTypes = new Set();
+    const walletClassifications = new Set();  // ✅ NEW
 
     data.nodes.forEach(node => {
       if (node.entity_type) {
@@ -338,19 +354,25 @@ const NetworkGraph = ({
       if (node.tags && Array.isArray(node.tags)) {
         node.tags.forEach(tag => tags.add(tag));
       }
+      // ✅ NEW: Collect wallet classifications
+      if (node.classification && node.node_type === 'high_volume_wallet') {
+        walletClassifications.add(node.classification);
+      }
     });
 
     setAvailableTags(Array.from(tags).sort());
     setAvailableEntityTypes(Array.from(entityTypes).sort());
+    setAvailableWalletClassifications(Array.from(walletClassifications).sort());  // ✅ NEW
 
     console.log('📊 Available filters extracted:', {
       tags: tags.size,
-      entityTypes: entityTypes.size
+      entityTypes: entityTypes.size,
+      walletClassifications: walletClassifications.size  // ✅ NEW
     });
   }, [data]);
 
   // ============================================================================
-  // CALCULATE STATISTICS
+  // ✅ ENHANCED: CALCULATE STATISTICS with Wallet Breakdown
   // ============================================================================
 
   useEffect(() => {
@@ -374,17 +396,18 @@ const NetworkGraph = ({
       mega_whale: filteredNodes.filter(n => n.classification === 'mega_whale').length,
       whale: filteredNodes.filter(n => n.classification === 'whale').length,
       institutional: filteredNodes.filter(n => n.classification === 'institutional').length,
-      large_wallet: filteredNodes.filter(n => n.classification === 'large_wallet').length
+      large_wallet: filteredNodes.filter(n => n.classification === 'large_wallet').length,
+      medium_wallet: filteredNodes.filter(n => n.classification === 'medium_wallet').length
     };
     
     const totalVolume = filteredNodes.reduce((sum, node) => 
       sum + (Number(node.total_volume_usd || node.total_volume) || 0), 0
     );
-  
+
     const verifiedCount = filteredNodes.filter(n => 
       (n.tags || []).some(tag => tag.includes('verified'))
     ).length;
-  
+
     setStats({
       nodes: nodeCount,
       totalNodes: data.nodes.length,
@@ -395,10 +418,18 @@ const NetworkGraph = ({
       walletsByClass: walletsByClass,    // ✅ NEW
       totalVolume
     });
+
+    console.log('📊 Stats updated:', {
+      visible: nodeCount,
+      total: data.nodes.length,
+      edges: edgeCount,
+      wallets: walletCount,
+      walletsByClass
+    });
   }, [data, discoveredDesks, activeFilters]);
 
   // ============================================================================
-  // ✅ FIXED: FORMAT GRAPH DATA
+  // FORMAT GRAPH DATA
   // ============================================================================
 
   const formatGraphData = (graphData) => {
@@ -413,11 +444,12 @@ const NetworkGraph = ({
       activeFilters: {
         tags: activeFilters.tags.length,
         entityTypes: activeFilters.entityTypes.length,
-        confidenceRange: activeFilters.confidenceRange
+        confidenceRange: activeFilters.confidenceRange,
+        walletClassifications: activeFilters.walletClassifications.length  // ✅ NEW
       }
     });
   
-    // ✅ STEP 1: Filter nodes FIRST
+    // Filter nodes
     const visibleNodes = rawNodes.filter(node => {
       if (!node || !node.address) return false;
       return shouldShowNode(node);
@@ -428,14 +460,12 @@ const NetworkGraph = ({
       filtered_out: rawNodes.length - visibleNodes.length
     });
     
-    // ✅ STEP 2: Build visible address set
+    // Build visible address set
     const visibleAddressSet = new Set(
       visibleNodes.map(node => node.address.toLowerCase())
     );
     
-    console.log('📋 Visible addresses:', Array.from(visibleAddressSet).slice(0, 3));
-    
-    // ✅ STEP 3: Format nodes
+    // Format nodes
     const formattedNodes = visibleNodes.map(node => {
       let cleanLabel = node.label;
       if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
@@ -448,22 +478,26 @@ const NetworkGraph = ({
           address: node.address,
           label: cleanLabel,
           entity_type: node.entity_type || 'unknown',
+          node_type: node.node_type,                          // ✅ NEW
+          classification: node.classification,                // ✅ NEW
           entity_name: node.entity_name,
           total_volume_usd: Number(node.total_volume_usd || node.total_volume) || 0,
-          // ✅ FIX #2: Confidence ist bereits 0-100, NICHT multiplizieren!
+          total_volume: Number(node.total_volume_usd || node.total_volume) || 0,  // ✅ NEW
           confidence_score: node.confidence_score || node.confidence || 50,
           is_active: Boolean(node.is_active),
-          transaction_count: Number(node.transaction_count) || 0,
+          transaction_count: Number(node.transaction_count || node.tx_count) || 0,
           tags: node.tags || [],
+          categorized_tags: node.categorized_tags,            // ✅ NEW
+          volume_score: node.volume_score,                    // ✅ NEW
+          avg_transaction: node.avg_transaction,              // ✅ NEW
           first_seen: node.first_seen,
           last_active: node.last_active
         }
       };
     });
   
-    // ✅ STEP 4: Filter edges based on VISIBLE nodes
-    let debugCount = 0;
-    const formattedEdges = rawEdges
+    // Filter edges
+    const filteredEdges = rawEdges
       .map((edge) => {
         const edgeData = edge.data || edge;
         
@@ -474,21 +508,7 @@ const NetworkGraph = ({
         const sourceNormalized = edgeData.source.toLowerCase();
         const targetNormalized = edgeData.target.toLowerCase();
         
-        const sourceVisible = visibleAddressSet.has(sourceNormalized);
-        const targetVisible = visibleAddressSet.has(targetNormalized);
-        
-        if (debugCount < 3) {
-          console.log(`🔍 Edge #${debugCount + 1}:`, {
-            source: sourceNormalized.substring(0, 10) + '...',
-            target: targetNormalized.substring(0, 10) + '...',
-            sourceVisible,
-            targetVisible,
-            willInclude: sourceVisible && targetVisible
-          });
-          debugCount++;
-        }
-        
-        if (!sourceVisible || !targetVisible) {
+        if (!visibleAddressSet.has(sourceNormalized) || !visibleAddressSet.has(targetNormalized)) {
           return null;
         }
   
@@ -508,11 +528,10 @@ const NetworkGraph = ({
   
     console.log('✅ Final formatted data:', {
       nodes: formattedNodes.length,
-      edges: formattedEdges.length,
-      edgeFilteredOut: rawEdges.length - formattedEdges.length
+      edges: filteredEdges.length
     });
   
-    return [...formattedNodes, ...formattedEdges];
+    return [...formattedNodes, ...filteredEdges];
   };
   
   // ============================================================================
@@ -555,7 +574,6 @@ const NetworkGraph = ({
               const displayLabel = label || truncateAddress(address);
               return icon ? `${icon} ${displayLabel}` : displayLabel;
             },
-            // ✅ FIX #3: Confidence ist bereits 0-100, normalisieren auf 0.75-1.0
             'opacity': (ele) => {
               const confidence = ele.data('confidence_score') || 50;
               return Math.max(0.75, Math.min(1.0, confidence / 100));
@@ -791,6 +809,16 @@ const NetworkGraph = ({
     }));
   };
 
+  // ✅ NEW: Toggle Wallet Classification
+  const toggleWalletClassification = (classification) => {
+    setPendingFilters(prev => ({
+      ...prev,
+      walletClassifications: prev.walletClassifications.includes(classification)
+        ? prev.walletClassifications.filter(c => c !== classification)
+        : [...prev.walletClassifications, classification]
+    }));
+  };
+
   const updateConfidenceRange = (newRange) => {
     setPendingFilters(prev => ({
       ...prev,
@@ -806,7 +834,9 @@ const NetworkGraph = ({
     <div className="network-graph-container enhanced">
       <div className="network-graph" ref={containerRef}></div>
       
-      {/* STATISTICS PANEL */}
+      {/* ============================================================================
+          STATISTICS PANEL with Wallet Breakdown
+          ============================================================================ */}
       {stats && (
         <div className="graph-stats-panel">
           <div className="stat-item">
@@ -838,7 +868,6 @@ const NetworkGraph = ({
                 <span className="stat-value">{stats.wallets}</span>
                 <span className="stat-label">HV Wallets</span>
               </div>
-              {/* Breakdown */}
               <div className="stat-breakdown">
                 {stats.walletsByClass.mega_whale > 0 && (
                   <span className="stat-breakdown-item" title="Mega Whales">
@@ -893,7 +922,10 @@ const NetworkGraph = ({
           </div>
         </div>
       )}
-      {/* HOVER INFO PANEL */}
+
+      {/* ============================================================================
+          ENHANCED HOVER INFO PANEL with Categorized Tags
+          ============================================================================ */}
       {hoveredNode && (
         <div className="hover-info-panel">
           <div className="hover-info-header">
@@ -930,10 +962,12 @@ const NetworkGraph = ({
             
             <div className="hover-info-row">
               <span className="hover-label">Volume:</span>
-              <span className="hover-value">{formatValue(hoveredNode.total_volume_usd || hoveredNode.total_volume)}</span>
+              <span className="hover-value">
+                {formatValue(hoveredNode.total_volume_usd || hoveredNode.total_volume)}
+              </span>
             </div>
             
-            {/* ✅ NEW: Volume Score für Wallets */}
+            {/* ✅ NEW: Volume Score */}
             {hoveredNode.volume_score && (
               <div className="hover-info-row">
                 <span className="hover-label">Volume Score:</span>
@@ -949,11 +983,11 @@ const NetworkGraph = ({
             <div className="hover-info-row">
               <span className="hover-label">Transactions:</span>
               <span className="hover-value">
-                {(hoveredNode.transaction_count || hoveredNode.tx_count || 0).toLocaleString()}
+                {(hoveredNode.transaction_count || 0).toLocaleString()}
               </span>
             </div>
             
-            {/* ✅ NEW: Average Transaction für Wallets */}
+            {/* ✅ NEW: Average Transaction */}
             {hoveredNode.avg_transaction && (
               <div className="hover-info-row">
                 <span className="hover-label">Avg Transaction:</span>
@@ -1025,7 +1059,9 @@ const NetworkGraph = ({
         </div>
       )}
       
-      {/* FILTER PANEL WITH APPLY BUTTON */}
+      {/* ============================================================================
+          FILTER PANEL with Wallet Classifications
+          ============================================================================ */}
       <div className={`filter-panel ${showFilters ? 'open' : ''}`}>
         <div className="filter-header">
           <h3 className="filter-title">
@@ -1111,6 +1147,57 @@ const NetworkGraph = ({
               </div>
             </div>
 
+            {/* ✅ NEW: Wallet Classifications */}
+            {availableWalletClassifications.length > 0 && (
+              <div className="filter-section">
+                <div className="filter-section-header">
+                  <span className="filter-section-title">Wallet Classifications</span>
+                  {pendingFilters.walletClassifications.length > 0 && (
+                    <button 
+                      className="filter-clear-btn"
+                      onClick={() => setPendingFilters(prev => ({ 
+                        ...prev, 
+                        walletClassifications: [] 
+                      }))}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="filter-options">
+                  {availableWalletClassifications.map(classification => {
+                    const count = data?.nodes?.filter(n => n.classification === classification).length || 0;
+                    
+                    return (
+                      <button
+                        key={classification}
+                        className={`filter-option ${
+                          pendingFilters.walletClassifications.includes(classification) ? 'selected' : ''
+                        }`}
+                        onClick={() => toggleWalletClassification(classification)}
+                        style={{
+                          borderColor: pendingFilters.walletClassifications.includes(classification) 
+                            ? walletClassificationColors[classification] 
+                            : 'transparent',
+                          background: pendingFilters.walletClassifications.includes(classification)
+                            ? `${walletClassificationColors[classification]}22`
+                            : 'rgba(40,40,40,0.8)'
+                        }}
+                      >
+                        <span className="filter-option-icon">
+                          {getWalletClassificationIcon(classification)}
+                        </span>
+                        <span className="filter-option-label">
+                          {classification.replace('_', ' ')}
+                        </span>
+                        <span className="filter-option-count">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Tags */}
             <div className="filter-section">
               <div className="filter-section-header">
@@ -1171,6 +1258,7 @@ const NetworkGraph = ({
               
               {(activeFilters.tags.length > 0 || 
                 activeFilters.entityTypes.length > 0 || 
+                activeFilters.walletClassifications.length > 0 ||  // ✅ NEW
                 activeFilters.confidenceRange[0] > 0 || 
                 activeFilters.confidenceRange[1] < 100) && (
                 <button 
@@ -1184,66 +1272,10 @@ const NetworkGraph = ({
           </div>
         )}
       </div>
-      {/* Wallet Classifications */}
-      <div className="filter-section">
-        <div className="filter-section-header">
-          <span className="filter-section-title">Wallet Classifications</span>
-          {pendingFilters.walletClassifications?.length > 0 && (
-            <button 
-              className="filter-clear-btn"
-              onClick={() => setPendingFilters(prev => ({ 
-                ...prev, 
-                walletClassifications: [] 
-              }))}
-            >
-              Clear
-            </button>
-          )}
-        </div>
-        <div className="filter-options">
-          {['mega_whale', 'whale', 'institutional', 'large_wallet', 'medium_wallet'].map(classification => {
-            const count = data?.nodes?.filter(n => n.classification === classification).length || 0;
-            if (count === 0) return null;
-            
-            return (
-              <button
-                key={classification}
-                className={`filter-option ${
-                  pendingFilters.walletClassifications?.includes(classification) ? 'selected' : ''
-                }`}
-                onClick={() => {
-                  setPendingFilters(prev => {
-                    const current = prev.walletClassifications || [];
-                    return {
-                      ...prev,
-                      walletClassifications: current.includes(classification)
-                        ? current.filter(c => c !== classification)
-                        : [...current, classification]
-                    };
-                  });
-                }}
-                style={{
-                  borderColor: pendingFilters.walletClassifications?.includes(classification) 
-                    ? walletClassificationColors[classification] 
-                    : 'transparent',
-                  background: pendingFilters.walletClassifications?.includes(classification)
-                    ? `${walletClassificationColors[classification]}22`
-                    : 'rgba(40,40,40,0.8)'
-                }}
-              >
-                <span className="filter-option-icon">
-                  {getWalletClassificationIcon(classification)}
-                </span>
-                <span className="filter-option-label">
-                  {classification.replace('_', ' ')}
-                </span>
-                <span className="filter-option-count">({count})</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      {/* LEGEND */}
+
+      {/* ============================================================================
+          ENTITY TYPES LEGEND
+          ============================================================================ */}
       <div className="graph-legend enhanced">
         <h4 className="legend-title">ENTITY TYPES</h4>
         {Object.entries(entityColors).map(([type, color]) => {
@@ -1275,7 +1307,9 @@ const NetworkGraph = ({
         })}
       </div>
 
-      {/* WALLET CLASSIFICATIONS LEGEND */}
+      {/* ============================================================================
+          ✅ NEW: WALLET CLASSIFICATIONS LEGEND
+          ============================================================================ */}
       {stats && stats.wallets > 0 && (
         <div className="graph-legend wallet-legend enhanced">
           <h4 className="legend-title">WALLET TYPES</h4>
@@ -1290,15 +1324,7 @@ const NetworkGraph = ({
                   activeFilters.walletClassifications.includes(classification) ? 'active' : ''
                 }`}
                 onClick={() => {
-                  setPendingFilters(prev => {
-                    const current = prev.walletClassifications || [];
-                    return {
-                      ...prev,
-                      walletClassifications: current.includes(classification)
-                        ? current.filter(c => c !== classification)
-                        : [...current, classification]
-                    };
-                  });
+                  toggleWalletClassification(classification);
                   setTimeout(() => applyFilters(), 100);
                 }}
               >
@@ -1322,7 +1348,9 @@ const NetworkGraph = ({
         </div>
       )}
 
-      {/* CONTROLS */}
+      {/* ============================================================================
+          CONTROLS
+          ============================================================================ */}
       <div className="graph-controls enhanced">
         <button 
           onClick={() => cyRef.current?.fit(60)} 
@@ -1363,7 +1391,9 @@ const NetworkGraph = ({
         </button>
       </div>
 
-      {/* CONTEXT MENU */}
+      {/* ============================================================================
+          CONTEXT MENU
+          ============================================================================ */}
       {contextMenu && (
         <div 
           className="context-menu"
