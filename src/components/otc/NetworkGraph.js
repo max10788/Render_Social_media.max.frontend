@@ -372,27 +372,36 @@ const NetworkGraph = ({
       isDiscoveredDesk(n.address)
     ).length;
     
+    // ✅ NEW: Count high-volume wallets
+    const walletCount = filteredNodes.filter(n => 
+      n.node_type === 'high_volume_wallet' || n.classification
+    ).length;
+    
+    // ✅ NEW: Count by wallet classification
+    const walletsByClass = {
+      mega_whale: filteredNodes.filter(n => n.classification === 'mega_whale').length,
+      whale: filteredNodes.filter(n => n.classification === 'whale').length,
+      institutional: filteredNodes.filter(n => n.classification === 'institutional').length,
+      large_wallet: filteredNodes.filter(n => n.classification === 'large_wallet').length
+    };
+    
     const totalVolume = filteredNodes.reduce((sum, node) => 
       sum + (Number(node.total_volume_usd || node.total_volume) || 0), 0
     );
-
+  
     const verifiedCount = filteredNodes.filter(n => 
       (n.tags || []).some(tag => tag.includes('verified'))
     ).length;
-
+  
     setStats({
       nodes: nodeCount,
       totalNodes: data.nodes.length,
       edges: edgeCount,
       discovered: discoveredCount,
       verified: verifiedCount,
+      wallets: walletCount,              // ✅ NEW
+      walletsByClass: walletsByClass,    // ✅ NEW
       totalVolume
-    });
-
-    console.log('📊 Stats updated:', {
-      visible: nodeCount,
-      total: data.nodes.length,
-      edges: edgeCount
     });
   }, [data, discoveredDesks, activeFilters]);
 
