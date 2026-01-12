@@ -31,15 +31,17 @@ const NetworkGraph = ({
   // FILTER STATE - Apply Filters System
   // ============================================================================
   const [activeFilters, setActiveFilters] = useState({
-    tags: [],                    // Empty = show all
-    entityTypes: [],             // Empty = show all
-    confidenceRange: [0, 100]    // 0-100 = show all
+    tags: [],
+    entityTypes: [],
+    confidenceRange: [0, 100],
+    walletClassifications: []  // ✅ NEW
   });
   
   const [pendingFilters, setPendingFilters] = useState({
     tags: [],
     entityTypes: [],
-    confidenceRange: [0, 100]
+    confidenceRange: [0, 100],
+    walletClassifications: []  // ✅ NEW
   });
   
   const [showFilters, setShowFilters] = useState(false);
