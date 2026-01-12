@@ -235,6 +235,17 @@ const NetworkGraph = ({
     return 'solid';
   };
 
+  const getWalletClassificationIcon = (classification) => {
+    const icons = {
+      mega_whale: '🐋',
+      whale: '🐳',
+      institutional: '🏛️',
+      large_wallet: '💼',
+      medium_wallet: '💰'
+    };
+    return icons[classification] || '';
+  };
+  
   const getNodeIcon = (node) => {
     const tags = node.tags || [];
     
