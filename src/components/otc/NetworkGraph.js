@@ -174,7 +174,15 @@ const NetworkGraph = ({
   const getNodeColor = (node) => {
     const tags = node.tags || [];
     const entityType = node.entity_type;
+    const nodeType = node.node_type; // ✅ NEW: unterscheidet otc_desk vs high_volume_wallet
+    const classification = node.classification;
     
+    // ✅ PRIORITY 1: High-Volume Wallet Classifications
+    if (nodeType === 'high_volume_wallet' && classification) {
+      return walletClassificationColors[classification] || walletClassificationColors.medium_wallet;
+    }
+    
+    // PRIORITY 2: Tag-based colors (existing logic)
     for (let i = tagPriority.length - 1; i >= 0; i--) {
       const priorityTag = tagPriority[i];
       if (tags.includes(priorityTag) && tagColors[priorityTag]) {
@@ -193,9 +201,10 @@ const NetworkGraph = ({
       }
     }
     
+    // PRIORITY 3: Entity type fallback
     return entityColors[entityType] || entityColors.unknown;
   };
-
+  
   const getNodeBorderStyle = (node) => {
     const tags = node.tags || [];
     if (tags.includes('verified') || tags.includes('verified_otc_desk')) {
