@@ -9,6 +9,7 @@ import { format, subDays } from 'date-fns';
  * - Resolved circular dependency issue with applyWalletFilters
  * - Fixed "Cannot access 're' before initialization" error
  * - Proper initialization order for callbacks and effects
+ * - Fixed duplicate fetchDiscoveredWallets declaration
  */
 export const useOTCData = () => {
   // ============================================================================
@@ -346,7 +347,7 @@ export const useOTCData = () => {
           totalEdges: safeData.edges.length
         });
 
-        // ✅ NEU: Merge discoveredWallets in die Network Nodes
+        // ✅ Merge discoveredWallets into Network Nodes
         if (filters.showHighVolumeWallets && discoveredWallets.length > 0) {
           console.log('🔄 Merging discovered wallets into network data:', discoveredWallets.length);
           
@@ -354,15 +355,15 @@ export const useOTCData = () => {
             safeData.nodes.map(n => n.address?.toLowerCase())
           );
           
-          // Füge Wallets hinzu, die noch nicht in den Nodes sind
+          // Add wallets that are not already in nodes
           const newWalletNodes = discoveredWallets
             .filter(wallet => !existingAddresses.has(wallet.address?.toLowerCase()))
             .map(wallet => ({
               address: wallet.address,
               label: wallet.label || wallet.entity_name,
               entity_type: wallet.entity_type || 'unknown',
-              node_type: 'high_volume_wallet',  // ✅ WICHTIG
-              classification: wallet.classification,  // ✅ WICHTIG
+              node_type: 'high_volume_wallet',  // ✅ IMPORTANT
+              classification: wallet.classification,  // ✅ IMPORTANT
               categorized_tags: wallet.categorized_tags,
               volume_score: wallet.volume_score,
               total_volume_usd: wallet.total_volume || wallet.total_volume_usd,
@@ -414,8 +415,8 @@ export const useOTCData = () => {
     filters.maxNodes,
     filters.showHighVolumeWallets,
     filters,
-    discoveredWallets  // ✅ NEU: Re-merge wenn sich Wallets ändern
-  ])
+    discoveredWallets  // ✅ Re-merge when wallets change
+  ]);
 
   const fetchSankeyData = useCallback(async () => {
     setLoading(prev => ({ ...prev, sankey: true }));
@@ -1006,12 +1007,15 @@ export const useOTCData = () => {
       try {
         setLoading(prev => ({ ...prev, initial: true }));
         
+        // ✅ CRITICAL: Load wallets FIRST, then network data (which merges them)
+        await fetchDiscoveredWallets();
+        
+        // Now load everything else in parallel
         await Promise.all([
-          fetchNetworkData(),
+          fetchNetworkData(),  // This will now have discoveredWallets available
           fetchSankeyData(),
           fetchStatistics(),
           fetchAllDesks(),
-          fetchDiscoveredWallets(),  // ✅ WICHTIG: Wallets laden
           fetchDiscoveryStats()
         ]);
         
@@ -1023,26 +1027,8 @@ export const useOTCData = () => {
     };
   
     loadInitialData();
-  }, []);
-  
-  // ✅ Die Fetch-Funktion:
-  const fetchDiscoveredWallets = async () => {
-    try {
-      setLoading(prev => ({ ...prev, discoveredWallets: true }));
-      
-      const response = await otcAnalysisService.getDiscoveredWallets({
-        minTotalVolume: 1000000
-      });
-      
-      setDiscoveredWallets(response.wallets || []);
-      
-    } catch (error) {
-      console.error('Error fetching discovered wallets:', error);
-      setErrors(prev => ({ ...prev, discoveredWallets: error.message }));
-    } finally {
-      setLoading(prev => ({ ...prev, discoveredWallets: false }));
-    }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ✅ Run only once on mount
 
   // ============================================================================
   // RETURN
