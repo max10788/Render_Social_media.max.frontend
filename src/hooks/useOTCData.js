@@ -3,16 +3,12 @@ import otcAnalysisService from '../services/otcAnalysisService';
 import { format, subDays } from 'date-fns';
 
 /**
- * ✅ EXTENDED: Custom hook for OTC Analysis data management
+ * ✅ FIXED: Custom hook for OTC Analysis data management
  * 
- * NEW FEATURES:
- * - High-Volume Wallet Discovery & Filtering
- * - Wallet Classification Filtering (mega_whale, institutional, etc.)
- * - Advanced Tag-based Filtering
- * - Combined OTC Desk + High-Volume Wallet Network Graph
- * - Wallet Tag Descriptions & Categorization
- * 
- * ✅ FIXED: Resolved circular dependency issues
+ * FIXES:
+ * - Resolved circular dependency issue with applyWalletFilters
+ * - Fixed "Cannot access 're' before initialization" error
+ * - Proper initialization order for callbacks and effects
  */
 export const useOTCData = () => {
   // ============================================================================
@@ -28,58 +24,50 @@ export const useOTCData = () => {
     tokens: ['ETH', 'USDT', 'USDC'],
     maxNodes: 500,
     
-    // OTC Desk Discovery Filters
     showDiscovered: true,
     showVerified: true,
     showDbValidated: true,
-    deskCategory: 'all', // 'all', 'verified', 'discovered', 'db_validated'
+    deskCategory: 'all',
     
-    // ✅ NEW: High-Volume Wallet Filters
-    showHighVolumeWallets: true,              // Show discovered high-volume wallets
-    walletClassifications: [                   // Which wallet types to show
+    showHighVolumeWallets: true,
+    walletClassifications: [
       'mega_whale',
       'whale', 
       'institutional',
       'large_wallet'
     ],
-    minVolumeScore: 60,                        // Minimum volume score (0-100)
-    minTotalVolume: 1000000,                   // Minimum total volume USD
+    minVolumeScore: 60,
+    minTotalVolume: 1000000,
     
-    // ✅ NEW: Combined Entity Filtering
-    entityFilter: 'all',                       // 'all', 'otc_only', 'wallets_only'
+    entityFilter: 'all',
     
-    // Network Graph Wallet Filters (CLIENT-SIDE)
-    includeTags: [],        // Only show wallets WITH these tags (empty = all allowed)
-    excludeTags: [],        // Hide wallets WITH these tags
-    walletAddresses: []     // Show ONLY these addresses (overrides all other filters)
+    includeTags: [],
+    excludeTags: [],
+    walletAddresses: []
   });
 
   // ============================================================================
   // DATA STATE
   // ============================================================================
   
-  const [rawNetworkData, setRawNetworkData] = useState(null); // Raw unfiltered data
-  const [networkData, setNetworkData] = useState(null);       // Filtered data
+  const [rawNetworkData, setRawNetworkData] = useState(null);
+  const [networkData, setNetworkData] = useState(null);
   const [sankeyData, setSankeyData] = useState(null);
   const [statistics, setStatistics] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [walletDetails, setWalletDetails] = useState(null);
   
-  // OTC Desk Discovery State
   const [allDesks, setAllDesks] = useState([]);
   const [discoveredDesks, setDiscoveredDesks] = useState([]);
   const [discoveryStats, setDiscoveryStats] = useState(null);
   
-  // ✅ NEW: High-Volume Wallet Discovery State
   const [discoveredWallets, setDiscoveredWallets] = useState([]);
   const [walletDiscoveryStats, setWalletDiscoveryStats] = useState(null);
   const [walletTagDescriptions, setWalletTagDescriptions] = useState(null);
   
-  // ✅ NEW: Combined entities (OTC desks + high-volume wallets)
   const [allEntities, setAllEntities] = useState([]);
   
-  // Loading and error states
   const [loading, setLoading] = useState({
     network: false,
     sankey: false,
@@ -89,9 +77,9 @@ export const useOTCData = () => {
     discovery: false,
     desks: false,
     discoveryStats: false,
-    walletDiscovery: false,      // ✅ NEW
-    walletTagDescriptions: false, // ✅ NEW
-    entities: false               // ✅ NEW
+    walletDiscovery: false,
+    walletTagDescriptions: false,
+    entities: false
   });
   
   const [errors, setErrors] = useState({
@@ -102,46 +90,21 @@ export const useOTCData = () => {
     walletDetails: null,
     discovery: null,
     desks: null,
-    walletDiscovery: null,        // ✅ NEW
-    entities: null                 // ✅ NEW
+    walletDiscovery: null,
+    entities: null
   });
 
-  // ✅ FIX: Use ref to track if initial load is complete
   const initialLoadComplete = useRef(false);
 
   // ============================================================================
-  // HELPER FUNCTIONS
+  // ✅ FIX: PURE FILTER FUNCTION (No useCallback, no deps)
   // ============================================================================
 
   /**
-   * Ensure data is safe
+   * ✅ CRITICAL FIX: This is now a plain function, not useCallback
+   * This prevents circular dependency issues
    */
-  const ensureSafeData = useCallback((data) => {
-    if (!data) return null;
-    
-    if (data.tags && !Array.isArray(data.tags)) {
-      console.warn('Converting non-array tags to array:', data.tags);
-      data.tags = [];
-    }
-    
-    if (data.activity_data && !Array.isArray(data.activity_data)) {
-      console.warn('Converting non-array activity_data to array');
-      data.activity_data = [];
-    }
-    
-    if (data.transfer_size_data && !Array.isArray(data.transfer_size_data)) {
-      console.warn('Converting non-array transfer_size_data to array');
-      data.transfer_size_data = [];
-    }
-    
-    return data;
-  }, []);
-
-  /**
-   * ✅ NEW: Enhanced wallet filtering with high-volume wallet support
-   * ✅ FIX: Made pure function with no dependencies
-   */
-  const applyWalletFilters = useCallback((data, filterSettings) => {
+  const applyWalletFilters = (data, filterSettings) => {
     if (!data || !data.nodes) return data;
 
     let filteredNodes = [...data.nodes];
@@ -150,28 +113,21 @@ export const useOTCData = () => {
       totalNodes: filteredNodes.length,
       totalEdges: data.edges?.length || 0,
       filters: {
-        // OTC Desk filters
         showDiscovered: filterSettings.showDiscovered,
         showVerified: filterSettings.showVerified,
         showDbValidated: filterSettings.showDbValidated,
-        
-        // High-volume wallet filters
         showHighVolumeWallets: filterSettings.showHighVolumeWallets,
         walletClassifications: filterSettings.walletClassifications,
         minVolumeScore: filterSettings.minVolumeScore,
         minTotalVolume: filterSettings.minTotalVolume,
-        
-        // Entity type filter
         entityFilter: filterSettings.entityFilter,
-        
-        // Tag filters
         includeTags: filterSettings.includeTags,
         excludeTags: filterSettings.excludeTags,
         walletAddresses: filterSettings.walletAddresses?.length || 0
       }
     });
 
-    // ✅ PRIORITY 1: Specific wallet addresses (overrides everything)
+    // PRIORITY 1: Specific wallet addresses
     if (filterSettings.walletAddresses && filterSettings.walletAddresses.length > 0) {
       const addressSet = new Set(
         filterSettings.walletAddresses.map(addr => addr.toLowerCase())
@@ -186,7 +142,7 @@ export const useOTCData = () => {
         found: filteredNodes.length
       });
     } else {
-      // ✅ STEP 2: Entity Type Filter (OTC only, Wallets only, or All)
+      // STEP 2: Entity Type Filter
       if (filterSettings.entityFilter !== 'all') {
         filteredNodes = filteredNodes.filter(node => {
           const nodeType = node.node_type || node.entity_type;
@@ -208,13 +164,12 @@ export const useOTCData = () => {
         });
       }
       
-      // ✅ STEP 3: OTC Desk Category Filters
+      // STEP 3: OTC Desk & Wallet Category Filters
       filteredNodes = filteredNodes.filter(node => {
         const nodeType = node.node_type || node.entity_type;
         const category = node.desk_category || 'unknown';
         const tags = node.tags || [];
         
-        // Skip wallet filtering for OTC desks
         if (nodeType === 'otc_desk' || nodeType === 'exchange') {
           if (category === 'discovered' && !filterSettings.showDiscovered) return false;
           if (category === 'db_validated' && !filterSettings.showDbValidated) return false;
@@ -227,12 +182,9 @@ export const useOTCData = () => {
           return true;
         }
         
-        // ✅ STEP 4: High-Volume Wallet Filters
         if (nodeType === 'high_volume_wallet' || node.classification) {
-          // Check if we should show high-volume wallets at all
           if (!filterSettings.showHighVolumeWallets) return false;
           
-          // Check classification filter
           const classification = node.classification;
           if (classification && filterSettings.walletClassifications?.length > 0) {
             if (!filterSettings.walletClassifications.includes(classification)) {
@@ -240,11 +192,9 @@ export const useOTCData = () => {
             }
           }
           
-          // Check volume score
           const volumeScore = node.volume_score || 0;
           if (volumeScore < filterSettings.minVolumeScore) return false;
           
-          // Check total volume
           const totalVolume = node.total_volume || node.total_volume_usd || 0;
           if (totalVolume < filterSettings.minTotalVolume) return false;
           
@@ -254,17 +204,11 @@ export const useOTCData = () => {
         return true;
       });
 
-      console.log('✅ After OTC/Wallet category filter:', {
-        remaining: filteredNodes.length,
-        otcDesks: filteredNodes.filter(n => 
-          n.node_type === 'otc_desk' || n.entity_type === 'otc_desk'
-        ).length,
-        highVolumeWallets: filteredNodes.filter(n => 
-          n.node_type === 'high_volume_wallet' || n.classification
-        ).length
+      console.log('✅ After category filter:', {
+        remaining: filteredNodes.length
       });
 
-      // ✅ STEP 5: Include tags filter (must have at least one of these tags)
+      // STEP 4: Include tags filter
       if (filterSettings.includeTags && filterSettings.includeTags.length > 0) {
         filteredNodes = filteredNodes.filter(node => {
           const tags = node.tags || [];
@@ -272,12 +216,11 @@ export const useOTCData = () => {
         });
         
         console.log('✅ After include tags filter:', {
-          remaining: filteredNodes.length,
-          tags: filterSettings.includeTags
+          remaining: filteredNodes.length
         });
       }
 
-      // ✅ STEP 6: Exclude tags filter
+      // STEP 5: Exclude tags filter
       if (filterSettings.excludeTags && filterSettings.excludeTags.length > 0) {
         filteredNodes = filteredNodes.filter(node => {
           const tags = node.tags || [];
@@ -285,63 +228,28 @@ export const useOTCData = () => {
         });
         
         console.log('✅ After exclude tags filter:', {
-          remaining: filteredNodes.length,
-          excludedTags: filterSettings.excludeTags
+          remaining: filteredNodes.length
         });
       }
     }
 
-    // ✅ Filter edges
+    // Filter edges
     const visibleAddresses = new Set(
       filteredNodes.map(n => n.address?.toLowerCase())
     );
     
-    console.log('🔍 Filtering edges:', {
-      totalEdges: data.edges?.length || 0,
-      visibleNodes: visibleAddresses.size
-    });
-    
-    let edgeDebugCount = 0;
     const filteredEdges = (data.edges || []).filter(edge => {
       const edgeData = edge.data || edge;
       
       const sourceAddr = (edgeData.from || edgeData.source || edgeData.from_address)?.toLowerCase();
       const targetAddr = (edgeData.to || edgeData.target || edgeData.to_address)?.toLowerCase();
       
-      const isVisible = visibleAddresses.has(sourceAddr) && visibleAddresses.has(targetAddr);
-      
-      if (edgeDebugCount < 3) {
-        console.log('🔍 Edge check:', {
-          hasData: !!edge.data,
-          source: sourceAddr?.substring(0, 10) + '...',
-          target: targetAddr?.substring(0, 10) + '...',
-          sourceVisible: visibleAddresses.has(sourceAddr),
-          targetVisible: visibleAddresses.has(targetAddr),
-          isVisible
-        });
-        edgeDebugCount++;
-      }
-      
-      return isVisible;
+      return visibleAddresses.has(sourceAddr) && visibleAddresses.has(targetAddr);
     });
 
     console.log('📊 Final filtered result:', {
       nodes: filteredNodes.length,
-      edges: filteredEdges.length,
-      breakdown: {
-        otcDesks: filteredNodes.filter(n => 
-          n.node_type === 'otc_desk' || n.entity_type === 'otc_desk'
-        ).length,
-        highVolumeWallets: filteredNodes.filter(n => 
-          n.node_type === 'high_volume_wallet' || n.classification
-        ).length,
-        byClassification: {
-          mega_whale: filteredNodes.filter(n => n.classification === 'mega_whale').length,
-          whale: filteredNodes.filter(n => n.classification === 'whale').length,
-          institutional: filteredNodes.filter(n => n.classification === 'institutional').length,
-          large_wallet: filteredNodes.filter(n => n.classification === 'large_wallet').length
-        }
-      }
+      edges: filteredEdges.length
     });
 
     return {
@@ -356,19 +264,41 @@ export const useOTCData = () => {
         filtered_edge_count: filteredEdges.length
       }
     };
-  }, []); // ✅ FIX: Empty deps - function is pure, receives filterSettings as parameter
+  };
 
-  /**
-   * Update filters
-   */
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
+
+  const ensureSafeData = useCallback((data) => {
+    if (!data) return null;
+    
+    if (data.tags && !Array.isArray(data.tags)) {
+      console.warn('Converting non-array tags to array:', data.tags);
+      data.tags = [];
+    }
+    
+    if (data.activity_data && !Array.isArray(data.activity_data)) {
+      console.warn('Converting non-array activity_data to array');
+      data.activity_data = [];
+    }
+    
+    if (data.transfer_size_data && !Array.isArray(data.transfer_size_data)) {
+      console.warn('Converting non-array transfer_size_data to array');
+      data.transfer_size_data = [];
+    }
+    
+    return data;
+  }, []);
+
   const updateFilters = useCallback((newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   }, []);
 
   /**
-   * Apply filters manually
+   * ✅ FIX: applyFilters now calls the plain function
    */
-  const applyFilters = useCallback(() => {
+  const applyFiltersManually = useCallback(() => {
     if (!rawNetworkData) {
       console.warn('⚠️ No raw network data available to filter');
       return;
@@ -377,251 +307,14 @@ export const useOTCData = () => {
     console.log('🔄 Applying filters manually...');
     const filtered = applyWalletFilters(rawNetworkData, filters);
     setNetworkData(filtered);
-  }, [rawNetworkData, filters, applyWalletFilters]);
+  }, [rawNetworkData, filters]); // ✅ No circular dependency
 
   // ============================================================================
-  // ✅ NEW: HIGH-VOLUME WALLET DISCOVERY FUNCTIONS
-  // ============================================================================
-
-  /**
-   * Fetch discovered high-volume wallets
-   */
-  const fetchDiscoveredWallets = useCallback(async () => {
-    setLoading(prev => ({ ...prev, walletDiscovery: true }));
-    setErrors(prev => ({ ...prev, walletDiscovery: null }));
-    
-    try {
-      // This would call your discovery endpoint
-      const response = await otcAnalysisService.getDiscoveredWallets({
-        minVolumeScore: filters.minVolumeScore,
-        minTotalVolume: filters.minTotalVolume,
-        classifications: filters.walletClassifications
-      });
-      
-      const wallets = response.data?.wallets || response.wallets || [];
-      
-      setDiscoveredWallets(wallets);
-      
-      console.log('✅ Discovered wallets loaded:', {
-        total: wallets.length,
-        byClassification: {
-          mega_whale: wallets.filter(w => w.classification === 'mega_whale').length,
-          whale: wallets.filter(w => w.classification === 'whale').length,
-          institutional: wallets.filter(w => w.classification === 'institutional').length,
-          large_wallet: wallets.filter(w => w.classification === 'large_wallet').length
-        }
-      });
-      
-      return wallets;
-    } catch (error) {
-      setErrors(prev => ({ ...prev, walletDiscovery: error.message }));
-      console.error('Error fetching discovered wallets:', error);
-      setDiscoveredWallets([]);
-      return [];
-    } finally {
-      setLoading(prev => ({ ...prev, walletDiscovery: false }));
-    }
-  }, [filters.minVolumeScore, filters.minTotalVolume, filters.walletClassifications]);
-
-  /**
-   * ✅ NEW: Fetch wallet tag descriptions
-   */
-  const fetchWalletTagDescriptions = useCallback(async () => {
-    setLoading(prev => ({ ...prev, walletTagDescriptions: true }));
-    
-    try {
-      const response = await otcAnalysisService.getWalletTagDescriptions();
-      setWalletTagDescriptions(response);
-      
-      console.log('✅ Wallet tag descriptions loaded:', {
-        totalTags: response.total_tags,
-        categories: Object.keys(response.by_category || {})
-      });
-      
-      return response;
-    } catch (error) {
-      console.error('Error fetching wallet tag descriptions:', error);
-      return null;
-    } finally {
-      setLoading(prev => ({ ...prev, walletTagDescriptions: false }));
-    }
-  }, []);
-
-  /**
-   * ✅ NEW: Run wallet discovery from OTC desk transactions
-   */
-  const runWalletDiscovery = useCallback(async (
-    otcAddress, 
-    numTransactions = 10,
-    minVolumeThreshold = 1000000,
-    filterEnabled = true
-  ) => {
-    setLoading(prev => ({ ...prev, walletDiscovery: true }));
-    setErrors(prev => ({ ...prev, walletDiscovery: null }));
-    
-    try {
-      const result = await otcAnalysisService.discoverHighVolumeWallets(
-        otcAddress,
-        numTransactions,
-        minVolumeThreshold,
-        filterEnabled
-      );
-      
-      console.log('✅ Wallet discovery completed:', {
-        sourceAddress: otcAddress,
-        discovered: result.discovered_count,
-        totalVolume: result.summary?.total_volume_discovered
-      });
-      
-      // Refresh discovered wallets list
-      await fetchDiscoveredWallets();
-      
-      return result;
-    } catch (error) {
-      setErrors(prev => ({ ...prev, walletDiscovery: error.message }));
-      console.error('❌ Wallet discovery failed:', error);
-      throw error;
-    } finally {
-      setLoading(prev => ({ ...prev, walletDiscovery: false }));
-    }
-  }, [fetchDiscoveredWallets]);
-
-  /**
-   * ✅ NEW: Run mass wallet discovery on multiple OTC desks
-   */
-  const runMassWalletDiscovery = useCallback(async (
-    otcAddresses,
-    numTransactions = 10,
-    minVolumeThreshold = 1000000,
-    onProgress = null
-  ) => {
-    setLoading(prev => ({ ...prev, walletDiscovery: true }));
-    setErrors(prev => ({ ...prev, walletDiscovery: null }));
-    
-    try {
-      const results = [];
-      
-      for (let i = 0; i < otcAddresses.length; i++) {
-        const address = otcAddresses[i];
-        
-        if (onProgress) {
-          onProgress({
-            current: i + 1,
-            total: otcAddresses.length,
-            address
-          });
-        }
-        
-        try {
-          const result = await runWalletDiscovery(
-            address,
-            numTransactions,
-            minVolumeThreshold
-          );
-          results.push({
-            address,
-            success: true,
-            ...result
-          });
-        } catch (error) {
-          results.push({
-            address,
-            success: false,
-            error: error.message
-          });
-        }
-      }
-      
-      console.log('✅ Mass wallet discovery completed:', {
-        desks: otcAddresses.length,
-        totalDiscovered: results.reduce((sum, r) => sum + (r.discovered_count || 0), 0)
-      });
-      
-      await fetchDiscoveredWallets();
-      
-      return results;
-    } catch (error) {
-      setErrors(prev => ({ ...prev, walletDiscovery: error.message }));
-      console.error('❌ Mass wallet discovery failed:', error);
-      throw error;
-    } finally {
-      setLoading(prev => ({ ...prev, walletDiscovery: false }));
-    }
-  }, [runWalletDiscovery, fetchDiscoveredWallets]);
-
-  /**
-   * ✅ NEW: Fetch wallet discovery statistics
-   */
-  const fetchWalletDiscoveryStats = useCallback(async () => {
-    try {
-      const stats = await otcAnalysisService.getWalletDiscoveryStatistics();
-      setWalletDiscoveryStats(stats);
-      
-      console.log('✅ Wallet discovery stats:', stats);
-      return stats;
-    } catch (error) {
-      console.error('Error fetching wallet discovery stats:', error);
-      return null;
-    }
-  }, []);
-
-  // ============================================================================
-  // ✅ NEW: COMBINED ENTITIES MANAGEMENT
+  // FETCH FUNCTIONS
   // ============================================================================
 
   /**
-   * Merge OTC desks and high-volume wallets into single entity list
-   */
-  const fetchAllEntities = useCallback(async () => {
-    setLoading(prev => ({ ...prev, entities: true }));
-    setErrors(prev => ({ ...prev, entities: null }));
-    
-    try {
-      // Fetch both OTC desks and high-volume wallets in parallel
-      const [desks, wallets] = await Promise.all([
-        fetchAllDesks(),
-        fetchDiscoveredWallets()
-      ]);
-      
-      // Combine into single entity list
-      const combined = [
-        ...desks.map(desk => ({
-          ...desk,
-          node_type: 'otc_desk',
-          entity_category: 'otc_desk'
-        })),
-        ...wallets.map(wallet => ({
-          ...wallet,
-          node_type: 'high_volume_wallet',
-          entity_category: 'high_volume_wallet'
-        }))
-      ];
-      
-      setAllEntities(combined);
-      
-      console.log('✅ All entities merged:', {
-        total: combined.length,
-        otcDesks: desks.length,
-        highVolumeWallets: wallets.length
-      });
-      
-      return combined;
-    } catch (error) {
-      setErrors(prev => ({ ...prev, entities: error.message }));
-      console.error('Error fetching all entities:', error);
-      setAllEntities([]);
-      return [];
-    } finally {
-      setLoading(prev => ({ ...prev, entities: false }));
-    }
-  }, [fetchAllDesks, fetchDiscoveredWallets]);
-
-  // ============================================================================
-  // EXISTING NETWORK/SANKEY/STATS FUNCTIONS
-  // ============================================================================
-
-  /**
-   * Fetch network graph data (fetch ALL, filter client-side)
+   * ✅ FIX: fetchNetworkData now stable without applyWalletFilters in deps
    */
   const fetchNetworkData = useCallback(async () => {
     setLoading(prev => ({ ...prev, network: true }));
@@ -630,7 +323,6 @@ export const useOTCData = () => {
     try {
       console.log('🔍 Fetching ALL network data from backend...');
       
-      // Fetch ALL data without wallet filters (only basic filters)
       const data = await otcAnalysisService.getNetworkGraph({
         fromDate: filters.fromDate,
         toDate: filters.toDate,
@@ -639,12 +331,9 @@ export const useOTCData = () => {
         entityTypes: filters.entityTypes,
         tokens: filters.tokens,
         maxNodes: filters.maxNodes,
-        
-        // ✅ NEW: Include high-volume wallets in network graph
         includeHighVolumeWallets: filters.showHighVolumeWallets
       });
       
-      // Validate data structure
       if (data && typeof data === 'object') {
         const safeData = {
           nodes: Array.isArray(data.nodes) ? data.nodes : [],
@@ -654,21 +343,12 @@ export const useOTCData = () => {
         
         console.log('✅ Raw network data loaded:', {
           totalNodes: safeData.nodes.length,
-          totalEdges: safeData.edges.length,
-          nodeTypes: {
-            otcDesks: safeData.nodes.filter(n => 
-              n.node_type === 'otc_desk' || n.entity_type === 'otc_desk'
-            ).length,
-            highVolumeWallets: safeData.nodes.filter(n => 
-              n.node_type === 'high_volume_wallet' || n.classification
-            ).length
-          }
+          totalEdges: safeData.edges.length
         });
         
-        // Store raw data
         setRawNetworkData(safeData);
         
-        // Apply filters immediately
+        // ✅ FIX: Call plain function directly
         const filtered = applyWalletFilters(safeData, filters);
         setNetworkData(filtered);
         
@@ -694,13 +374,9 @@ export const useOTCData = () => {
     filters.tokens,
     filters.maxNodes,
     filters.showHighVolumeWallets,
-    filters,
-    applyWalletFilters
-  ]);
+    filters
+  ]); // ✅ No applyWalletFilters in deps
 
-  /**
-   * Fetch Sankey flow data
-   */
   const fetchSankeyData = useCallback(async () => {
     setLoading(prev => ({ ...prev, sankey: true }));
     setErrors(prev => ({ ...prev, sankey: null }));
@@ -731,9 +407,6 @@ export const useOTCData = () => {
     }
   }, [filters.fromDate, filters.toDate, filters.minTransferSize]);
 
-  /**
-   * Fetch statistics
-   */
   const fetchStatistics = useCallback(async () => {
     setLoading(prev => ({ ...prev, statistics: true }));
     setErrors(prev => ({ ...prev, statistics: null }));
@@ -771,9 +444,6 @@ export const useOTCData = () => {
     }
   }, [filters.fromDate, filters.toDate]);
 
-  /**
-   * Fetch wallet profile (basic)
-   */
   const fetchWalletProfile = useCallback(async (address) => {
     if (!address || typeof address !== 'string') {
       console.warn('Invalid address provided to fetchWalletProfile:', address);
@@ -801,9 +471,6 @@ export const useOTCData = () => {
     }
   }, [ensureSafeData]);
 
-  /**
-   * Fetch wallet details (with charts)
-   */
   const fetchWalletDetails = useCallback(async (address) => {
     if (!address || typeof address !== 'string') {
       console.warn('Invalid address provided to fetchWalletDetails:', address);
@@ -820,8 +487,7 @@ export const useOTCData = () => {
       
       console.log('Wallet details loaded:', {
         address: safeData?.address,
-        dataSource: safeData?.data_source,
-        hasCharts: !!(safeData?.activity_data?.length || safeData?.transfer_size_data?.length)
+        dataSource: safeData?.data_source
       });
     } catch (error) {
       setErrors(prev => ({ ...prev, walletDetails: error.message }));
@@ -832,9 +498,6 @@ export const useOTCData = () => {
     }
   }, [ensureSafeData]);
 
-  /**
-   * Fetch watchlist
-   */
   const fetchWatchlist = useCallback(async () => {
     try {
       const data = await otcAnalysisService.getWatchlist();
@@ -847,9 +510,6 @@ export const useOTCData = () => {
     }
   }, []);
 
-  /**
-   * Add to watchlist
-   */
   const addToWatchlist = useCallback(async (address, label = null) => {
     if (!address) {
       throw new Error('Address is required');
@@ -865,9 +525,6 @@ export const useOTCData = () => {
     }
   }, [fetchWatchlist]);
 
-  /**
-   * Remove from watchlist
-   */
   const removeFromWatchlist = useCallback(async (address) => {
     if (!address) {
       throw new Error('Address is required');
@@ -882,16 +539,13 @@ export const useOTCData = () => {
       
       await otcAnalysisService.removeFromWatchlist(item.id);
       await fetchWatchlist();
-      console.log('✅ Removed from watchlist:', address, '(id:', item.id, ')');
+      console.log('✅ Removed from watchlist:', address);
     } catch (error) {
       console.error('Error removing from watchlist:', error);
       throw error;
     }
   }, [fetchWatchlist, watchlist]);
 
-  /**
-   * Fetch distributions
-   */
   const fetchDistributions = useCallback(async () => {
     try {
       const data = await otcAnalysisService.getDistributions({
@@ -905,9 +559,6 @@ export const useOTCData = () => {
     }
   }, [filters.fromDate, filters.toDate]);
   
-  /**
-   * Fetch activity heatmap
-   */
   const fetchHeatmap = useCallback(async () => {
     try {
       const data = await otcAnalysisService.getActivityHeatmap({
@@ -921,9 +572,6 @@ export const useOTCData = () => {
     }
   }, [filters.fromDate, filters.toDate]);
   
-  /**
-   * Fetch transfer timeline
-   */
   const fetchTimeline = useCallback(async () => {
     try {
       const data = await otcAnalysisService.getTransferTimeline({
@@ -938,13 +586,6 @@ export const useOTCData = () => {
     }
   }, [filters.fromDate, filters.toDate, filters.minConfidence]);
   
-  // ============================================================================
-  // OTC DESK DISCOVERY FUNCTIONS
-  // ============================================================================
-  
-  /**
-   * Fetch all OTC desks
-   */
   const fetchAllDesks = useCallback(async () => {
     setLoading(prev => ({ ...prev, desks: true }));
     setErrors(prev => ({ ...prev, desks: null }));
@@ -1055,9 +696,6 @@ export const useOTCData = () => {
     }
   }, [filters.showDiscovered, filters.minConfidence, filters.deskCategory]);
   
-  /**
-   * Fetch discovery statistics
-   */
   const fetchDiscoveryStats = useCallback(async () => {
     setLoading(prev => ({ ...prev, discoveryStats: true }));
     
@@ -1075,9 +713,6 @@ export const useOTCData = () => {
     }
   }, []);
   
-  /**
-   * Run discovery on a single OTC desk
-   */
   const runDiscovery = useCallback(async (otcAddress, numTransactions = 5) => {
     setLoading(prev => ({ ...prev, discovery: true }));
     setErrors(prev => ({ ...prev, discovery: null }));
@@ -1106,9 +741,6 @@ export const useOTCData = () => {
     }
   }, [fetchAllDesks, fetchDiscoveryStats]);
   
-  /**
-   * Run mass discovery on multiple desks
-   */
   const runMassDiscovery = useCallback(async (otcAddresses, numTransactions = 5, onProgress = null) => {
     setLoading(prev => ({ ...prev, discovery: true }));
     setErrors(prev => ({ ...prev, discovery: null }));
@@ -1137,19 +769,205 @@ export const useOTCData = () => {
       setLoading(prev => ({ ...prev, discovery: false }));
     }
   }, [fetchAllDesks, fetchDiscoveryStats]);
-  
+
+  const fetchDiscoveredWallets = useCallback(async () => {
+    setLoading(prev => ({ ...prev, walletDiscovery: true }));
+    setErrors(prev => ({ ...prev, walletDiscovery: null }));
+    
+    try {
+      const response = await otcAnalysisService.getDiscoveredWallets({
+        minVolumeScore: filters.minVolumeScore,
+        minTotalVolume: filters.minTotalVolume,
+        classifications: filters.walletClassifications
+      });
+      
+      const wallets = response.data?.wallets || response.wallets || [];
+      
+      setDiscoveredWallets(wallets);
+      
+      console.log('✅ Discovered wallets loaded:', {
+        total: wallets.length
+      });
+      
+      return wallets;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, walletDiscovery: error.message }));
+      console.error('Error fetching discovered wallets:', error);
+      setDiscoveredWallets([]);
+      return [];
+    } finally {
+      setLoading(prev => ({ ...prev, walletDiscovery: false }));
+    }
+  }, [filters.minVolumeScore, filters.minTotalVolume, filters.walletClassifications]);
+
+  const fetchWalletTagDescriptions = useCallback(async () => {
+    setLoading(prev => ({ ...prev, walletTagDescriptions: true }));
+    
+    try {
+      const response = await otcAnalysisService.getWalletTagDescriptions();
+      setWalletTagDescriptions(response);
+      
+      console.log('✅ Wallet tag descriptions loaded');
+      
+      return response;
+    } catch (error) {
+      console.error('Error fetching wallet tag descriptions:', error);
+      return null;
+    } finally {
+      setLoading(prev => ({ ...prev, walletTagDescriptions: false }));
+    }
+  }, []);
+
+  const runWalletDiscovery = useCallback(async (
+    otcAddress, 
+    numTransactions = 10,
+    minVolumeThreshold = 1000000,
+    filterEnabled = true
+  ) => {
+    setLoading(prev => ({ ...prev, walletDiscovery: true }));
+    setErrors(prev => ({ ...prev, walletDiscovery: null }));
+    
+    try {
+      const result = await otcAnalysisService.discoverHighVolumeWallets(
+        otcAddress,
+        numTransactions,
+        minVolumeThreshold,
+        filterEnabled
+      );
+      
+      console.log('✅ Wallet discovery completed');
+      
+      await fetchDiscoveredWallets();
+      
+      return result;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, walletDiscovery: error.message }));
+      console.error('❌ Wallet discovery failed:', error);
+      throw error;
+    } finally {
+      setLoading(prev => ({ ...prev, walletDiscovery: false }));
+    }
+  }, [fetchDiscoveredWallets]);
+
+  const runMassWalletDiscovery = useCallback(async (
+    otcAddresses,
+    numTransactions = 10,
+    minVolumeThreshold = 1000000,
+    onProgress = null
+  ) => {
+    setLoading(prev => ({ ...prev, walletDiscovery: true }));
+    setErrors(prev => ({ ...prev, walletDiscovery: null }));
+    
+    try {
+      const results = [];
+      
+      for (let i = 0; i < otcAddresses.length; i++) {
+        const address = otcAddresses[i];
+        
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total: otcAddresses.length,
+            address
+          });
+        }
+        
+        try {
+          const result = await runWalletDiscovery(
+            address,
+            numTransactions,
+            minVolumeThreshold
+          );
+          results.push({
+            address,
+            success: true,
+            ...result
+          });
+        } catch (error) {
+          results.push({
+            address,
+            success: false,
+            error: error.message
+          });
+        }
+      }
+      
+      console.log('✅ Mass wallet discovery completed');
+      
+      await fetchDiscoveredWallets();
+      
+      return results;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, walletDiscovery: error.message }));
+      console.error('❌ Mass wallet discovery failed:', error);
+      throw error;
+    } finally {
+      setLoading(prev => ({ ...prev, walletDiscovery: false }));
+    }
+  }, [runWalletDiscovery, fetchDiscoveredWallets]);
+
+  const fetchWalletDiscoveryStats = useCallback(async () => {
+    try {
+      const stats = await otcAnalysisService.getWalletDiscoveryStatistics();
+      setWalletDiscoveryStats(stats);
+      
+      console.log('✅ Wallet discovery stats:', stats);
+      return stats;
+    } catch (error) {
+      console.error('Error fetching wallet discovery stats:', error);
+      return null;
+    }
+  }, []);
+
+  const fetchAllEntities = useCallback(async () => {
+    setLoading(prev => ({ ...prev, entities: true }));
+    setErrors(prev => ({ ...prev, entities: null }));
+    
+    try {
+      const [desks, wallets] = await Promise.all([
+        fetchAllDesks(),
+        fetchDiscoveredWallets()
+      ]);
+      
+      const combined = [
+        ...desks.map(desk => ({
+          ...desk,
+          node_type: 'otc_desk',
+          entity_category: 'otc_desk'
+        })),
+        ...wallets.map(wallet => ({
+          ...wallet,
+          node_type: 'high_volume_wallet',
+          entity_category: 'high_volume_wallet'
+        }))
+      ];
+      
+      setAllEntities(combined);
+      
+      console.log('✅ All entities merged:', combined.length);
+      
+      return combined;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, entities: error.message }));
+      console.error('Error fetching all entities:', error);
+      setAllEntities([]);
+      return [];
+    } finally {
+      setLoading(prev => ({ ...prev, entities: false }));
+    }
+  }, [fetchAllDesks, fetchDiscoveredWallets]);
+
   // ============================================================================
   // ✅ FIX: INITIAL DATA FETCH - Runs once on mount
   // ============================================================================
   
   useEffect(() => {
-    // ✅ FIX: Only run once on mount
     if (initialLoadComplete.current) {
       console.log('⏭️ Skipping duplicate initial load');
       return;
     }
     
-    console.log('🚀 useOTCData: Initial data fetch (once only)');
+    console.log('🚀 useOTCData: Initial data fetch');
     
     const loadInitialData = async () => {
       try {
@@ -1173,7 +991,6 @@ export const useOTCData = () => {
     
     loadInitialData();
     
-    // ✅ FIX: Empty dependency array - run ONCE on mount only
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ============================================================================
@@ -1181,40 +998,32 @@ export const useOTCData = () => {
   // ============================================================================
 
   return {
-    // Network & Visualization Data
     networkData,
     rawNetworkData,
     sankeyData,
     statistics,
     
-    // Wallet Data
     watchlist,
     selectedWallet,
     walletDetails,
     
-    // OTC Desk Discovery
     allDesks,
     discoveredDesks,
     discoveryStats,
     
-    // ✅ NEW: High-Volume Wallet Discovery
     discoveredWallets,
     walletDiscoveryStats,
     walletTagDescriptions,
     
-    // ✅ NEW: Combined Entities
     allEntities,
     
-    // Filters
     filters,
     updateFilters,
-    applyFilters,
+    applyFilters: applyFiltersManually, // ✅ Renamed to avoid confusion
     
-    // Loading & Errors
     loading,
     errors,
     
-    // Fetch Functions
     fetchNetworkData,
     fetchSankeyData,
     fetchStatistics,
@@ -1224,25 +1033,21 @@ export const useOTCData = () => {
     fetchHeatmap,
     fetchTimeline,
     
-    // Watchlist Functions
     addToWatchlist,
     removeFromWatchlist,
     setSelectedWallet,
     
-    // OTC Desk Discovery Functions
     fetchAllDesks,
     fetchDiscoveryStats,
     runDiscovery,
     runMassDiscovery,
     
-    // ✅ NEW: Wallet Discovery Functions
     fetchDiscoveredWallets,
     fetchWalletTagDescriptions,
     fetchWalletDiscoveryStats,
     runWalletDiscovery,
     runMassWalletDiscovery,
     
-    // ✅ NEW: Combined Entity Functions
     fetchAllEntities
   };
 };
