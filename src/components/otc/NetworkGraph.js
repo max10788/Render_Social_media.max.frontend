@@ -180,7 +180,12 @@ const NetworkGraph = ({
     
     // ✅ PRIORITY 1: High-Volume Wallet Classifications
     if (nodeType === 'high_volume_wallet' && classification) {
-      return walletClassificationColors[classification] || walletClassificationColors.medium_wallet;
+      const baseColor = walletClassificationColors[classification] || walletClassificationColors.medium_wallet;
+      // Discovered Wallets bekommen einen grünen Schimmer
+      if (isDiscoveredWallet(node.address)) {
+        return '#10B981';  // Discovery green
+      }
+      return baseColor;
     }
     
     // PRIORITY 2: Tag-based colors
