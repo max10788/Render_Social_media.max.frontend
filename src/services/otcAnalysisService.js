@@ -512,7 +512,7 @@ class OTCAnalysisService {
   
   /**
    * Get all discovered high-volume wallets
-   * ✅ FIXED: Changed route from /wallets/discovered to /discover/high-volume/stats
+   * ✅ FIXED: Correct route to /discover/high-volume/stats
    */
   async getDiscoveredWallets(params = {}) {
     try {
@@ -528,16 +528,45 @@ class OTCAnalysisService {
       });
   
       console.log('✅ Discovered wallets loaded:', {
-        total: response.data.count || 0
+        total: response.data.count || 0,
+        classifications: response.data.statistics?.classifications
       });
   
-      return response.data;
+      // ✅ Transform response to match expected format
+      const wallets = response.data.top_10_by_volume || [];
+      
+      return {
+        ...response.data,
+        wallets: wallets.map(w => ({
+          address: w.address,
+          label: w.label,
+          volume: w.volume,
+          score: w.score,
+          tags: w.tags || [],
+          classification: this._extractClassification(w.tags)
+        }))
+      };
+      
     } catch (error) {
       console.error('❌ Error fetching discovered wallets:', error);
       throw error;
     }
   }
-
+  
+  /**
+   * ✅ NEW: Extract classification from tags
+   */
+  _extractClassification(tags = []) {
+    const classifications = ['mega_whale', 'whale', 'institutional', 'large_wallet', 'medium_wallet'];
+    
+    for (const tag of tags) {
+      if (classifications.includes(tag)) {
+        return tag;
+      }
+    }
+    
+    return null;
+  }
   /**
    * Mass wallet discovery across multiple OTC desks
    */
