@@ -412,10 +412,12 @@ const OTCAnalysis = () => {
   };
 
   /**
-   * ✅ UPDATED: Handle OTC desk discovery completion
+   * ✅ UPDATED: Handle discovery completion for BOTH OTC Desks and Wallets
    */
   const handleDiscoveryComplete = async (result) => {
-    console.log('✅ OTC Desk Discovery completed:', result);
+    const discoveryType = result.discovery_type; // 'otc_desk' or 'wallet'
+    
+    console.log(`✅ ${discoveryType === 'wallet' ? 'Wallet' : 'OTC Desk'} Discovery completed:`, result);
     
     try {
       // Save current filters if not already in discovery mode
@@ -449,7 +451,7 @@ const OTCAnalysis = () => {
         fetchStatistics(),
         fetchAllDesks(),
         fetchDiscoveryStats(),
-        fetchDiscoveredWallets(),  // ✅ NEW
+        fetchDiscoveredWallets(),
         (async () => {
           const heatmap = await fetchHeatmap();
           setHeatmapData(heatmap || null);
@@ -466,28 +468,58 @@ const OTCAnalysis = () => {
       
       console.log('✅ All visualizations refreshed!');
       
-      // Navigate to first discovered wallet if single discovery
-      if (!result.mass_discovery && result.wallets && result.wallets.length > 0) {
-        const firstDiscovered = result.wallets[0];
-        
-        setTimeout(() => {
-          fetchWalletProfile(firstDiscovered.address);
-          fetchWalletDetails(firstDiscovered.address);
-          setIsSidebarOpen(true);
+      // ✅ TYPE-SPECIFIC ACTIONS
+      if (discoveryType === 'otc_desk') {
+        // Navigate to first discovered OTC desk
+        if (!result.mass_discovery && result.wallets && result.wallets.length > 0) {
+          const firstDiscovered = result.wallets[0];
           
-          console.log('📍 Navigated to discovered wallet:', firstDiscovered.address);
-        }, 1500);
+          setTimeout(() => {
+            fetchWalletProfile(firstDiscovered.address);
+            fetchWalletDetails(firstDiscovered.address);
+            setIsSidebarOpen(true);
+            
+            console.log('📍 Navigated to discovered OTC desk:', firstDiscovered.address);
+          }, 1500);
+        }
+        
+        // Show OTC Desk success notification
+        const discovered = result.discovered_count || result.total_discovered || 0;
+        alert(
+          `🎉 OTC Desk Discovery Complete!\n\n` +
+          `Found ${discovered} new OTC desk${discovered !== 1 ? 's' : ''}.\n\n` +
+          `Discovery Mode is now ACTIVE.\n` +
+          `All discovered entities are now visible in the graph.\n\n` +
+          `Use the "Discovery Mode" button to toggle back to normal filters.`
+        );
+        
+      } else if (discoveryType === 'wallet') {
+        // Navigate to first discovered wallet
+        if (!result.mass_discovery && result.wallets && result.wallets.length > 0) {
+          const firstWallet = result.wallets[0];
+          
+          setTimeout(() => {
+            fetchWalletProfile(firstWallet.address);
+            fetchWalletDetails(firstWallet.address);
+            setIsSidebarOpen(true);
+            
+            console.log('📍 Navigated to discovered wallet:', firstWallet.address);
+          }, 1500);
+        }
+        
+        // Show Wallet Discovery success notification
+        const discovered = result.discovered_count || result.total_discovered || 0;
+        const totalVolume = (result.summary?.total_volume_discovered || result.total_volume || 0) / 1000000;
+        
+        alert(
+          `🎉 Wallet Discovery Complete!\n\n` +
+          `Found ${discovered} high-volume wallet${discovered !== 1 ? 's' : ''}.\n` +
+          `Total Volume: $${totalVolume.toFixed(2)}M\n\n` +
+          `Discovery Mode is now ACTIVE.\n` +
+          `All discovered wallets are now visible in the graph.\n\n` +
+          `Use the "Discovery Mode" button to toggle back to normal filters.`
+        );
       }
-      
-      // Show success notification
-      const discovered = result.discovered_count || result.total_discovered || 0;
-      alert(
-        `🎉 OTC Desk Discovery Complete!\n\n` +
-        `Found ${discovered} new OTC desk${discovered !== 1 ? 's' : ''}.\n\n` +
-        `Discovery Mode is now ACTIVE.\n` +
-        `All discovered wallets are now visible in the graph.\n\n` +
-        `Use the "Discovery Mode" button to toggle back to normal filters.`
-      );
       
     } catch (error) {
       console.error('❌ Error refreshing after discovery:', error);
