@@ -940,3 +940,345 @@
   font-weight: 500;
   font-size: 0.9rem;
 }
+
+/* ============================================================================
+   ✅ CSS ERGÄNZUNGEN FÜR OTCDiscoveryPanel.css
+   
+   Diese Styles müssen zur existierenden OTCDiscoveryPanel.css HINZUGEFÜGT werden!
+   ============================================================================ */
+
+/* ✅ NEW: Discovery Type Toggle */
+.discovery-type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(30, 30, 30, 0.6);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.type-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: rgba(40, 40, 40, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.type-button:hover {
+  background: rgba(50, 50, 50, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+
+.type-button.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.type-button .type-icon {
+  font-size: 18px;
+}
+
+.type-button .type-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ✅ Enhanced Mode Toggle for consistency */
+.discovery-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(30, 30, 30, 0.5);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+/* ✅ Config Checkbox for Wallet Discovery */
+.config-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(40, 40, 40, 0.6);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.config-checkbox:hover {
+  background: rgba(50, 50, 50, 0.7);
+}
+
+.config-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.config-checkbox span {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ✅ Results Summary for Wallet Discovery */
+.results-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.summary-card {
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.summary-card.full-width {
+  grid-column: 1 / -1;
+  text-align: left;
+}
+
+.summary-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.summary-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ✅ Classification Breakdown */
+.classification-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.classification-badge {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.classification-badge.mega_whale {
+  background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+}
+
+.classification-badge.whale {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+}
+
+.classification-badge.institutional {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.classification-badge.large_wallet {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.classification-badge.medium_wallet {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+}
+
+/* ✅ Enhanced Desk Checkbox List */
+.desk-checkbox-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+  background: rgba(20, 20, 20, 0.6);
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.desk-checkbox-item {
+  display: block;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: rgba(40, 40, 40, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.desk-checkbox-item:hover {
+  background: rgba(50, 50, 50, 0.8);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
+}
+
+.desk-checkbox-item.selected {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.5);
+}
+
+.desk-checkbox-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 8px;
+}
+
+.desk-checkbox-icon {
+  font-size: 16px;
+  width: 24px;
+  text-align: center;
+}
+
+.desk-checkbox-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.desk-checkbox-address {
+  font-size: 11px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.desk-checkbox-category {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 3px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* ✅ Selection Controls */
+.selection-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(30, 30, 30, 0.8);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.selection-btn {
+  padding: 6px 12px;
+  background: rgba(102, 126, 234, 0.2);
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.selection-btn:hover {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: rgba(102, 126, 234, 0.6);
+  transform: translateY(-1px);
+}
+
+.selection-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ✅ Scrollbar Styling for Checkbox List */
+.desk-checkbox-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.desk-checkbox-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.desk-checkbox-list::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.4);
+  border-radius: 4px;
+}
+
+.desk-checkbox-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 126, 234, 0.6);
+}
+
+/* ✅ Responsive Design */
+@media (max-width: 768px) {
+  .discovery-type-toggle {
+    grid-template-columns: 1fr;
+  }
+  
+  .type-button {
+    padding: 12px 16px;
+  }
+  
+  .results-summary {
+    grid-template-columns: 1fr;
+  }
+  
+  .classification-breakdown {
+    flex-direction: column;
+  }
+}
+
+/* ✅ Animations */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.custom-selection-panel {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 25px rgba(102, 126, 234, 0.6);
+  }
+}
+
+.type-button.active {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
