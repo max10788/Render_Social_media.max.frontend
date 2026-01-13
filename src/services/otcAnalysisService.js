@@ -535,7 +535,7 @@ class OTCAnalysisService {
         threshold: `$${(minVolumeThreshold / 1000000).toFixed(1)}M`
       });
 
-      const response = await this.apiClient.post('/api/otc/wallets/discover', params);
+      const response = await this.apiClient.post('/api/otc/wallets/discovery/high-volume', params);
 
       console.log('✅ Wallet discovery completed:', {
         source: otcAddress.substring(0, 10) + '...',
