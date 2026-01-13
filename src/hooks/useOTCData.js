@@ -345,6 +345,45 @@ export const useOTCData = () => {
           totalNodes: safeData.nodes.length,
           totalEdges: safeData.edges.length
         });
+
+        // ✅ NEU: Merge discoveredWallets in die Network Nodes
+        if (filters.showHighVolumeWallets && discoveredWallets.length > 0) {
+          console.log('🔄 Merging discovered wallets into network data:', discoveredWallets.length);
+          
+          const existingAddresses = new Set(
+            safeData.nodes.map(n => n.address?.toLowerCase())
+          );
+          
+          // Füge Wallets hinzu, die noch nicht in den Nodes sind
+          const newWalletNodes = discoveredWallets
+            .filter(wallet => !existingAddresses.has(wallet.address?.toLowerCase()))
+            .map(wallet => ({
+              address: wallet.address,
+              label: wallet.label || wallet.entity_name,
+              entity_type: wallet.entity_type || 'unknown',
+              node_type: 'high_volume_wallet',  // ✅ WICHTIG
+              classification: wallet.classification,  // ✅ WICHTIG
+              categorized_tags: wallet.categorized_tags,
+              volume_score: wallet.volume_score,
+              total_volume_usd: wallet.total_volume || wallet.total_volume_usd,
+              total_volume: wallet.total_volume || wallet.total_volume_usd,
+              avg_transaction: wallet.avg_transaction,
+              transaction_count: wallet.transaction_count || wallet.tx_count,
+              confidence_score: wallet.confidence_score || 80,
+              is_active: wallet.is_active ?? true,
+              tags: wallet.tags || [],
+              first_seen: wallet.first_seen,
+              last_active: wallet.last_active
+            }));
+          
+          safeData.nodes = [...safeData.nodes, ...newWalletNodes];
+          
+          console.log('✅ Merged wallets:', {
+            existing: safeData.nodes.length - newWalletNodes.length,
+            new: newWalletNodes.length,
+            total: safeData.nodes.length
+          });
+        }
         
         setRawNetworkData(safeData);
         
@@ -374,8 +413,9 @@ export const useOTCData = () => {
     filters.tokens,
     filters.maxNodes,
     filters.showHighVolumeWallets,
-    filters
-  ]); // ✅ No applyWalletFilters in deps
+    filters,
+    discoveredWallets  // ✅ NEU: Re-merge wenn sich Wallets ändern
+  ])
 
   const fetchSankeyData = useCallback(async () => {
     setLoading(prev => ({ ...prev, sankey: true }));
