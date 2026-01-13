@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FilterPanel from '../components/otc/FilterPanel';
 import OTCMetricsOverview from '../components/otc/OTCMetricsOverview';
 import NetworkGraph from '../components/otc/NetworkGraph';
@@ -24,6 +24,8 @@ import './OTCAnalysis.css';
  * - Tag-based Filtering
  * - Discovery Mode Toggle
  * - Wallet Discovery Stats
+ * 
+ * ✅ FIXED: Resolved circular dependency issues
  */
 const OTCAnalysis = () => {
   // ============================================================================
@@ -32,7 +34,7 @@ const OTCAnalysis = () => {
   const {
     // Data
     networkData,
-    rawNetworkData,              // ✅ NEW
+    rawNetworkData,
     sankeyData,
     statistics,
     watchlist,
@@ -53,7 +55,7 @@ const OTCAnalysis = () => {
     // Filters
     filters,
     updateFilters,
-    applyFilters,                 // ✅ NEW: Manual filter application
+    applyFilters,
     
     // Loading & Errors
     loading,
@@ -121,14 +123,27 @@ const OTCAnalysis = () => {
     distributions: false
   });
 
+  // ✅ FIX: Refs to track initial loads and prevent duplicate fetches
+  const additionalDataLoaded = useRef(false);
+  const walletTagsLoaded = useRef(false);
+
   // ============================================================================
   // 🔄 EFFECTS
   // ============================================================================
   
   /**
-   * Load additional visualizations on mount or filter change
+   * ✅ FIX: Load additional visualizations once on mount only
+   * REMOVED dependency on fetch functions to break circular dependency
    */
   useEffect(() => {
+    // ✅ FIX: Only load once
+    if (additionalDataLoaded.current) {
+      console.log('⏭️ Skipping duplicate additional data load');
+      return;
+    }
+
+    console.log('🚀 Loading additional visualizations (once only)');
+    
     const loadAdditionalData = async () => {
       // Heatmap
       setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
@@ -174,19 +189,43 @@ const OTCAnalysis = () => {
       } finally {
         setVisualizationLoading(prev => ({ ...prev, distributions: false }));
       }
+
+      additionalDataLoaded.current = true;
+      console.log('✅ Additional visualizations load complete');
     };
 
     loadAdditionalData();
-  }, [filters.fromDate, filters.toDate, fetchHeatmap, fetchTimeline, fetchDistributions]);
+    
+    // ✅ FIX: Empty dependency array - run ONCE on mount
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
-   * ✅ NEW: Load wallet tag descriptions on mount
+   * ✅ FIX: Load wallet tag descriptions once on mount
+   * REMOVED dependency on fetchWalletTagDescriptions to break circular dependency
    */
   useEffect(() => {
-    if (!walletTagDescriptions) {
-      fetchWalletTagDescriptions();
+    // ✅ FIX: Only load once and only if not already loaded
+    if (walletTagsLoaded.current || walletTagDescriptions) {
+      console.log('⏭️ Wallet tags already loaded, skipping');
+      return;
     }
-  }, [walletTagDescriptions, fetchWalletTagDescriptions]);
+
+    console.log('🚀 Loading wallet tag descriptions (once only)');
+    
+    const loadWalletTags = async () => {
+      try {
+        await fetchWalletTagDescriptions();
+        walletTagsLoaded.current = true;
+        console.log('✅ Wallet tag descriptions loaded');
+      } catch (error) {
+        console.error('Failed to load wallet tag descriptions:', error);
+      }
+    };
+
+    loadWalletTags();
+    
+    // ✅ FIX: Empty dependency array - run ONCE on mount
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ============================================================================
   // 🎯 HANDLERS
@@ -661,6 +700,48 @@ const OTCAnalysis = () => {
     }
   };
 
+  /**
+   * ✅ NEW: Manual refresh for individual visualizations
+   */
+  const handleRefreshHeatmap = async () => {
+    setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
+    try {
+      const heatmap = await fetchHeatmap();
+      setHeatmapData(heatmap || null);
+      console.log('✅ Heatmap refreshed');
+    } catch (error) {
+      console.error('Failed to refresh heatmap:', error);
+    } finally {
+      setVisualizationLoading(prev => ({ ...prev, heatmap: false }));
+    }
+  };
+
+  const handleRefreshTimeline = async () => {
+    setVisualizationLoading(prev => ({ ...prev, timeline: true }));
+    try {
+      const timeline = await fetchTimeline();
+      setTimelineData(timeline || null);
+      console.log('✅ Timeline refreshed');
+    } catch (error) {
+      console.error('Failed to refresh timeline:', error);
+    } finally {
+      setVisualizationLoading(prev => ({ ...prev, timeline: false }));
+    }
+  };
+
+  const handleRefreshDistributions = async () => {
+    setVisualizationLoading(prev => ({ ...prev, distributions: true }));
+    try {
+      const distributions = await fetchDistributions();
+      setDistributionsData(distributions || null);
+      console.log('✅ Distributions refreshed');
+    } catch (error) {
+      console.error('Failed to refresh distributions:', error);
+    } finally {
+      setVisualizationLoading(prev => ({ ...prev, distributions: false }));
+    }
+  };
+
   // ============================================================================
   // 🎨 COMPUTED VALUES
   // ============================================================================
@@ -954,15 +1035,7 @@ const OTCAnalysis = () => {
                 <div className="section-actions">
                   <button 
                     className="action-button"
-                    onClick={async () => {
-                      setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
-                      try {
-                        const heatmap = await fetchHeatmap();
-                        setHeatmapData(heatmap || null);
-                      } finally {
-                        setVisualizationLoading(prev => ({ ...prev, heatmap: false }));
-                      }
-                    }}
+                    onClick={handleRefreshHeatmap}
                     disabled={visualizationLoading.heatmap}
                   >
                     {visualizationLoading.heatmap ? '⏳' : '🔄'}
@@ -997,15 +1070,7 @@ const OTCAnalysis = () => {
                 <div className="section-actions">
                   <button 
                     className="action-button"
-                    onClick={async () => {
-                      setVisualizationLoading(prev => ({ ...prev, timeline: true }));
-                      try {
-                        const timeline = await fetchTimeline();
-                        setTimelineData(timeline || null);
-                      } finally {
-                        setVisualizationLoading(prev => ({ ...prev, timeline: false }));
-                      }
-                    }}
+                    onClick={handleRefreshTimeline}
                     disabled={visualizationLoading.timeline}
                   >
                     {visualizationLoading.timeline ? '⏳' : '🔄'}
@@ -1041,15 +1106,7 @@ const OTCAnalysis = () => {
                 <div className="section-actions">
                   <button 
                     className="action-button"
-                    onClick={async () => {
-                      setVisualizationLoading(prev => ({ ...prev, distributions: true }));
-                      try {
-                        const distributions = await fetchDistributions();
-                        setDistributionsData(distributions || null);
-                      } finally {
-                        setVisualizationLoading(prev => ({ ...prev, distributions: false }));
-                      }
-                    }}
+                    onClick={handleRefreshDistributions}
                     disabled={visualizationLoading.distributions}
                   >
                     {visualizationLoading.distributions ? '⏳' : '🔄'}
