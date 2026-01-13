@@ -21,7 +21,8 @@ const NetworkGraph = ({
   onNodeClick, 
   onNodeHover, 
   selectedNode,
-  discoveredDesks = []
+  discoveredDesks = [],
+  discoveredWallets = []  // ✅ NEU
 }) => {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
@@ -149,6 +150,15 @@ const NetworkGraph = ({
     });
   };
 
+  // ✅ NEU: Check if wallet is discovered
+  const isDiscoveredWallet = (address) => {
+    if (!address) return false;
+    const normalizedAddress = address.toLowerCase();
+    return discoveredWallets.some(wallet => 
+      wallet.address?.toLowerCase() === normalizedAddress
+    );
+  };
+  
   // ✅ NEW: Wallet Classification Icon
   const getWalletClassificationIcon = (classification) => {
     const icons = {
