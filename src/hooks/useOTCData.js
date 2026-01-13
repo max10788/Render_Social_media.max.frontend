@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import otcAnalysisService from '../services/otcAnalysisService';
 import { format, subDays } from 'date-fns';
 
@@ -11,6 +11,8 @@ import { format, subDays } from 'date-fns';
  * - Advanced Tag-based Filtering
  * - Combined OTC Desk + High-Volume Wallet Network Graph
  * - Wallet Tag Descriptions & Categorization
+ * 
+ * ✅ FIXED: Resolved circular dependency issues
  */
 export const useOTCData = () => {
   // ============================================================================
@@ -104,6 +106,9 @@ export const useOTCData = () => {
     entities: null                 // ✅ NEW
   });
 
+  // ✅ FIX: Use ref to track if initial load is complete
+  const initialLoadComplete = useRef(false);
+
   // ============================================================================
   // HELPER FUNCTIONS
   // ============================================================================
@@ -134,6 +139,7 @@ export const useOTCData = () => {
 
   /**
    * ✅ NEW: Enhanced wallet filtering with high-volume wallet support
+   * ✅ FIX: Made pure function with no dependencies
    */
   const applyWalletFilters = useCallback((data, filterSettings) => {
     if (!data || !data.nodes) return data;
@@ -350,7 +356,7 @@ export const useOTCData = () => {
         filtered_edge_count: filteredEdges.length
       }
     };
-  }, []);
+  }, []); // ✅ FIX: Empty deps - function is pure, receives filterSettings as parameter
 
   /**
    * Update filters
@@ -611,7 +617,7 @@ export const useOTCData = () => {
   }, [fetchAllDesks, fetchDiscoveredWallets]);
 
   // ============================================================================
-  // EXISTING NETWORK/SANKEY/STATS FUNCTIONS (keeping your existing code)
+  // EXISTING NETWORK/SANKEY/STATS FUNCTIONS
   // ============================================================================
 
   /**
@@ -933,7 +939,7 @@ export const useOTCData = () => {
   }, [filters.fromDate, filters.toDate, filters.minConfidence]);
   
   // ============================================================================
-  // OTC DESK DISCOVERY FUNCTIONS (keeping your existing code)
+  // OTC DESK DISCOVERY FUNCTIONS
   // ============================================================================
   
   /**
@@ -1133,30 +1139,42 @@ export const useOTCData = () => {
   }, [fetchAllDesks, fetchDiscoveryStats]);
   
   // ============================================================================
-  // INITIAL DATA FETCH
+  // ✅ FIX: INITIAL DATA FETCH - Runs once on mount
   // ============================================================================
   
   useEffect(() => {
-    console.log('useOTCData: Initial data fetch');
+    // ✅ FIX: Only run once on mount
+    if (initialLoadComplete.current) {
+      console.log('⏭️ Skipping duplicate initial load');
+      return;
+    }
     
-    fetchNetworkData();
-    fetchSankeyData();
-    fetchStatistics();
-    fetchWatchlist();
-    fetchAllDesks();
-    fetchDiscoveryStats();
-    fetchDiscoveredWallets();      // ✅ NEW
-    fetchWalletTagDescriptions();  // ✅ NEW
-  }, [
-    fetchNetworkData, 
-    fetchSankeyData, 
-    fetchStatistics, 
-    fetchWatchlist,
-    fetchAllDesks,
-    fetchDiscoveryStats,
-    fetchDiscoveredWallets,
-    fetchWalletTagDescriptions
-  ]);
+    console.log('🚀 useOTCData: Initial data fetch (once only)');
+    
+    const loadInitialData = async () => {
+      try {
+        await Promise.all([
+          fetchNetworkData(),
+          fetchSankeyData(),
+          fetchStatistics(),
+          fetchWatchlist(),
+          fetchAllDesks(),
+          fetchDiscoveryStats(),
+          fetchDiscoveredWallets(),
+          fetchWalletTagDescriptions()
+        ]);
+        
+        initialLoadComplete.current = true;
+        console.log('✅ Initial data load complete');
+      } catch (error) {
+        console.error('❌ Initial data load failed:', error);
+      }
+    };
+    
+    loadInitialData();
+    
+    // ✅ FIX: Empty dependency array - run ONCE on mount only
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ============================================================================
   // RETURN
