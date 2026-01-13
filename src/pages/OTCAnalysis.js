@@ -776,6 +776,7 @@ const OTCAnalysis = () => {
                 onNodeHover={handleNodeHover}
                 selectedNode={selectedWallet}
                 discoveredDesks={discoveredDesks || []}
+                discoveredWallets={discoveredWallets || []}  // ✅ NEU: Wallets übergeben
               />
             ) : (
               <div className="empty-state">
