@@ -527,8 +527,6 @@ const OTCAnalysis = () => {
     }
   };
 
-
-
   /**
    * Handle view wallet from discovery
    */
@@ -1034,7 +1032,6 @@ const OTCAnalysis = () => {
           onClose={handleCloseSidebar}
           onAddToWatchlist={handleAddToWatchlist}
           isInWatchlist={isWalletInWatchlist}
-          onDiscoverWallets={handleWalletDiscovery}  // ✅ NEW
         />
       )}
     </div>
