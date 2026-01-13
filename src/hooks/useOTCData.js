@@ -1002,36 +1002,47 @@ export const useOTCData = () => {
   // ============================================================================
   
   useEffect(() => {
-    if (initialLoadComplete.current) {
-      console.log('⏭️ Skipping duplicate initial load');
-      return;
-    }
-    
-    console.log('🚀 useOTCData: Initial data fetch');
-    
     const loadInitialData = async () => {
       try {
+        setLoading(prev => ({ ...prev, initial: true }));
+        
         await Promise.all([
           fetchNetworkData(),
           fetchSankeyData(),
           fetchStatistics(),
-          fetchWatchlist(),
           fetchAllDesks(),
-          fetchDiscoveryStats(),
-          fetchDiscoveredWallets(),
-          fetchWalletTagDescriptions()
+          fetchDiscoveredWallets(),  // ✅ WICHTIG: Wallets laden
+          fetchDiscoveryStats()
         ]);
         
-        initialLoadComplete.current = true;
-        console.log('✅ Initial data load complete');
       } catch (error) {
-        console.error('❌ Initial data load failed:', error);
+        console.error('Error loading initial data:', error);
+      } finally {
+        setLoading(prev => ({ ...prev, initial: false }));
       }
     };
-    
+  
     loadInitialData();
-    
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // ✅ Die Fetch-Funktion:
+  const fetchDiscoveredWallets = async () => {
+    try {
+      setLoading(prev => ({ ...prev, discoveredWallets: true }));
+      
+      const response = await otcAnalysisService.getDiscoveredWallets({
+        minTotalVolume: 1000000
+      });
+      
+      setDiscoveredWallets(response.wallets || []);
+      
+    } catch (error) {
+      console.error('Error fetching discovered wallets:', error);
+      setErrors(prev => ({ ...prev, discoveredWallets: error.message }));
+    } finally {
+      setLoading(prev => ({ ...prev, discoveredWallets: false }));
+    }
+  };
 
   // ============================================================================
   // RETURN
