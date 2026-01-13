@@ -470,51 +470,6 @@ class OTCAnalysisService {
   // ✅ NEW: HIGH-VOLUME WALLET DISCOVERY ENDPOINTS
   // ============================================================================
 
-  /**
-   * Get all discovered high-volume wallets
-   */
-  async getDiscoveredWallets(params = {}) {
-    try {
-      const queryParams = {
-        min_volume_score: params.minVolumeScore,
-        min_total_volume: params.minTotalVolume,
-        limit: params.limit || 100,
-        offset: params.offset || 0
-      };
-
-      if (params.classifications && params.classifications.length > 0) {
-        queryParams.classifications = params.classifications.join(',');
-      }
-
-      if (params.tags && params.tags.length > 0) {
-        queryParams.tags = params.tags.join(',');
-      }
-
-      Object.keys(queryParams).forEach(key => 
-        queryParams[key] === undefined && delete queryParams[key]
-      );
-
-      console.log('🔍 Fetching discovered wallets with params:', queryParams);
-
-      const response = await this.apiClient.get('/api/otc/wallets/discovered', { 
-        params: queryParams 
-      });
-
-      console.log('✅ Discovered wallets loaded:', {
-        total: response.data.total || 0,
-        returned: response.data.wallets?.length || 0
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error fetching discovered wallets:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Discover high-volume wallets from OTC desk transactions
-   */
   async discoverHighVolumeWallets(
     otcAddress,
     numTransactions = 10,
@@ -526,26 +481,59 @@ class OTCAnalysisService {
         source_address: otcAddress,
         num_transactions: numTransactions,
         min_volume_threshold: minVolumeThreshold,
-        filter_enabled: filterEnabled
+        filter_known_entities: filterEnabled  // ✅ FIXED: match backend param name
       };
-
+  
       console.log('🔍 Running wallet discovery:', {
         source: otcAddress.substring(0, 10) + '...',
         transactions: numTransactions,
         threshold: `$${(minVolumeThreshold / 1000000).toFixed(1)}M`
       });
-
-      const response = await this.apiClient.post('/api/otc/wallets/discovery/high-volume', params);
-
+  
+      // ✅ FIXED: Correct endpoint path
+      const response = await this.apiClient.post(
+        '/api/otc/discover/high-volume',  // Changed from /wallets/discovery/high-volume
+        null,
+        { params }
+      );
+  
       console.log('✅ Wallet discovery completed:', {
         source: otcAddress.substring(0, 10) + '...',
         discovered: response.data.discovered_count || 0,
         totalVolume: response.data.summary?.total_volume_discovered || 0
       });
-
+  
       return response.data;
     } catch (error) {
       console.error('❌ Wallet discovery failed:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get all discovered high-volume wallets
+   * ✅ FIXED: Changed route from /wallets/discovered to /discover/high-volume/stats
+   */
+  async getDiscoveredWallets(params = {}) {
+    try {
+      const queryParams = {
+        min_volume: params.minTotalVolume || 1000000
+      };
+  
+      console.log('🔍 Fetching discovered wallets with params:', queryParams);
+  
+      // ✅ FIXED: Using correct stats endpoint
+      const response = await this.apiClient.get('/api/otc/discover/high-volume/stats', { 
+        params: queryParams 
+      });
+  
+      console.log('✅ Discovered wallets loaded:', {
+        total: response.data.count || 0
+      });
+  
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching discovered wallets:', error);
       throw error;
     }
   }
