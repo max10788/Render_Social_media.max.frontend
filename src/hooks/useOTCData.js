@@ -355,34 +355,75 @@ export const useOTCData = () => {
             safeData.nodes.map(n => n.address?.toLowerCase())
           );
           
+          // Helper function to derive classification from tags
+          const deriveClassification = (tags) => {
+            if (!tags || !Array.isArray(tags)) return 'unknown';
+            
+            // Priority order: mega_whale > whale > institutional > large_wallet
+            if (tags.includes('mega_whale')) return 'mega_whale';
+            if (tags.includes('whale')) return 'whale';
+            if (tags.includes('institutional') || tags.includes('institutional_grade')) return 'institutional';
+            if (tags.includes('large_wallet')) return 'large_wallet';
+            
+            // If has high_volume tag but no specific classification
+            if (tags.includes('high_volume') || tags.includes('ultra_high_volume')) {
+              return 'whale'; // Default to whale for high volume
+            }
+            
+            return 'unknown';
+          };
+          
           // Add wallets that are not already in nodes
           const newWalletNodes = discoveredWallets
             .filter(wallet => !existingAddresses.has(wallet.address?.toLowerCase()))
-            .map(wallet => ({
-              address: wallet.address,
-              label: wallet.label || wallet.entity_name,
-              entity_type: wallet.entity_type || 'unknown',
-              node_type: 'high_volume_wallet',  // ✅ IMPORTANT
-              classification: wallet.classification,  // ✅ IMPORTANT
-              categorized_tags: wallet.categorized_tags,
-              volume_score: wallet.volume_score,
-              total_volume_usd: wallet.total_volume || wallet.total_volume_usd,
-              total_volume: wallet.total_volume || wallet.total_volume_usd,
-              avg_transaction: wallet.avg_transaction,
-              transaction_count: wallet.transaction_count || wallet.tx_count,
-              confidence_score: wallet.confidence_score || 80,
-              is_active: wallet.is_active ?? true,
-              tags: wallet.tags || [],
-              first_seen: wallet.first_seen,
-              last_active: wallet.last_active
-            }));
+            .map(wallet => {
+              const tags = wallet.tags || [];
+              const classification = wallet.classification || deriveClassification(tags);
+              
+              // Calculate volume score if not provided
+              const volumeScore = wallet.volume_score || (() => {
+                const volume = wallet.total_volume || 0;
+                if (volume >= 100000000) return 95; // 100M+
+                if (volume >= 50000000) return 85;  // 50M+
+                if (volume >= 10000000) return 75;  // 10M+
+                if (volume >= 5000000) return 65;   // 5M+
+                if (volume >= 1000000) return 60;   // 1M+
+                return 50;
+              })();
+              
+              return {
+                address: wallet.address,
+                label: wallet.label || wallet.entity_name,
+                entity_type: wallet.entity_type || 'unknown',
+                node_type: 'high_volume_wallet',  // ✅ IMPORTANT
+                classification: classification,    // ✅ DERIVED FROM TAGS
+                categorized_tags: wallet.categorized_tags,
+                volume_score: volumeScore,
+                total_volume_usd: wallet.total_volume || wallet.total_volume_usd,
+                total_volume: wallet.total_volume || wallet.total_volume_usd,
+                avg_transaction: wallet.avg_transaction,
+                transaction_count: wallet.transaction_count || wallet.tx_count,
+                confidence_score: (wallet.confidence || 0.8) * 100,
+                is_active: wallet.is_active ?? true,
+                tags: tags,
+                first_seen: wallet.first_seen,
+                last_active: wallet.last_active,
+                // ✅ NEW: Track discovery source (will be populated if available)
+                discovered_from: wallet.discovered_from || wallet.discovery_source || null,
+                discovery_method: wallet.discovery_method || 'volume_analysis'
+              };
+            });
           
           safeData.nodes = [...safeData.nodes, ...newWalletNodes];
           
           console.log('✅ Merged wallets:', {
             existing: safeData.nodes.length - newWalletNodes.length,
             new: newWalletNodes.length,
-            total: safeData.nodes.length
+            total: safeData.nodes.length,
+            classifications: newWalletNodes.reduce((acc, w) => {
+              acc[w.classification] = (acc[w.classification] || 0) + 1;
+              return acc;
+            }, {})
           });
         }
         
