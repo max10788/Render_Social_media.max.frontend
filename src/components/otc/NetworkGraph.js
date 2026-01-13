@@ -230,7 +230,8 @@ const NetworkGraph = ({
     
     // ✅ NEW: Wallet classifications have priority
     if (nodeType === 'high_volume_wallet' && classification) {
-      return getWalletClassificationIcon(classification);
+      const icon = getWalletClassificationIcon(classification);
+      return isDiscoveredWallet(node.address) ? `🔍 ${icon}` : icon;
     }
     
     // Existing tag-based icons
