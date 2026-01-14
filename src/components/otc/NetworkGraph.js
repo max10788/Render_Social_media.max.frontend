@@ -723,18 +723,24 @@ const NetworkGraph = ({
       if (onNodeClick) onNodeClick(node.data());
     });
 
-    cy.on('mouseover', 'node', (evt) => {
-      const node = evt.target;
-      setHoveredNode(node.data());
-      if (onNodeHover) onNodeHover(node.data());
+    cy.on('mouseover', 'edge', (evt) => {
+      const edge = evt.target;
+      const edgeData = edge.data();
       
-      const connectedEdges = node.connectedEdges();
-      const allEdges = cy.edges();
+      const edgeInfo = {
+        type: 'edge',
+        source: edge.source().data('label') || truncateAddress(edge.source().data('address')),
+        target: edge.target().data('label') || truncateAddress(edge.target().data('address')),
+        volume: edgeData.transfer_amount_usd || edgeData.value || 0,
+        transactions: edgeData.transaction_count || 1,
+        edgeSource: edgeData.edge_source || edgeData.source_type || 'unknown'
+      };
       
-      if (connectedEdges && connectedEdges.length > 0) {
-        connectedEdges.addClass('highlighted');
-        allEdges.not(connectedEdges).addClass('dimmed');
-      }
+      setHoveredNode(edgeInfo);
+    });
+    
+    cy.on('mouseout', 'edge', () => {
+      setHoveredNode(null);
     });
 
     cy.on('mouseout', 'node', () => {
