@@ -950,134 +950,176 @@ const NetworkGraph = ({
           ============================================================================ */}
       {hoveredNode && (
         <div className="hover-info-panel">
-          <div className="hover-info-header">
-            <span className="hover-info-icon">{getNodeIcon(hoveredNode)}</span>
-            <span className="hover-info-title">
-              {hoveredNode.entity_name || hoveredNode.label || truncateAddress(hoveredNode.address)}
-            </span>
-            {/* ✅ NEW: Classification Badge */}
-            {hoveredNode.classification && (
-              <span 
-                className="hover-info-badge"
-                style={{ 
-                  background: walletClassificationColors[hoveredNode.classification],
-                  color: 'white',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  marginLeft: '8px'
-                }}
-              >
-                {hoveredNode.classification.toUpperCase().replace('_', ' ')}
-              </span>
-            )}
-          </div>
-          
-          <div className="hover-info-body">
-            <div className="hover-info-row">
-              <span className="hover-label">Type:</span>
-              <span className="hover-value">
-                {hoveredNode.node_type?.toUpperCase() || hoveredNode.entity_type?.replace('_', ' ').toUpperCase()}
-              </span>
-            </div>
-            
-            <div className="hover-info-row">
-              <span className="hover-label">Volume:</span>
-              <span className="hover-value">
-                {formatValue(hoveredNode.total_volume_usd || hoveredNode.total_volume)}
-              </span>
-            </div>
-            
-            {/* ✅ NEW: Volume Score */}
-            {hoveredNode.volume_score && (
-              <div className="hover-info-row">
-                <span className="hover-label">Volume Score:</span>
-                <span className="hover-value" style={{
-                  color: hoveredNode.volume_score >= 80 ? '#10b981' : 
-                         hoveredNode.volume_score >= 60 ? '#f59e0b' : '#ef4444'
-                }}>
-                  {hoveredNode.volume_score.toFixed(0)}/100
+          {hoveredNode.type === 'edge' ? (
+            <>
+              <div className="hover-info-header">
+                <span className="hover-info-icon">↔️</span>
+                <span className="hover-info-title">Connection</span>
+                <span 
+                  className="hover-info-badge"
+                  style={{ 
+                    background: hoveredNode.edgeSource === 'transactions' ? '#10b981' : '#8b5cf6',
+                    color: 'white',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    marginLeft: '8px'
+                  }}
+                >
+                  {hoveredNode.edgeSource === 'transactions' ? 'BLOCKCHAIN' : 'DISCOVERY'}
                 </span>
               </div>
-            )}
-            
-            <div className="hover-info-row">
-              <span className="hover-label">Transactions:</span>
-              <span className="hover-value">
-                {(hoveredNode.transaction_count || 0).toLocaleString()}
-              </span>
-            </div>
-            
-            {/* ✅ NEW: Average Transaction */}
-            {hoveredNode.avg_transaction && (
-              <div className="hover-info-row">
-                <span className="hover-label">Avg Transaction:</span>
-                <span className="hover-value">{formatValue(hoveredNode.avg_transaction)}</span>
+              
+              <div className="hover-info-body">
+                <div className="hover-info-row">
+                  <span className="hover-label">From:</span>
+                  <span className="hover-value">{hoveredNode.source}</span>
+                </div>
+                
+                <div className="hover-info-row">
+                  <span className="hover-label">To:</span>
+                  <span className="hover-value">{hoveredNode.target}</span>
+                </div>
+                
+                <div className="hover-info-row">
+                  <span className="hover-label">Volume:</span>
+                  <span className="hover-value">{formatValue(hoveredNode.volume)}</span>
+                </div>
+                
+                <div className="hover-info-row">
+                  <span className="hover-label">Transactions:</span>
+                  <span className="hover-value">{hoveredNode.transactions.toLocaleString()}</span>
+                </div>
               </div>
-            )}
-            
-            {hoveredNode.confidence_score && (
-              <div className="hover-info-row">
-                <span className="hover-label">Confidence:</span>
-                <span className="hover-value">{hoveredNode.confidence_score.toFixed(1)}%</span>
-              </div>
-            )}
-            
-            {/* ✅ NEW: Categorized Tags Display */}
-            {hoveredNode.categorized_tags && (
-              <div className="hover-info-categories">
-                {Object.entries(hoveredNode.categorized_tags).map(([category, categoryTags]) => {
-                  if (category === 'all' || !Array.isArray(categoryTags) || categoryTags.length === 0) return null;
-                  
-                  return (
-                    <div key={category} className="hover-category">
-                      <span className="hover-category-label" style={{
-                        color: tagCategoryColors[category]
-                      }}>
-                        {category.toUpperCase()}:
-                      </span>
-                      <div className="hover-category-tags">
-                        {categoryTags.slice(0, 3).map(tag => (
-                          <span 
-                            key={tag} 
-                            className="hover-tag" 
-                            style={{
-                              background: `${tagCategoryColors[category]}33`,
-                              borderColor: tagCategoryColors[category],
-                              fontSize: '9px'
-                            }}
-                          >
-                            {tag.replace(/_/g, ' ')}
-                          </span>
-                        ))}
-                        {categoryTags.length > 3 && (
-                          <span className="hover-tag more">+{categoryTags.length - 3}</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            
-            {/* Fallback: Show regular tags if no categorized_tags */}
-            {!hoveredNode.categorized_tags && hoveredNode.tags && hoveredNode.tags.length > 0 && (
-              <div className="hover-info-tags">
-                {hoveredNode.tags.slice(0, 5).map(tag => (
-                  <span key={tag} className="hover-tag" style={{
-                    background: tagColors[tag] ? `${tagColors[tag]}33` : 'rgba(100,100,100,0.3)',
-                    borderColor: tagColors[tag] || '#666'
-                  }}>
-                    {tag}
+            </>
+          ) : (
+            <>
+              <div className="hover-info-header">
+                <span className="hover-info-icon">{getNodeIcon(hoveredNode)}</span>
+                <span className="hover-info-title">
+                  {hoveredNode.entity_name || hoveredNode.label || truncateAddress(hoveredNode.address)}
+                </span>
+                {hoveredNode.classification && (
+                  <span 
+                    className="hover-info-badge"
+                    style={{ 
+                      background: walletClassificationColors[hoveredNode.classification],
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      marginLeft: '8px'
+                    }}
+                  >
+                    {hoveredNode.classification.toUpperCase().replace('_', ' ')}
                   </span>
-                ))}
-                {hoveredNode.tags.length > 5 && (
-                  <span className="hover-tag more">+{hoveredNode.tags.length - 5}</span>
                 )}
               </div>
-            )}
-          </div>
+              
+              <div className="hover-info-body">
+                <div className="hover-info-row">
+                  <span className="hover-label">Type:</span>
+                  <span className="hover-value">
+                    {hoveredNode.node_type?.toUpperCase() || hoveredNode.entity_type?.replace('_', ' ').toUpperCase()}
+                  </span>
+                </div>
+                
+                <div className="hover-info-row">
+                  <span className="hover-label">Volume:</span>
+                  <span className="hover-value">
+                    {formatValue(hoveredNode.total_volume_usd || hoveredNode.total_volume)}
+                  </span>
+                </div>
+                
+                {hoveredNode.volume_score && (
+                  <div className="hover-info-row">
+                    <span className="hover-label">Volume Score:</span>
+                    <span className="hover-value" style={{
+                      color: hoveredNode.volume_score >= 80 ? '#10b981' : 
+                             hoveredNode.volume_score >= 60 ? '#f59e0b' : '#ef4444'
+                    }}>
+                      {hoveredNode.volume_score.toFixed(0)}/100
+                    </span>
+                  </div>
+                )}
+                
+                <div className="hover-info-row">
+                  <span className="hover-label">Transactions:</span>
+                  <span className="hover-value">
+                    {(hoveredNode.transaction_count || 0).toLocaleString()}
+                  </span>
+                </div>
+                
+                {hoveredNode.avg_transaction && (
+                  <div className="hover-info-row">
+                    <span className="hover-label">Avg Transaction:</span>
+                    <span className="hover-value">{formatValue(hoveredNode.avg_transaction)}</span>
+                  </div>
+                )}
+                
+                {hoveredNode.confidence_score && (
+                  <div className="hover-info-row">
+                    <span className="hover-label">Confidence:</span>
+                    <span className="hover-value">{hoveredNode.confidence_score.toFixed(1)}%</span>
+                  </div>
+                )}
+                
+                {hoveredNode.categorized_tags && (
+                  <div className="hover-info-categories">
+                    {Object.entries(hoveredNode.categorized_tags).map(([category, categoryTags]) => {
+                      if (category === 'all' || !Array.isArray(categoryTags) || categoryTags.length === 0) return null;
+                      
+                      return (
+                        <div key={category} className="hover-category">
+                          <span className="hover-category-label" style={{
+                            color: tagCategoryColors[category]
+                          }}>
+                            {category.toUpperCase()}:
+                          </span>
+                          <div className="hover-category-tags">
+                            {categoryTags.slice(0, 3).map(tag => (
+                              <span 
+                                key={tag} 
+                                className="hover-tag" 
+                                style={{
+                                  background: `${tagCategoryColors[category]}33`,
+                                  borderColor: tagCategoryColors[category],
+                                  fontSize: '9px'
+                                }}
+                              >
+                                {tag.replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                            {categoryTags.length > 3 && (
+                              <span className="hover-tag more">+{categoryTags.length - 3}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {!hoveredNode.categorized_tags && hoveredNode.tags && hoveredNode.tags.length > 0 && (
+                  <div className="hover-info-tags">
+                    {hoveredNode.tags.slice(0, 5).map(tag => (
+                      <span key={tag} className="hover-tag" style={{
+                        background: tagColors[tag] ? `${tagColors[tag]}33` : 'rgba(100,100,100,0.3)',
+                        borderColor: tagColors[tag] || '#666'
+                      }}>
+                        {tag}
+                      </span>
+                    ))}
+                    {hoveredNode.tags.length > 5 && (
+                      <span className="hover-tag more">+{hoveredNode.tags.length - 5}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
       
