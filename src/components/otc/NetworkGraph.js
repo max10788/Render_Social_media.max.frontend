@@ -786,7 +786,35 @@ const NetworkGraph = ({
       const node = evt.target;
       if (onNodeClick) onNodeClick(node.data());
     });
-
+    
+    // ✅ NEU: Node Hover Effect
+    cy.on('mouseover', 'node', (evt) => {
+      const node = evt.target;
+      const nodeData = node.data();
+      
+      // Set hover info
+      setHoveredNode(nodeData);
+      
+      // Highlight connected edges
+      const connectedEdges = node.connectedEdges();
+      const connectedNodes = node.neighborhood();
+      
+      // Dim everything
+      cy.elements().addClass('dimmed');
+      
+      // Remove dimming from hovered node, connected nodes and edges
+      node.removeClass('dimmed');
+      connectedNodes.removeClass('dimmed');
+      connectedEdges.removeClass('dimmed').addClass('highlighted');
+      
+      if (onNodeHover) onNodeHover(nodeData);
+    });
+    
+    cy.on('mouseout', 'node', () => {
+      setHoveredNode(null);
+      cy.elements().removeClass('highlighted dimmed');
+    });
+    
     cy.on('mouseover', 'edge', (evt) => {
       const edge = evt.target;
       const edgeData = edge.data();
@@ -801,17 +829,18 @@ const NetworkGraph = ({
       };
       
       setHoveredNode(edgeInfo);
+      
+      // ✅ NEU: Highlight edge and connected nodes
+      cy.elements().addClass('dimmed');
+      edge.removeClass('dimmed').addClass('highlighted');
+      edge.connectedNodes().removeClass('dimmed');
     });
     
     cy.on('mouseout', 'edge', () => {
       setHoveredNode(null);
+      cy.elements().removeClass('highlighted dimmed');
     });
-
-    cy.on('mouseout', 'node', () => {
-      setHoveredNode(null);
-      cy.edges().removeClass('highlighted dimmed');
-    });
-
+    
     cy.on('cxttap', 'node', (evt) => {
       const node = evt.target;
       const renderedPosition = node.renderedPosition();
@@ -821,13 +850,12 @@ const NetworkGraph = ({
         y: renderedPosition.y
       });
     });
-
+    
     cy.on('tap', (evt) => {
       if (evt.target === cy) {
         setContextMenu(null);
       }
     });
-
     cy.on('layoutstop', () => {
       setTimeout(() => {
         if (cyRef.current) {
