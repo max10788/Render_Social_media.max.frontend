@@ -461,7 +461,7 @@ const NetworkGraph = ({
         tags: activeFilters.tags.length,
         entityTypes: activeFilters.entityTypes.length,
         confidenceRange: activeFilters.confidenceRange,
-        walletClassifications: activeFilters.walletClassifications.length  // ✅ NEW
+        walletClassifications: activeFilters.walletClassifications.length
       }
     });
   
@@ -481,53 +481,106 @@ const NetworkGraph = ({
       visibleNodes.map(node => node.address.toLowerCase())
     );
     
+    // ✅ NEW: Log visible addresses
+    console.log('📍 Visible Address Set:', {
+      size: visibleAddressSet.size,
+      firstThree: Array.from(visibleAddressSet).slice(0, 3),
+      matches_node_count: visibleAddressSet.size === visibleNodes.length
+    });
+    
     // Format nodes
     const formattedNodes = visibleNodes.map(node => {
       let cleanLabel = node.label;
       if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
         cleanLabel = null;
       }
-
+  
       return {
         data: {
           id: node.address,
           address: node.address,
           label: cleanLabel,
           entity_type: node.entity_type || 'unknown',
-          node_type: node.node_type,                          // ✅ NEW
-          classification: node.classification,                // ✅ NEW
+          node_type: node.node_type,
+          classification: node.classification,
           entity_name: node.entity_name,
           total_volume_usd: Number(node.total_volume_usd || node.total_volume) || 0,
-          total_volume: Number(node.total_volume_usd || node.total_volume) || 0,  // ✅ NEW
+          total_volume: Number(node.total_volume_usd || node.total_volume) || 0,
           confidence_score: node.confidence_score || node.confidence || 50,
           is_active: Boolean(node.is_active),
           transaction_count: Number(node.transaction_count || node.tx_count) || 0,
           tags: node.tags || [],
-          categorized_tags: node.categorized_tags,            // ✅ NEW
-          volume_score: node.volume_score,                    // ✅ NEW
-          avg_transaction: node.avg_transaction,              // ✅ NEW
+          categorized_tags: node.categorized_tags,
+          volume_score: node.volume_score,
+          avg_transaction: node.avg_transaction,
           first_seen: node.first_seen,
           last_active: node.last_active
         }
       };
     });
   
+    // ✅ NEW: Log before edge processing
+    console.log('🔗 Starting edge processing:', {
+      totalRawEdges: rawEdges.length,
+      firstEdgeStructure: rawEdges.length > 0 ? {
+        hasDataProperty: !!rawEdges[0]?.data,
+        directSource: rawEdges[0]?.source,
+        directTarget: rawEdges[0]?.target,
+        dataSource: rawEdges[0]?.data?.source,
+        dataTarget: rawEdges[0]?.data?.target,
+        allKeys: Object.keys(rawEdges[0] || {})
+      } : 'NO EDGES'
+    });
+  
     // Filter edges
+    let invalidStructureCount = 0;
+    let missingSourceCount = 0;
+    let missingTargetCount = 0;
+    let validEdgeCount = 0;
+  
     const filteredEdges = rawEdges
-      .map((edge) => {
+      .map((edge, index) => {
         const edgeData = edge.data || edge;
         
+        // ✅ Check for invalid structure
         if (!edgeData || !edgeData.source || !edgeData.target) {
+          invalidStructureCount++;
+          if (index < 3) {  // Log first 3 invalid edges
+            console.warn('❌ Invalid edge structure at index', index, ':', {
+              hasEdgeData: !!edgeData,
+              hasSource: !!edgeData?.source,
+              hasTarget: !!edgeData?.target,
+              edge: edge
+            });
+          }
           return null;
         }
   
         const sourceNormalized = edgeData.source.toLowerCase();
         const targetNormalized = edgeData.target.toLowerCase();
         
-        if (!visibleAddressSet.has(sourceNormalized) || !visibleAddressSet.has(targetNormalized)) {
+        const hasSource = visibleAddressSet.has(sourceNormalized);
+        const hasTarget = visibleAddressSet.has(targetNormalized);
+        
+        // ✅ Check for missing nodes
+        if (!hasSource || !hasTarget) {
+          if (!hasSource) missingSourceCount++;
+          if (!hasTarget) missingTargetCount++;
+          
+          // Log first 3 filtered edges
+          if (missingSourceCount + missingTargetCount <= 3) {
+            console.warn('❌ Edge filtered - node not visible:', {
+              source: edgeData.source.substring(0, 10) + '...',
+              target: edgeData.target.substring(0, 10) + '...',
+              hasSource,
+              hasTarget
+            });
+          }
           return null;
         }
   
+        validEdgeCount++;
+        
         return {
           data: {
             id: `${edgeData.source}-${edgeData.target}`,
@@ -542,9 +595,20 @@ const NetworkGraph = ({
       })
       .filter(Boolean);
   
+    // ✅ Final summary
+    console.log('✅ Edge Processing Complete:', {
+      totalRawEdges: rawEdges.length,
+      invalidStructure: invalidStructureCount,
+      missingSource: missingSourceCount,
+      missingTarget: missingTargetCount,
+      validEdges: validEdgeCount,
+      finalFilteredEdges: filteredEdges.length
+    });
+  
     console.log('✅ Final formatted data:', {
       nodes: formattedNodes.length,
-      edges: filteredEdges.length
+      edges: filteredEdges.length,
+      totalElements: formattedNodes.length + filteredEdges.length
     });
   
     return [...formattedNodes, ...filteredEdges];
