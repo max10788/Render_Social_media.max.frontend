@@ -15,6 +15,7 @@ cytoscape.use(dagre);
  * - Dual Legends (Entity Types + Wallet Classifications)
  * - Extended Statistics with Wallet Breakdown
  * - Wallet-specific Colors, Icons, and Filtering
+ * - ✅ Collapsible Stats Panel
  */
 const NetworkGraph = ({ 
   data, 
@@ -22,13 +23,16 @@ const NetworkGraph = ({
   onNodeHover, 
   selectedNode,
   discoveredDesks = [],
-  discoveredWallets = []  // ✅ NEU
+  discoveredWallets = []
 }) => {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [stats, setStats] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
+  
+  // ✅ NEW: Stats Panel State
+  const [showStats, setShowStats] = useState(true);
   
   // ============================================================================
   // FILTER STATE
@@ -37,20 +41,20 @@ const NetworkGraph = ({
     tags: [],
     entityTypes: [],
     confidenceRange: [0, 100],
-    walletClassifications: []  // ✅ NEW
+    walletClassifications: []
   });
   
   const [pendingFilters, setPendingFilters] = useState({
     tags: [],
     entityTypes: [],
     confidenceRange: [0, 100],
-    walletClassifications: []  // ✅ NEW
+    walletClassifications: []
   });
   
   const [showFilters, setShowFilters] = useState(false);
   const [availableTags, setAvailableTags] = useState([]);
   const [availableEntityTypes, setAvailableEntityTypes] = useState([]);
-  const [availableWalletClassifications, setAvailableWalletClassifications] = useState([]);  // ✅ NEW
+  const [availableWalletClassifications, setAvailableWalletClassifications] = useState([]);
   const [hasUnappliedChanges, setHasUnappliedChanges] = useState(false);
 
   // ============================================================================
@@ -69,24 +73,22 @@ const NetworkGraph = ({
     discovered: '#10B981'
   };
 
-  // ✅ NEW: Wallet Classification Colors
   const walletClassificationColors = {
-    mega_whale: '#7c3aed',      // purple-600
-    whale: '#2563eb',           // blue-600
-    institutional: '#059669',   // green-600
-    large_wallet: '#d97706',    // amber-600
-    medium_wallet: '#64748b'    // slate-600
+    mega_whale: '#7c3aed',
+    whale: '#2563eb',
+    institutional: '#059669',
+    large_wallet: '#d97706',
+    medium_wallet: '#64748b'
   };
 
-  // ✅ NEW: Tag Category Colors
   const tagCategoryColors = {
-    volume: '#3b82f6',      // blue
-    activity: '#10b981',    // green
-    tokens: '#8b5cf6',      // purple
-    behavior: '#f59e0b',    // orange
-    network: '#06b6d4',     // cyan
-    risk: '#ef4444',        // red
-    temporal: '#6b7280'     // gray
+    volume: '#3b82f6',
+    activity: '#10b981',
+    tokens: '#8b5cf6',
+    behavior: '#f59e0b',
+    network: '#06b6d4',
+    risk: '#ef4444',
+    temporal: '#6b7280'
   };
 
   const tagColors = {
@@ -150,7 +152,6 @@ const NetworkGraph = ({
     });
   };
 
-  // ✅ NEU: Check if wallet is discovered
   const isDiscoveredWallet = (address) => {
     if (!address) return false;
     const normalizedAddress = address.toLowerCase();
@@ -159,7 +160,6 @@ const NetworkGraph = ({
     );
   };
   
-  // ✅ NEW: Wallet Classification Icon
   const getWalletClassificationIcon = (classification) => {
     const icons = {
       mega_whale: '🐋',
@@ -171,24 +171,20 @@ const NetworkGraph = ({
     return icons[classification] || '';
   };
 
-  // ✅ ENHANCED: Node Color with Wallet Classification Support
   const getNodeColor = (node) => {
     const tags = node.tags || [];
     const entityType = node.entity_type;
     const nodeType = node.node_type;
     const classification = node.classification;
     
-    // ✅ PRIORITY 1: High-Volume Wallet Classifications
     if (nodeType === 'high_volume_wallet' && classification) {
       const baseColor = walletClassificationColors[classification] || walletClassificationColors.medium_wallet;
-      // Discovered Wallets bekommen einen grünen Schimmer
       if (isDiscoveredWallet(node.address)) {
-        return '#10B981';  // Discovery green
+        return '#10B981';
       }
       return baseColor;
     }
     
-    // PRIORITY 2: Tag-based colors
     for (let i = tagPriority.length - 1; i >= 0; i--) {
       const priorityTag = tagPriority[i];
       if (tags.includes(priorityTag) && tagColors[priorityTag]) {
@@ -207,7 +203,6 @@ const NetworkGraph = ({
       }
     }
     
-    // PRIORITY 3: Entity type fallback
     return entityColors[entityType] || entityColors.unknown;
   };
 
@@ -222,19 +217,16 @@ const NetworkGraph = ({
     return 'solid';
   };
 
-  // ✅ ENHANCED: Node Icon with Wallet Classification Support
   const getNodeIcon = (node) => {
     const tags = node.tags || [];
     const nodeType = node.node_type;
     const classification = node.classification;
     
-    // ✅ NEW: Wallet classifications have priority
     if (nodeType === 'high_volume_wallet' && classification) {
       const icon = getWalletClassificationIcon(classification);
       return isDiscoveredWallet(node.address) ? `🔍 ${icon}` : icon;
     }
     
-    // Existing tag-based icons
     if (tags.includes('verified') || tags.includes('verified_otc_desk')) return '✓';
     if (tags.includes('HIGH_CONFIDENCE_OTC')) return '⭐';
     if (tags.includes('discovered')) return '🔍';
@@ -263,7 +255,7 @@ const NetworkGraph = ({
     const rangeChanged = activeFilters.confidenceRange[0] !== pendingFilters.confidenceRange[0] || 
                         activeFilters.confidenceRange[1] !== pendingFilters.confidenceRange[1];
     const walletClassChanged = JSON.stringify(activeFilters.walletClassifications.sort()) !== 
-                               JSON.stringify(pendingFilters.walletClassifications.sort());  // ✅ NEW
+                               JSON.stringify(pendingFilters.walletClassifications.sort());
     
     setHasUnappliedChanges(tagsChanged || typesChanged || rangeChanged || walletClassChanged);
   }, [activeFilters, pendingFilters]);
@@ -277,7 +269,7 @@ const NetworkGraph = ({
       tags: [...pendingFilters.tags],
       entityTypes: [...pendingFilters.entityTypes],
       confidenceRange: [...pendingFilters.confidenceRange],
-      walletClassifications: [...pendingFilters.walletClassifications]  // ✅ NEW
+      walletClassifications: [...pendingFilters.walletClassifications]
     });
     setHasUnappliedChanges(false);
   };
@@ -288,7 +280,7 @@ const NetworkGraph = ({
       tags: [],
       entityTypes: [],
       confidenceRange: [0, 100],
-      walletClassifications: []  // ✅ NEW
+      walletClassifications: []
     };
     setPendingFilters(defaultFilters);
     setActiveFilters(defaultFilters);
@@ -301,13 +293,13 @@ const NetworkGraph = ({
       tags: [...activeFilters.tags],
       entityTypes: [...activeFilters.entityTypes],
       confidenceRange: [...activeFilters.confidenceRange],
-      walletClassifications: [...activeFilters.walletClassifications]  // ✅ NEW
+      walletClassifications: [...activeFilters.walletClassifications]
     });
     setHasUnappliedChanges(false);
   };
 
   // ============================================================================
-  // ✅ ENHANCED: FILTER LOGIC with Wallet Classification Support
+  // FILTER LOGIC
   // ============================================================================
 
   const shouldShowNode = (node) => {
@@ -317,14 +309,12 @@ const NetworkGraph = ({
       return false;
     }
 
-    // Entity type filter
     if (activeFilters.entityTypes.length > 0) {
       if (!activeFilters.entityTypes.includes(node.entity_type)) {
         return false;
       }
     }
     
-    // ✅ NEW: Wallet Classification Filter
     if (activeFilters.walletClassifications.length > 0) {
       const nodeType = node.node_type;
       const classification = node.classification;
@@ -334,12 +324,10 @@ const NetworkGraph = ({
           return false;
         }
       } else {
-        // If wallet classification filter is active but node is not a wallet, hide it
         return false;
       }
     }
 
-    // Tag filter
     if (activeFilters.tags.length > 0) {
       const nodeTags = node.tags || [];
       const hasSelectedTag = activeFilters.tags.some(tag => nodeTags.includes(tag));
@@ -361,7 +349,7 @@ const NetworkGraph = ({
 
     const tags = new Set();
     const entityTypes = new Set();
-    const walletClassifications = new Set();  // ✅ NEW
+    const walletClassifications = new Set();
 
     data.nodes.forEach(node => {
       if (node.entity_type) {
@@ -370,7 +358,6 @@ const NetworkGraph = ({
       if (node.tags && Array.isArray(node.tags)) {
         node.tags.forEach(tag => tags.add(tag));
       }
-      // ✅ NEW: Collect wallet classifications
       if (node.classification && node.node_type === 'high_volume_wallet') {
         walletClassifications.add(node.classification);
       }
@@ -378,17 +365,17 @@ const NetworkGraph = ({
 
     setAvailableTags(Array.from(tags).sort());
     setAvailableEntityTypes(Array.from(entityTypes).sort());
-    setAvailableWalletClassifications(Array.from(walletClassifications).sort());  // ✅ NEW
+    setAvailableWalletClassifications(Array.from(walletClassifications).sort());
 
     console.log('📊 Available filters extracted:', {
       tags: tags.size,
       entityTypes: entityTypes.size,
-      walletClassifications: walletClassifications.size  // ✅ NEW
+      walletClassifications: walletClassifications.size
     });
   }, [data]);
 
   // ============================================================================
-  // ✅ ENHANCED: CALCULATE STATISTICS with Wallet Breakdown
+  // CALCULATE STATISTICS
   // ============================================================================
 
   useEffect(() => {
@@ -402,12 +389,10 @@ const NetworkGraph = ({
       isDiscoveredDesk(n.address)
     ).length;
     
-    // ✅ NEW: Count high-volume wallets
     const walletCount = filteredNodes.filter(n => 
       n.node_type === 'high_volume_wallet' || n.classification
     ).length;
     
-    // ✅ NEW: Count by wallet classification
     const walletsByClass = {
       mega_whale: filteredNodes.filter(n => n.classification === 'mega_whale').length,
       whale: filteredNodes.filter(n => n.classification === 'whale').length,
@@ -430,8 +415,8 @@ const NetworkGraph = ({
       edges: edgeCount,
       discovered: discoveredCount,
       verified: verifiedCount,
-      wallets: walletCount,              // ✅ NEW
-      walletsByClass: walletsByClass,    // ✅ NEW
+      wallets: walletCount,
+      walletsByClass: walletsByClass,
       totalVolume
     });
 
@@ -465,7 +450,6 @@ const NetworkGraph = ({
       }
     });
   
-    // Filter nodes
     const visibleNodes = rawNodes.filter(node => {
       if (!node || !node.address) return false;
       return shouldShowNode(node);
@@ -476,19 +460,16 @@ const NetworkGraph = ({
       filtered_out: rawNodes.length - visibleNodes.length
     });
     
-    // Build visible address set
     const visibleAddressSet = new Set(
       visibleNodes.map(node => node.address.toLowerCase())
     );
     
-    // ✅ NEW: Log visible addresses
     console.log('📍 Visible Address Set:', {
       size: visibleAddressSet.size,
       firstThree: Array.from(visibleAddressSet).slice(0, 3),
       matches_node_count: visibleAddressSet.size === visibleNodes.length
     });
     
-    // Format nodes
     const formattedNodes = visibleNodes.map(node => {
       let cleanLabel = node.label;
       if (cleanLabel && cleanLabel.startsWith('Discovered 0x')) {
@@ -519,7 +500,6 @@ const NetworkGraph = ({
       };
     });
   
-    // ✅ NEW: Log before edge processing
     console.log('🔗 Starting edge processing:', {
       totalRawEdges: rawEdges.length,
       firstEdgeStructure: rawEdges.length > 0 ? {
@@ -532,7 +512,6 @@ const NetworkGraph = ({
       } : 'NO EDGES'
     });
   
-    // Filter edges
     let invalidStructureCount = 0;
     let missingSourceCount = 0;
     let missingTargetCount = 0;
@@ -542,10 +521,9 @@ const NetworkGraph = ({
       .map((edge, index) => {
         const edgeData = edge.data || edge;
         
-        // ✅ Check for invalid structure
         if (!edgeData || !edgeData.source || !edgeData.target) {
           invalidStructureCount++;
-          if (index < 3) {  // Log first 3 invalid edges
+          if (index < 3) {
             console.warn('❌ Invalid edge structure at index', index, ':', {
               hasEdgeData: !!edgeData,
               hasSource: !!edgeData?.source,
@@ -562,12 +540,10 @@ const NetworkGraph = ({
         const hasSource = visibleAddressSet.has(sourceNormalized);
         const hasTarget = visibleAddressSet.has(targetNormalized);
         
-        // ✅ Check for missing nodes
         if (!hasSource || !hasTarget) {
           if (!hasSource) missingSourceCount++;
           if (!hasTarget) missingTargetCount++;
           
-          // Log first 3 filtered edges
           if (missingSourceCount + missingTargetCount <= 3) {
             console.warn('❌ Edge filtered - node not visible:', {
               source: edgeData.source.substring(0, 10) + '...',
@@ -595,7 +571,6 @@ const NetworkGraph = ({
       })
       .filter(Boolean);
   
-    // ✅ Final summary
     console.log('✅ Edge Processing Complete:', {
       totalRawEdges: rawEdges.length,
       invalidStructure: invalidStructureCount,
@@ -787,22 +762,17 @@ const NetworkGraph = ({
       if (onNodeClick) onNodeClick(node.data());
     });
     
-    // ✅ NEU: Node Hover Effect
     cy.on('mouseover', 'node', (evt) => {
       const node = evt.target;
       const nodeData = node.data();
       
-      // Set hover info
       setHoveredNode(nodeData);
       
-      // Highlight connected edges
       const connectedEdges = node.connectedEdges();
       const connectedNodes = node.neighborhood();
       
-      // Dim everything
       cy.elements().addClass('dimmed');
       
-      // Remove dimming from hovered node, connected nodes and edges
       node.removeClass('dimmed');
       connectedNodes.removeClass('dimmed');
       connectedEdges.removeClass('dimmed').addClass('highlighted');
@@ -830,7 +800,6 @@ const NetworkGraph = ({
       
       setHoveredNode(edgeInfo);
       
-      // ✅ NEU: Highlight edge and connected nodes
       cy.elements().addClass('dimmed');
       edge.removeClass('dimmed').addClass('highlighted');
       edge.connectedNodes().removeClass('dimmed');
@@ -856,6 +825,7 @@ const NetworkGraph = ({
         setContextMenu(null);
       }
     });
+    
     cy.on('layoutstop', () => {
       setTimeout(() => {
         if (cyRef.current) {
@@ -923,7 +893,6 @@ const NetworkGraph = ({
     }));
   };
 
-  // ✅ NEW: Toggle Wallet Classification
   const toggleWalletClassification = (classification) => {
     setPendingFilters(prev => ({
       ...prev,
@@ -949,96 +918,109 @@ const NetworkGraph = ({
       <div className="network-graph" ref={containerRef}></div>
       
       {/* ============================================================================
-          STATISTICS PANEL with Wallet Breakdown
+          ✅ COLLAPSIBLE STATISTICS PANEL
           ============================================================================ */}
       {stats && (
-        <div className="graph-stats-panel">
-          <div className="stat-item">
-            <span className="stat-icon">🔗</span>
-            <div className="stat-content">
-              <span className="stat-value">
-                {stats.nodes}
-                {stats.nodes !== stats.totalNodes && (
-                  <span className="stat-secondary">/{stats.totalNodes}</span>
-                )}
-              </span>
-              <span className="stat-label">Nodes</span>
+        <div className={`graph-stats-panel ${showStats ? 'open' : 'collapsed'}`}>
+          <div className="stats-header" onClick={() => setShowStats(!showStats)}>
+            <div className="stats-header-content">
+              <span className="stats-icon">📊</span>
+              <span className="stats-title">Statistics</span>
             </div>
+            <button className="stats-toggle">
+              {showStats ? '✕' : '☰'}
+            </button>
           </div>
           
-          <div className="stat-item">
-            <span className="stat-icon">↔️</span>
-            <div className="stat-content">
-              <span className="stat-value">{stats.edges}</span>
-              <span className="stat-label">Connections</span>
-            </div>
-          </div>
-          
-          {/* ✅ NEW: High-Volume Wallets Stat */}
-          {stats.wallets > 0 && (
-            <div className="stat-item wallets">
-              <span className="stat-icon">🐋</span>
-              <div className="stat-content">
-                <span className="stat-value">{stats.wallets}</span>
-                <span className="stat-label">HV Wallets</span>
+          {showStats && (
+            <div className="stats-body">
+              <div className="stat-item">
+                <span className="stat-icon">🔗</span>
+                <div className="stat-content">
+                  <span className="stat-value">
+                    {stats.nodes}
+                    {stats.nodes !== stats.totalNodes && (
+                      <span className="stat-secondary">/{stats.totalNodes}</span>
+                    )}
+                  </span>
+                  <span className="stat-label">Nodes</span>
+                </div>
               </div>
-              <div className="stat-breakdown">
-                {stats.walletsByClass.mega_whale > 0 && (
-                  <span className="stat-breakdown-item" title="Mega Whales">
-                    🐋 {stats.walletsByClass.mega_whale}
-                  </span>
-                )}
-                {stats.walletsByClass.whale > 0 && (
-                  <span className="stat-breakdown-item" title="Whales">
-                    🐳 {stats.walletsByClass.whale}
-                  </span>
-                )}
-                {stats.walletsByClass.institutional > 0 && (
-                  <span className="stat-breakdown-item" title="Institutional">
-                    🏛️ {stats.walletsByClass.institutional}
-                  </span>
-                )}
-                {stats.walletsByClass.large_wallet > 0 && (
-                  <span className="stat-breakdown-item" title="Large Wallets">
-                    💼 {stats.walletsByClass.large_wallet}
-                  </span>
-                )}
+              
+              <div className="stat-item">
+                <span className="stat-icon">↔️</span>
+                <div className="stat-content">
+                  <span className="stat-value">{stats.edges}</span>
+                  <span className="stat-label">Connections</span>
+                </div>
+              </div>
+              
+              {stats.wallets > 0 && (
+                <div className="stat-item wallets">
+                  <span className="stat-icon">🐋</span>
+                  <div className="stat-content">
+                    <span className="stat-value">{stats.wallets}</span>
+                    <span className="stat-label">HV Wallets</span>
+                  </div>
+                  <div className="stat-breakdown">
+                    {stats.walletsByClass.mega_whale > 0 && (
+                      <span className="stat-breakdown-item" title="Mega Whales">
+                        🐋 {stats.walletsByClass.mega_whale}
+                      </span>
+                    )}
+                    {stats.walletsByClass.whale > 0 && (
+                      <span className="stat-breakdown-item" title="Whales">
+                        🐳 {stats.walletsByClass.whale}
+                      </span>
+                    )}
+                    {stats.walletsByClass.institutional > 0 && (
+                      <span className="stat-breakdown-item" title="Institutional">
+                        🏛️ {stats.walletsByClass.institutional}
+                      </span>
+                    )}
+                    {stats.walletsByClass.large_wallet > 0 && (
+                      <span className="stat-breakdown-item" title="Large Wallets">
+                        💼 {stats.walletsByClass.large_wallet}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {stats.verified > 0 && (
+                <div className="stat-item verified">
+                  <span className="stat-icon">✓</span>
+                  <div className="stat-content">
+                    <span className="stat-value">{stats.verified}</span>
+                    <span className="stat-label">Verified</span>
+                  </div>
+                </div>
+              )}
+              
+              {stats.discovered > 0 && (
+                <div className="stat-item discovered">
+                  <span className="stat-icon">🔍</span>
+                  <div className="stat-content">
+                    <span className="stat-value">{stats.discovered}</span>
+                    <span className="stat-label">Discovered</span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="stat-item">
+                <span className="stat-icon">💰</span>
+                <div className="stat-content">
+                  <span className="stat-value">{formatValue(stats.totalVolume)}</span>
+                  <span className="stat-label">Total Volume</span>
+                </div>
               </div>
             </div>
           )}
-          
-          {stats.verified > 0 && (
-            <div className="stat-item verified">
-              <span className="stat-icon">✓</span>
-              <div className="stat-content">
-                <span className="stat-value">{stats.verified}</span>
-                <span className="stat-label">Verified</span>
-              </div>
-            </div>
-          )}
-          
-          {stats.discovered > 0 && (
-            <div className="stat-item discovered">
-              <span className="stat-icon">🔍</span>
-              <div className="stat-content">
-                <span className="stat-value">{stats.discovered}</span>
-                <span className="stat-label">Discovered</span>
-              </div>
-            </div>
-          )}
-          
-          <div className="stat-item">
-            <span className="stat-icon">💰</span>
-            <div className="stat-content">
-              <span className="stat-value">{formatValue(stats.totalVolume)}</span>
-              <span className="stat-label">Total Volume</span>
-            </div>
-          </div>
         </div>
       )}
 
       {/* ============================================================================
-          ENHANCED HOVER INFO PANEL with Categorized Tags
+          ENHANCED HOVER INFO PANEL
           ============================================================================ */}
       {hoveredNode && (
         <div className="hover-info-panel">
@@ -1216,7 +1198,7 @@ const NetworkGraph = ({
       )}
       
       {/* ============================================================================
-          FILTER PANEL with Wallet Classifications
+          FILTER PANEL
           ============================================================================ */}
       <div className={`filter-panel ${showFilters ? 'open' : ''}`}>
         <div className="filter-header">
@@ -1303,7 +1285,7 @@ const NetworkGraph = ({
               </div>
             </div>
 
-            {/* ✅ NEW: Wallet Classifications */}
+            {/* Wallet Classifications */}
             {availableWalletClassifications.length > 0 && (
               <div className="filter-section">
                 <div className="filter-section-header">
@@ -1414,7 +1396,7 @@ const NetworkGraph = ({
               
               {(activeFilters.tags.length > 0 || 
                 activeFilters.entityTypes.length > 0 || 
-                activeFilters.walletClassifications.length > 0 ||  // ✅ NEW
+                activeFilters.walletClassifications.length > 0 ||
                 activeFilters.confidenceRange[0] > 0 || 
                 activeFilters.confidenceRange[1] < 100) && (
                 <button 
@@ -1464,7 +1446,7 @@ const NetworkGraph = ({
       </div>
 
       {/* ============================================================================
-          ✅ NEW: WALLET CLASSIFICATIONS LEGEND
+          WALLET CLASSIFICATIONS LEGEND
           ============================================================================ */}
       {stats && stats.wallets > 0 && (
         <div className="graph-legend wallet-legend enhanced">
