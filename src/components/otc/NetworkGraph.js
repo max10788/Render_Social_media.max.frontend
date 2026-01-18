@@ -6,16 +6,7 @@ import './NetworkGraph.css';
 cytoscape.use(dagre);
 
 /**
- * ✅ COMPLETE NetworkGraph Component with High-Volume Wallet Support
- * 
- * NEW FEATURES:
- * - Wallet Classification Support (mega_whale, whale, institutional, large_wallet)
- * - Categorized Tags Display (volume, activity, tokens, behavior, network, risk, temporal)
- * - Enhanced Hover Info with Volume Score & Classification
- * - Dual Legends (Entity Types + Wallet Classifications)
- * - Extended Statistics with Wallet Breakdown
- * - Wallet-specific Colors, Icons, and Filtering
- * - ✅ Collapsible Stats Panel
+ * ✅ COMPLETE NetworkGraph Component with Fullscreen & Enhanced Stats Panel
  */
 const NetworkGraph = ({ 
   data, 
@@ -31,7 +22,8 @@ const NetworkGraph = ({
   const [stats, setStats] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
   
-  // ✅ NEW: Stats Panel State
+  // ✅ NEW: Fullscreen & Stats Panel State
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showStats, setShowStats] = useState(true);
   
   // ============================================================================
@@ -56,6 +48,74 @@ const NetworkGraph = ({
   const [availableEntityTypes, setAvailableEntityTypes] = useState([]);
   const [availableWalletClassifications, setAvailableWalletClassifications] = useState([]);
   const [hasUnappliedChanges, setHasUnappliedChanges] = useState(false);
+
+  // ============================================================================
+  // FULLSCREEN HANDLERS
+  // ============================================================================
+  
+  const toggleFullscreen = () => {
+    const container = containerRef.current?.parentElement;
+    if (!container) return;
+
+    if (!isFullscreen) {
+      // Enter fullscreen
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      } else if (container.mozRequestFullScreen) {
+        container.mozRequestFullScreen();
+      } else if (container.msRequestFullscreen) {
+        container.msRequestFullscreen();
+      }
+      setIsFullscreen(true);
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      setIsFullscreen(isCurrentlyFullscreen);
+      
+      // Resize graph when entering/exiting fullscreen
+      if (cyRef.current) {
+        setTimeout(() => {
+          cyRef.current.resize();
+          cyRef.current.fit(60);
+        }, 100);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
 
   // ============================================================================
   // COLOR SCHEMES
@@ -439,36 +499,14 @@ const NetworkGraph = ({
     const rawNodes = Array.isArray(graphData.nodes) ? graphData.nodes : [];
     const rawEdges = Array.isArray(graphData.edges) ? graphData.edges : [];
   
-    console.log('🔍 formatGraphData called:', {
-      rawNodes: rawNodes.length,
-      rawEdges: rawEdges.length,
-      activeFilters: {
-        tags: activeFilters.tags.length,
-        entityTypes: activeFilters.entityTypes.length,
-        confidenceRange: activeFilters.confidenceRange,
-        walletClassifications: activeFilters.walletClassifications.length
-      }
-    });
-  
     const visibleNodes = rawNodes.filter(node => {
       if (!node || !node.address) return false;
       return shouldShowNode(node);
     });
     
-    console.log('✅ After shouldShowNode filter:', {
-      visible: visibleNodes.length,
-      filtered_out: rawNodes.length - visibleNodes.length
-    });
-    
     const visibleAddressSet = new Set(
       visibleNodes.map(node => node.address.toLowerCase())
     );
-    
-    console.log('📍 Visible Address Set:', {
-      size: visibleAddressSet.size,
-      firstThree: Array.from(visibleAddressSet).slice(0, 3),
-      matches_node_count: visibleAddressSet.size === visibleNodes.length
-    });
     
     const formattedNodes = visibleNodes.map(node => {
       let cleanLabel = node.label;
@@ -500,37 +538,11 @@ const NetworkGraph = ({
       };
     });
   
-    console.log('🔗 Starting edge processing:', {
-      totalRawEdges: rawEdges.length,
-      firstEdgeStructure: rawEdges.length > 0 ? {
-        hasDataProperty: !!rawEdges[0]?.data,
-        directSource: rawEdges[0]?.source,
-        directTarget: rawEdges[0]?.target,
-        dataSource: rawEdges[0]?.data?.source,
-        dataTarget: rawEdges[0]?.data?.target,
-        allKeys: Object.keys(rawEdges[0] || {})
-      } : 'NO EDGES'
-    });
-  
-    let invalidStructureCount = 0;
-    let missingSourceCount = 0;
-    let missingTargetCount = 0;
-    let validEdgeCount = 0;
-  
     const filteredEdges = rawEdges
-      .map((edge, index) => {
+      .map((edge) => {
         const edgeData = edge.data || edge;
         
         if (!edgeData || !edgeData.source || !edgeData.target) {
-          invalidStructureCount++;
-          if (index < 3) {
-            console.warn('❌ Invalid edge structure at index', index, ':', {
-              hasEdgeData: !!edgeData,
-              hasSource: !!edgeData?.source,
-              hasTarget: !!edgeData?.target,
-              edge: edge
-            });
-          }
           return null;
         }
   
@@ -541,21 +553,8 @@ const NetworkGraph = ({
         const hasTarget = visibleAddressSet.has(targetNormalized);
         
         if (!hasSource || !hasTarget) {
-          if (!hasSource) missingSourceCount++;
-          if (!hasTarget) missingTargetCount++;
-          
-          if (missingSourceCount + missingTargetCount <= 3) {
-            console.warn('❌ Edge filtered - node not visible:', {
-              source: edgeData.source.substring(0, 10) + '...',
-              target: edgeData.target.substring(0, 10) + '...',
-              hasSource,
-              hasTarget
-            });
-          }
           return null;
         }
-  
-        validEdgeCount++;
         
         return {
           data: {
@@ -570,21 +569,6 @@ const NetworkGraph = ({
         };
       })
       .filter(Boolean);
-  
-    console.log('✅ Edge Processing Complete:', {
-      totalRawEdges: rawEdges.length,
-      invalidStructure: invalidStructureCount,
-      missingSource: missingSourceCount,
-      missingTarget: missingTargetCount,
-      validEdges: validEdgeCount,
-      finalFilteredEdges: filteredEdges.length
-    });
-  
-    console.log('✅ Final formatted data:', {
-      nodes: formattedNodes.length,
-      edges: filteredEdges.length,
-      totalElements: formattedNodes.length + filteredEdges.length
-    });
   
     return [...formattedNodes, ...filteredEdges];
   };
@@ -786,7 +770,7 @@ const NetworkGraph = ({
     });
     
     cy.on('mouseover', 'edge', (evt) => {
-      const edge = evt.target;
+      const edge = evt.target();
       const edgeData = edge.data();
       
       const edgeInfo = {
@@ -914,113 +898,135 @@ const NetworkGraph = ({
   // ============================================================================
 
   return (
-    <div className="network-graph-container enhanced">
+    <div className={`network-graph-container enhanced ${isFullscreen ? 'fullscreen' : ''}`}>
       <div className="network-graph" ref={containerRef}></div>
       
       {/* ============================================================================
-          ✅ COLLAPSIBLE STATISTICS PANEL
+          ✅ ENHANCED STATISTICS PANEL
           ============================================================================ */}
       {stats && (
         <div className={`graph-stats-panel ${showStats ? 'open' : 'collapsed'}`}>
           <div className="stats-header" onClick={() => setShowStats(!showStats)}>
             <div className="stats-header-content">
               <span className="stats-icon">📊</span>
-              <span className="stats-title">Statistics</span>
+              <span className="stats-title">Network Statistics</span>
             </div>
-            <button className="stats-toggle">
-              {showStats ? '✕' : '☰'}
+            <button className="stats-toggle" type="button">
+              {showStats ? '−' : '+'}
             </button>
           </div>
           
           {showStats && (
             <div className="stats-body">
-              <div className="stat-item">
-                <span className="stat-icon">🔗</span>
-                <div className="stat-content">
-                  <span className="stat-value">
-                    {stats.nodes}
-                    {stats.nodes !== stats.totalNodes && (
-                      <span className="stat-secondary">/{stats.totalNodes}</span>
-                    )}
-                  </span>
-                  <span className="stat-label">Nodes</span>
-                </div>
-              </div>
-              
-              <div className="stat-item">
-                <span className="stat-icon">↔️</span>
-                <div className="stat-content">
-                  <span className="stat-value">{stats.edges}</span>
-                  <span className="stat-label">Connections</span>
-                </div>
-              </div>
-              
-              {stats.wallets > 0 && (
-                <div className="stat-item wallets">
-                  <span className="stat-icon">🐋</span>
-                  <div className="stat-content">
-                    <span className="stat-value">{stats.wallets}</span>
-                    <span className="stat-label">HV Wallets</span>
+              {/* Network Overview */}
+              <div className="stats-section">
+                <div className="stats-section-title">Network Overview</div>
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-card-icon">🔗</div>
+                    <div className="stat-card-content">
+                      <div className="stat-card-value">
+                        {stats.nodes}
+                        {stats.nodes !== stats.totalNodes && (
+                          <span className="stat-card-total">/{stats.totalNodes}</span>
+                        )}
+                      </div>
+                      <div className="stat-card-label">Nodes</div>
+                    </div>
                   </div>
-                  <div className="stat-breakdown">
+                  
+                  <div className="stat-card">
+                    <div className="stat-card-icon">↔️</div>
+                    <div className="stat-card-content">
+                      <div className="stat-card-value">{stats.edges}</div>
+                      <div className="stat-card-label">Edges</div>
+                    </div>
+                  </div>
+                  
+                  <div className="stat-card highlight-green">
+                    <div className="stat-card-icon">💰</div>
+                    <div className="stat-card-content">
+                      <div className="stat-card-value">{formatValue(stats.totalVolume)}</div>
+                      <div className="stat-card-label">Total Volume</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quality Metrics */}
+              {(stats.verified > 0 || stats.discovered > 0) && (
+                <div className="stats-section">
+                  <div className="stats-section-title">Quality Metrics</div>
+                  <div className="stats-grid">
+                    {stats.verified > 0 && (
+                      <div className="stat-card highlight-verified">
+                        <div className="stat-card-icon">✓</div>
+                        <div className="stat-card-content">
+                          <div className="stat-card-value">{stats.verified}</div>
+                          <div className="stat-card-label">Verified</div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {stats.discovered > 0 && (
+                      <div className="stat-card highlight-discovered">
+                        <div className="stat-card-icon">🔍</div>
+                        <div className="stat-card-content">
+                          <div className="stat-card-value">{stats.discovered}</div>
+                          <div className="stat-card-label">Discovered</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Wallet Classifications */}
+              {stats.wallets > 0 && (
+                <div className="stats-section">
+                  <div className="stats-section-title">
+                    <span>High-Volume Wallets</span>
+                    <span className="stats-section-badge">{stats.wallets}</span>
+                  </div>
+                  <div className="wallet-classifications">
                     {stats.walletsByClass.mega_whale > 0 && (
-                      <span className="stat-breakdown-item" title="Mega Whales">
-                        🐋 {stats.walletsByClass.mega_whale}
-                      </span>
+                      <div className="wallet-class-item mega-whale">
+                        <span className="wallet-class-icon">🐋</span>
+                        <span className="wallet-class-label">Mega Whales</span>
+                        <span className="wallet-class-count">{stats.walletsByClass.mega_whale}</span>
+                      </div>
                     )}
                     {stats.walletsByClass.whale > 0 && (
-                      <span className="stat-breakdown-item" title="Whales">
-                        🐳 {stats.walletsByClass.whale}
-                      </span>
+                      <div className="wallet-class-item whale">
+                        <span className="wallet-class-icon">🐳</span>
+                        <span className="wallet-class-label">Whales</span>
+                        <span className="wallet-class-count">{stats.walletsByClass.whale}</span>
+                      </div>
                     )}
                     {stats.walletsByClass.institutional > 0 && (
-                      <span className="stat-breakdown-item" title="Institutional">
-                        🏛️ {stats.walletsByClass.institutional}
-                      </span>
+                      <div className="wallet-class-item institutional">
+                        <span className="wallet-class-icon">🏛️</span>
+                        <span className="wallet-class-label">Institutional</span>
+                        <span className="wallet-class-count">{stats.walletsByClass.institutional}</span>
+                      </div>
                     )}
                     {stats.walletsByClass.large_wallet > 0 && (
-                      <span className="stat-breakdown-item" title="Large Wallets">
-                        💼 {stats.walletsByClass.large_wallet}
-                      </span>
+                      <div className="wallet-class-item large">
+                        <span className="wallet-class-icon">💼</span>
+                        <span className="wallet-class-label">Large Wallets</span>
+                        <span className="wallet-class-count">{stats.walletsByClass.large_wallet}</span>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
-              
-              {stats.verified > 0 && (
-                <div className="stat-item verified">
-                  <span className="stat-icon">✓</span>
-                  <div className="stat-content">
-                    <span className="stat-value">{stats.verified}</span>
-                    <span className="stat-label">Verified</span>
-                  </div>
-                </div>
-              )}
-              
-              {stats.discovered > 0 && (
-                <div className="stat-item discovered">
-                  <span className="stat-icon">🔍</span>
-                  <div className="stat-content">
-                    <span className="stat-value">{stats.discovered}</span>
-                    <span className="stat-label">Discovered</span>
-                  </div>
-                </div>
-              )}
-              
-              <div className="stat-item">
-                <span className="stat-icon">💰</span>
-                <div className="stat-content">
-                  <span className="stat-value">{formatValue(stats.totalVolume)}</span>
-                  <span className="stat-label">Total Volume</span>
-                </div>
-              </div>
             </div>
           )}
         </div>
       )}
 
       {/* ============================================================================
-          ENHANCED HOVER INFO PANEL
+          HOVER INFO PANEL
           ============================================================================ */}
       {hoveredNode && (
         <div className="hover-info-panel">
@@ -1212,6 +1218,7 @@ const NetworkGraph = ({
           <button 
             className="filter-toggle"
             onClick={() => setShowFilters(!showFilters)}
+            type="button"
           >
             {showFilters ? '✕' : '☰'}
           </button>
@@ -1255,6 +1262,7 @@ const NetworkGraph = ({
                   <button 
                     className="filter-clear-btn"
                     onClick={() => setPendingFilters(prev => ({ ...prev, entityTypes: [] }))}
+                    type="button"
                   >
                     Clear
                   </button>
@@ -1266,6 +1274,7 @@ const NetworkGraph = ({
                     key={type}
                     className={`filter-option ${pendingFilters.entityTypes.includes(type) ? 'selected' : ''}`}
                     onClick={() => toggleEntityType(type)}
+                    type="button"
                     style={{
                       borderColor: pendingFilters.entityTypes.includes(type) ? entityColors[type] : 'transparent',
                       background: pendingFilters.entityTypes.includes(type) 
@@ -1297,6 +1306,7 @@ const NetworkGraph = ({
                         ...prev, 
                         walletClassifications: [] 
                       }))}
+                      type="button"
                     >
                       Clear
                     </button>
@@ -1313,6 +1323,7 @@ const NetworkGraph = ({
                           pendingFilters.walletClassifications.includes(classification) ? 'selected' : ''
                         }`}
                         onClick={() => toggleWalletClassification(classification)}
+                        type="button"
                         style={{
                           borderColor: pendingFilters.walletClassifications.includes(classification) 
                             ? walletClassificationColors[classification] 
@@ -1349,6 +1360,7 @@ const NetworkGraph = ({
                   <button 
                     className="filter-clear-btn"
                     onClick={() => setPendingFilters(prev => ({ ...prev, tags: [] }))}
+                    type="button"
                   >
                     Clear
                   </button>
@@ -1360,6 +1372,7 @@ const NetworkGraph = ({
                     key={tag}
                     className={`filter-option tag ${pendingFilters.tags.includes(tag) ? 'selected' : ''}`}
                     onClick={() => toggleTag(tag)}
+                    type="button"
                     style={{
                       borderColor: pendingFilters.tags.includes(tag) 
                         ? (tagColors[tag] || '#4ECDC4') 
@@ -1382,12 +1395,14 @@ const NetworkGraph = ({
                   <button 
                     className="filter-apply-btn"
                     onClick={applyFilters}
+                    type="button"
                   >
                     ✓ Apply Filters
                   </button>
                   <button 
                     className="filter-cancel-btn"
                     onClick={cancelChanges}
+                    type="button"
                   >
                     ✕ Cancel
                   </button>
@@ -1402,6 +1417,7 @@ const NetworkGraph = ({
                 <button 
                   className="filter-reset-btn" 
                   onClick={resetFilters}
+                  type="button"
                 >
                   🔄 Reset All
                 </button>
@@ -1487,13 +1503,23 @@ const NetworkGraph = ({
       )}
 
       {/* ============================================================================
-          CONTROLS
+          ✅ CONTROLS WITH FULLSCREEN
           ============================================================================ */}
       <div className="graph-controls enhanced">
+        <button 
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          className="control-btn"
+          type="button"
+        >
+          <span className="control-icon">{isFullscreen ? '⛶' : '⛶'}</span>
+          <span className="control-label">{isFullscreen ? 'Exit' : 'Full'}</span>
+        </button>
         <button 
           onClick={() => cyRef.current?.fit(60)} 
           title="Fit to screen"
           className="control-btn"
+          type="button"
         >
           <span className="control-icon">🎯</span>
           <span className="control-label">Fit</span>
@@ -1502,6 +1528,7 @@ const NetworkGraph = ({
           onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 1.3)} 
           title="Zoom in"
           className="control-btn"
+          type="button"
         >
           <span className="control-icon">➕</span>
           <span className="control-label">Zoom+</span>
@@ -1510,6 +1537,7 @@ const NetworkGraph = ({
           onClick={() => cyRef.current?.zoom(cyRef.current.zoom() * 0.7)} 
           title="Zoom out"
           className="control-btn"
+          type="button"
         >
           <span className="control-icon">➖</span>
           <span className="control-label">Zoom-</span>
@@ -1523,6 +1551,7 @@ const NetworkGraph = ({
           }} 
           title="Reset view"
           className="control-btn"
+          type="button"
         >
           <span className="control-icon">🔄</span>
           <span className="control-label">Reset</span>
