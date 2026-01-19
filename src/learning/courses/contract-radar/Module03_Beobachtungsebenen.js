@@ -323,7 +323,7 @@ const Module03_Beobachtungsebenen = ({ onComplete }) => {
         <div className="section-content">
           <div className="recommendation-grid">
             <div className="recommendation-card">
-              <h4>🚀 Neue Token (< 30 Tage alt)</h4>
+              <h4>🚀 Neue Token (&lt; 30 Tage alt)</h4>
               <p><strong>Empfohlene Stage: 2 oder 3</strong></p>
               <p>
                 Neue Tokens sind risikoreicher. Stage 2 minimum, Stage 3 wenn viel Geld im Spiel.
@@ -332,7 +332,7 @@ const Module03_Beobachtungsebenen = ({ onComplete }) => {
             </div>
 
             <div className="recommendation-card">
-              <h4>💎 Etablierte Token (> 1 Jahr alt)</h4>
+              <h4>💎 Etablierte Token (&gt; 1 Jahr alt)</h4>
               <p><strong>Empfohlene Stage: 1 oder 2</strong></p>
               <p>
                 Etablierte Tokens sind meist stabiler. Stage 1 für Quick Check, 
@@ -368,7 +368,7 @@ const Module03_Beobachtungsebenen = ({ onComplete }) => {
             </div>
 
             <div className="recommendation-card">
-              <h4>💰 Große Investment-Summe (> $10k)</h4>
+              <h4>💰 Große Investment-Summe (&gt; $10k)</h4>
               <p><strong>Empfohlene Stage: 3 (immer!)</strong></p>
               <p>
                 Bei großen Summen ist Zeit keine Entschuldigung. Nutze Stage 3 
