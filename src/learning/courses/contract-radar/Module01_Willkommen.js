@@ -113,9 +113,9 @@ const Module01_Willkommen = ({ onComplete }) => {
               <h4>Sichere Nachbarschaft</h4>
               <ul>
                 <li>Viele Hodler (60%+)</li>
-                <li>Wenige Mixer (< 5%)</li>
+                <li>Wenige Mixer (&lt; 5%)</li>
                 <li>Einige Whales, aber stabil</li>
-                <li>Durchschnittlicher Risk Score: < 40</li>
+                <li>Durchschnittlicher Risk Score: &lt; 40</li>
               </ul>
               <p className="insight-conclusion">
                 → <strong>Stabile, langfristige Community</strong>
@@ -127,9 +127,9 @@ const Module01_Willkommen = ({ onComplete }) => {
               <h4>Riskante Nachbarschaft</h4>
               <ul>
                 <li>Viele Trader (50%+)</li>
-                <li>Wenig Hodler (< 20%)</li>
-                <li>Einige Mixer (> 10%)</li>
-                <li>Durchschnittlicher Risk Score: > 60</li>
+                <li>Wenig Hodler (&lt; 20%)</li>
+                <li>Einige Mixer (&gt; 10%)</li>
+                <li>Durchschnittlicher Risk Score: &gt; 60</li>
               </ul>
               <p className="insight-conclusion">
                 → <strong>Volatil, kurzfristig orientiert</strong>
@@ -143,10 +143,10 @@ const Module01_Willkommen = ({ onComplete }) => {
                 <li>Viele Mixer (20%+)</li>
                 <li>Kaum echte Hodler</li>
                 <li>1-2 Whales kontrollieren alles</li>
-                <li>Durchschnittlicher Risk Score: > 80</li>
+                <li>Durchschnittlicher Risk Score: &gt; 80</li>
               </ul>
               <p className="insight-conclusion">
-                → <strong>Möglicher Scam oder Pump & Dump</strong>
+                → <strong>Möglicher Scam oder Pump &amp; Dump</strong>
               </p>
             </div>
           </div>
