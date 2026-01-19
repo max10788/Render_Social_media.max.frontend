@@ -47,7 +47,7 @@ const Module05_Sicherheitsbewertung = ({ onComplete }) => {
       icon: '📊',
       severity: 'high',
       color: '#ef4444',
-      description: 'Wenige Wallets halten > 50% des Supplies',
+      description: 'Wenige Wallets halten &gt; 50% des Supplies',
       implication: 'Extreme Macht-Konzentration - Dump-Risiko',
       action: 'Hohes Risiko - ein Whale kann den Markt crashen'
     },
@@ -83,7 +83,7 @@ const Module05_Sicherheitsbewertung = ({ onComplete }) => {
       icon: '💎',
       severity: 'low',
       color: '#10b981',
-      description: 'Wallet hält Token seit > 1 Jahr',
+      description: 'Wallet hält Token seit &gt; 1 Jahr',
       implication: 'Vertrauen in das Projekt, stabile Community',
       action: 'Positiv - reduziert Sell-Pressure'
     }
@@ -190,7 +190,7 @@ const Module05_Sicherheitsbewertung = ({ onComplete }) => {
               <li><strong>Sybil Indicators</strong> (+20 Punkte): Wallet-Clustering</li>
               <li><strong>Unusual Patterns</strong> (+15 Punkte): Ungewöhnliche Gas, Timing, etc.</li>
               <li><strong>Fresh Wallet</strong> (+10 Punkte): Sehr neu + sofort aktiv</li>
-              <li><strong>High Concentration</strong> (+10 Punkte): Hält > 5% Supply</li>
+              <li><strong>High Concentration</strong> (+10 Punkte): Hält &gt; 5% Supply</li>
             </ul>
             <p>
               <strong>Beispiel:</strong> Wallet nutzt Tornado Cash (+40) und ist verbunden 
@@ -211,9 +211,9 @@ const Module05_Sicherheitsbewertung = ({ onComplete }) => {
               <strong>Faustregel:</strong>
             </p>
             <ul>
-              <li>Durchschnitt < 30: Sichere Community ✅</li>
+              <li>Durchschnitt &lt; 30: Sichere Community ✅</li>
               <li>Durchschnitt 30-50: Normale Community ⚠️</li>
-              <li>Durchschnitt > 50: Riskante Community 🚨</li>
+              <li>Durchschnitt &gt; 50: Riskante Community 🚨</li>
             </ul>
           </ConceptBox>
         </div>
@@ -287,7 +287,7 @@ const Module05_Sicherheitsbewertung = ({ onComplete }) => {
               </li>
               <li>
                 <strong>Anzahl High-Risk Wallets zählen</strong>
-                <p>Wie viele Wallets haben Score > 70? Mehr als 20%? Vorsicht!</p>
+                <p>Wie viele Wallets haben Score &gt; 70? Mehr als 20%? Vorsicht!</p>
               </li>
               <li>
                 <strong>Critical Flags suchen</strong>
@@ -346,10 +346,10 @@ const Module05_Sicherheitsbewertung = ({ onComplete }) => {
               <li>45% der Wallets nutzen Tornado Cash</li>
               <li>2 Whales halten 60% des Supplies</li>
               <li>Viele "Fresh Wallet Funding" Flags</li>
-              <li>Verbindungen zu bekannten Pump & Dump Gruppen</li>
+              <li>Verbindungen zu bekannten Pump &amp; Dump Gruppen</li>
             </ul>
             <p>
-              <strong>Schlussfolgerung:</strong> Klassischer Pump & Dump Scam! 
+              <strong>Schlussfolgerung:</strong> Klassischer Pump &amp; Dump Scam! 
               Die hohen Risk Scores und Tornado Cash Usage zeigen: 
               Dies ist ein koordinierter Angriff, nicht organisches Wachstum.
             </p>
