@@ -1,4 +1,4 @@
-// src/learning/pages/CourseView.js - WITH PATTERN RECOGNITION
+// src/learning/pages/CourseView.js - WITH CONTRACT RADAR
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -14,7 +14,7 @@ import Module07_Consensus from '../courses/blockchain-basics/modules/Module07_Co
 import Module08_Security from '../courses/blockchain-basics/modules/Module08_Security';
 import Module09_RealWorldExamples from '../courses/blockchain-basics/modules/Module09_RealWorldExamples';
 
-// Reading Transactions Modules - ALL 8 MODULES
+// Reading Transactions Modules
 import Module01_TransactionBasics from '../courses/data-structures/Module01_TransactionBasics';
 import Module02_WalletAndAddress from '../courses/data-structures/Module02_WalletAndAddress';
 import Module03_SimpleTransaction from '../courses/data-structures/Module03_SimpleTransaction';
@@ -24,13 +24,21 @@ import Module06_SmartContracts from '../courses/data-structures/Module06_SmartCo
 import Module07_SecurityModule from '../courses/data-structures/Module07_Security';
 import Module08_SpecialCases from '../courses/data-structures/Module08_SpecialCases';
 
-// Pattern Recognition Modules - ALL 6 MODULES
+// Pattern Recognition Modules
 import Module01_ZielUndRahmen from '../courses/pattern-recognition/Module01_ZielUndRahmen';
 import Module02_VerhaltensmuserEinfach from '../courses/pattern-recognition/Module02_VerhaltensmuserEinfach';
 import Module03_WalletCluster from '../courses/pattern-recognition/Module03_WalletCluster';
 import Module04_ServiceMuster from '../courses/pattern-recognition/Module04_ServiceMuster';
 import Module05_AnalyseWorkflows from '../courses/pattern-recognition/Module05_AnalyseWorkflows';
 import Module06_Praxis from '../courses/pattern-recognition/Module06_Praxis';
+
+// Contract Radar Modules
+import Module01_Willkommen from '../courses/contract-radar/Module01_Willkommen';
+import Module02_Bewohnertypen from '../courses/contract-radar/Module02_Bewohnertypen';
+import Module03_Beobachtungsebenen from '../courses/contract-radar/Module03_Beobachtungsebenen';
+import Module04_Beobachtungszeitraeume from '../courses/contract-radar/Module04_Beobachtungszeitraeume';
+import Module05_Sicherheitsbewertung from '../courses/contract-radar/Module05_Sicherheitsbewertung';
+import Module06_PraktischerWorkflow from '../courses/contract-radar/Module06_PraktischerWorkflow';
 
 import './CourseView.css';
 
@@ -91,6 +99,19 @@ const CourseView = () => {
         4: { component: Module04_ServiceMuster, title: 'Service-Muster' },
         5: { component: Module05_AnalyseWorkflows, title: 'Analyse-Workflows' },
         6: { component: Module06_Praxis, title: 'Praxis & Anwendung' }
+      }
+    },
+    'contract-radar': {
+      title: 'Contract Radar',
+      totalModules: 6,
+      toolLink: '/radar',
+      modules: {
+        1: { component: Module01_Willkommen, title: 'Willkommen in der Nachbarschaft' },
+        2: { component: Module02_Bewohnertypen, title: 'Die Bewohner kennenlernen' },
+        3: { component: Module03_Beobachtungsebenen, title: 'Die 3 Beobachtungsebenen' },
+        4: { component: Module04_Beobachtungszeitraeume, title: 'Beobachtungszeiträume' },
+        5: { component: Module05_Sicherheitsbewertung, title: 'Sicherheitsbewertung' },
+        6: { component: Module06_PraktischerWorkflow, title: 'Praktischer Workflow' }
       }
     }
   };
@@ -220,7 +241,12 @@ const CourseView = () => {
       setShowCompletion(false);
       setCourseCompleted(false);
     } else {
-      navigate('/learning');
+      // Kurs abgeschlossen - gehe zum Tool (wenn verfügbar) oder zur Learning Home
+      if (currentCourse.toolLink) {
+        navigate(currentCourse.toolLink);
+      } else {
+        navigate('/learning');
+      }
     }
   };
 
@@ -256,6 +282,12 @@ const CourseView = () => {
                   Zurück
                 </button>
               )}
+              {currentCourse.toolLink && (
+                <Link to={currentCourse.toolLink} className="tool-link-btn">
+                  <span>🚀</span>
+                  Zum Tool
+                </Link>
+              )}
             </div>
           </div>
 
@@ -290,7 +322,8 @@ const CourseView = () => {
                 </button>
               ) : (
                 <button onClick={handleNext} className="btn btn-success">
-                  {moduleNumber < currentCourse.totalModules ? 'Nächstes Modul' : 'Zum Kurs zurück'}
+                  {moduleNumber < currentCourse.totalModules ? 'Nächstes Modul' : 
+                   currentCourse.toolLink ? 'Zum Tool' : 'Kursübersicht'}
                   <span className="btn-arrow">→</span>
                 </button>
               )}
@@ -329,6 +362,11 @@ const CourseView = () => {
                     <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Module</div>
                   </div>
                 </div>
+                {currentCourse.toolLink && (
+                  <p style={{ color: '#94a3b8', marginTop: '1rem' }}>
+                    Gehe jetzt zum Tool und wende dein Wissen in der Praxis an! 🚀
+                  </p>
+                )}
               </>
             ) : (
               <>
@@ -344,7 +382,9 @@ const CourseView = () => {
               <button onClick={handleNext} className="btn btn-primary btn-large">
                 {moduleNumber < currentCourse.totalModules 
                   ? 'Weiter zu Modul ' + (moduleNumber + 1) 
-                  : 'Zurück zur Übersicht'}
+                  : currentCourse.toolLink 
+                    ? '🚀 Zum Tool' 
+                    : 'Zurück zur Übersicht'}
                 <span className="btn-arrow">→</span>
               </button>
               <button onClick={() => {
