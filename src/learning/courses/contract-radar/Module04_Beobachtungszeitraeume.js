@@ -168,7 +168,7 @@ const Module04_Beobachtungszeitraeume = ({ onComplete }) => {
 
               <h4>✅ Ideal für:</h4>
               <ul>
-                <li>Etablierte Tokens (> 1 Jahr alt)</li>
+                <li>Etablierte Tokens (&gt; 1 Jahr alt)</li>
                 <li>Whale-Watching</li>
                 <li>Langfristige Investment-Analyse</li>
                 <li>Macht-Konzentration prüfen</li>
@@ -220,7 +220,7 @@ const Module04_Beobachtungszeitraeume = ({ onComplete }) => {
 
               <h4>✅ Ideal für:</h4>
               <ul>
-                <li>Neue Tokens (< 30 Tage alt)</li>
+                <li>Neue Tokens (&lt; 30 Tage alt)</li>
                 <li>Momentum-Trading</li>
                 <li>Kurzfristige Volatilität</li>
                 <li>Breaking News Events</li>
@@ -364,13 +364,13 @@ const Module04_Beobachtungszeitraeume = ({ onComplete }) => {
           <div className="recommendation-grid">
             <div className="recommendation-card">
               <h4>❓ Wie alt ist der Token?</h4>
-              <p><strong>Neu (< 30 Tage):</strong></p>
+              <p><strong>Neu (&lt; 30 Tage):</strong></p>
               <ul>
                 <li>→ Recent Traders</li>
                 <li>→ 3h oder 6h</li>
                 <li>→ Stage 2 oder 3</li>
               </ul>
-              <p><strong>Etabliert (> 1 Jahr):</strong></p>
+              <p><strong>Etabliert (&gt; 1 Jahr):</strong></p>
               <ul>
                 <li>→ Top Holders</li>
                 <li>→ (keine Hours nötig)</li>
@@ -380,7 +380,7 @@ const Module04_Beobachtungszeitraeume = ({ onComplete }) => {
 
             <div className="recommendation-card">
               <h4>❓ Was ist dein Zeithorizont?</h4>
-              <p><strong>Day Trading (< 1 Tag):</strong></p>
+              <p><strong>Day Trading (&lt; 1 Tag):</strong></p>
               <ul>
                 <li>→ Recent Traders</li>
                 <li>→ 1h oder 3h</li>
@@ -419,14 +419,14 @@ const Module04_Beobachtungszeitraeume = ({ onComplete }) => {
 
             <div className="recommendation-card">
               <h4>❓ Wie volatil ist der Token?</h4>
-              <p><strong>Sehr volatil (> 50% daily):</strong></p>
+              <p><strong>Sehr volatil (&gt; 50% daily):</strong></p>
               <ul>
                 <li>→ Recent Traders</li>
                 <li>→ 3h oder 6h</li>
                 <li>→ Stage 2 oder 3</li>
                 <li>→ Achte auf Mixer!</li>
               </ul>
-              <p><strong>Stabil (< 10% daily):</strong></p>
+              <p><strong>Stabil (&lt; 10% daily):</strong></p>
               <ul>
                 <li>→ Top Holders</li>
                 <li>→ 12h oder 24h (wenn Recent)</li>
