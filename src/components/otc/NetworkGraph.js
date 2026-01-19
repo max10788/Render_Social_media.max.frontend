@@ -942,10 +942,9 @@ const NetworkGraph = ({
                       <div className="stat-card-label">Edges</div>
                     </div>
                   </div>
-                  </div>
                 </div>
               </div>
-              </div>
+          
               {/* Quality Metrics */}
               {(stats.verified > 0 || stats.discovered > 0) && (
                 <div className="stats-section">
