@@ -942,13 +942,6 @@ const NetworkGraph = ({
                       <div className="stat-card-label">Edges</div>
                     </div>
                   </div>
-                  
-                  <div className="stat-card highlight-green">
-                    <div className="stat-card-icon">💰</div>
-                    <div className="stat-card-content">
-                      <div className="stat-card-value">{formatValue(stats.totalVolume)}</div>
-                      <div className="stat-card-label">Total Volume</div>
-                    </div>
                   </div>
                 </div>
               </div>
