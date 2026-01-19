@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ConceptBox from '../../components/content/ConceptBox';
 import ExpandableSection from '../../components/content/ExpandableSection';
-import WorkflowStepper from '../../pattern-recognition/components/WorkflowStepper.js';
+import WorkflowStepper from '../pattern-recognition/components/WorkflowStepper.js';
 import { radarWorkflows } from './data/workflows';
 import './Module.css';
 
