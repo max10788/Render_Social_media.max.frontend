@@ -70,8 +70,8 @@ const Module06_PraktischerWorkflow = ({ onComplete }) => {
               <h4>👀 Worauf achten?</h4>
               <ul>
                 <li>Verhältnis der Wallet-Typen (Hodler vs Trader vs Mixer)</li>
-                <li>Durchschnittlicher Risk Score (< 40 = gut)</li>
-                <li>Anzahl Critical Flags (< 5% = gut)</li>
+                <li>Durchschnittlicher Risk Score (&lt; 40 = gut)</li>
+                <li>Anzahl Critical Flags (&lt; 5% = gut)</li>
                 <li>Wallet-Verteilung im Radar (Cluster?)</li>
               </ul>
             </div>
@@ -79,10 +79,10 @@ const Module06_PraktischerWorkflow = ({ onComplete }) => {
             <div className="recommendation-card">
               <h4>🚨 Red Flags</h4>
               <ul>
-                <li>> 20% Mixer in der Community</li>
-                <li>Durchschnitt Risk Score > 60</li>
+                <li>&gt; 20% Mixer in der Community</li>
+                <li>Durchschnitt Risk Score &gt; 60</li>
                 <li>Viele Tornado Cash Flags</li>
-                <li>1-2 Whales halten > 50% Supply</li>
+                <li>1-2 Whales halten &gt; 50% Supply</li>
                 <li>Viele "Scam Network" Flags</li>
               </ul>
             </div>
@@ -90,8 +90,8 @@ const Module06_PraktischerWorkflow = ({ onComplete }) => {
             <div className="recommendation-card">
               <h4>✅ Green Flags</h4>
               <ul>
-                <li>> 50% Hodler in der Community</li>
-                <li>Durchschnitt Risk Score < 30</li>
+                <li>&gt; 50% Hodler in der Community</li>
+                <li>Durchschnitt Risk Score &lt; 30</li>
                 <li>Wenig bis keine Critical Flags</li>
                 <li>Gut verteilte Wallet-Größen</li>
                 <li>Viele "Long-term Holder" Flags</li>
@@ -108,9 +108,9 @@ const Module06_PraktischerWorkflow = ({ onComplete }) => {
               Wenn du es eilig hast, prüfe nur diese 3 Dinge:
             </p>
             <ol>
-              <li><strong>Durchschnittlicher Risk Score:</strong> < 40? ✅ | > 60? 🚨</li>
-              <li><strong>Mixer-Anteil:</strong> < 10%? ✅ | > 20%? 🚨</li>
-              <li><strong>Critical Flags:</strong> < 10? ✅ | > 20? 🚨</li>
+              <li><strong>Durchschnittlicher Risk Score:</strong> &lt; 40? ✅ | &gt; 60? 🚨</li>
+              <li><strong>Mixer-Anteil:</strong> &lt; 10%? ✅ | &gt; 20%? 🚨</li>
+              <li><strong>Critical Flags:</strong> &lt; 10? ✅ | &gt; 20? 🚨</li>
             </ol>
             <p>
               Wenn alle 3 grün sind → wahrscheinlich sicher. 
@@ -205,7 +205,7 @@ const Module06_PraktischerWorkflow = ({ onComplete }) => {
       {allCompleted && (
         <div className="interactive-section">
           <div className="interactive-header">
-            <h2>🏆 Best Practices & Pro-Tipps</h2>
+            <h2>🏆 Best Practices &amp; Pro-Tipps</h2>
             <p>
               Du hast alle Workflows abgeschlossen! Hier sind finale Tipps für professionelle Analysen.
             </p>
