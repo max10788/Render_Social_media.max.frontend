@@ -9,6 +9,10 @@ const ToolsOverview = () => {
     contracts: { total: 0, active: 0 },
     wallets: { tracked: 0, active: 0 }
   });
+  
+  const [expandedCategories, setExpandedCategories] = useState({
+    'Network Analysis': true // Standard ausgeklappt
+  });
 
   useEffect(() => {
     // Mock data - replace with actual API
@@ -19,6 +23,13 @@ const ToolsOverview = () => {
       });
     }, 500);
   }, []);
+
+  const toggleCategory = (categoryName) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryName]: !prev[categoryName]
+    }));
+  };
 
   const toolCategories = [
     {
@@ -32,16 +43,8 @@ const ToolsOverview = () => {
           description: 'Your personal analytics dashboard with customizable widgets and insights.',
           metrics: ['Portfolio Overview', 'Activity Feed', 'Custom Widgets'],
           color: '#3b82f6',
-          stats: 'Personalized View'
-        },
-        {
-          path: '/scans',
-          icon: '🔍',
-          title: 'Scan Jobs',
-          description: 'Schedule and manage automated scans for contract monitoring.',
-          metrics: ['Automated Scanning', 'Job Management', 'Alert System'],
-          color: '#8b5cf6',
-          stats: 'Continuous Monitoring'
+          stats: 'Personalized View',
+          tutorialPath: '/learning/dashboard'
         }
       ]
     },
@@ -56,7 +59,8 @@ const ToolsOverview = () => {
           description: 'Scan smart contracts for risk patterns and activity signals.',
           metrics: ['Risk Score', 'Activity Heatmap', 'Pattern Recognition'],
           color: '#6366f1',
-          stats: `${stats.contracts.active.toLocaleString()} Active Contracts`
+          stats: `${stats.contracts.active.toLocaleString()} Active Contracts`,
+          tutorialPath: '/learning/contract-radar'
         },
         {
           path: '/wallets',
@@ -65,7 +69,8 @@ const ToolsOverview = () => {
           description: 'Decode wallet behavior and entity relationships.',
           metrics: ['Behavioral Profiling', 'Entity Graph', 'Portfolio Tracking'],
           color: '#7c3aed',
-          stats: `${(stats.wallets.tracked / 1000000).toFixed(1)}M Wallets Tracked`
+          stats: `${(stats.wallets.tracked / 1000000).toFixed(1)}M Wallets Tracked`,
+          tutorialPath: '/learning/wallet-intelligence'
         },
         {
           path: '/price-movers',
@@ -74,7 +79,8 @@ const ToolsOverview = () => {
           description: 'Identify wallets driving significant price movements.',
           metrics: ['Wallet Impact Score', 'Order Flow', 'Market Depth'],
           color: '#a855f7',
-          stats: 'Real-time Impact Tracking'
+          stats: 'Real-time Impact Tracking',
+          tutorialPath: '/learning/price-impact'
         }
       ]
     },
@@ -89,7 +95,8 @@ const ToolsOverview = () => {
           description: 'Comprehensive token analytics and metrics.',
           metrics: ['Price Tracking', 'Volume Analysis', 'Holder Distribution'],
           color: '#10b981',
-          stats: 'Live Token Data'
+          stats: 'Live Token Data',
+          tutorialPath: '/learning/token-overview'
         },
         {
           path: '/orderbook-heatmap',
@@ -98,7 +105,8 @@ const ToolsOverview = () => {
           description: 'Visualize market depth and liquidity zones.',
           metrics: ['Depth Visualization', 'Support/Resistance', 'Liquidity Gaps'],
           color: '#f59e0b',
-          stats: 'Real-time Orderbook'
+          stats: 'Real-time Orderbook',
+          tutorialPath: '/learning/orderbook-heatmap'
         },
         {
           path: '/iceberg-orders',
@@ -107,7 +115,8 @@ const ToolsOverview = () => {
           description: 'Detect hidden large orders in the market.',
           metrics: ['Hidden Volume', 'Order Detection', 'Smart Money Tracking'],
           color: '#06b6d4',
-          stats: 'Hidden Order Detection'
+          stats: 'Hidden Order Detection',
+          tutorialPath: '/learning/iceberg-orders'
         },
         {
           path: '/otc-analysis',
@@ -116,13 +125,15 @@ const ToolsOverview = () => {
           description: 'Track large off-exchange transactions and institutional flows.',
           metrics: ['Transfer Patterns', 'Entity Clustering', 'Flow Direction'],
           color: '#8b5cf6',
-          stats: 'Dark Pool Monitoring'
+          stats: 'Dark Pool Monitoring',
+          tutorialPath: '/learning/otc-analysis'
         }
       ]
     },
     {
       category: 'Network Analysis',
       description: 'Visualize transaction flows and entity connections',
+      collapsible: true,
       tools: [
         {
           path: '/network',
@@ -131,7 +142,8 @@ const ToolsOverview = () => {
           description: 'Interactive network visualization of transaction flows.',
           metrics: ['Network Mapping', 'Entity Clustering', 'Flow Tracing'],
           color: '#ec4899',
-          stats: 'Graph Visualization'
+          stats: 'Graph Visualization',
+          tutorialPath: '/learning/transaction-graph'
         }
       ]
     }
@@ -191,42 +203,72 @@ const ToolsOverview = () => {
         <div className="container">
           {toolCategories.map((category, catIndex) => (
             <div key={catIndex} className="tool-category">
-              <div className="category-header">
-                <h2 className="category-title">{category.category}</h2>
-                <p className="category-description">{category.description}</p>
+              <div 
+                className={`category-header ${category.collapsible ? 'collapsible' : ''}`}
+                onClick={() => category.collapsible && toggleCategory(category.category)}
+                style={{ cursor: category.collapsible ? 'pointer' : 'default' }}
+              >
+                <div>
+                  <h2 className="category-title">
+                    {category.category}
+                    {category.collapsible && (
+                      <span className="collapse-icon">
+                        {expandedCategories[category.category] ? '▼' : '▶'}
+                      </span>
+                    )}
+                  </h2>
+                  <p className="category-description">{category.description}</p>
+                </div>
               </div>
 
-              <div className="tools-grid">
-                {category.tools.map((tool, toolIndex) => (
-                  <Link 
-                    key={toolIndex}
-                    to={tool.path} 
-                    className="tool-card"
-                    style={{ '--tool-color': tool.color }}
-                  >
-                    <div className="tool-card-header">
-                      <div className="tool-icon" style={{ background: tool.color }}>
-                        {tool.icon}
-                      </div>
-                      <div className="tool-stats">{tool.stats}</div>
-                    </div>
+              {(!category.collapsible || expandedCategories[category.category]) && (
+                <div className="tools-grid">
+                  {category.tools.map((tool, toolIndex) => (
+                    <div 
+                      key={toolIndex}
+                      className="tool-card-wrapper"
+                    >
+                      <Link 
+                        to={tool.path} 
+                        className="tool-card"
+                        style={{ '--tool-color': tool.color }}
+                      >
+                        <div className="tool-card-header">
+                          <div className="tool-icon" style={{ background: tool.color }}>
+                            {tool.icon}
+                          </div>
+                          <div className="tool-stats">{tool.stats}</div>
+                        </div>
 
-                    <h3 className="tool-title">{tool.title}</h3>
-                    <p className="tool-description">{tool.description}</p>
+                        <h3 className="tool-title">{tool.title}</h3>
+                        <p className="tool-description">{tool.description}</p>
 
-                    <div className="tool-metrics">
-                      {tool.metrics.map((metric, i) => (
-                        <span key={i} className="metric-tag">{metric}</span>
-                      ))}
-                    </div>
+                        <div className="tool-metrics">
+                          {tool.metrics.map((metric, i) => (
+                            <span key={i} className="metric-tag">{metric}</span>
+                          ))}
+                        </div>
 
-                    <div className="tool-action">
-                      <span className="action-text">Launch Tool</span>
-                      <span className="action-arrow">→</span>
+                        <div className="tool-action">
+                          <span className="action-text">Launch Tool</span>
+                          <span className="action-arrow">→</span>
+                        </div>
+                      </Link>
+                      
+                      {/* Tutorial/Learning Link */}
+                      <Link 
+                        to={tool.tutorialPath} 
+                        className="tool-tutorial-link"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="tutorial-icon">📚</span>
+                        <span className="tutorial-text">Lernen & Tutorial</span>
+                        <span className="tutorial-arrow">→</span>
+                      </Link>
                     </div>
-                  </Link>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
