@@ -1,1 +1,160 @@
+.wallet-type-card {
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
 
+.wallet-type-card:hover {
+  border-color: var(--wallet-color, #3b82f6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.wallet-type-card.compact {
+  padding: 1rem;
+}
+
+.wallet-type-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.wallet-type-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.wallet-type-card.compact .wallet-type-icon {
+  width: 48px;
+  height: 48px;
+  font-size: 1.5rem;
+}
+
+.wallet-type-title {
+  flex: 1;
+}
+
+.wallet-type-title h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+  color: #1e293b;
+}
+
+.wallet-type-neighborhood {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.expand-indicator {
+  font-size: 1.5rem;
+  color: #94a3b8;
+  font-weight: bold;
+}
+
+.wallet-type-description {
+  margin-bottom: 1.5rem;
+}
+
+.wallet-type-description p {
+  color: #475569;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.wallet-type-section {
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--wallet-color, #3b82f6);
+  margin: 0 0 0.75rem 0;
+}
+
+.characteristics-list,
+.signals-list {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.characteristics-list li,
+.signals-list li {
+  color: #475569;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+  font-size: 0.875rem;
+}
+
+.characteristics-list li:last-child,
+.signals-list li:last-child {
+  margin-bottom: 0;
+}
+
+.wallet-type-example {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(59, 130, 246, 0.05);
+  border-left: 3px solid var(--wallet-color, #3b82f6);
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.example-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.example-content {
+  flex: 1;
+}
+
+.example-content strong {
+  color: #1e293b;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.example-content p {
+  color: #475569;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.wallet-type-risk {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.risk-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.risk-reason {
+  flex: 1;
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.4;
+}
