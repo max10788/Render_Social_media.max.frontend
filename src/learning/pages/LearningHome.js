@@ -55,13 +55,30 @@ const LearningHome = () => {
       duration: '3-4 Stunden',
       level: 'Intermediate',
       color: '#4facfe',
-      new: true,
       prerequisites: ['reading-transactions'],
       topics: [
         'Verhaltensmuster',
         'Wallet-Cluster',
         'Börsen & Services',
         'Analyse-Workflows'
+      ]
+    },
+    {
+      id: 'contract-radar',
+      title: 'Contract Radar',
+      description: 'Lerne Token-Communities zu analysieren und Wallet-Typen zu identifizieren – mit der Nachbarschafts-Metapher.',
+      icon: '📡',
+      modules: 6,
+      duration: '60 Minuten',
+      level: 'Beginner',
+      color: '#6366f1',
+      new: true,
+      toolLink: '/radar',
+      topics: [
+        'Wallet-Typen verstehen',
+        'Analysis Depth wählen',
+        'Risk Scores interpretieren',
+        'Praktische Workflows'
       ]
     }
   ];
@@ -139,7 +156,7 @@ const LearningHome = () => {
             <div className="stat-card">
               <div className="stat-icon">⏱️</div>
               <div className="stat-content">
-                <div className="stat-value">~9h</div>
+                <div className="stat-value">~10h</div>
                 <div className="stat-label">Gesamtdauer</div>
               </div>
             </div>
@@ -224,6 +241,13 @@ const LearningHome = () => {
                           </span>
                         </div>
 
+                        {course.toolLink && (
+                          <div className="course-tool-badge">
+                            <span className="tool-badge-icon">🚀</span>
+                            <span>Tool verfügbar</span>
+                          </div>
+                        )}
+
                         {isStarted && (
                           <div className="course-progress">
                             <div className="progress-info">
@@ -296,6 +320,9 @@ const LearningHome = () => {
                     <strong>Pattern Recognition</strong> – Erkenne On-Chain-Muster
                   </li>
                   <li>
+                    <strong>Contract Radar</strong> – Analysiere Token-Communities (Neu!)
+                  </li>
+                  <li>
                     <strong>Advanced Analysis</strong> – Professionelle Techniken (Bald verfügbar)
                   </li>
                 </ol>
@@ -308,10 +335,10 @@ const LearningHome = () => {
                 <h3 className="path-title">Lern-Tipps</h3>
                 <ul className="tips-list">
                   <li>Module bauen aufeinander auf – folge der Reihenfolge</li>
-                  <li>Nimm dir Zeit für Quiz-Fragen</li>
+                  <li>Nimm dir Zeit für Quiz-Fragen und interaktive Übungen</li>
                   <li>Wiederhole Module bei Bedarf</li>
                   <li>Praktische Übungen festigen das Wissen</li>
-                  <li>Der neue Pattern Recognition Kurs baut auf Transaktionen Lesen auf</li>
+                  <li>Der neue Contract Radar Kurs lehrt Tool-Nutzung mit praktischen Workflows</li>
                 </ul>
               </div>
             </div>
