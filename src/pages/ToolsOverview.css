@@ -556,3 +556,66 @@
 .tool-card:nth-child(4) { animation-delay: 0.25s; }
 .tool-card:nth-child(5) { animation-delay: 0.3s; }
 .tool-card:nth-child(6) { animation-delay: 0.35s; }
+
+/* Tool Tutorial Link */
+.tool-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tool-tutorial-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #3b82f6;
+}
+
+.tool-tutorial-link:hover {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.tutorial-icon {
+  font-size: 1.125rem;
+}
+
+.tutorial-text {
+  flex: 1;
+}
+
+.tutorial-arrow {
+  font-weight: bold;
+  transition: transform 0.3s ease;
+}
+
+.tool-tutorial-link:hover .tutorial-arrow {
+  transform: translateX(4px);
+}
+
+/* Collapse Icon for Categories */
+.collapse-icon {
+  margin-left: 0.5rem;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  transition: transform 0.3s ease;
+}
+
+.category-header.collapsible {
+  user-select: none;
+}
+
+.category-header.collapsible:hover {
+  opacity: 0.8;
+}
