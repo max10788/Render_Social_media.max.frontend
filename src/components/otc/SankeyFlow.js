@@ -296,7 +296,7 @@ const SankeyFlow = ({ data, onNodeClick, onLinkClick, isFullscreenMode = false, 
     setLoadingTransactions(true);
     
     try {
-      const otcAnalysisService = (await import('../services/otcAnalysisService')).default;
+      const otcAnalysisService = (await import('../../services/otcAnalysisService')).default;
       
       const result = await otcAnalysisService.getTransactionsBetween(
         sourceAddress,
