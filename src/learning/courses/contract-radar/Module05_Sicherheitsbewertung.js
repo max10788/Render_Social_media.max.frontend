@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ConceptBox from '../../components/content/ConceptBox';
 import ExpandableSection from '../../components/content/ExpandableSection';
-import './Module.css';
+import '../shared/Module.css';
 
 const Module05_Sicherheitsbewertung = ({ onComplete }) => {
   const [readSections, setReadSections] = useState([]);

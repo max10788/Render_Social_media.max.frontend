@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import ConceptBox from '../../components/content/ConceptBox';
 import ExpandableSection from '../../components/content/ExpandableSection';
 import MultipleChoice from '../../components/exercises/MultipleChoice';
-import './Module.css';
+import '../shared/Module.css';
 
 export default function Module03_SimpleTransaction() {
   const [quizScore, setQuizScore] = useState(null);

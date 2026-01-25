@@ -4,7 +4,6 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { initSocket } from './socket';
 
 // DEBUGGING - Nach den Imports
 console.log('🔍 Index.js - Alle Imports geladen');
@@ -52,36 +51,6 @@ if (window.ethereum) {
 // Globale Konfiguration für die gesamte App verfügbar machen
 window.appConfig = config;
 
-console.log('🔌 Initialisiere WebSocket...');
-
-// Initialize WebSocket connection
-let socketInstance = null;
-try {
-  socketInstance = initSocket();
-  console.log('✅ WebSocket initialisiert');
-  
-  // Log socket connection status
-  if (socketInstance) {
-    socketInstance.on('connected', () => {
-      console.log('🔌 WebSocket connected successfully');
-    });
-    
-    socketInstance.on('disconnected', () => {
-      console.log('🔌 WebSocket disconnected');
-    });
-    
-    socketInstance.on('error', (error) => {
-      console.error('🔌 WebSocket error:', error);
-    });
-    
-    socketInstance.on('message', (data) => {
-      console.log('🔌 WebSocket message received:', data);
-    });
-  }
-} catch (error) {
-  console.error('❌ WebSocket Initialisierung fehlgeschlagen:', error);
-}
-
 console.log('📦 Rendere React App...');
 
 // React-App rendern
@@ -97,13 +66,5 @@ try {
   console.error('❌ React Render Error:', error);
   console.error('Stack:', error.stack);
 }
-
-// Clean up on page unload
-window.addEventListener('beforeunload', () => {
-  if (socketInstance) {
-    console.log('🔌 Schließe WebSocket-Verbindung...');
-    socketInstance.disconnect();
-  }
-});
 
 reportWebVitals();

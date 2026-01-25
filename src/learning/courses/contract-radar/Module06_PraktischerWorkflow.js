@@ -3,7 +3,7 @@ import ConceptBox from '../../components/content/ConceptBox';
 import ExpandableSection from '../../components/content/ExpandableSection';
 import WorkflowStepper from '../pattern-recognition/components/WorkflowStepper.js';
 import { radarWorkflows } from './data/workflows';
-import './Module.css';
+import '../shared/Module.css';
 
 const Module06_PraktischerWorkflow = ({ onComplete }) => {
   const [readSections, setReadSections] = useState([]);

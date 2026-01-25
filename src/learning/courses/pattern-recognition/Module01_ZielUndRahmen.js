@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './Module.css';
+import '../shared/Module.css';
 import ConceptBox from '../../components/content/ConceptBox';
 import SingleQuiz from '../../components/exercises/SingleQuiz';
 

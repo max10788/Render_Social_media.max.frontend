@@ -4,10 +4,7 @@
   "private": true,
   "dependencies": {
     "serve": "^14.2.0",
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "axios": "^1.4.0",
+"axios": "^1.4.0",
     "cytoscape": "^3.28.1",
     "cytoscape-fcose": "^2.2.0",
     "d3": "^7.8.5",
@@ -36,7 +33,7 @@
     "postcss": "^8.4.24"
   },
   "scripts": {
-    "start": "serve -s build -l $PORT",
+    "start": "serve -s build -l ${PORT:-3000}",
     "dev": "NODE_OPTIONS='--max-old-space-size=4096' craco start",
     "build": "NODE_OPTIONS='--max-old-space-size=4096' GENERATE_SOURCEMAP=false craco build",
     "test": "craco test",

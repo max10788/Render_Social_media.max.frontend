@@ -4,7 +4,7 @@ import ExpandableSection from '../../components/content/ExpandableSection';
 import WalletTypeCard from './components/WalletTypeCard';
 import NeighborhoodSimulator from './components/NeighborhoodSimulator';
 import { walletTypes } from './data/walletTypes';
-import './Module.css';
+import '../shared/Module.css';
 
 const Module02_Bewohnertypen = ({ onComplete }) => {
   const [readSections, setReadSections] = useState([]);
