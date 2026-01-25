@@ -1,0 +1,9 @@
+[phases.install]
+cmds = [
+  'npm ci --prefer-offline --no-audit --registry=https://registry.npmjs.org/'
+]
+
+[phases.build]
+cmds = [
+  'NODE_OPTIONS="--max-old-space-size=4096" GENERATE_SOURCEMAP=false npm run build'
+]
