@@ -13,7 +13,7 @@ export const getIcebergOrders = async ({ exchange, symbol, timeframe, threshold,
     });
 
     const response = await fetch(
-      `${API_BASE_URL}/iceberg-orders?${params}`,
+      `${API_BASE_URL}/api/iceberg-orders?${params}`,
       {
         method: 'GET',
         headers: {
@@ -46,7 +46,7 @@ export const getClusterAnalysis = async ({ exchange, symbol, threshold = 0.05, t
     });
 
     const response = await fetch(
-      `${API_BASE_URL}/iceberg-orders/cluster-analysis?${params}`,
+      `${API_BASE_URL}/api/iceberg-orders/cluster-analysis?${params}`,
       {
         method: 'GET',
         headers: {
@@ -70,7 +70,7 @@ export const getClusterAnalysis = async ({ exchange, symbol, threshold = 0.05, t
 export const getSystemLimits = async (exchange) => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/iceberg-orders/system-limits?exchange=${exchange}`,
+      `${API_BASE_URL}/api/iceberg-orders/system-limits?exchange=${exchange}`,
       {
         method: 'GET',
         headers: {
@@ -94,7 +94,7 @@ export const getSystemLimits = async (exchange) => {
 export const getAvailableSymbols = async (exchange) => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/iceberg-orders/exchanges/${exchange}/symbols`,
+      `${API_BASE_URL}/api/iceberg-orders/exchanges/${exchange}/symbols`,
       {
         method: 'GET',
         headers: {
@@ -118,7 +118,7 @@ export const getAvailableSymbols = async (exchange) => {
 export const getHistoricalIcebergData = async ({ exchange, symbol, startDate, endDate }) => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/iceberg-orders/history?exchange=${exchange}&symbol=${encodeURIComponent(symbol)}&start=${startDate}&end=${endDate}`,
+      `${API_BASE_URL}/api/iceberg-orders/history?exchange=${exchange}&symbol=${encodeURIComponent(symbol)}&start=${startDate}&end=${endDate}`,
       {
         method: 'GET',
         headers: {
@@ -140,7 +140,7 @@ export const getHistoricalIcebergData = async ({ exchange, symbol, startDate, en
 };
 
 export const subscribeToIcebergUpdates = ({ exchange, symbol, onUpdate, enableLogging = true }) => {
-  const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/iceberg-orders/ws`;
+  const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/api/iceberg-orders/ws`;
   let ws;
 
   try {
@@ -187,7 +187,7 @@ export const subscribeToIcebergUpdates = ({ exchange, symbol, onUpdate, enableLo
 export const analyzeOrderBookDepth = async ({ exchange, symbol, depth = 100 }) => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/iceberg-orders/analyze-depth?exchange=${exchange}&symbol=${encodeURIComponent(symbol)}&depth=${depth}`,
+      `${API_BASE_URL}/api/iceberg-orders/analyze-depth?exchange=${exchange}&symbol=${encodeURIComponent(symbol)}&depth=${depth}`,
       {
         method: 'GET',
         headers: {
@@ -211,7 +211,7 @@ export const analyzeOrderBookDepth = async ({ exchange, symbol, depth = 100 }) =
 export const getIcebergStats = async ({ exchange, period = '24h' }) => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/iceberg-orders/stats?exchange=${exchange}&period=${period}`,
+      `${API_BASE_URL}/api/iceberg-orders/stats?exchange=${exchange}&period=${period}`,
       {
         method: 'GET',
         headers: {
