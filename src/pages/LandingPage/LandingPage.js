@@ -609,21 +609,6 @@ const LandingPage = () => {
               {t.hero.subtitle}
             </p>
 
-            <div className="hero-stats">
-              <div className="hero-stat">
-                <div className="stat-value">{isLoading ? '---' : stats.contracts.total.toLocaleString()}</div>
-                <div className="stat-label">{t.hero.statLabels.contracts}</div>
-              </div>
-              <div className="hero-stat">
-                <div className="stat-value">{isLoading ? '---' : (stats.wallets.tracked / 1000000).toFixed(1)}M</div>
-                <div className="stat-label">{t.hero.statLabels.wallets}</div>
-              </div>
-              <div className="hero-stat">
-                <div className="stat-value">{language === 'de' ? 'Echtzeit' : 'Real-time'}</div>
-                <div className="stat-label">{t.hero.statLabels.realtime}</div>
-              </div>
-            </div>
-
             {!currentUser && (
               <div className="hero-cta">
                 <Link to="/register" className="btn btn-primary">
@@ -647,36 +632,6 @@ const LandingPage = () => {
                 </Link>
               </div>
             )}
-          </div>
-
-          <div className="hero-visual">
-            <div className="visual-card">
-              <div className="card-header">
-                <div className="card-title">{t.hero.visualCard.title}</div>
-                <div className="card-status">
-                  <span className="status-dot pulsing"></span>
-                  {t.hero.visualCard.status}
-                </div>
-              </div>
-              <div className="chart-placeholder">
-                <div className="chart-line"></div>
-                <div className="chart-bars">
-                  {[65, 45, 80, 55, 90, 70, 85].map((height, i) => (
-                    <div key={i} className="chart-bar" style={{ height: `${height}%` }}></div>
-                  ))}
-                </div>
-              </div>
-              <div className="card-metrics">
-                <div className="metric">
-                  <span className="metric-label">{t.hero.visualCard.impactScore}</span>
-                  <span className="metric-value">8.4</span>
-                </div>
-                <div className="metric">
-                  <span className="metric-label">{t.hero.visualCard.riskLevel}</span>
-                  <span className="metric-value success">{t.hero.visualCard.low}</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
