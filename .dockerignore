@@ -1,0 +1,11 @@
+node_modules
+build
+.git
+.gitignore
+README.md
+render.yaml
+nixpacks.toml
+.env.local
+.env.development
+*.log
+.DS_Store
