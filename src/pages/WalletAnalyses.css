@@ -148,12 +148,365 @@
   border-color: rgba(100, 116, 139, 0.3);
 }
 
+/* Section Header */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wallet-icon {
+  width: 36px;
+  height: 36px;
+  color: #38bdf8;
+}
+
+.wallet-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.section-subtitle {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.health-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.health-badge.healthy {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.health-badge.unhealthy {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Analyze Button */
+.btn-analyze {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+
+.btn-analyze:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+.btn-analyze:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Analyze Form */
+.analyze-form-container {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.analyze-form {
+  width: 100%;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.form-group:first-child {
+  flex: 2;
+  min-width: 250px;
+}
+
+.form-group label {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-group input.error {
+  border-color: #ef4444;
+}
+
+.form-group input:disabled,
+.form-group select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Two-Column Layout */
+.wallet-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.wallet-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.column-title {
+  color: #e2e8f0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.column-count {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Empty State */
+.no-wallets {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px dashed rgba(100, 116, 139, 0.3);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.empty-icon {
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.empty-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.no-wallets p {
+  color: #94a3b8;
+  margin: 0 0 0.5rem 0;
+}
+
+.empty-subtitle {
+  font-size: 0.85rem;
+  color: #64748b !important;
+}
+
+.btn-primary-small {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.btn-primary-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Blockchain Badge */
+.blockchain-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.blockchain-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: white;
+}
+
+.blockchain-name {
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Stat Variations */
+.stat-ellipsis {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-mono {
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+/* Risk Score Colors */
+.risk-score-low {
+  background: linear-gradient(90deg, #10b981, #34d399) !important;
+}
+
+.risk-score-medium {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24) !important;
+}
+
+.risk-score-high {
+  background: linear-gradient(90deg, #ef4444, #f87171) !important;
+}
+
+@media (max-width: 1024px) {
+  .wallet-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .wallet-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .wallet-analyses-container {
     padding: 1rem;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .form-group {
+    width: 100%;
+  }
+
+  .form-group:first-child {
+    min-width: 100%;
+  }
+
+  .btn-submit {
+    width: 100%;
   }
 }
