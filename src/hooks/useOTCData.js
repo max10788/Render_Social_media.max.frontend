@@ -33,12 +33,13 @@ export const useOTCData = () => {
     showHighVolumeWallets: true,
     walletClassifications: [
       'mega_whale',
-      'whale', 
+      'whale',
       'institutional',
-      'large_wallet'
+      'large_wallet',
+      'medium_wallet'
     ],
-    minVolumeScore: 60,
-    minTotalVolume: 1000000,
+    minVolumeScore: 0,
+    minTotalVolume: 0,
     
     entityFilter: 'all',
     
