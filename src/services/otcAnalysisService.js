@@ -196,8 +196,8 @@ class OTCAnalysisService {
         end_date: params.toDate || params.endDate
       };
 
-      const response = await this.apiClient.get('/api/otc/heatmap', { 
-        params: queryParams 
+      const response = await this.apiClient.get('/api/otc/heatmap', {
+        params: queryParams
       });
       return response.data;
     } catch (error) {

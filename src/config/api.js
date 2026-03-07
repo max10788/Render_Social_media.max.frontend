@@ -118,6 +118,12 @@ export const API_CONFIG = {
     ORDERBOOK_HEATMAP_STOP: `/api/v1/orderbook-heatmap/stop`,
     ORDERBOOK_HEATMAP_STATUS: `/api/v1/orderbook-heatmap/status`,
     ORDERBOOK_HEATMAP_SNAPSHOT: (symbol) => `/api/v1/orderbook-heatmap/snapshot/${symbol}`,
+    ORDERBOOK_HEATMAP_TIMESERIES: (symbol) => `/api/v1/orderbook-heatmap/timeseries/${symbol}`,
+    ORDERBOOK_HEATMAP_ORDERBOOK: (symbol) => `/api/v1/orderbook-heatmap/orderbook/${symbol}`,
+    ORDERBOOK_HEATMAP_PRICE: (symbol) => `/api/v1/orderbook-heatmap/price/${symbol}`,
+    CEX_L2_NETWORKS: `/api/v1/orderbook-heatmap/cex/l2/networks`,
+    CEX_L2_HEATMAP: `/api/v1/orderbook-heatmap/cex/l2/heatmap`,
+    CEX_L2_NETWORK: (network) => `/api/v1/orderbook-heatmap/cex/l2/${network}`,
 
     // DEX Pools Endpoints
     DEX_POOLS: (network, token0, token1) => `/api/v1/orderbook-heatmap/dex/pools/${network}/${token0}/${token1}`,

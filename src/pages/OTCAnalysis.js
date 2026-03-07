@@ -521,7 +521,7 @@ const OTCAnalysis = () => {
 
   const handleRefreshHeatmap = async () => {
     if (!fetchHeatmap) return;
-    
+
     setVisualizationLoading(prev => ({ ...prev, heatmap: true }));
     try {
       const heatmap = await fetchHeatmap();

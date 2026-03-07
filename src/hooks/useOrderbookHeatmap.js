@@ -21,6 +21,12 @@ import {
   getStatus,
   getSnapshot,
   normalizeSymbol,
+  getTimeseries,
+  getOrderbook,
+  getPrice,
+  getCexL2Networks,
+  getCexL2Heatmap,
+  getCexL2Network,
 } from '../services/orderbookHeatmapService';
 
 const useOrderbookHeatmap = () => {
@@ -38,6 +44,12 @@ const useOrderbookHeatmap = () => {
   const [currentPrice, setCurrentPrice] = useState(null);
   const [priceHistory, setPriceHistory] = useState([]); // NEW: Track price over time
   const [status, setStatus] = useState(null);
+
+  // New endpoint data
+  const [timeseries, setTimeseries] = useState(null);
+  const [orderbook, setOrderbook] = useState(null);
+  const [cexL2Networks, setCexL2Networks] = useState(null);
+  const [cexL2Heatmap, setCexL2Heatmap] = useState(null);
   
   // UI state
   const [isRunning, setIsRunning] = useState(false);
@@ -418,10 +430,81 @@ const useOrderbookHeatmap = () => {
       const result = await getStatus();
       setStatus(result);
       setIsRunning(result.is_running || false);
-      
+
       console.log('📊 Status:', result);
     } catch (err) {
       console.error('Failed to fetch status:', err);
+    }
+  }, []);
+
+  /**
+   * Fetch Timeseries (3D matrix) — requires heatmap running
+   */
+  const fetchTimeseries = useCallback(async () => {
+    try {
+      const result = await getTimeseries(symbol);
+      setTimeseries(result);
+      return result;
+    } catch (err) {
+      console.error('Failed to fetch timeseries:', err);
+      return null;
+    }
+  }, [symbol]);
+
+  /**
+   * Fetch Aggregated Orderbook snapshot — requires heatmap running
+   */
+  const fetchOrderbook = useCallback(async () => {
+    try {
+      const result = await getOrderbook(symbol);
+      setOrderbook(result);
+      return result;
+    } catch (err) {
+      console.error('Failed to fetch orderbook:', err);
+      return null;
+    }
+  }, [symbol]);
+
+  /**
+   * Fetch Price via REST (fallback when WebSocket is unavailable)
+   */
+  const fetchPriceRest = useCallback(async () => {
+    try {
+      const result = await getPrice(symbol);
+      if (result.price) setCurrentPrice(result.price);
+      return result;
+    } catch (err) {
+      console.error('Failed to fetch price:', err);
+      return null;
+    }
+  }, [symbol]);
+
+  /**
+   * Fetch available CEX L2 networks
+   */
+  const fetchCexL2Networks = useCallback(async () => {
+    try {
+      const result = await getCexL2Networks();
+      setCexL2Networks(result);
+      return result;
+    } catch (err) {
+      console.error('Failed to fetch CEX L2 networks:', err);
+      return null;
+    }
+  }, []);
+
+  /**
+   * Fetch CEX L2 Heatmap (all networks, Bitget)
+   * @param {number} limit - Orderbook depth (default 50)
+   */
+  const fetchCexL2Heatmap = useCallback(async (limit = 50) => {
+    try {
+      const result = await getCexL2Heatmap(limit);
+      setCexL2Heatmap(result);
+      return result;
+    } catch (err) {
+      console.error('Failed to fetch CEX L2 heatmap:', err);
+      return null;
     }
   }, []);
 
@@ -434,23 +517,29 @@ const useOrderbookHeatmap = () => {
     symbol,
     priceBucketSize,
     timeWindowSeconds,
-    
+
     // Data
     heatmapBuffer,
     currentPrice,
     priceHistory,
     status,
-    
+
+    // New endpoint data
+    timeseries,
+    orderbook,
+    cexL2Networks,
+    cexL2Heatmap,
+
     // UI State
     isRunning,
     isLoading,
     error,
-    
+
     // WebSocket State
     wsConnected,
     priceWsConnected,
     lastUpdate,
-    
+
     // Actions
     setSelectedExchanges,
     setSymbol,
@@ -459,6 +548,14 @@ const useOrderbookHeatmap = () => {
     handleStart,
     handleStop,
     fetchStatus,
+
+    // New fetch actions
+    fetchTimeseries,
+    fetchOrderbook,
+    fetchPriceRest,
+    fetchCexL2Networks,
+    fetchCexL2Heatmap,
+    getCexL2Network,
   };
 };
 

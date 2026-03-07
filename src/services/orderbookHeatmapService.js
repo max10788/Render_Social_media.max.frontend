@@ -354,7 +354,7 @@ export const startDexHeatmap = async (params) => {
 export const getTvlHistory = async (poolAddress, startTime, endTime, interval = '1h') => {
   try {
     console.log('📈 Fetching TVL History:', { poolAddress, startTime, endTime, interval });
-    
+
     const response = await heatmapApi.get(`/dex/tvl-history/${poolAddress}`, {
       params: {
         start_time: startTime,
@@ -362,15 +362,116 @@ export const getTvlHistory = async (poolAddress, startTime, endTime, interval = 
         interval,
       },
     });
-    
+
     console.log('✅ TVL History Retrieved:', response.data);
-    
+
     return {
       success: true,
       ...response.data,
     };
   } catch (error) {
     console.error('Failed to fetch TVL history:', error);
+    throw error;
+  }
+};
+
+// ============================================================================
+// NEW ENDPOINTS
+// ============================================================================
+
+/**
+ * Get Heatmap Timeseries (3D matrix)
+ * Requires heatmap to be running.
+ * @param {string} symbol - Trading pair, e.g. "BTC.USDT"
+ * @returns {Promise<Object>} 3D matrix timeseries data
+ */
+export const getTimeseries = async (symbol) => {
+  try {
+    const normalizedSymbol = normalizeSymbol(symbol);
+    const response = await heatmapApi.get(`/timeseries/${normalizedSymbol}`);
+    return { success: true, ...response.data };
+  } catch (error) {
+    console.error('Failed to fetch timeseries:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Aggregated Orderbook (REST snapshot)
+ * Requires heatmap to be running.
+ * @param {string} symbol - Trading pair, e.g. "BTC.USDT"
+ * @returns {Promise<Object>} Aggregated orderbook with bids/asks
+ */
+export const getOrderbook = async (symbol) => {
+  try {
+    const normalizedSymbol = normalizeSymbol(symbol);
+    const response = await heatmapApi.get(`/orderbook/${normalizedSymbol}`);
+    return { success: true, ...response.data };
+  } catch (error) {
+    console.error('Failed to fetch orderbook:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Current Price (REST fallback for WebSocket)
+ * @param {string} symbol - Trading pair, e.g. "BTC.USDT"
+ * @returns {Promise<Object>} { price, symbol, timestamp, source }
+ */
+export const getPrice = async (symbol) => {
+  try {
+    const normalizedSymbol = normalizeSymbol(symbol);
+    const response = await heatmapApi.get(`/price/${normalizedSymbol}`);
+    return { success: true, ...response.data };
+  } catch (error) {
+    console.error('Failed to fetch price:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Available CEX L2 Networks (Bitget)
+ * @returns {Promise<Object>} { source, networks: { networkName: [tokens] }, total_networks }
+ */
+export const getCexL2Networks = async () => {
+  try {
+    const response = await heatmapApi.get('/cex/l2/networks');
+    return { success: true, ...response.data };
+  } catch (error) {
+    console.error('Failed to fetch CEX L2 networks:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get CEX L2 Heatmap (Bitget — all networks)
+ * Returns bid/ask depth and 24h volume per L2 network as a matrix.
+ * matrix[i] = [bid_depth_usd, ask_depth_usd, volume_24h]
+ * @param {number} limit - Orderbook depth per token (5–150, default 50)
+ * @returns {Promise<Object>} Heatmap matrix + per-network orderbook data
+ */
+export const getCexL2Heatmap = async (limit = 50) => {
+  try {
+    const response = await heatmapApi.get('/cex/l2/heatmap', { params: { limit } });
+    return { success: true, ...response.data };
+  } catch (error) {
+    console.error('Failed to fetch CEX L2 heatmap:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get CEX L2 Orderbook for a single network (Bitget)
+ * @param {string} network - Network name, e.g. "arbitrum", "optimism"
+ * @param {number} limit - Orderbook depth (5–150, default 50)
+ * @returns {Promise<Object>} { source, network, tokens: { symbol: { bids, asks, mid_price, ... } } }
+ */
+export const getCexL2Network = async (network, limit = 50) => {
+  try {
+    const response = await heatmapApi.get(`/cex/l2/${network}`, { params: { limit } });
+    return { success: true, ...response.data };
+  } catch (error) {
+    console.error(`Failed to fetch CEX L2 data for network ${network}:`, error);
     throw error;
   }
 };

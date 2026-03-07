@@ -682,6 +682,28 @@ const OTCDiscoveryPanel = ({
                     }
                   </optgroup>
                 )}
+
+                {/* All Other Desks (catch-all for any desk not matched above) */}
+                {knownDesks.filter(d =>
+                  d.source !== 'database' &&
+                  d.desk_category !== 'verified' && !d.tags?.includes('verified') &&
+                  d.desk_category !== 'discovered' && !d.tags?.includes('discovered')
+                ).length > 0 && (
+                  <optgroup label="📋 Other Desks">
+                    {knownDesks
+                      .filter(d =>
+                        d.source !== 'database' &&
+                        d.desk_category !== 'verified' && !d.tags?.includes('verified') &&
+                        d.desk_category !== 'discovered' && !d.tags?.includes('discovered')
+                      )
+                      .map(desk => (
+                        <option key={desk.address} value={desk.address}>
+                          {desk.label || desk.display_name} ({desk.address.slice(0, 10)}...)
+                        </option>
+                      ))
+                    }
+                  </optgroup>
+                )}
               </select>
             </div>
           )}
