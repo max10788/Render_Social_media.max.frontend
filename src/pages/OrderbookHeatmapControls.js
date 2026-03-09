@@ -22,7 +22,8 @@ import {
   ChevronDown,
   ChevronRight,
   Info,
-  AlertCircle
+  AlertCircle,
+  GitBranch,
 } from 'lucide-react';
 import {
   LAYOUTS,
@@ -355,7 +356,17 @@ export const BloombergTerminal = ({
   handleResetView,
   expandedSections,
   toggleSection,
-  availableLayouts
+  availableLayouts,
+  // Markov Simulation props
+  markovToken,
+  markovNetwork,
+  markovSnapshots,
+  isSimulating,
+  cexL2Networks,
+  onMarkovTokenChange,
+  onMarkovNetworkChange,
+  onMarkovSnapshotsChange,
+  onRunSimulation,
 }) => (
   <div className="bloomberg-terminal">
     {/* MAIN CONTROL GRID */}
@@ -654,6 +665,136 @@ export const BloombergTerminal = ({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* MARKOV SIMULATION */}
+        <div className="terminal-section">
+          <div
+            className="section-header"
+            onClick={() => toggleSection('markov')}
+          >
+            <div className="header-left">
+              <GitBranch className="section-icon" size={18} />
+              <span className="section-title">MARKOV SIMULATION</span>
+              {isSimulating && (
+                <span className="section-badge" style={{ color: '#2ecc71', borderColor: '#2ecc71' }}>
+                  RUNNING
+                </span>
+              )}
+            </div>
+            {expandedSections.markov ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </div>
+
+          {expandedSections.markov && (
+            <div className="section-content">
+              {/* Token Input */}
+              <div className="terminal-input-group" style={{ marginBottom: 12 }}>
+                <label className="terminal-label">
+                  <DollarSign size={14} />
+                  <span>TOKEN</span>
+                </label>
+                <input
+                  type="text"
+                  className="terminal-select"
+                  value={markovToken || ''}
+                  onChange={(e) => onMarkovTokenChange && onMarkovTokenChange(e.target.value)}
+                  placeholder="e.g. ARB"
+                  disabled={isSimulating}
+                  style={{ fontFamily: 'Consolas, Monaco, monospace' }}
+                />
+                <div style={{ fontSize: '10px', color: '#64748b', marginTop: 4 }}>
+                  e.g. ARB, BTC, ETH
+                </div>
+              </div>
+
+              {/* Network Dropdown */}
+              <div className="terminal-input-group" style={{ marginBottom: 12 }}>
+                <label className="terminal-label">
+                  <Activity size={14} />
+                  <span>NETWORK</span>
+                </label>
+                <select
+                  className="terminal-select"
+                  value={markovNetwork || 'arbitrum'}
+                  onChange={(e) => onMarkovNetworkChange && onMarkovNetworkChange(e.target.value)}
+                  disabled={isSimulating}
+                >
+                  {[
+                    ...new Set([
+                      ...(cexL2Networks ? Object.keys(cexL2Networks) : []),
+                      'arbitrum', 'ethereum', 'optimism', 'base', 'polygon',
+                    ]),
+                  ].map((net) => (
+                    <option key={net} value={net}>{net}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Snapshots Slider */}
+              <div className="terminal-input-group" style={{ marginBottom: 16 }}>
+                <label className="terminal-label">
+                  <LayoutGrid size={14} />
+                  <span>SNAPSHOTS: {markovSnapshots || 120}</span>
+                </label>
+                <input
+                  type="range"
+                  min={5}
+                  max={80}
+                  step={5}
+                  value={markovSnapshots || 20}
+                  onChange={(e) => onMarkovSnapshotsChange && onMarkovSnapshotsChange(e.target.value)}
+                  disabled={isSimulating}
+                  style={{ width: '100%', accentColor: '#2ecc71' }}
+                />
+                <div style={{ fontSize: '10px', color: '#64748b', marginTop: 4 }}>
+                  5 — 80 snapshots (more = longer wait, better accuracy)
+                </div>
+              </div>
+
+              {/* Run Button */}
+              <button
+                onClick={onRunSimulation}
+                disabled={isSimulating}
+                style={{
+                  width: '100%',
+                  padding: '10px 0',
+                  background: isSimulating ? 'rgba(46,204,113,0.3)' : '#2ecc71',
+                  color: isSimulating ? '#aaa' : '#000',
+                  border: 'none',
+                  borderRadius: 4,
+                  fontWeight: 'bold',
+                  fontSize: 13,
+                  cursor: isSimulating ? 'not-allowed' : 'pointer',
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                {isSimulating ? (
+                  <>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 12,
+                        height: 12,
+                        border: '2px solid #aaa',
+                        borderTopColor: '#2ecc71',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                      }}
+                    />
+                    Simulating...
+                  </>
+                ) : (
+                  'Run Markov Simulation'
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

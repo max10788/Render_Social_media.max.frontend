@@ -1738,3 +1738,91 @@
 .dex-error {
   border-color: rgba(251, 191, 36, 0.3);
 }
+
+/* ============================================================================
+   MARKOV SIMULATION PANEL
+   ============================================================================ */
+
+.markov-panel {
+  background: #1e1e2f;
+  border: 1px solid #2a2a3d;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.markov-chart-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.markov-chart-card {
+  background: #16162a;
+  border: 1px solid #2a2a3d;
+  border-radius: 6px;
+  padding: 16px;
+  flex: 1 1 400px;
+  min-width: 0;
+}
+
+.markov-chart-title {
+  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.markov-metrics-section {
+  width: 100%;
+}
+
+.markov-metrics-table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 700px;
+  font-size: 13px;
+}
+
+.markov-metrics-table th,
+.markov-metrics-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.direction-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.direction-badge.bullish {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71;
+  border: 1px solid #2ecc71;
+}
+
+.direction-badge.bearish {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+}
+
+.direction-badge.neutral {
+  background: rgba(243, 156, 18, 0.2);
+  color: #f39c12;
+  border: 1px solid #f39c12;
+}
+
+@media (max-width: 768px) {
+  .markov-chart-row {
+    flex-direction: column;
+  }
+
+  .markov-chart-card {
+    flex: 1 1 100%;
+  }
+}

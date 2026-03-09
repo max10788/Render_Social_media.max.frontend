@@ -31,6 +31,9 @@ import {
   StatsPanel,
 } from './OrderbookHeatmapControls';
 
+import MarkovSimulationPanel from './MarkovSimulationPanel';
+import { runMarkovSimulation } from '../services/orderbookHeatmapService';
+
 const OrderbookHeatmap = () => {
   // ========== HOOKS ==========
 
@@ -117,7 +120,16 @@ const OrderbookHeatmap = () => {
     exchanges: true,
     parameters: true,
     advanced: false,
+    markov: false,
   });
+
+  // Markov Simulation State
+  const [markovData, setMarkovData] = useState(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [markovToken, setMarkovToken] = useState('ARB');
+  const [markovNetwork, setMarkovNetwork] = useState('arbitrum');
+  const [markovSnapshots, setMarkovSnapshots] = useState(20);
+  const [markovError, setMarkovError] = useState(null);
 
   // ========== EFFECTS ==========
 
@@ -322,6 +334,19 @@ const OrderbookHeatmap = () => {
     setTimeOffset(0);
   };
 
+  const handleRunSimulation = async () => {
+    setIsSimulating(true);
+    setMarkovError(null);
+    try {
+      const result = await runMarkovSimulation(markovToken, markovNetwork, markovSnapshots);
+      setMarkovData(result);
+    } catch (err) {
+      setMarkovError('Simulation failed: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -426,6 +451,15 @@ const OrderbookHeatmap = () => {
           expandedSections={expandedSections}
           toggleSection={toggleSection}
           availableLayouts={availableLayouts}
+          markovToken={markovToken}
+          markovNetwork={markovNetwork}
+          markovSnapshots={markovSnapshots}
+          isSimulating={isSimulating}
+          cexL2Networks={null}
+          onMarkovTokenChange={setMarkovToken}
+          onMarkovNetworkChange={setMarkovNetwork}
+          onMarkovSnapshotsChange={(v) => setMarkovSnapshots(parseInt(v))}
+          onRunSimulation={handleRunSimulation}
         />
       )}
 
@@ -457,6 +491,27 @@ const OrderbookHeatmap = () => {
 
       {heatmapBuffer && heatmapBuffer.length > 0 && (
         <StatsPanel stats={stats} layoutMode={layoutMode} />
+      )}
+
+      {markovError && (
+        <div style={{
+          color: '#e74c3c',
+          padding: '12px',
+          margin: '16px 0',
+          background: 'rgba(231,76,60,0.1)',
+          borderRadius: 6,
+          border: '1px solid #e74c3c',
+        }}>
+          {markovError}
+        </div>
+      )}
+
+      {markovData && (
+        <MarkovSimulationPanel
+          data={markovData}
+          token={markovToken}
+          network={markovNetwork}
+        />
       )}
     </div>
   );

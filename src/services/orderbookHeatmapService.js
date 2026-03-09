@@ -475,3 +475,23 @@ export const getCexL2Network = async (network, limit = 50) => {
     throw error;
   }
 };
+
+/**
+ * Run Markov Chain Monte Carlo Simulation on Live L2 Orderbook Data
+ * @param {string} token - Token symbol, e.g. "ARB", "OP"
+ * @param {string} network - L2 network, e.g. "arbitrum", "optimism"
+ * @param {number} nSnapshots - Number of live snapshots to collect for training (default 120)
+ * @returns {Promise<Object>} Simulation result with price fan, transition matrix, analysis
+ */
+export const runMarkovSimulation = async (token, network, nSnapshots = 120) => {
+  try {
+    const response = await heatmapApi.post('/markov/l2-simulate', null, {
+      params: { token, network, n_snapshots: nSnapshots },
+      timeout: 90000,
+    });
+    return { success: true, ...response.data };
+  } catch (error) {
+    console.error('Failed to run Markov simulation:', error);
+    throw error;
+  }
+};
