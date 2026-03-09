@@ -71,6 +71,16 @@ function buildHistogram(values, numBins = 50) {
 // ---------------------------------------------------------------------------
 
 function FanChart({ priceFan, initialPrice, nPaths, nSteps }) {
+  const yDomain = useMemo(() => {
+    const p5vals  = (priceFan.p5  || []).filter(v => v != null);
+    const p95vals = (priceFan.p95 || []).filter(v => v != null);
+    if (p5vals.length === 0 || p95vals.length === 0) return ['auto', 'auto'];
+    const lo = Math.min(...p5vals);
+    const hi = Math.max(...p95vals);
+    const pad = (hi - lo) * 0.05 || hi * 0.01;
+    return [lo - pad, hi + pad];
+  }, [priceFan]);
+
   const fanData = useMemo(() => {
     const len = priceFan.p50 ? priceFan.p50.length : 0;
     return Array.from({ length: len }, (_, i) => ({
@@ -97,7 +107,8 @@ function FanChart({ priceFan, initialPrice, nPaths, nSteps }) {
             tick={{ fill: '#aaa', fontSize: 11 }}
           />
           <YAxis
-            tickFormatter={(v) => `$${v.toFixed(2)}`}
+            domain={yDomain}
+            tickFormatter={(v) => `$${Number(v).toFixed(2)}`}
             label={{ value: '$price', angle: -90, position: 'insideLeft', fill: '#aaa', fontSize: 11 }}
             tick={{ fill: '#aaa', fontSize: 11 }}
           />
