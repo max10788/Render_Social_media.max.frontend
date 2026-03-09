@@ -432,19 +432,17 @@ function MetricsTable({ data }) {
 // ---------------------------------------------------------------------------
 
 const MarkovSimulationPanel = ({ data, token, network }) => {
-  if (!data) return null;
-
-  const sim = data.simulation || {};
+  const sim = data?.simulation || {};
   const priceDir = (sim.price_distribution || 'neutral').toLowerCase();
   const priceDistColor = { bullish: '#2ecc71', bearish: '#e74c3c', neutral: '#f39c12' };
 
   // transition_matrix from backend: { labels: [...], values: [[...], ...] }
-  const tmData = data.transition_matrix || {};
+  const tmData = data?.transition_matrix || {};
   const tmValues = tmData.values || [];
   const tmLabels = tmData.labels || STATE_LABELS;
 
   // price_fan from backend: { p5: [...], p25: [...], p50: [...], p75: [...], p95: [...] }
-  const priceFan = data.price_fan || {};
+  const priceFan = data?.price_fan || {};
 
   // For the end-price histogram we reconstruct synthetic final prices from the percentile
   // data (backend does not return raw path endpoints). We generate a synthetic distribution
@@ -482,6 +480,8 @@ const MarkovSimulationPanel = ({ data, token, network }) => {
       ...lerp(p95, high, counts.above95),
     ];
   }, [sim]);
+
+  if (!data) return null;
 
   return (
     <div className="markov-panel">
