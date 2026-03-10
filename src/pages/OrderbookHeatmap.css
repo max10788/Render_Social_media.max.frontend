@@ -1831,17 +1831,18 @@
    MARKOV LIVE OVERLAY — D3 SVG Classes + Controls
 ═══════════════════════════════════════════════════════════════ */
 
-.markov-band-outer { pointer-events: none; transition: opacity 0.3s ease; }
-.markov-band-inner { pointer-events: none; transition: opacity 0.3s ease; }
+.markov-band-outer { pointer-events: none; }
+.markov-band-inner { pointer-events: none; }
 
+/* Median path — subtle breathing animation */
 .markov-median {
   pointer-events: none;
-  animation: markovPulse 3s ease-in-out infinite;
+  animation: markovFanPulse 4s ease-in-out infinite;
 }
 
-@keyframes markovPulse {
-  0%, 100% { opacity: 0.85; }
-  50%       { opacity: 0.45; }
+@keyframes markovFanPulse {
+  0%, 100% { opacity: 1;   stroke-width: 2px; }
+  50%       { opacity: 0.6; stroke-width: 1.5px; }
 }
 
 .markov-wall { pointer-events: none; }

@@ -698,26 +698,6 @@ export const BloombergTerminal = ({
 
           {expandedSections.markov && (
             <div className="section-content">
-              {/* Token Input */}
-              <div className="terminal-input-group" style={{ marginBottom: 12 }}>
-                <label className="terminal-label">
-                  <DollarSign size={14} />
-                  <span>TOKEN</span>
-                </label>
-                <input
-                  type="text"
-                  className="terminal-select"
-                  value={markovToken || ''}
-                  onChange={(e) => onMarkovTokenChange && onMarkovTokenChange(e.target.value)}
-                  placeholder="e.g. ARB"
-                  disabled={isSimulating}
-                  style={{ fontFamily: 'Consolas, Monaco, monospace' }}
-                />
-                <div style={{ fontSize: '10px', color: '#64748b', marginTop: 4 }}>
-                  e.g. ARB, BTC, ETH
-                </div>
-              </div>
-
               {/* Network Dropdown */}
               <div className="terminal-input-group" style={{ marginBottom: 12 }}>
                 <label className="terminal-label">
@@ -730,13 +710,26 @@ export const BloombergTerminal = ({
                   onChange={(e) => onMarkovNetworkChange && onMarkovNetworkChange(e.target.value)}
                   disabled={isSimulating}
                 >
-                  {[
-                    ...new Set([
-                      ...(cexL2Networks ? Object.keys(cexL2Networks) : []),
-                      'arbitrum', 'ethereum', 'optimism', 'base', 'polygon',
-                    ]),
-                  ].map((net) => (
+                  {Object.keys(cexL2Networks?.networks ?? {}).map((net) => (
                     <option key={net} value={net}>{net}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Token Dropdown */}
+              <div className="terminal-input-group" style={{ marginBottom: 12 }}>
+                <label className="terminal-label">
+                  <DollarSign size={14} />
+                  <span>TOKEN</span>
+                </label>
+                <select
+                  className="terminal-select"
+                  value={markovToken || ''}
+                  onChange={(e) => onMarkovTokenChange && onMarkovTokenChange(e.target.value)}
+                  disabled={isSimulating}
+                >
+                  {(cexL2Networks?.networks?.[markovNetwork] ?? []).map((tok) => (
+                    <option key={tok} value={tok}>{tok}</option>
                   ))}
                 </select>
               </div>
@@ -859,26 +852,10 @@ export const BloombergTerminal = ({
                 </>
               )}
 
-              {/* Token Input */}
+              {/* Network + Token Dropdowns */}
               {markovOverlayEnabled && (
                 <>
                   <div className="terminal-input-group" style={{ marginTop: 12, marginBottom: 10 }}>
-                    <label className="terminal-label">
-                      <DollarSign size={14} />
-                      <span>TOKEN</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="terminal-select"
-                      value={markovOverlayToken || ''}
-                      onChange={(e) => onMarkovOverlayTokenChange && onMarkovOverlayTokenChange(e.target.value)}
-                      placeholder="ARB"
-                      style={{ fontFamily: 'Consolas, Monaco, monospace' }}
-                    />
-                  </div>
-
-                  {/* Network Dropdown */}
-                  <div className="terminal-input-group" style={{ marginBottom: 10 }}>
                     <label className="terminal-label">
                       <Activity size={14} />
                       <span>NETWORK</span>
@@ -888,13 +865,25 @@ export const BloombergTerminal = ({
                       value={markovOverlayNetwork || 'arbitrum'}
                       onChange={(e) => onMarkovOverlayNetworkChange && onMarkovOverlayNetworkChange(e.target.value)}
                     >
-                      {[
-                        ...new Set([
-                          ...(cexL2Networks ? Object.keys(cexL2Networks) : []),
-                          'arbitrum', 'ethereum', 'optimism', 'base', 'polygon',
-                        ]),
-                      ].map((net) => (
+                      {Object.keys(cexL2Networks?.networks ?? {}).map((net) => (
                         <option key={net} value={net}>{net}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Token Dropdown */}
+                  <div className="terminal-input-group" style={{ marginBottom: 10 }}>
+                    <label className="terminal-label">
+                      <DollarSign size={14} />
+                      <span>TOKEN</span>
+                    </label>
+                    <select
+                      className="terminal-select"
+                      value={markovOverlayToken || ''}
+                      onChange={(e) => onMarkovOverlayTokenChange && onMarkovOverlayTokenChange(e.target.value)}
+                    >
+                      {(cexL2Networks?.networks?.[markovOverlayNetwork] ?? []).map((tok) => (
+                        <option key={tok} value={tok}>{tok}</option>
                       ))}
                     </select>
                   </div>

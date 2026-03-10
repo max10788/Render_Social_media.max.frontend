@@ -6,7 +6,7 @@
  * - OrderbookHeatmapChart.js (D3 rendering)
  * - OrderbookHeatmapControls.js (UI control panels)
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
 import useOrderbookHeatmap from '../hooks/useOrderbookHeatmap';
 import useDexPools from '../hooks/useDexPools';
@@ -61,6 +61,8 @@ const OrderbookHeatmap = () => {
     handleStart,
     handleStop,
     fetchStatus,
+    cexL2Networks,
+    fetchCexL2Networks,
   } = useOrderbookHeatmap();
 
   const {
@@ -165,6 +167,35 @@ const OrderbookHeatmap = () => {
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
+
+  // Fetch available L2 networks + tokens once on mount
+  useEffect(() => {
+    fetchCexL2Networks();
+  }, [fetchCexL2Networks]);
+
+  // Helper: get first valid token for a given network
+  const firstTokenForNetwork = useCallback((net) => {
+    const tokens = cexL2Networks?.networks?.[net];
+    return tokens?.[0] ?? 'ARB';
+  }, [cexL2Networks]);
+
+  // Sync markov simulation token when network changes to an invalid selection
+  const handleMarkovNetworkChange = useCallback((net) => {
+    setMarkovNetwork(net);
+    const tokens = cexL2Networks?.networks?.[net] ?? [];
+    if (tokens.length > 0 && !tokens.includes(markovToken)) {
+      setMarkovToken(tokens[0]);
+    }
+  }, [cexL2Networks, markovToken]);
+
+  // Sync markov overlay token when network changes
+  const handleMarkovOverlayNetworkChange = useCallback((net) => {
+    setMarkovOverlayNetwork(net);
+    const tokens = cexL2Networks?.networks?.[net] ?? [];
+    if (tokens.length > 0 && !tokens.includes(markovOverlayToken)) {
+      setMarkovOverlayToken(tokens[0]);
+    }
+  }, [cexL2Networks, markovOverlayToken]);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -485,9 +516,9 @@ const OrderbookHeatmap = () => {
           markovNetwork={markovNetwork}
           markovSnapshots={markovSnapshots}
           isSimulating={isSimulating}
-          cexL2Networks={null}
+          cexL2Networks={cexL2Networks}
           onMarkovTokenChange={setMarkovToken}
-          onMarkovNetworkChange={setMarkovNetwork}
+          onMarkovNetworkChange={handleMarkovNetworkChange}
           onMarkovSnapshotsChange={(v) => setMarkovSnapshots(parseInt(v))}
           onRunSimulation={handleRunSimulation}
           markovOverlayEnabled={markovOverlayEnabled}
@@ -495,7 +526,7 @@ const OrderbookHeatmap = () => {
           markovOverlayToken={markovOverlayToken}
           onMarkovOverlayTokenChange={setMarkovOverlayToken}
           markovOverlayNetwork={markovOverlayNetwork}
-          onMarkovOverlayNetworkChange={setMarkovOverlayNetwork}
+          onMarkovOverlayNetworkChange={handleMarkovOverlayNetworkChange}
           markovRetrainEvery={markovRetrainEvery}
           onMarkovRetrainEveryChange={setMarkovRetrainEvery}
           markovStatus={markovStatus}
