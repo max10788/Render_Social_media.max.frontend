@@ -374,9 +374,13 @@ export const renderMultiLayoutBookmap = ({
           p95: p95arr[i] != null ? p95arr[i] : null,
         })).filter(d => d.p50 != null);
 
-        // Guard: initial median must be visible
-        const p50mid = fanData[Math.floor(fanData.length / 2)]?.p50;
-        if (p50mid != null && p50mid > displayMinPrice && p50mid < displayMaxPrice) {
+        // Guard: draw overlay as long as the fan overlaps the visible price window at all.
+        // Using the full p5–p95 extent so zooming in doesn't hide the overlay prematurely.
+        const fanMin = Math.min(...p5arr.filter(v => v != null));
+        const fanMax = Math.max(...p95arr.filter(v => v != null));
+        const fanOverlapsView = !isNaN(fanMin) && !isNaN(fanMax)
+          && fanMax > displayMinPrice && fanMin < displayMaxPrice;
+        if (fanOverlapsView) {
           const overlayG = heatmapGroup.append('g').attr('class', 'markov-overlay');
 
           // Fan occupies the rightmost 38% of the chart (the "future" zone)
