@@ -24,6 +24,7 @@ export const renderMultiLayoutBookmap = ({
   priceRangePercent,
   isDragging,
   mode,
+  markovOverlay = null,
 }) => {
   if (!heatmapRef.current || heatmapBuffer.length === 0) return;
 
@@ -349,6 +350,102 @@ export const renderMultiLayoutBookmap = ({
         .attr('width', bbox.width + 12).attr('height', bbox.height + 6).attr('rx', 6)
         .style('fill', '#fbbf24').style('stroke', '#f97316').style('stroke-width', 2)
         .style('filter', 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.5))');
+    }
+
+    // Draw Markov Overlay
+    if (markovOverlay && markovOverlay.price_fan) {
+      const fanVals = markovOverlay.price_fan;
+      const validP5  = (fanVals.p5  || []).filter(Boolean);
+      const validP25 = (fanVals.p25 || []).filter(Boolean);
+      const validP50 = (fanVals.p50 || []).filter(Boolean);
+      const validP75 = (fanVals.p75 || []).filter(Boolean);
+      const validP95 = (fanVals.p95 || []).filter(Boolean);
+
+      if (validP5.length > 0 && validP50.length > 0) {
+        const p5min  = Math.min(...validP5);
+        const p95max = Math.max(...validP95);
+        const p25min = Math.min(...validP25);
+        const p75max = Math.max(...validP75);
+        const p50med = validP50[Math.floor(validP50.length / 2)];
+
+        // Only draw when median is within the visible price window
+        if (p50med > displayMinPrice && p50med < displayMaxPrice) {
+          const overlayG = heatmapGroup.append('g').attr('class', 'markov-overlay');
+
+          // Outer band p5–p95
+          overlayG.append('rect')
+            .attr('x', 0)
+            .attr('y', yScale(p95max))
+            .attr('width', actualWidth)
+            .attr('height', Math.max(0, yScale(p5min) - yScale(p95max)))
+            .attr('fill', 'rgba(46, 204, 113, 0.06)')
+            .attr('pointer-events', 'none')
+            .attr('class', 'markov-band-outer');
+
+          // Inner band p25–p75
+          overlayG.append('rect')
+            .attr('x', 0)
+            .attr('y', yScale(p75max))
+            .attr('width', actualWidth)
+            .attr('height', Math.max(0, yScale(p25min) - yScale(p75max)))
+            .attr('fill', 'rgba(46, 204, 113, 0.15)')
+            .attr('pointer-events', 'none')
+            .attr('class', 'markov-band-inner');
+
+          // Median dashed line
+          overlayG.append('line')
+            .attr('x1', 0).attr('x2', actualWidth)
+            .attr('y1', yScale(p50med)).attr('y2', yScale(p50med))
+            .attr('stroke', '#2ecc71').attr('stroke-width', 1.5)
+            .attr('stroke-dasharray', '6 3').attr('opacity', 0.85)
+            .attr('pointer-events', 'none')
+            .attr('class', 'markov-median');
+
+          // Median label
+          overlayG.append('text')
+            .attr('x', actualWidth - 4).attr('y', yScale(p50med) - 4)
+            .attr('text-anchor', 'end').attr('fill', '#2ecc71')
+            .attr('font-size', 10).attr('pointer-events', 'none')
+            .text(`M ${p50med.toFixed(4)}`);
+
+          // Active wall markers
+          (markovOverlay.active_walls || []).forEach(wall => {
+            const wy = yScale(wall.price);
+            if (wy < 0 || wy > heatmapHeight) return;
+
+            const wallColor = wall.side === 'bid' ? '#3498db' : '#e74c3c';
+            const wallOpacity = Math.min(0.9, 0.4 + (wall.proximity_weight || 0) * 0.5);
+
+            overlayG.append('line')
+              .attr('x1', 0).attr('x2', actualWidth)
+              .attr('y1', wy).attr('y2', wy)
+              .attr('stroke', wallColor).attr('stroke-width', 1.5)
+              .attr('stroke-dasharray', '3 4').attr('opacity', wallOpacity)
+              .attr('pointer-events', 'none')
+              .attr('class', 'markov-wall');
+
+            overlayG.append('text')
+              .attr('x', 4).attr('y', wy - 3)
+              .attr('fill', wallColor).attr('font-size', 9)
+              .attr('opacity', wallOpacity).attr('pointer-events', 'none')
+              .text(`${wall.side.toUpperCase()} WALL ${wall.price.toFixed(4)}`);
+          });
+
+          // MARKOV LIVE badge (top-right corner)
+          overlayG.append('rect')
+            .attr('x', actualWidth - 90).attr('y', 4)
+            .attr('width', 86).attr('height', 16).attr('rx', 3)
+            .attr('fill', 'rgba(46, 204, 113, 0.15)')
+            .attr('stroke', '#2ecc71').attr('stroke-width', 0.5)
+            .attr('pointer-events', 'none');
+          overlayG.append('text')
+            .attr('x', actualWidth - 47).attr('y', 15)
+            .attr('text-anchor', 'middle')
+            .attr('fill', '#2ecc71').attr('font-size', 9).attr('font-weight', 'bold')
+            .attr('pointer-events', 'none')
+            .text('MARKOV LIVE');
+        }
+      }
     }
 
     // Y-axis

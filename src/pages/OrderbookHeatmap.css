@@ -1826,3 +1826,110 @@
     flex: 1 1 100%;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MARKOV LIVE OVERLAY — D3 SVG Classes + Controls
+═══════════════════════════════════════════════════════════════ */
+
+.markov-band-outer { pointer-events: none; transition: opacity 0.3s ease; }
+.markov-band-inner { pointer-events: none; transition: opacity 0.3s ease; }
+
+.markov-median {
+  pointer-events: none;
+  animation: markovPulse 3s ease-in-out infinite;
+}
+
+@keyframes markovPulse {
+  0%, 100% { opacity: 0.85; }
+  50%       { opacity: 0.45; }
+}
+
+.markov-wall { pointer-events: none; }
+
+/* Status Badge */
+.markov-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.markov-status-badge.collecting {
+  background: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+  border: 1px solid rgba(243, 156, 18, 0.4);
+}
+.markov-status-badge.streaming {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+}
+.markov-status-badge.error {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.4);
+}
+.markov-status-badge.idle,
+.markov-status-badge.connecting {
+  background: rgba(100, 100, 120, 0.15);
+  color: #888;
+  border: 1px solid rgba(100, 100, 120, 0.3);
+}
+
+/* Progress Bar */
+.markov-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: #2a2a3d;
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.markov-progress-bar-fill {
+  height: 100%;
+  background: #f39c12;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* Overlay Toggle */
+.markov-overlay-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 0;
+  margin-bottom: 8px;
+}
+.markov-overlay-toggle-btn {
+  padding: 4px 16px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+.markov-overlay-toggle-btn.on  { background: #2ecc71; color: #0a0a15; }
+.markov-overlay-toggle-btn.off { background: #2a2a3d; color: #666; }
+.markov-overlay-toggle-btn:active { transform: scale(0.96); }
+
+/* Force Retrain Button */
+.markov-force-retrain {
+  width: 100%;
+  padding: 6px 0;
+  background: transparent;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  color: #2ecc71;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s ease;
+}
+.markov-force-retrain:hover { background: rgba(46, 204, 113, 0.1); }

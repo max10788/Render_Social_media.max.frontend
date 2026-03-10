@@ -10,6 +10,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import useOrderbookHeatmap from '../hooks/useOrderbookHeatmap';
 import useDexPools from '../hooks/useDexPools';
+import { useMarkovStream } from '../hooks/useMarkovStream';
 import './OrderbookHeatmap.css';
 
 // Import extracted modules
@@ -121,7 +122,14 @@ const OrderbookHeatmap = () => {
     parameters: true,
     advanced: false,
     markov: false,
+    markovOverlay: false,
   });
+
+  // Markov Live Overlay State
+  const [markovOverlayEnabled, setMarkovOverlayEnabled] = useState(false);
+  const [markovOverlayToken, setMarkovOverlayToken] = useState('ARB');
+  const [markovOverlayNetwork, setMarkovOverlayNetwork] = useState('arbitrum');
+  const [markovRetrainEvery, setMarkovRetrainEvery] = useState(30);
 
   // Markov Simulation State
   const [markovData, setMarkovData] = useState(null);
@@ -130,6 +138,27 @@ const OrderbookHeatmap = () => {
   const [markovNetwork, setMarkovNetwork] = useState('arbitrum');
   const [markovSnapshots, setMarkovSnapshots] = useState(20);
   const [markovError, setMarkovError] = useState(null);
+
+  // Markov Live Overlay Hook
+  const {
+    markovData: markovStreamData,
+    status: markovStatus,
+    forceRetrain,
+  } = useMarkovStream({
+    token: markovOverlayToken,
+    network: markovOverlayNetwork,
+    enabled: markovOverlayEnabled,
+    retrainEvery: markovRetrainEvery,
+    minSnapshots: 15,
+    nPaths: 200,
+    nSteps: 50,
+  });
+
+  const markovOverlay = markovStreamData ? {
+    price_fan: markovStreamData.price_fan,
+    active_walls: markovStreamData.active_walls || [],
+    initial_price: markovStreamData.initial_price,
+  } : null;
 
   // ========== EFFECTS ==========
 
@@ -221,6 +250,7 @@ const OrderbookHeatmap = () => {
         priceRangePercent,
         isDragging,
         mode,
+        markovOverlay,
       });
       animationFrameRef.current = requestAnimationFrame(renderLoop);
     };
@@ -234,7 +264,7 @@ const OrderbookHeatmap = () => {
       d3.selectAll('.heatmap-tooltip').remove();
       tooltipRef.current = null;
     };
-  }, [heatmapBuffer, currentPrice, priceHistory, selectedExchanges, dimensions, timeWindowSeconds, priceZoom, timeOffset, showMinimap, layoutMode, priceRangePercent, isDragging, mode]);
+  }, [heatmapBuffer, currentPrice, priceHistory, selectedExchanges, dimensions, timeWindowSeconds, priceZoom, timeOffset, showMinimap, layoutMode, priceRangePercent, isDragging, mode, markovOverlay]);
 
   // ========== HANDLERS ==========
 
@@ -460,6 +490,16 @@ const OrderbookHeatmap = () => {
           onMarkovNetworkChange={setMarkovNetwork}
           onMarkovSnapshotsChange={(v) => setMarkovSnapshots(parseInt(v))}
           onRunSimulation={handleRunSimulation}
+          markovOverlayEnabled={markovOverlayEnabled}
+          onMarkovOverlayEnabledChange={setMarkovOverlayEnabled}
+          markovOverlayToken={markovOverlayToken}
+          onMarkovOverlayTokenChange={setMarkovOverlayToken}
+          markovOverlayNetwork={markovOverlayNetwork}
+          onMarkovOverlayNetworkChange={setMarkovOverlayNetwork}
+          markovRetrainEvery={markovRetrainEvery}
+          onMarkovRetrainEveryChange={setMarkovRetrainEvery}
+          markovStatus={markovStatus}
+          onForceRetrain={forceRetrain}
         />
       )}
 

@@ -367,6 +367,17 @@ export const BloombergTerminal = ({
   onMarkovNetworkChange,
   onMarkovSnapshotsChange,
   onRunSimulation,
+  // Markov Live Overlay props
+  markovOverlayEnabled,
+  onMarkovOverlayEnabledChange,
+  markovOverlayToken,
+  onMarkovOverlayTokenChange,
+  markovOverlayNetwork,
+  onMarkovOverlayNetworkChange,
+  markovRetrainEvery,
+  onMarkovRetrainEveryChange,
+  markovStatus,
+  onForceRetrain,
 }) => (
   <div className="bloomberg-terminal">
     {/* MAIN CONTROL GRID */}
@@ -793,6 +804,132 @@ export const BloombergTerminal = ({
                   'Run Markov Simulation'
                 )}
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* MARKOV OVERLAY */}
+        <div className="terminal-section">
+          <div
+            className="section-header"
+            onClick={() => toggleSection('markovOverlay')}
+          >
+            <div className="header-left">
+              <Activity className="section-icon" size={18} />
+              <span className="section-title">MARKOV OVERLAY</span>
+              {markovOverlayEnabled && markovStatus?.phase === 'streaming' && (
+                <span className="section-badge" style={{ color: '#2ecc71', borderColor: '#2ecc71' }}>
+                  LIVE
+                </span>
+              )}
+            </div>
+            {expandedSections.markovOverlay ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </div>
+
+          {expandedSections.markovOverlay && (
+            <div className="section-content">
+              {/* Toggle */}
+              <div className="markov-overlay-toggle">
+                <span style={{ fontSize: 12, color: '#94a3b8' }}>Live Overlay</span>
+                <button
+                  className={`markov-overlay-toggle-btn ${markovOverlayEnabled ? 'on' : 'off'}`}
+                  onClick={() => onMarkovOverlayEnabledChange && onMarkovOverlayEnabledChange(!markovOverlayEnabled)}
+                >
+                  {markovOverlayEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+
+              {/* Status Badge */}
+              {markovOverlayEnabled && markovStatus && (
+                <>
+                  <div className={`markov-status-badge ${markovStatus.phase}`}>
+                    {markovStatus.phase === 'streaming' && <span>●</span>}
+                    <span>{markovStatus.message || markovStatus.phase}</span>
+                  </div>
+                  {markovStatus.phase === 'collecting' && markovStatus.snapshots_needed > 0 && (
+                    <div className="markov-progress-bar">
+                      <div
+                        className="markov-progress-bar-fill"
+                        style={{
+                          width: `${Math.min(100, ((markovStatus.snapshots_collected || 0) / markovStatus.snapshots_needed) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Token Input */}
+              {markovOverlayEnabled && (
+                <>
+                  <div className="terminal-input-group" style={{ marginTop: 12, marginBottom: 10 }}>
+                    <label className="terminal-label">
+                      <DollarSign size={14} />
+                      <span>TOKEN</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="terminal-select"
+                      value={markovOverlayToken || ''}
+                      onChange={(e) => onMarkovOverlayTokenChange && onMarkovOverlayTokenChange(e.target.value)}
+                      placeholder="ARB"
+                      style={{ fontFamily: 'Consolas, Monaco, monospace' }}
+                    />
+                  </div>
+
+                  {/* Network Dropdown */}
+                  <div className="terminal-input-group" style={{ marginBottom: 10 }}>
+                    <label className="terminal-label">
+                      <Activity size={14} />
+                      <span>NETWORK</span>
+                    </label>
+                    <select
+                      className="terminal-select"
+                      value={markovOverlayNetwork || 'arbitrum'}
+                      onChange={(e) => onMarkovOverlayNetworkChange && onMarkovOverlayNetworkChange(e.target.value)}
+                    >
+                      {[
+                        ...new Set([
+                          ...(cexL2Networks ? Object.keys(cexL2Networks) : []),
+                          'arbitrum', 'ethereum', 'optimism', 'base', 'polygon',
+                        ]),
+                      ].map((net) => (
+                        <option key={net} value={net}>{net}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Retrain Interval Slider */}
+                  <div className="terminal-input-group" style={{ marginBottom: 10 }}>
+                    <label className="terminal-label">
+                      <Clock size={14} />
+                      <span>RETRAIN EVERY: {markovRetrainEvery}s</span>
+                    </label>
+                    <input
+                      type="range"
+                      min={10}
+                      max={120}
+                      step={10}
+                      value={markovRetrainEvery || 30}
+                      onChange={(e) => onMarkovRetrainEveryChange && onMarkovRetrainEveryChange(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: '#2ecc71' }}
+                    />
+                    <div style={{ fontSize: '10px', color: '#64748b', marginTop: 4 }}>
+                      Shorter = more current simulation
+                    </div>
+                  </div>
+
+                  {/* Force Retrain */}
+                  {markovStatus?.phase === 'streaming' && (
+                    <button
+                      className="markov-force-retrain"
+                      onClick={() => onForceRetrain && onForceRetrain()}
+                    >
+                      Force Retrain
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>
