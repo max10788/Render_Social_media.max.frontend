@@ -55,11 +55,34 @@ export const LAYOUTS = {
 
 // ========== CONFIGURATION OPTIONS ==========
 export const availableSymbols = [
+  // Original
   'BTC/USDT',
   'ETH/USDT',
   'BNB/USDT',
   'SOL/USDT',
   'XRP/USDT',
+  // Arbitrum
+  'ARB/USDT',
+  'GMX/USDT',
+  'RDNT/USDT',
+  'PENDLE/USDT',
+  'GNS/USDT',
+  // Polygon
+  'POL/USDT',
+  'LINK/USDT',
+  'AAVE/USDT',
+  // Optimism
+  'OP/USDT',
+  // Starknet
+  'STRK/USDT',
+  // zkSync
+  'ZK/USDT',
+  // Immutable
+  'IMX/USDT',
+  // Loopring
+  'LRC/USDT',
+  // Metis
+  'METIS/USDT',
 ];
 
 export const bucketSizeOptions = [10, 25, 50, 100, 250];
