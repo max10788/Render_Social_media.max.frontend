@@ -14,6 +14,7 @@
  * 2. Price WS: /ws/price/{symbol} → Live price updates
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { defaultBucketSizeForSymbol } from '../pages/OrderbookHeatmapUtils';
 import {
   getAvailableExchanges,
   startHeatmap,
@@ -106,6 +107,13 @@ const useOrderbookHeatmap = () => {
       }
     };
   }, []);
+
+  // Auto-adjust bucket size when symbol changes (only when not running)
+  useEffect(() => {
+    if (!isRunning) {
+      setPriceBucketSize(defaultBucketSizeForSymbol(symbol));
+    }
+  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ========== WEBSOCKET MANAGEMENT ==========
 

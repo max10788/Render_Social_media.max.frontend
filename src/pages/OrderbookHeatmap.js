@@ -258,6 +258,10 @@ const OrderbookHeatmap = () => {
 
   useEffect(() => {
     if (!heatmapBuffer || heatmapBuffer.length === 0 || !heatmapRef.current) {
+      // Clear stale drawing when buffer is wiped (symbol change / stop)
+      if (heatmapRef.current) {
+        d3.select(heatmapRef.current).selectAll('*').remove();
+      }
       return;
     }
 

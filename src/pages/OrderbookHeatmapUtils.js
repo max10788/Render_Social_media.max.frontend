@@ -85,7 +85,22 @@ export const availableSymbols = [
   'METIS/USDT',
 ];
 
-export const bucketSizeOptions = [10, 25, 50, 100, 250];
+export const bucketSizeOptions = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 25, 50, 100, 250];
+
+// Sensible default bucket size keyed by base token
+export const defaultBucketSizeForSymbol = (sym) => {
+  const token = sym.split('/')[0].toUpperCase();
+  const map = {
+    BTC: 50,
+    ETH: 5,   BNB: 1,    SOL: 0.5,
+    XRP: 0.05, LINK: 0.05, AAVE: 1,
+    ARB: 0.01, OP: 0.01,  STRK: 0.005,
+    ZK: 0.001, RDNT: 0.005, PENDLE: 0.05,
+    GNS: 0.01, POL: 0.005, IMX: 0.05,
+    LRC: 0.005, METIS: 0.1,
+  };
+  return map[token] ?? 0.1;
+};
 
 export const timeWindowOptions = [
   { value: 60, label: '1 min' },
