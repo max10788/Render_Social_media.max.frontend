@@ -6,9 +6,12 @@
 
 /* === PAGE CONTAINER === */
 .orderbook-heatmap-page {
-  max-width: 1600px;
+  max-width: 1920px;
   margin: 0 auto;
-  padding: var(--space-xl);
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* === HERO SECTION === */
@@ -318,12 +321,13 @@
   background-color: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-  margin-bottom: var(--space-xl);
+  padding: var(--space-lg);
+  margin-bottom: 0;
   box-shadow: var(--shadow-md);
   position: relative;
   min-height: 700px;
   backdrop-filter: blur(10px);
+  flex: 1;
 }
 
 .heatmap-canvas {
@@ -1108,9 +1112,9 @@
   background: linear-gradient(135deg, #0a0e1a 0%, #0d1117 100%);
   border: 2px solid #1a2332;
   border-radius: 16px;
-  padding: 24px;
-  margin: 20px 0;
-  box-shadow: 
+  padding: 16px;
+  margin: 0;
+  box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
@@ -1934,3 +1938,109 @@
   transition: background 0.2s ease;
 }
 .markov-force-retrain:hover { background: rgba(46, 204, 113, 0.1); }
+
+/* ============================================================================
+   SIDEBAR LAYOUT — chart-focused workspace
+   ============================================================================ */
+
+/* Compact header replaces the large hero */
+.heatmap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #0a0e1a 0%, #0d1117 100%);
+  border: 1px solid #1a2332;
+  border-radius: 12px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-title {
+  font-size: 15px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--color-primary, #7e58f5), var(--color-tertiary, #2dd4bf));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  white-space: nowrap;
+  margin: 0;
+}
+
+/* Workspace: sidebar + chart side by side */
+.heatmap-workspace {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Sidebar holds all controls */
+.heatmap-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+  scrollbar-width: thin;
+  scrollbar-color: #1a2332 transparent;
+}
+
+.heatmap-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.heatmap-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.heatmap-sidebar::-webkit-scrollbar-thumb {
+  background: #1a2332;
+  border-radius: 2px;
+}
+
+/* Force single-column layout when terminal is inside the sidebar */
+.heatmap-sidebar .terminal-grid {
+  grid-template-columns: 1fr;
+}
+
+/* Main chart area */
+.heatmap-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Synced token info row in overlay section */
+.markov-overlay-token-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+/* Responsive: collapse sidebar below chart on small screens */
+@media (max-width: 900px) {
+  .heatmap-workspace {
+    flex-direction: column;
+  }
+  .heatmap-sidebar {
+    width: 100%;
+    max-height: none;
+  }
+  .heatmap-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

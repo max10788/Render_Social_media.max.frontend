@@ -371,9 +371,8 @@ export const BloombergTerminal = ({
   markovOverlayEnabled,
   onMarkovOverlayEnabledChange,
   markovOverlayToken,
-  onMarkovOverlayTokenChange,
   markovOverlayNetwork,
-  onMarkovOverlayNetworkChange,
+  markovOverlayAvailable,
   markovRetrainEvery,
   onMarkovRetrainEveryChange,
   markovStatus,
@@ -815,107 +814,106 @@ export const BloombergTerminal = ({
                   LIVE
                 </span>
               )}
+              {!markovOverlayAvailable && (
+                <span className="section-badge" style={{ color: '#64748b', borderColor: '#475569' }}>
+                  N/A
+                </span>
+              )}
             </div>
             {expandedSections.markovOverlay ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
           </div>
 
           {expandedSections.markovOverlay && (
             <div className="section-content">
-              {/* Toggle */}
-              <div className="markov-overlay-toggle">
-                <span style={{ fontSize: 12, color: '#94a3b8' }}>Live Overlay</span>
-                <button
-                  className={`markov-overlay-toggle-btn ${markovOverlayEnabled ? 'on' : 'off'}`}
-                  onClick={() => onMarkovOverlayEnabledChange && onMarkovOverlayEnabledChange(!markovOverlayEnabled)}
-                >
-                  {markovOverlayEnabled ? 'ON' : 'OFF'}
-                </button>
-              </div>
-
-              {/* Status Badge */}
-              {markovOverlayEnabled && markovStatus && (
+              {!markovOverlayAvailable ? (
+                <div style={{
+                  fontSize: 12,
+                  color: '#64748b',
+                  padding: '10px 12px',
+                  background: 'rgba(100,116,139,0.08)',
+                  border: '1px solid rgba(100,116,139,0.2)',
+                  borderRadius: 6,
+                  lineHeight: 1.5,
+                }}>
+                  Current symbol is not available for Markov overlay.
+                  Select an L2 token (e.g. ARB, OP, MATIC).
+                </div>
+              ) : (
                 <>
-                  <div className={`markov-status-badge ${markovStatus.phase}`}>
-                    {markovStatus.phase === 'streaming' && <span>●</span>}
-                    <span>{markovStatus.message || markovStatus.phase}</span>
+                  {/* Synced token display */}
+                  <div className="markov-overlay-token-info">
+                    <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Synced token
+                    </span>
+                    <span style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 600 }}>
+                      {markovOverlayToken}
+                      <span style={{ color: '#475569', fontWeight: 400 }}> / {markovOverlayNetwork}</span>
+                    </span>
                   </div>
-                  {markovStatus.phase === 'collecting' && markovStatus.snapshots_needed > 0 && (
-                    <div className="markov-progress-bar">
-                      <div
-                        className="markov-progress-bar-fill"
-                        style={{
-                          width: `${Math.min(100, ((markovStatus.snapshots_collected || 0) / markovStatus.snapshots_needed) * 100)}%`,
-                        }}
-                      />
-                    </div>
+
+                  {/* Toggle */}
+                  <div className="markov-overlay-toggle">
+                    <span style={{ fontSize: 12, color: '#94a3b8' }}>Live Overlay</span>
+                    <button
+                      className={`markov-overlay-toggle-btn ${markovOverlayEnabled ? 'on' : 'off'}`}
+                      onClick={() => onMarkovOverlayEnabledChange && onMarkovOverlayEnabledChange(!markovOverlayEnabled)}
+                    >
+                      {markovOverlayEnabled ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+
+                  {/* Status Badge */}
+                  {markovOverlayEnabled && markovStatus && (
+                    <>
+                      <div className={`markov-status-badge ${markovStatus.phase}`}>
+                        {markovStatus.phase === 'streaming' && <span>●</span>}
+                        <span>{markovStatus.message || markovStatus.phase}</span>
+                      </div>
+                      {markovStatus.phase === 'collecting' && markovStatus.snapshots_needed > 0 && (
+                        <div className="markov-progress-bar">
+                          <div
+                            className="markov-progress-bar-fill"
+                            style={{
+                              width: `${Math.min(100, ((markovStatus.snapshots_collected || 0) / markovStatus.snapshots_needed) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-
-              {/* Network + Token Dropdowns */}
-              {markovOverlayEnabled && (
-                <>
-                  <div className="terminal-input-group" style={{ marginTop: 12, marginBottom: 10 }}>
-                    <label className="terminal-label">
-                      <Activity size={14} />
-                      <span>NETWORK</span>
-                    </label>
-                    <select
-                      className="terminal-select"
-                      value={markovOverlayNetwork || 'arbitrum'}
-                      onChange={(e) => onMarkovOverlayNetworkChange && onMarkovOverlayNetworkChange(e.target.value)}
-                    >
-                      {Object.keys(cexL2Networks?.networks ?? {}).map((net) => (
-                        <option key={net} value={net}>{net}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Token Dropdown */}
-                  <div className="terminal-input-group" style={{ marginBottom: 10 }}>
-                    <label className="terminal-label">
-                      <DollarSign size={14} />
-                      <span>TOKEN</span>
-                    </label>
-                    <select
-                      className="terminal-select"
-                      value={markovOverlayToken || ''}
-                      onChange={(e) => onMarkovOverlayTokenChange && onMarkovOverlayTokenChange(e.target.value)}
-                    >
-                      {(cexL2Networks?.networks?.[markovOverlayNetwork] ?? []).map((tok) => (
-                        <option key={tok} value={tok}>{tok}</option>
-                      ))}
-                    </select>
-                  </div>
 
                   {/* Retrain Interval Slider */}
-                  <div className="terminal-input-group" style={{ marginBottom: 10 }}>
-                    <label className="terminal-label">
-                      <Clock size={14} />
-                      <span>RETRAIN EVERY: {markovRetrainEvery}s</span>
-                    </label>
-                    <input
-                      type="range"
-                      min={10}
-                      max={120}
-                      step={10}
-                      value={markovRetrainEvery || 30}
-                      onChange={(e) => onMarkovRetrainEveryChange && onMarkovRetrainEveryChange(Number(e.target.value))}
-                      style={{ width: '100%', accentColor: '#2ecc71' }}
-                    />
-                    <div style={{ fontSize: '10px', color: '#64748b', marginTop: 4 }}>
-                      Shorter = more current simulation
-                    </div>
-                  </div>
+                  {markovOverlayEnabled && (
+                    <>
+                      <div className="terminal-input-group" style={{ marginTop: 10, marginBottom: 10 }}>
+                        <label className="terminal-label">
+                          <Clock size={14} />
+                          <span>RETRAIN EVERY: {markovRetrainEvery}s</span>
+                        </label>
+                        <input
+                          type="range"
+                          min={10}
+                          max={120}
+                          step={10}
+                          value={markovRetrainEvery || 30}
+                          onChange={(e) => onMarkovRetrainEveryChange && onMarkovRetrainEveryChange(Number(e.target.value))}
+                          style={{ width: '100%', accentColor: '#2ecc71' }}
+                        />
+                        <div style={{ fontSize: '10px', color: '#64748b', marginTop: 4 }}>
+                          Shorter = more current simulation
+                        </div>
+                      </div>
 
-                  {/* Force Retrain */}
-                  {markovStatus?.phase === 'streaming' && (
-                    <button
-                      className="markov-force-retrain"
-                      onClick={() => onForceRetrain && onForceRetrain()}
-                    >
-                      Force Retrain
-                    </button>
+                      {/* Force Retrain */}
+                      {markovStatus?.phase === 'streaming' && (
+                        <button
+                          className="markov-force-retrain"
+                          onClick={() => onForceRetrain && onForceRetrain()}
+                        >
+                          Force Retrain
+                        </button>
+                      )}
+                    </>
                   )}
                 </>
               )}

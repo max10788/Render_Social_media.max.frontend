@@ -6,7 +6,7 @@
  * - OrderbookHeatmapChart.js (D3 rendering)
  * - OrderbookHeatmapControls.js (UI control panels)
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import useOrderbookHeatmap from '../hooks/useOrderbookHeatmap';
 import useDexPools from '../hooks/useDexPools';
@@ -15,7 +15,6 @@ import './OrderbookHeatmap.css';
 
 // Import extracted modules
 import {
-  LAYOUTS,
   getAvailableLayouts,
   calculateStats,
 } from './OrderbookHeatmapUtils';
@@ -28,7 +27,6 @@ import {
   ErrorBanners,
   DexPanel,
   BloombergTerminal,
-  ViewControls,
   StatsPanel,
 } from './OrderbookHeatmapControls';
 
@@ -173,12 +171,6 @@ const OrderbookHeatmap = () => {
     fetchCexL2Networks();
   }, [fetchCexL2Networks]);
 
-  // Helper: get first valid token for a given network
-  const firstTokenForNetwork = useCallback((net) => {
-    const tokens = cexL2Networks?.networks?.[net];
-    return tokens?.[0] ?? 'ARB';
-  }, [cexL2Networks]);
-
   // Sync markov simulation token when network changes to an invalid selection
   const handleMarkovNetworkChange = useCallback((net) => {
     setMarkovNetwork(net);
@@ -188,14 +180,27 @@ const OrderbookHeatmap = () => {
     }
   }, [cexL2Networks, markovToken]);
 
-  // Sync markov overlay token when network changes
-  const handleMarkovOverlayNetworkChange = useCallback((net) => {
-    setMarkovOverlayNetwork(net);
-    const tokens = cexL2Networks?.networks?.[net] ?? [];
-    if (tokens.length > 0 && !tokens.includes(markovOverlayToken)) {
-      setMarkovOverlayToken(tokens[0]);
+  // Derived: is the current heatmap symbol's base token available for Markov overlay?
+  const markovOverlayAvailable = useMemo(() => {
+    if (!cexL2Networks?.networks || !symbol) return false;
+    const baseToken = symbol.split('/')[0];
+    return Object.values(cexL2Networks.networks).some(tokens => tokens.includes(baseToken));
+  }, [symbol, cexL2Networks]);
+
+  // Auto-sync overlay token/network when symbol changes
+  useEffect(() => {
+    if (!cexL2Networks?.networks || !symbol) return;
+    const baseToken = symbol.split('/')[0];
+    for (const [net, tokens] of Object.entries(cexL2Networks.networks)) {
+      if (tokens.includes(baseToken)) {
+        setMarkovOverlayNetwork(net);
+        setMarkovOverlayToken(baseToken);
+        return;
+      }
     }
-  }, [cexL2Networks, markovOverlayToken]);
+    // Token not found in any network – disable overlay
+    setMarkovOverlayEnabled(false);
+  }, [symbol, cexL2Networks]);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -428,25 +433,22 @@ const OrderbookHeatmap = () => {
 
   return (
     <div className="orderbook-heatmap-page">
-      <div className="hero">
-        <div className="hero-content">
-          <h1 className="hero-title">Orderbook Heatmap - Multi-Layout V4</h1>
-          <p className="hero-subtitle">
-            Pan/Zoom | Price Line | Flexible Layouts | CEX + DEX
-          </p>
 
+      {/* COMPACT HEADER */}
+      <div className="heatmap-header">
+        <div className="header-brand">
+          <h1 className="header-title">Orderbook Heatmap</h1>
           <ModeSelector mode={mode} onModeChange={handleModeSwitch} />
-
-          <StatusIndicators
-            isRunning={isRunning}
-            wsConnected={wsConnected}
-            priceWsConnected={priceWsConnected}
-            currentPrice={currentPrice}
-            priceZoom={priceZoom}
-            mode={mode}
-            timeOffset={timeOffset}
-          />
         </div>
+        <StatusIndicators
+          isRunning={isRunning}
+          wsConnected={wsConnected}
+          priceWsConnected={priceWsConnected}
+          currentPrice={currentPrice}
+          priceZoom={priceZoom}
+          mode={mode}
+          timeOffset={timeOffset}
+        />
       </div>
 
       <ErrorBanners
@@ -458,115 +460,113 @@ const OrderbookHeatmap = () => {
         selectedPool={selectedPool}
       />
 
-      {/* DEX Panel */}
-      {mode === 'dex' && showDexPanel && (
-        <DexPanel
-          network={network}
-          token0={token0}
-          token1={token1}
-          feeTier={feeTier}
-          pools={pools}
-          selectedPool={selectedPool}
-          isDexLoading={isDexLoading}
-          isRunning={isRunning}
-          AVAILABLE_NETWORKS={AVAILABLE_NETWORKS}
-          FEE_TIERS={FEE_TIERS}
-          setNetwork={setNetwork}
-          setToken0={setToken0}
-          setToken1={setToken1}
-          setFeeTier={setFeeTier}
-          searchPools={searchPools}
-          selectPool={selectPool}
-          getTokensForNetwork={getTokensForNetwork}
-          formatAddress={formatAddress}
-          formatNumber={formatNumber}
-          handleStartWithDex={handleStartWithDex}
-          handleStop={handleStop}
-        />
-      )}
+      {/* WORKSPACE: sidebar + chart */}
+      <div className="heatmap-workspace">
 
-      {/* Bloomberg Terminal Controls (CEX mode) */}
-      {mode === 'cex' && (
-        <BloombergTerminal
-          layoutMode={layoutMode}
-          setLayoutMode={setLayoutMode}
-          symbol={symbol}
-          setSymbol={setSymbol}
-          exchanges={exchanges}
-          selectedExchanges={selectedExchanges}
-          toggleExchange={toggleExchange}
-          priceBucketSize={priceBucketSize}
-          setPriceBucketSize={setPriceBucketSize}
-          timeWindowSeconds={timeWindowSeconds}
-          setTimeWindowSeconds={setTimeWindowSeconds}
-          showMinimap={showMinimap}
-          setShowMinimap={setShowMinimap}
-          priceRangePercent={priceRangePercent}
-          setPriceRangePercent={setPriceRangePercent}
-          priceZoom={priceZoom}
-          timeOffset={timeOffset}
-          isRunning={isRunning}
-          isLoading={isLoading}
-          wsConnected={wsConnected}
-          priceWsConnected={priceWsConnected}
-          currentPrice={currentPrice}
-          handleStart={handleStart}
-          handleStop={handleStop}
-          handleResetView={handleResetView}
-          expandedSections={expandedSections}
-          toggleSection={toggleSection}
-          availableLayouts={availableLayouts}
-          markovToken={markovToken}
-          markovNetwork={markovNetwork}
-          markovSnapshots={markovSnapshots}
-          isSimulating={isSimulating}
-          cexL2Networks={cexL2Networks}
-          onMarkovTokenChange={setMarkovToken}
-          onMarkovNetworkChange={handleMarkovNetworkChange}
-          onMarkovSnapshotsChange={(v) => setMarkovSnapshots(parseInt(v))}
-          onRunSimulation={handleRunSimulation}
-          markovOverlayEnabled={markovOverlayEnabled}
-          onMarkovOverlayEnabledChange={setMarkovOverlayEnabled}
-          markovOverlayToken={markovOverlayToken}
-          onMarkovOverlayTokenChange={setMarkovOverlayToken}
-          markovOverlayNetwork={markovOverlayNetwork}
-          onMarkovOverlayNetworkChange={handleMarkovOverlayNetworkChange}
-          markovRetrainEvery={markovRetrainEvery}
-          onMarkovRetrainEveryChange={setMarkovRetrainEvery}
-          markovStatus={markovStatus}
-          onForceRetrain={forceRetrain}
-        />
-      )}
+        {/* SIDEBAR: controls */}
+        <aside className="heatmap-sidebar">
+          {mode === 'dex' && showDexPanel && (
+            <DexPanel
+              network={network}
+              token0={token0}
+              token1={token1}
+              feeTier={feeTier}
+              pools={pools}
+              selectedPool={selectedPool}
+              isDexLoading={isDexLoading}
+              isRunning={isRunning}
+              AVAILABLE_NETWORKS={AVAILABLE_NETWORKS}
+              FEE_TIERS={FEE_TIERS}
+              setNetwork={setNetwork}
+              setToken0={setToken0}
+              setToken1={setToken1}
+              setFeeTier={setFeeTier}
+              searchPools={searchPools}
+              selectPool={selectPool}
+              getTokensForNetwork={getTokensForNetwork}
+              formatAddress={formatAddress}
+              formatNumber={formatNumber}
+              handleStartWithDex={handleStartWithDex}
+              handleStop={handleStop}
+            />
+          )}
+          {mode === 'cex' && (
+            <BloombergTerminal
+              layoutMode={layoutMode}
+              setLayoutMode={setLayoutMode}
+              symbol={symbol}
+              setSymbol={setSymbol}
+              exchanges={exchanges}
+              selectedExchanges={selectedExchanges}
+              toggleExchange={toggleExchange}
+              priceBucketSize={priceBucketSize}
+              setPriceBucketSize={setPriceBucketSize}
+              timeWindowSeconds={timeWindowSeconds}
+              setTimeWindowSeconds={setTimeWindowSeconds}
+              showMinimap={showMinimap}
+              setShowMinimap={setShowMinimap}
+              priceRangePercent={priceRangePercent}
+              setPriceRangePercent={setPriceRangePercent}
+              priceZoom={priceZoom}
+              timeOffset={timeOffset}
+              isRunning={isRunning}
+              isLoading={isLoading}
+              wsConnected={wsConnected}
+              priceWsConnected={priceWsConnected}
+              currentPrice={currentPrice}
+              handleStart={handleStart}
+              handleStop={handleStop}
+              handleResetView={handleResetView}
+              expandedSections={expandedSections}
+              toggleSection={toggleSection}
+              availableLayouts={availableLayouts}
+              markovToken={markovToken}
+              markovNetwork={markovNetwork}
+              markovSnapshots={markovSnapshots}
+              isSimulating={isSimulating}
+              cexL2Networks={cexL2Networks}
+              onMarkovTokenChange={setMarkovToken}
+              onMarkovNetworkChange={handleMarkovNetworkChange}
+              onMarkovSnapshotsChange={(v) => setMarkovSnapshots(parseInt(v))}
+              onRunSimulation={handleRunSimulation}
+              markovOverlayEnabled={markovOverlayEnabled}
+              onMarkovOverlayEnabledChange={setMarkovOverlayEnabled}
+              markovOverlayToken={markovOverlayToken}
+              markovOverlayNetwork={markovOverlayNetwork}
+              markovOverlayAvailable={markovOverlayAvailable}
+              markovRetrainEvery={markovRetrainEvery}
+              onMarkovRetrainEveryChange={setMarkovRetrainEvery}
+              markovStatus={markovStatus}
+              onForceRetrain={forceRetrain}
+            />
+          )}
+        </aside>
 
-      <ViewControls
-        showMinimap={showMinimap}
-        setShowMinimap={setShowMinimap}
-        handleResetView={handleResetView}
-        priceZoom={priceZoom}
-        timeOffset={timeOffset}
-      />
-
-      <div className="heatmap-container">
-        <div ref={heatmapRef} className="heatmap-canvas"></div>
-        {!heatmapBuffer && isRunning && (
-          <div className="heatmap-placeholder">
-            <div className="spinner"></div>
-            <p>Loading visualization...</p>
+        {/* CHART MAIN AREA */}
+        <div className="heatmap-main">
+          <div className="heatmap-container">
+            <div ref={heatmapRef} className="heatmap-canvas"></div>
+            {!heatmapBuffer && isRunning && (
+              <div className="heatmap-placeholder">
+                <div className="spinner"></div>
+                <p>Loading visualization...</p>
+              </div>
+            )}
+            {!heatmapBuffer && !isRunning && (
+              <div className="heatmap-placeholder">
+                <p>Select layout and start</p>
+                <div style={{fontSize: '11px', marginTop: '12px', color: '#64748b'}}>
+                  <p>Drag to pan | Scroll to zoom</p>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-        {!heatmapBuffer && !isRunning && (
-          <div className="heatmap-placeholder">
-            <p>Select layout and start</p>
-            <div style={{fontSize: '11px', marginTop: '12px', color: '#64748b'}}>
-              <p>Drag to pan | Scroll to zoom</p>
-            </div>
-          </div>
-        )}
+
+          {heatmapBuffer && heatmapBuffer.length > 0 && (
+            <StatsPanel stats={stats} layoutMode={layoutMode} />
+          )}
+        </div>
       </div>
-
-      {heatmapBuffer && heatmapBuffer.length > 0 && (
-        <StatsPanel stats={stats} layoutMode={layoutMode} />
-      )}
 
       {markovError && (
         <div style={{
