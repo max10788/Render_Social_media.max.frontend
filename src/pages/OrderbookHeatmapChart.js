@@ -95,21 +95,29 @@ export const renderMultiLayoutBookmap = ({
   const displayMaxTime = new Date(maxTime.getTime() - timeOffset);
   const displayMinTime = new Date(displayMaxTime.getTime() - timeWindowMs);
 
-  // FIXED: Use constant percentage range to prevent auto-zoom
+  // Use constant percentage range to prevent auto-zoom
   let displayMinPrice, displayMaxPrice;
   if (currentPrice) {
-    // Fixed range based on priceRangePercent setting (default 2% = 1% up, 1% down)
     const fixedRange = currentPrice * (priceRangePercent / 100) / priceZoom;
     displayMinPrice = currentPrice - fixedRange;
     displayMaxPrice = currentPrice + fixedRange;
   } else {
-    // Fallback if no current price: use data range
     const minPrice = d3.min(sortedPrices);
     const maxPrice = d3.max(sortedPrices);
     const priceRange = maxPrice - minPrice;
     const pricePadding = priceRange * 0.05 / priceZoom;
     displayMinPrice = minPrice - pricePadding;
     displayMaxPrice = maxPrice + pricePadding;
+  }
+
+  // Expand Y-axis to fully contain Markov fan (p5–p95) when overlay is active
+  if (markovOverlay?.price_fan) {
+    const p5arr  = markovOverlay.price_fan.p5  || [];
+    const p95arr = markovOverlay.price_fan.p95 || [];
+    const fanMin = Math.min(...p5arr.filter(v => v != null));
+    const fanMax = Math.max(...p95arr.filter(v => v != null));
+    if (!isNaN(fanMin) && isFinite(fanMin)) displayMinPrice = Math.min(displayMinPrice, fanMin);
+    if (!isNaN(fanMax) && isFinite(fanMax)) displayMaxPrice = Math.max(displayMaxPrice, fanMax);
   }
 
   // Cell dimensions
@@ -517,7 +525,14 @@ export const renderMultiLayoutBookmap = ({
     }
 
     // Y-axis
-    const yAxis = d3.axisLeft(yScale).ticks(8).tickFormat((d) => `$${Math.round(d).toLocaleString()}`);
+    const yAxis = d3.axisLeft(yScale).ticks(8).tickFormat((d) => {
+      const abs = Math.abs(d);
+      if (abs < 0.001)  return `$${d.toFixed(5)}`;
+      if (abs < 0.01)   return `$${d.toFixed(4)}`;
+      if (abs < 1)      return `$${d.toFixed(3)}`;
+      if (abs < 1000)   return `$${d.toFixed(2)}`;
+      return `$${Math.round(d).toLocaleString()}`;
+    });
     heatmapGroup.append('g').call(yAxis).selectAll('text')
       .style('fill', '#64748b').style('font-size', '10px');
     heatmapGroup.selectAll('.domain, .tick line').style('stroke', '#334155');
