@@ -95,6 +95,9 @@ export const renderMultiLayoutBookmap = ({
   const displayMaxTime = new Date(maxTime.getTime() - timeOffset);
   const displayMinTime = new Date(displayMaxTime.getTime() - timeWindowMs);
 
+  // Future projection window: 38% extra so fan shares the same time axis as the heatmap
+  const futureMs = markovOverlay?.price_fan ? Math.round(timeWindowMs * 38 / 62) : 0;
+
   // Use constant percentage range to prevent auto-zoom
   let displayMinPrice, displayMaxPrice;
   if (currentPrice) {
@@ -164,8 +167,11 @@ export const renderMultiLayoutBookmap = ({
       .style('font-weight', heatmapConfig.isCombined ? '700' : '600')
       .text(heatmapConfig.name);
 
-    // Scales
-    const xScale = d3.scaleTime().domain([displayMinTime, displayMaxTime]).range([0, actualWidth]);
+    // Scales — extend time domain to include Markov future zone so both share one axis
+    const domainMaxTime = futureMs > 0
+      ? new Date(Math.max(displayMaxTime.getTime(), maxTime.getTime() + futureMs))
+      : displayMaxTime;
+    const xScale = d3.scaleTime().domain([displayMinTime, domainMaxTime]).range([0, actualWidth]);
     const yScale = d3.scaleLinear().domain([displayMinPrice, displayMaxPrice]).range([heatmapHeight, 0]);
 
     // Grid lines
@@ -391,12 +397,13 @@ export const renderMultiLayoutBookmap = ({
         if (fanOverlapsView) {
           const overlayG = heatmapGroup.append('g').attr('class', 'markov-overlay');
 
-          // Fan occupies the rightmost 38% of the chart (the "future" zone)
-          const fanWidth  = Math.min(actualWidth * 0.38, 230);
-          const fanStartX = actualWidth - fanWidth;
-          const xFn = i => fanStartX + (i / Math.max(nSteps - 1, 1)) * fanWidth;
+          // Fan anchored to "now" on the shared time axis — moves with scroll
+          const nowX = Math.max(0, Math.min(actualWidth, xScale(maxTime)));
+          const fanStartX = nowX;
+          const fanPixelWidth = actualWidth - nowX;
+          const xFn = i => fanStartX + (i / Math.max(nSteps - 1, 1)) * fanPixelWidth;
 
-          // D3 area / line generators — y0 = lower price (higher SVG-y), y1 = upper price
+          // D3 area / line generators
           const outerArea = d3.area()
             .x(d => xFn(d.step))
             .y0(d => yScale(clamp(d.p5  ?? d.p50)))
@@ -414,110 +421,149 @@ export const renderMultiLayoutBookmap = ({
             .y(d => yScale(clamp(d.p50)))
             .curve(d3.curveMonotoneX);
 
-          // ── "NOW" separator ──────────────────────────────────────────────
+          const iqrBoundLine = side => d3.line()
+            .x(d => xFn(d.step))
+            .y(d => yScale(clamp(side === 'p25' ? (d.p25 ?? d.p50) : (d.p75 ?? d.p50))))
+            .curve(d3.curveMonotoneX);
+
+          // ── Shaded future zone background ────────────────────────────────
+          if (fanPixelWidth > 0) {
+            overlayG.append('rect')
+              .attr('x', fanStartX).attr('y', 0)
+              .attr('width', fanPixelWidth).attr('height', heatmapHeight)
+              .attr('fill', 'rgba(14, 25, 50, 0.45)')
+              .attr('pointer-events', 'none');
+          }
+
+          // ── "NOW" separator — bright vertical line ────────────────────────
           overlayG.append('line')
             .attr('x1', fanStartX).attr('x2', fanStartX)
             .attr('y1', 0).attr('y2', heatmapHeight)
-            .attr('stroke', 'rgba(255,255,255,0.25)')
-            .attr('stroke-width', 1)
+            .attr('stroke', 'rgba(255,255,255,0.60)')
+            .attr('stroke-width', 1.5)
             .attr('stroke-dasharray', '4 3')
             .attr('pointer-events', 'none');
           overlayG.append('text')
-            .attr('x', fanStartX + 4).attr('y', 14)
-            .attr('fill', 'rgba(255,255,255,0.4)').attr('font-size', 9)
+            .attr('x', fanStartX + 5).attr('y', 14)
+            .attr('fill', 'rgba(255,255,255,0.70)').attr('font-size', 9).attr('font-weight', '600')
             .attr('pointer-events', 'none')
             .text('NOW →');
 
-          // ── Outer band: 5–95% ────────────────────────────────────────────
+          // ── Outer band 5–95%: blue (uncertainty range) ───────────────────
           overlayG.append('path')
             .datum(fanData)
             .attr('d', outerArea)
-            .attr('fill', 'rgba(46, 204, 113, 0.10)')
+            .attr('fill', 'rgba(59, 130, 246, 0.18)')
             .attr('pointer-events', 'none')
             .attr('class', 'markov-band-outer');
 
-          // ── Inner band: 25–75% ───────────────────────────────────────────
+          // ── Inner band 25–75%: amber (interquartile / high-confidence) ────
           overlayG.append('path')
             .datum(fanData)
             .attr('d', innerArea)
-            .attr('fill', 'rgba(46, 204, 113, 0.26)')
+            .attr('fill', 'rgba(251, 191, 36, 0.28)')
             .attr('pointer-events', 'none')
             .attr('class', 'markov-band-inner');
 
-          // ── Median line ──────────────────────────────────────────────────
+          // ── IQR boundary lines (p25 / p75) dashed amber ──────────────────
+          ['p25', 'p75'].forEach(side => {
+            overlayG.append('path')
+              .datum(fanData)
+              .attr('d', iqrBoundLine(side)(fanData))
+              .attr('fill', 'none')
+              .attr('stroke', 'rgba(251, 191, 36, 0.70)')
+              .attr('stroke-width', 1)
+              .attr('stroke-dasharray', '3 3')
+              .attr('pointer-events', 'none');
+          });
+
+          // ── Median glow + line: bright cyan ──────────────────────────────
           overlayG.append('path')
             .datum(fanData)
-            .attr('d', medianLine)
+            .attr('d', medianLine(fanData))
             .attr('fill', 'none')
-            .attr('stroke', '#2ecc71')
-            .attr('stroke-width', 2)
+            .attr('stroke', '#00e5ff')
+            .attr('stroke-width', 5)
+            .attr('opacity', 0.18)
+            .style('filter', 'blur(3px)')
+            .attr('pointer-events', 'none');
+          overlayG.append('path')
+            .datum(fanData)
+            .attr('d', medianLine(fanData))
+            .attr('fill', 'none')
+            .attr('stroke', '#00e5ff')
+            .attr('stroke-width', 1.8)
+            .attr('opacity', 0.95)
             .attr('pointer-events', 'none')
             .attr('class', 'markov-median');
 
-          // ── Initial price reference (horizontal orange dashed) ───────────
+          // ── Initial price reference ───────────────────────────────────────
           const initP = markovOverlay.initial_price;
           if (initP != null && initP >= displayMinPrice && initP <= displayMaxPrice) {
             const initY = yScale(initP);
             overlayG.append('line')
               .attr('x1', fanStartX).attr('x2', actualWidth)
               .attr('y1', initY).attr('y2', initY)
-              .attr('stroke', 'orange').attr('stroke-width', 1)
-              .attr('stroke-dasharray', '4 4').attr('opacity', 0.75)
+              .attr('stroke', '#f97316').attr('stroke-width', 1.2)
+              .attr('stroke-dasharray', '5 4').attr('opacity', 0.85)
               .attr('pointer-events', 'none');
             overlayG.append('text')
-              .attr('x', fanStartX + 4).attr('y', initY - 3)
-              .attr('fill', 'orange').attr('font-size', 9).attr('opacity', 0.85)
+              .attr('x', fanStartX + 5).attr('y', initY - 4)
+              .attr('fill', '#f97316').attr('font-size', 9).attr('font-weight', '600')
+              .attr('opacity', 0.90)
               .attr('pointer-events', 'none')
-              .text('start');
+              .text('entry');
           }
 
           // ── Right-edge percentile labels ─────────────────────────────────
           const last = fanData[fanData.length - 1];
           [
-            { key: 'p95', val: last.p95, label: '95%' },
-            { key: 'p50', val: last.p50, label: '50%' },
-            { key: 'p5',  val: last.p5,  label: '5%'  },
-          ].forEach(({ val, label }) => {
+            { val: last.p95, label: '95%', color: '#60a5fa' },
+            { val: last.p75, label: '75%', color: '#fbbf24' },
+            { val: last.p50, label: '50%', color: '#00e5ff' },
+            { val: last.p25, label: '25%', color: '#fbbf24' },
+            { val: last.p5,  label: '5%',  color: '#60a5fa' },
+          ].forEach(({ val, label, color }) => {
             if (val == null || val <= displayMinPrice || val >= displayMaxPrice) return;
             overlayG.append('text')
               .attr('x', actualWidth - 3).attr('y', yScale(val) - 3)
-              .attr('text-anchor', 'end').attr('fill', '#2ecc71')
-              .attr('font-size', 8).attr('opacity', 0.8)
+              .attr('text-anchor', 'end').attr('fill', color)
+              .attr('font-size', 8).attr('font-weight', '600').attr('opacity', 0.9)
               .attr('pointer-events', 'none')
               .text(`${label} $${val.toFixed(4)}`);
           });
 
-          // ── Active wall markers (full width) ────────────────────────────
+          // ── Active wall markers: thicker, more opaque ────────────────────
           (markovOverlay.active_walls || []).forEach(wall => {
             const wy = yScale(wall.price);
             if (wy < 0 || wy > heatmapHeight) return;
-            const wallColor   = wall.side === 'bid' ? '#3498db' : '#e74c3c';
-            const wallOpacity = Math.min(0.9, 0.4 + (wall.proximity_weight || 0) * 0.5);
+            const wallColor   = wall.side === 'bid' ? '#38bdf8' : '#f87171';
+            const wallOpacity = Math.min(0.95, 0.55 + (wall.proximity_weight || 0) * 0.4);
             overlayG.append('line')
               .attr('x1', 0).attr('x2', actualWidth)
               .attr('y1', wy).attr('y2', wy)
-              .attr('stroke', wallColor).attr('stroke-width', 1)
-              .attr('stroke-dasharray', '3 4').attr('opacity', wallOpacity)
+              .attr('stroke', wallColor).attr('stroke-width', 1.5)
+              .attr('stroke-dasharray', '4 3').attr('opacity', wallOpacity)
               .attr('pointer-events', 'none')
               .attr('class', 'markov-wall');
             overlayG.append('text')
-              .attr('x', 4).attr('y', wy - 3)
-              .attr('fill', wallColor).attr('font-size', 9)
+              .attr('x', 5).attr('y', wy - 3)
+              .attr('fill', wallColor).attr('font-size', 9).attr('font-weight', '600')
               .attr('opacity', wallOpacity).attr('pointer-events', 'none')
-              .text(`${wall.side.toUpperCase()} ${wall.price.toFixed(4)}`);
+              .text(`${wall.side.toUpperCase()} $${wall.price.toFixed(4)}`);
           });
 
           // ── MARKOV LIVE badge ─────────────────────────────────────────────
           overlayG.append('rect')
-            .attr('x', fanStartX + 4).attr('y', 20)
-            .attr('width', 84).attr('height', 15).attr('rx', 3)
-            .attr('fill', 'rgba(46, 204, 113, 0.15)')
-            .attr('stroke', '#2ecc71').attr('stroke-width', 0.5)
+            .attr('x', fanStartX + 5).attr('y', 20)
+            .attr('width', 88).attr('height', 15).attr('rx', 3)
+            .attr('fill', 'rgba(0, 229, 255, 0.12)')
+            .attr('stroke', '#00e5ff').attr('stroke-width', 0.8)
             .attr('pointer-events', 'none');
           overlayG.append('text')
-            .attr('x', fanStartX + 46).attr('y', 30)
+            .attr('x', fanStartX + 49).attr('y', 30)
             .attr('text-anchor', 'middle')
-            .attr('fill', '#2ecc71').attr('font-size', 9).attr('font-weight', 'bold')
+            .attr('fill', '#00e5ff').attr('font-size', 9).attr('font-weight', 'bold')
             .attr('pointer-events', 'none')
             .text('MARKOV LIVE');
         }
