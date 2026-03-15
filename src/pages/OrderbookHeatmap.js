@@ -222,7 +222,7 @@ const OrderbookHeatmap = () => {
 
     const handleWheel = (event) => {
       event.preventDefault();
-      const delta = -event.deltaY * 0.002;
+      const delta = -event.deltaY * 0.0005;
       const newZoom = Math.max(0.01, Math.min(100, priceZoom + delta));
       setPriceZoom(newZoom);
     };
