@@ -11,6 +11,7 @@ import * as d3 from 'd3';
 import useOrderbookHeatmap from '../hooks/useOrderbookHeatmap';
 import useDexPools from '../hooks/useDexPools';
 import { useMarkovStream } from '../hooks/useMarkovStream';
+import { API_CONFIG } from '../config/api';
 import './OrderbookHeatmap.css';
 
 // Import extracted modules
@@ -371,7 +372,7 @@ const OrderbookHeatmap = () => {
 
       console.log('Sending start request:', JSON.stringify(startPayload, null, 2));
 
-      const response = await fetch('/api/v1/orderbook-heatmap/start', {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/v1/orderbook-heatmap/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -380,8 +381,10 @@ const OrderbookHeatmap = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to start heatmap');
+        const text = await response.text();
+        let detail = 'Failed to start heatmap';
+        try { detail = JSON.parse(text).detail || detail; } catch (_) { detail = `Proxy error (${response.status})`; }
+        throw new Error(detail);
       }
 
       const data = await response.json();
