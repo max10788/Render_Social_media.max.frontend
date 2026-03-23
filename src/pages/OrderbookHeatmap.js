@@ -11,6 +11,8 @@ import * as d3 from 'd3';
 import useOrderbookHeatmap from '../hooks/useOrderbookHeatmap';
 import useDexPools from '../hooks/useDexPools';
 import { useMarkovStream } from '../hooks/useMarkovStream';
+import { useTickStreamLive } from '../hooks/useTickStreamLive';
+import { useTickStream } from '../hooks/useTickStream';
 import { API_CONFIG } from '../config/api';
 import './OrderbookHeatmap.css';
 
@@ -33,6 +35,7 @@ import {
 
 import MarkovSimulationPanel from './MarkovSimulationPanel';
 import { runMarkovSimulation } from '../services/orderbookHeatmapService';
+// runTickSimulation wird von useTickStream intern via fetch aufgerufen
 
 const OrderbookHeatmap = () => {
   // ========== HOOKS ==========
@@ -140,6 +143,14 @@ const OrderbookHeatmap = () => {
   const [markovSnapshots, setMarkovSnapshots] = useState(20);
   const [markovError, setMarkovError] = useState(null);
 
+  // Overlay-Modus: 'snapshot' | 'tick'
+  const [overlayMode, setOverlayMode] = useState('snapshot');
+
+  // Tick Live-Overlay State
+  const [tickOverlayEnabled, setTickOverlayEnabled] = useState(false);
+  const [tickOverlayDuration, setTickOverlayDuration] = useState(10);
+  const [tickOverlayRetrainEvery, setTickOverlayRetrainEvery] = useState(40);
+
   // Markov Live Overlay Hook
   const {
     markovData: markovStreamData,
@@ -148,17 +159,45 @@ const OrderbookHeatmap = () => {
   } = useMarkovStream({
     token: markovOverlayToken,
     network: markovOverlayNetwork,
-    enabled: markovOverlayEnabled,
+    enabled: markovOverlayEnabled && overlayMode === 'snapshot',
     retrainEvery: markovRetrainEvery,
     minSnapshots: 15,
     nPaths: 200,
     nSteps: 50,
   });
 
-  const markovOverlay = markovStreamData ? {
-    price_fan: markovStreamData.price_fan,
-    active_walls: markovStreamData.active_walls || [],
-    initial_price: markovStreamData.initial_price,
+  const {
+    markovData: tickStreamData,
+    status: tickOverlayStatus,
+  } = useTickStreamLive({
+    token: markovOverlayToken,
+    network: markovOverlayNetwork,
+    enabled: tickOverlayEnabled && overlayMode === 'tick',
+    durationSeconds: tickOverlayDuration,
+    retrainEvery: tickOverlayRetrainEvery,
+    nPaths: 200,
+    nSteps: 50,
+  });
+
+  // Hook für einmalige Tick-Simulation (Run-Button im MARKOV SIM Panel)
+  const {
+    status: tickSimStatus,
+    simulationResult: tickSimResult,
+    startStream: startTickStream,
+    cancelStream: cancelTickStream,
+  } = useTickStream({
+    token: markovToken,
+    network: markovNetwork,
+    durationSeconds: 10,
+    nPaths: 300,
+    nSteps: 50,
+  });
+
+  const activeOverlayData = overlayMode === 'tick' ? tickStreamData : markovStreamData;
+  const markovOverlay = activeOverlayData ? {
+    price_fan:     activeOverlayData.price_fan,
+    active_walls:  activeOverlayData.active_walls || [],
+    initial_price: activeOverlayData.initial_price,
   } : null;
 
   // ========== EFFECTS ==========
@@ -420,12 +459,31 @@ const OrderbookHeatmap = () => {
     }
   };
 
+  const handleRunTickSimulation = () => {
+    setMarkovData(null);
+    setMarkovError(null);
+    startTickStream();
+  };
+
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
   };
+
+  // Tick-Simulation Ergebnis → MarkovSimulationPanel
+  useEffect(() => {
+    if (tickSimResult) {
+      setMarkovData(tickSimResult);
+    }
+  }, [tickSimResult]);
+
+  useEffect(() => {
+    if (tickSimStatus?.phase === 'error') {
+      setMarkovError('Tick Simulation: ' + (tickSimStatus.message || 'Fehler'));
+    }
+  }, [tickSimStatus]);
 
   // ========== COMPUTED VALUES ==========
 
@@ -541,6 +599,22 @@ const OrderbookHeatmap = () => {
               onMarkovRetrainEveryChange={setMarkovRetrainEvery}
               markovStatus={markovStatus}
               onForceRetrain={forceRetrain}
+              overlayMode={overlayMode}
+              onOverlayModeChange={(mode) => {
+                setOverlayMode(mode);
+                if (mode === 'snapshot') setTickOverlayEnabled(false);
+                else setMarkovOverlayEnabled(false);
+              }}
+              tickOverlayEnabled={tickOverlayEnabled}
+              onTickOverlayEnabledChange={setTickOverlayEnabled}
+              tickOverlayStatus={tickOverlayStatus}
+              tickOverlayDuration={tickOverlayDuration}
+              onTickOverlayDurationChange={setTickOverlayDuration}
+              tickOverlayRetrainEvery={tickOverlayRetrainEvery}
+              onTickOverlayRetrainEveryChange={setTickOverlayRetrainEvery}
+              onRunTickSimulation={handleRunTickSimulation}
+              isTickSimulating={tickSimStatus?.phase === 'collecting' || tickSimStatus?.phase === 'simulating'}
+              tickSimStatus={tickSimStatus}
             />
           )}
         </aside>

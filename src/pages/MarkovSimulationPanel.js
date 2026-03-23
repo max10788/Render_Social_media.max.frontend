@@ -394,6 +394,12 @@ function MetricsTable({ data }) {
     ['Token', data.token || '—'],
     ['Network', data.network || '—'],
     ['Snapshots Used', data.n_snapshots_used != null ? data.n_snapshots_used : '—'],
+    ...(data.tick_data ? [
+      ['Tick Events', data.tick_data.n_tick_events ?? '—'],
+      ['Snapshots generiert (Tick)', data.tick_data.n_snapshots_generated ?? '—'],
+      ['OFI Mean', data.tick_data.ofi_mean != null ? Number(data.tick_data.ofi_mean).toFixed(4) : '—'],
+      ['OFI Std', data.tick_data.ofi_std != null ? Number(data.tick_data.ofi_std).toFixed(4) : '—'],
+    ] : []),
   ];
 
   const headerStyle = {
@@ -502,7 +508,10 @@ const MarkovSimulationPanel = ({ data, token, network }) => {
           Markov Chain Simulation
         </div>
         <div style={{ color: '#aaa', fontSize: 13 }}>
-          {token} on {network} — {data.n_snapshots_used || 0} snapshots collected
+          {token} on {network}
+          {data.tick_data
+            ? ` — ${data.tick_data.n_tick_events || 0} Tick-Events · ${data.tick_data.n_snapshots_generated || 0} Snapshots`
+            : ` — ${data.n_snapshots_used || 0} Snapshots`}
         </div>
       </div>
 
@@ -569,6 +578,47 @@ const MarkovSimulationPanel = ({ data, token, network }) => {
       <div style={{ marginTop: 20 }}>
         <MetricsTable data={data} />
       </div>
+
+      {/* ROW 4: OFI Block — nur bei Tick-Simulation */}
+      {data.tick_data?.dominant_pressure && (
+        <div style={{ marginTop: 20 }}>
+          <div className="markov-chart-card">
+            <div className="markov-chart-title">Order Flow Imbalance (OFI)</div>
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', padding: '12px 0' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>Dominanter Druck</div>
+                <div style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: data.tick_data.dominant_pressure === 'bid' ? '#2ecc71'
+                       : data.tick_data.dominant_pressure === 'ask' ? '#e74c3c'
+                       : '#f39c12',
+                }}>
+                  {data.tick_data.dominant_pressure?.toUpperCase() ?? '—'}
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>OFI Ø</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>
+                  {data.tick_data.ofi_mean != null ? Number(data.tick_data.ofi_mean).toFixed(4) : '—'}
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>OFI σ</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>
+                  {data.tick_data.ofi_std != null ? Number(data.tick_data.ofi_std).toFixed(4) : '—'}
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>Tick-Events</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>
+                  {data.tick_data.n_tick_events ?? '—'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

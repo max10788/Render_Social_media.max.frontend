@@ -495,3 +495,29 @@ export const runMarkovSimulation = async (token, network, nSnapshots = 120) => {
     throw error;
   }
 };
+
+/**
+ * Run Tick-Based Markov Simulation via POST /markov/simulate/tick
+ * @param {string} token      — Token-Symbol, z.B. "ARB"
+ * @param {string} network    — L2-Netzwerk, z.B. "arbitrum"
+ * @param {Array}  tickEvents — Array von TickEventInput-Dicts (mind. 50)
+ * @param {number} nPaths     — Simulationspfade (default 300)
+ * @param {number} nSteps     — Simulationsschritte (default 50)
+ * @returns {Promise<Object>} — { success, price_fan, simulation, tick_data, ... }
+ */
+export const runTickSimulation = async (token, network, tickEvents, nPaths = 300, nSteps = 50) => {
+  try {
+    const response = await heatmapApi.post(
+      '/markov/simulate/tick',
+      { tick_events: tickEvents, n_paths: nPaths, n_steps: nSteps },
+      {
+        params: { token, network },
+        timeout: 60000,
+      },
+    );
+    return { success: true, ...response.data };
+  } catch (error) {
+    console.error('Failed to run tick simulation:', error);
+    throw error;
+  }
+};

@@ -374,6 +374,16 @@ export const BloombergTerminal = ({
   onMarkovRetrainEveryChange,
   markovStatus,
   onForceRetrain,
+  // Tick Overlay Props
+  overlayMode,
+  onOverlayModeChange,
+  tickOverlayEnabled,
+  onTickOverlayEnabledChange,
+  tickOverlayStatus,
+  tickOverlayDuration,
+  onTickOverlayDurationChange,
+  tickOverlayRetrainEvery,
+  onTickOverlayRetrainEveryChange,
 }) => (
   <div className="ctrl-panel">
 
@@ -630,7 +640,8 @@ export const BloombergTerminal = ({
     <div className="ctrl-section">
       <div className="ctrl-hd" onClick={() => toggleSection('markovOverlay')}>
         <Activity size={12} /><span>OVERLAY</span>
-        {markovOverlayEnabled && markovStatus?.phase === 'streaming' && (
+        {((markovOverlayEnabled && markovStatus?.phase === 'streaming') ||
+          (tickOverlayEnabled && tickOverlayStatus?.phase === 'streaming')) && (
           <span className="ctrl-live-badge">LIVE</span>
         )}
         {!markovOverlayAvailable && (
@@ -646,47 +657,129 @@ export const BloombergTerminal = ({
             </div>
           ) : (
             <>
+              {/* Modus-Toggle SNAP | TICK */}
+              <div className="ctrl-inline-row" style={{ marginBottom: 8 }}>
+                <button
+                  onClick={() => onOverlayModeChange && onOverlayModeChange('snapshot')}
+                  style={{
+                    flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 600,
+                    background: (!overlayMode || overlayMode === 'snapshot') ? '#2ecc71' : '#2a2a3d',
+                    color: (!overlayMode || overlayMode === 'snapshot') ? '#000' : '#aaa',
+                    border: '1px solid #2ecc71', borderRadius: '3px 0 0 3px', cursor: 'pointer',
+                  }}
+                >SNAP</button>
+                <button
+                  onClick={() => onOverlayModeChange && onOverlayModeChange('tick')}
+                  style={{
+                    flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 600,
+                    background: overlayMode === 'tick' ? '#3498db' : '#2a2a3d',
+                    color: overlayMode === 'tick' ? '#fff' : '#aaa',
+                    border: '1px solid #3498db', borderRadius: '0 3px 3px 0', cursor: 'pointer',
+                  }}
+                >TICK</button>
+              </div>
+
+              {/* Gemeinsames Token-Tag */}
               <div className="ctrl-inline-row">
                 <span className="ctrl-token-tag">
                   {markovOverlayToken}
                   <span className="ctrl-token-net">/{markovOverlayNetwork}</span>
                 </span>
-                <button
-                  className={`ctrl-toggle-btn ${markovOverlayEnabled ? 'on' : 'off'}`}
-                  onClick={() => onMarkovOverlayEnabledChange && onMarkovOverlayEnabledChange(!markovOverlayEnabled)}
-                >
-                  {markovOverlayEnabled ? 'ON' : 'OFF'}
-                </button>
               </div>
-              {markovOverlayEnabled && markovStatus && (
-                <div className={`ctrl-status-line phase-${markovStatus.phase}`}>
-                  {markovStatus.phase === 'streaming' && '● '}
-                  {markovStatus.message || markovStatus.phase}
-                  {markovStatus.phase === 'collecting' && markovStatus.snapshots_needed > 0 && (
-                    <div className="ctrl-prog">
-                      <div
-                        className="ctrl-prog-fill"
-                        style={{ width: `${Math.min(100, ((markovStatus.snapshots_collected || 0) / markovStatus.snapshots_needed) * 100)}%` }}
+
+              {/* SNAP-Modus */}
+              {(!overlayMode || overlayMode === 'snapshot') && (
+                <>
+                  <div className="ctrl-inline-row" style={{ marginTop: 6 }}>
+                    <button
+                      className={`ctrl-toggle-btn ${markovOverlayEnabled ? 'on' : 'off'}`}
+                      onClick={() => onMarkovOverlayEnabledChange && onMarkovOverlayEnabledChange(!markovOverlayEnabled)}
+                      style={{ flex: 1 }}
+                    >
+                      {markovOverlayEnabled ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  {markovOverlayEnabled && markovStatus && (
+                    <div className={`ctrl-status-line phase-${markovStatus.phase}`}>
+                      {markovStatus.phase === 'streaming' && '● '}
+                      {markovStatus.message || markovStatus.phase}
+                      {markovStatus.phase === 'collecting' && markovStatus.snapshots_needed > 0 && (
+                        <div className="ctrl-prog">
+                          <div
+                            className="ctrl-prog-fill"
+                            style={{ width: `${Math.min(100, ((markovStatus.snapshots_collected || 0) / markovStatus.snapshots_needed) * 100)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {markovOverlayEnabled && (
+                    <div className="ctrl-inline-row" style={{ marginTop: 6 }}>
+                      <span className="ctrl-row-label">↺ {markovRetrainEvery}s</span>
+                      <input
+                        type="range" min={10} max={120} step={10}
+                        value={markovRetrainEvery || 30}
+                        onChange={(e) => onMarkovRetrainEveryChange && onMarkovRetrainEveryChange(Number(e.target.value))}
+                        style={{ flex: 1, accentColor: '#2ecc71', marginLeft: 6 }}
                       />
                     </div>
                   )}
-                </div>
+                  {markovOverlayEnabled && markovStatus?.phase === 'streaming' && (
+                    <button className="ctrl-retrain" onClick={() => onForceRetrain && onForceRetrain()}>
+                      Force Retrain
+                    </button>
+                  )}
+                </>
               )}
-              {markovOverlayEnabled && (
-                <div className="ctrl-inline-row" style={{ marginTop: 6 }}>
-                  <span className="ctrl-row-label">↺ {markovRetrainEvery}s</span>
-                  <input
-                    type="range" min={10} max={120} step={10}
-                    value={markovRetrainEvery || 30}
-                    onChange={(e) => onMarkovRetrainEveryChange && onMarkovRetrainEveryChange(Number(e.target.value))}
-                    style={{ flex: 1, accentColor: '#2ecc71', marginLeft: 6 }}
-                  />
-                </div>
-              )}
-              {markovOverlayEnabled && markovStatus?.phase === 'streaming' && (
-                <button className="ctrl-retrain" onClick={() => onForceRetrain && onForceRetrain()}>
-                  Force Retrain
-                </button>
+
+              {/* TICK-Modus */}
+              {overlayMode === 'tick' && (
+                <>
+                  <div className="ctrl-inline-row" style={{ marginTop: 6 }}>
+                    <button
+                      className={`ctrl-toggle-btn ${tickOverlayEnabled ? 'on' : 'off'}`}
+                      onClick={() => onTickOverlayEnabledChange && onTickOverlayEnabledChange(!tickOverlayEnabled)}
+                      style={{ flex: 1, borderColor: '#3498db' }}
+                    >
+                      {tickOverlayEnabled ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  {tickOverlayEnabled && tickOverlayStatus && (
+                    <div className={`ctrl-status-line phase-${tickOverlayStatus.phase}`}>
+                      {tickOverlayStatus.phase === 'streaming' && '● '}
+                      {tickOverlayStatus.phase === 'collecting'
+                        ? `Events: ${tickOverlayStatus.n_events || 0}`
+                        : (tickOverlayStatus.message || tickOverlayStatus.phase)}
+                      {tickOverlayStatus.phase === 'collecting' && (
+                        <div className="ctrl-prog">
+                          <div className="ctrl-prog-fill" style={{ width: '100%', background: '#3498db' }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {tickOverlayEnabled && (
+                    <>
+                      <div className="ctrl-inline-row" style={{ marginTop: 6 }}>
+                        <span className="ctrl-row-label">⏱ {tickOverlayDuration || 10}s</span>
+                        <input
+                          type="range" min={5} max={30} step={5}
+                          value={tickOverlayDuration || 10}
+                          onChange={(e) => onTickOverlayDurationChange && onTickOverlayDurationChange(Number(e.target.value))}
+                          style={{ flex: 1, accentColor: '#3498db', marginLeft: 6 }}
+                        />
+                      </div>
+                      <div className="ctrl-inline-row" style={{ marginTop: 4 }}>
+                        <span className="ctrl-row-label">↺ {tickOverlayRetrainEvery || 40}s</span>
+                        <input
+                          type="range" min={20} max={120} step={10}
+                          value={tickOverlayRetrainEvery || 40}
+                          onChange={(e) => onTickOverlayRetrainEveryChange && onTickOverlayRetrainEveryChange(Number(e.target.value))}
+                          style={{ flex: 1, accentColor: '#3498db', marginLeft: 6 }}
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
               )}
             </>
           )}
