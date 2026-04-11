@@ -314,24 +314,32 @@ const OrderbookHeatmap = () => {
       cancelAnimationFrame(animationFrameRef.current);
     }
 
+    // Dirty flag: set true when this effect fires (= data or view params changed).
+    // The RAF loop only redraws when dirty, so we pay the full D3 rebuild cost at
+    // most once per data update (~1 Hz from WS) instead of 60 times per second.
+    let dirty = true;
+
     const renderLoop = () => {
-      renderMultiLayoutBookmap({
-        heatmapRef,
-        tooltipRef,
-        heatmapBuffer,
-        currentPrice,
-        priceHistory,
-        dimensions,
-        timeWindowSeconds,
-        priceZoom,
-        timeOffset,
-        showMinimap,
-        layoutMode,
-        priceRangePercent,
-        isDragging,
-        mode,
-        markovOverlay,
-      });
+      if (dirty) {
+        dirty = false;
+        renderMultiLayoutBookmap({
+          heatmapRef,
+          tooltipRef,
+          heatmapBuffer,
+          currentPrice,
+          priceHistory,
+          dimensions,
+          timeWindowSeconds,
+          priceZoom,
+          timeOffset,
+          showMinimap,
+          layoutMode,
+          priceRangePercent,
+          isDragging,
+          mode,
+          markovOverlay,
+        });
+      }
       animationFrameRef.current = requestAnimationFrame(renderLoop);
     };
 

@@ -28,8 +28,6 @@ export const renderMultiLayoutBookmap = ({
 }) => {
   if (!heatmapRef.current || heatmapBuffer.length === 0) return;
 
-  console.log(`Rendering multi-layout: ${layoutMode}`);
-
   d3.select(heatmapRef.current).selectAll('*').remove();
 
   const firstSnapshot = heatmapBuffer[0];
@@ -595,7 +593,6 @@ export const renderMultiLayoutBookmap = ({
     }
   });
 
-  console.log(`Multi-layout render complete: ${layoutConfig.heatmaps.length} heatmaps in ${layoutMode} mode`);
 };
 
 export default {
